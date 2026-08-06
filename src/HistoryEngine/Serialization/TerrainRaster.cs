@@ -54,6 +54,9 @@ public static class TerrainRaster
                 heights[index] = sample.Height;
                 biomes[index] = (byte)BiomeClassifier.Classify(sample);
 
+                // River presence is still reported per cell so consumers can query it, but the
+                // map view draws the vector network instead — at lattice resolution a flag paints
+                // a 256-unit block, which looks like a lake rather than a river.
                 byte flag = 0;
                 if (hydrology.IsRiver(x, z)) flag |= ExportRaster.FlagRiver;
                 if (hydrology.IsCoast(x, z)) flag |= ExportRaster.FlagCoast;

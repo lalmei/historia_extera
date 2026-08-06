@@ -1,0 +1,31 @@
+---
+import App from '../app/App';
+import '../styles/global.css';
+---
+
+<!--
+  One route, one client-rendered app.
+
+  Astro supplies the build pipeline, the document shell and Tailwind wiring; the
+  data views are a React island with hash routing inside it. That keeps the export
+  file as the sole engine/viewer contract: the viewer is built once and any world
+  file can be dropped into public/worlds/ and opened without a rebuild.
+
+  client:only rather than client:load because the app fetches and indexes the world
+  on mount and has nothing meaningful to server-render.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Historia Extera — Legends</title>
+    <meta
+      name="description"
+      content="Browse a procedurally generated world history: civilizations, settlements, figures and the chronicle that links them."
+    />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  </head>
+  <body>
+    <App client:only="react" />
+  </body>
+</html>

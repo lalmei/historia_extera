@@ -79,7 +79,19 @@ public sealed record ExportWorld(
     int RegionSize,
     int TerrainStride,
     string Capabilities,
-    ExportRaster Raster);
+    ExportRaster Raster,
+    IReadOnlyList<ExportRiver> Rivers);
+
+/// <summary>
+/// One reach of a river, in world coordinates.
+/// </summary>
+/// <remarks>
+/// Rivers travel as vectors rather than as a raster plane. A per-cell flag rasterises to a block
+/// the size of the terrain lattice stride, which renders as a scatter of squares that read as
+/// lakes; segments following the flow graph draw as continuous watercourses at any zoom.
+/// <see cref="Strength"/> is normalised drainage in [0, 1], for line width.
+/// </remarks>
+public sealed record ExportRiver(int X1, int Z1, int X2, int Z2, double Strength);
 
 /// <summary>
 /// The map view's terrain data, as raw byte planes.

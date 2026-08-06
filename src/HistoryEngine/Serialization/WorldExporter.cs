@@ -88,8 +88,16 @@ public static class WorldExporter
         return Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
     }
 
-    private static ExportWorld BuildWorld(WorldState world, ExportRaster raster) =>
-        new(
+    private static ExportWorld BuildWorld(WorldState world, ExportRaster raster)
+    {
+        var rivers = new List<ExportRiver>();
+        foreach (Hydrology.RiverSegment reach in world.Terrain.Hydrology.RiverSegments())
+        {
+            rivers.Add(new ExportRiver(
+                reach.FromX, reach.FromZ, reach.ToX, reach.ToZ, reach.Strength));
+        }
+
+        return new ExportWorld(
             MinX: world.Terrain.Bounds.MinX,
             MinZ: world.Terrain.Bounds.MinZ,
             Width: world.Terrain.Bounds.Width,
@@ -97,7 +105,9 @@ public static class WorldExporter
             RegionSize: world.Config.RegionSize,
             TerrainStride: world.Config.TerrainStride,
             Capabilities: world.Terrain.Capabilities.ToString(),
-            Raster: raster);
+            Raster: raster,
+            Rivers: rivers);
+    }
 
     private static List<ExportRegion> BuildRegions(WorldState world)
     {

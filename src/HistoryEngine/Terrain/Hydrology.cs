@@ -12,17 +12,22 @@ namespace HistoryEngine.Terrain;
 /// sampler does not report rivers at all unless the Watersheds sampler is present, and
 /// Phase 2's candidate generators each model rivers differently or not at all.</para>
 ///
-/// <para>Deriving them from elevation sidesteps all of that. Rivers exist identically in
-/// every phase, they are guaranteed consistent with the terrain they cut through (a sampled
-/// river can contradict a sampled heightmap; a derived one cannot), and they cost zero
-/// samples because the lattice is already primed. When Phase 2 or 3 does supply real river
-/// data, this becomes the fallback rather than the only path — see
+/// <para>Deriving them from elevation sidesteps all of that. Rivers exist identically in every
+/// phase and are guaranteed consistent with the terrain they cut through — a sampled river can
+/// contradict a sampled heightmap, a derived one cannot. When Phase 2 or 3 does supply real river
+/// data, this becomes the fallback rather than the only path; see
 /// <see cref="TerrainCapabilities.Rivers"/>.</para>
 ///
-/// <para>Resolution is the lattice stride, so this locates river <em>valleys</em>, not
-/// channels. That is the right scale for the questions history asks of it — which cities sit
-/// on a trade river, where an army must ford — and Phase 2 can refine locally if a battle
-/// needs a specific crossing.</para>
+/// <para><b>On its own grid, not the simulation lattice.</b> This was originally built from the
+/// primed lattice, which made it free. It also made it useless: at the lattice's 256-unit stride a
+/// 4096-unit world is 17×17 cells, and flow accumulation over that produced four disconnected
+/// fragments rather than a river network. Drainage is simply a finer-grained phenomenon than the
+/// regional scoring the lattice exists for, so it gets one bulk sampling pass at
+/// <see cref="TerrainAtlas.HydrologyStride"/> — a one-off worldgen cost that Phase 3 can lower
+/// deliberately rather than a per-year cost that would need eliminating.</para>
+///
+/// <para>Even so this locates river <em>valleys</em> rather than channels, which is the right scale
+/// for the questions history asks — which cities sit on a trade river, where an army must ford.</para>
 /// </remarks>
 public sealed class Hydrology
 {
@@ -67,27 +72,31 @@ public sealed class Hydrology
         _maxAccumulation = maxAccumulation;
     }
 
-    public static Hydrology FromLattice(TerrainAtlas atlas)
+    /// <summary>
+    /// Builds the drainage network on its own grid at <paramref name="stride"/>.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately not built on the simulation lattice. At the lattice's 256-unit stride a
+    /// 4096-unit world is 17×17 cells, and flow accumulation over that yields a handful of
+    /// disconnected fragments rather than a river network — drainage is a finer-grained phenomenon
+    /// than the regional scoring the lattice exists for. One bulk sampling pass at this stride is a
+    /// one-off worldgen cost, reported separately so Phase 3 can lower it deliberately.
+    /// </remarks>
+    public static Hydrology Build(TerrainAtlas atlas, int stride)
     {
-        int w = atlas.LatticeWidth;
-        int h = atlas.LatticeHeight;
+        TerrainSample[] grid = atlas.SampleGrid(stride, out int w, out int h);
         int n = w * h;
 
         var heights = new double[n];
         var submerged = new bool[n];
 
-        for (int j = 0; j < h; j++)
+        for (int i = 0; i < n; i++)
         {
-            for (int i = 0; i < w; i++)
-            {
-                TerrainSample s = atlas.LatticeAt(i, j);
-                int idx = (j * w) + i;
-                heights[idx] = s.Height;
-                submerged[idx] = s.Height < 0f;
-            }
+            heights[i] = grid[i].Height;
+            submerged[i] = grid[i].Height < 0f;
         }
 
-        int[] downstream = ComputeFlowDirections(heights, w, h, atlas.Stride);
+        int[] downstream = ComputeFlowDirections(heights, w, h, stride);
         double[] accumulation = ComputeAccumulation(heights, downstream, n);
         bool[] isRiver = ClassifyRivers(accumulation, submerged, n);
         bool[] isCoast = ClassifyCoast(submerged, w, h);
@@ -99,7 +108,7 @@ public sealed class Hydrology
         }
 
         return new Hydrology(
-            w, h, atlas.Stride, atlas.Bounds, downstream, accumulation, isRiver, isCoast, max);
+            w, h, stride, atlas.Bounds, downstream, accumulation, isRiver, isCoast, max);
     }
 
     /// <summary>Steepest-descent neighbour for each cell, or -1 where the cell is a sink.</summary>
@@ -263,6 +272,44 @@ public sealed class Hydrology
 
     public bool CoastAtNode(int i, int j) =>
         _isCoast[(Math.Clamp(j, 0, _height - 1) * _width) + Math.Clamp(i, 0, _width - 1)];
+
+    /// <summary>One reach of a river: where it runs from, where it runs to, and how much it carries.</summary>
+    public readonly record struct RiverSegment(
+        int FromX, int FromZ, int ToX, int ToZ, double Strength);
+
+    /// <summary>
+    /// The river network as line segments following the flow graph.
+    /// </summary>
+    /// <remarks>
+    /// Exported for the map view instead of a per-cell river flag. A flag rasterises to a block the
+    /// size of the lattice stride — 256 world units — so rivers would render as a scatter of squares
+    /// that read as lakes rather than as watercourses. Segments follow the actual downstream links,
+    /// so they draw as continuous lines at any zoom and carry a width from their drainage.
+    /// </remarks>
+    public IEnumerable<RiverSegment> RiverSegments()
+    {
+        for (int j = 0; j < _height; j++)
+        {
+            for (int i = 0; i < _width; i++)
+            {
+                int index = (j * _width) + i;
+                if (!_isRiver[index]) continue;
+
+                int downstream = _downstream[index];
+                if (downstream < 0) continue;
+
+                int di = downstream % _width;
+                int dj = downstream / _width;
+
+                yield return new RiverSegment(
+                    FromX: _bounds.MinX + (i * _stride),
+                    FromZ: _bounds.MinZ + (j * _stride),
+                    ToX: _bounds.MinX + (di * _stride),
+                    ToZ: _bounds.MinZ + (dj * _stride),
+                    Strength: _maxAccumulation <= 0.0 ? 0.0 : _accumulation[index] / _maxAccumulation);
+            }
+        }
+    }
 
     /// <summary>Total river nodes. Diagnostic.</summary>
     public int RiverNodeCount

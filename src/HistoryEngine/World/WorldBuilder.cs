@@ -41,7 +41,7 @@ public static class WorldBuilder
         config.Validate();
 
         sampler ??= new ProceduralTerrainSampler(config.Seed, config.Bounds, config.Terrain);
-        var atlas = new TerrainAtlas(sampler, config.TerrainStride);
+        var atlas = new TerrainAtlas(sampler, config.TerrainStride, config.HydrologyStride);
 
         var world = new WorldState(
             config,

@@ -1,0 +1,151 @@
+import {
+  BIOME_ORDER,
+  SCHEMA_VERSION,
+  kindOf,
+  type AnyEntity,
+  type Biome,
+  type Civilization,
+  type Culture,
+  type EntityId,
+  type Figure,
+  type HistoryEvent,
+  type Region,
+  type Settlement,
+  type WorldExport,
+} from './types';
+
+/**
+ * The loaded world, plus the lookup maps the views need.
+ *
+ * Built once on load. Every id-to-entity resolution in the app goes through a Map
+ * here rather than an array scan, which is what makes cross-link navigation feel
+ * instant when a history has tens of thousands of events.
+ */
+export interface World {
+  export: WorldExport;
+  byId: Map<EntityId, AnyEntity>;
+  eventsFor: (id: EntityId) => HistoryEvent[];
+  nameOf: (id: EntityId) => string;
+  raster: DecodedRaster;
+}
+
+export interface DecodedRaster {
+  resolution: number;
+  minHeight: number;
+  maxHeight: number;
+  height: Uint8Array;
+  biome: Uint8Array;
+  flags: Uint8Array;
+  biomeAt: (index: number) => Biome;
+}
+
+export class SchemaMismatchError extends Error {
+  constructor(found: number) {
+    super(
+      `This world file uses schema version ${found}, but the viewer understands ` +
+        `version ${SCHEMA_VERSION}. Regenerate it with the current engine.`,
+    );
+    this.name = 'SchemaMismatchError';
+  }
+}
+
+export async function loadWorld(url: string): Promise<World> {
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error(
+      `Could not load ${url} (${response.status}). Generate a world first:\n` +
+        `dotnet run --project src/HistoryEngine.Cli -- --seed 42`,
+    );
+  }
+
+  const data = (await response.json()) as WorldExport;
+
+  // Fail loudly on a version mismatch rather than misrendering a file we do not
+  // understand — a wrong chronicle is worse than a refused one.
+  if (data.schemaVersion !== SCHEMA_VERSION) {
+    throw new SchemaMismatchError(data.schemaVersion);
+  }
+
+  return buildWorld(data);
+}
+
+export function buildWorld(data: WorldExport): World {
+  const byId = new Map<EntityId, AnyEntity>();
+
+  for (const collection of [
+    data.regions,
+    data.cultures,
+    data.civilizations,
+    data.settlements,
+    data.figures,
+  ] as AnyEntity[][]) {
+    for (const entity of collection) byId.set(entity.id, entity);
+  }
+
+  const eventsFor = (id: EntityId): HistoryEvent[] => {
+    const indices = data.indices.eventsByEntity[id];
+    if (!indices) return [];
+    return indices.map((index) => data.events[index]);
+  };
+
+  const nameOf = (id: EntityId): string => {
+    const entity = byId.get(id);
+    if (entity && 'name' in entity) return entity.name;
+    // Unresolvable ids render as the id itself. A chronicle that throws is harder
+    // to debug than one with an odd label in it.
+    return id;
+  };
+
+  return { export: data, byId, eventsFor, nameOf, raster: decodeRaster(data) };
+}
+
+function decodeRaster(data: WorldExport): DecodedRaster {
+  const { raster } = data.world;
+
+  const height = base64ToBytes(raster.height);
+  const biome = base64ToBytes(raster.biome);
+  const flags = base64ToBytes(raster.flags);
+
+  return {
+    resolution: raster.resolution,
+    minHeight: raster.minHeight,
+    maxHeight: raster.maxHeight,
+    height,
+    biome,
+    flags,
+    biomeAt: (index) => BIOME_ORDER[biome[index]] ?? 'Ocean',
+  };
+}
+
+function base64ToBytes(encoded: string): Uint8Array {
+  const binary = atob(encoded);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+// ---------------------------------------------------------------------------
+// Typed accessors. The `byId` map is deliberately untyped-by-kind, so these
+// narrow at the point of use and keep casts out of the views.
+// ---------------------------------------------------------------------------
+
+export function civOf(world: World, id: EntityId | undefined): Civilization | undefined {
+  return id && kindOf(id) === 'civ' ? (world.byId.get(id) as Civilization) : undefined;
+}
+
+export function settlementOf(world: World, id: EntityId | undefined): Settlement | undefined {
+  return id && kindOf(id) === 'set' ? (world.byId.get(id) as Settlement) : undefined;
+}
+
+export function figureOf(world: World, id: EntityId | undefined): Figure | undefined {
+  return id && kindOf(id) === 'fig' ? (world.byId.get(id) as Figure) : undefined;
+}
+
+export function regionOf(world: World, id: EntityId | undefined): Region | undefined {
+  return id && kindOf(id) === 'reg' ? (world.byId.get(id) as Region) : undefined;
+}
+
+export function cultureOf(world: World, id: EntityId | undefined): Culture | undefined {
+  return id && kindOf(id) === 'cul' ? (world.byId.get(id) as Culture) : undefined;
+}

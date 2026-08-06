@@ -35,6 +35,15 @@ public sealed record WorldConfig
     /// <summary>Terrain lattice spacing. Must be a power of two. Drives the sample budget.</summary>
     public int TerrainStride { get; init; } = TerrainAtlas.DefaultStride;
 
+    /// <summary>
+    /// Grid spacing for river derivation. Finer than <see cref="TerrainStride"/>.
+    /// </summary>
+    /// <remarks>
+    /// Simulation-affecting, and therefore hashed: rivers feed settlement siting, so changing this
+    /// changes where cities are founded.
+    /// </remarks>
+    public int HydrologyStride { get; init; } = TerrainAtlas.DefaultHydrologyStride;
+
     /// <summary>How many civilizations are seeded at the start.</summary>
     public int InitialCivilizations { get; init; } = 8;
 
@@ -75,6 +84,7 @@ public sealed record WorldConfig
             Append(nameof(WorldSize), WorldSize);
             Append(nameof(RegionSize), RegionSize);
             Append(nameof(TerrainStride), TerrainStride);
+            Append(nameof(HydrologyStride), HydrologyStride);
             Append(nameof(InitialCivilizations), InitialCivilizations);
 
             Append(nameof(TerrainSettings.ContinentScale), Terrain.ContinentScale);
@@ -98,7 +108,7 @@ public sealed record WorldConfig
     /// Number of fields folded into <see cref="ConfigHash"/>. Guards against a new
     /// simulation-affecting field being added without extending the hash.
     /// </summary>
-    public const int HashedFieldCount = 18;
+    public const int HashedFieldCount = 19;
 
     public void Validate()
     {
@@ -113,6 +123,11 @@ public sealed record WorldConfig
         if (TerrainStride <= 0 || (TerrainStride & (TerrainStride - 1)) != 0)
         {
             throw new InvalidOperationException("TerrainStride must be a positive power of two.");
+        }
+
+        if (HydrologyStride <= 0)
+        {
+            throw new InvalidOperationException("HydrologyStride must be positive.");
         }
 
         if (InitialCivilizations < 0)
