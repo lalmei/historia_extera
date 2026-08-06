@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/HistoryEngine.Cli/HistoryEngine.Cli.csproj" />
+    <Project Path="src/HistoryEngine.Tests/HistoryEngine.Tests.csproj" />
+    <Project Path="src/HistoryEngine/HistoryEngine.csproj" />
+  </Folder>
+</Solution>

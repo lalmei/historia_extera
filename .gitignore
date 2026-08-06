@@ -1,0 +1,21 @@
+# Build output
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+*.user
+*.suo
+
+# Generated worlds (regenerable from seed + config)
+worlds/
+*.world.json
+
+# Viewer
+node_modules/
+viewer/dist/
+viewer/.astro/
+.DS_Store
+
+# Test artifacts
+TestResults/
+*.trx
