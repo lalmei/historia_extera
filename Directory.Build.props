@@ -1,0 +1,19 @@
+<Project>
+
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest</AnalysisLevel>
+
+    <!-- net7.0 is out of support upstream. We target it deliberately: it is the
+         framework Vintage Story mods load (re-confirm at Phase 3 - VS may have
+         moved on by then). Silence the EOL nag rather than see it on every build. -->
+    <CheckEolTargetFramework>false</CheckEolTargetFramework>
+
+    <!-- Determinism: identical seed + config must produce identical output, so
+         builds should be reproducible too. -->
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+
+</Project>

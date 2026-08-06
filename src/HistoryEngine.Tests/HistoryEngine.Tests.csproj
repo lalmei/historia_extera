@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>HistoryEngine.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HistoryEngine\HistoryEngine.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- DeterminismGuardTests scans engine source text for banned constructs
+         (unordered iteration, non-reproducible transcendentals). It needs the
+         source path at runtime. -->
+    <AssemblyAttribute Include="HistoryEngine.Tests.EngineSourcePathAttribute">
+      <_Parameter1>$(MSBuildThisFileDirectory)..\HistoryEngine</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+</Project>
