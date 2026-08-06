@@ -1,0 +1,52 @@
+@import 'tailwindcss';
+
+/* Tailwind v4 is CSS-first: design tokens are declared here, not in a JS config. */
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
+}
+
+:root {
+  color-scheme: light dark;
+
+  /* Parchment and ink, muted enough to read for a long time. */
+  --ink: oklch(0.24 0.02 60);
+  --ink-soft: oklch(0.46 0.02 60);
+  --ink-faint: oklch(0.62 0.015 60);
+  --page: oklch(0.97 0.012 85);
+  --panel: oklch(0.99 0.008 85);
+  --rule: oklch(0.87 0.015 75);
+  --accent: oklch(0.48 0.11 25);
+  --accent-soft: oklch(0.93 0.03 40);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: oklch(0.91 0.012 80);
+    --ink-soft: oklch(0.72 0.015 80);
+    --ink-faint: oklch(0.56 0.015 80);
+    --page: oklch(0.19 0.012 60);
+    --panel: oklch(0.23 0.014 60);
+    --rule: oklch(0.33 0.015 60);
+    --accent: oklch(0.74 0.11 45);
+    --accent-soft: oklch(0.3 0.03 40);
+  }
+}
+
+html,
+body {
+  background: var(--page);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Wide content scrolls inside its own container; the page never scrolls sideways. */
+body {
+  overflow-x: hidden;
+}
+
+a {
+  color: inherit;
+}

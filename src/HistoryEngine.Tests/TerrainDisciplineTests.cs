@@ -159,29 +159,51 @@ public sealed class TerrainDisciplineTests
     }
 
     /// <summary>
-    /// Rivers must never be asked of the sampler.
+    /// Rivers must be derived, and derived once.
     /// </summary>
     /// <remarks>
-    /// A point sampler cannot answer whether a river runs through a location — the answer depends
-    /// on the whole upstream catchment. Vintage Story's sampler does not report rivers at all
-    /// unless the Watersheds sampler is installed, so deriving them from the height lattice is the
-    /// only approach that works in every phase.
+    /// <para>A point sampler cannot answer whether a river runs through a location — the answer
+    /// depends on the whole upstream catchment. Vintage Story's sampler does not report rivers at
+    /// all unless the Watersheds sampler is installed, so deriving them from elevation is the only
+    /// approach that works in every phase.</para>
+    ///
+    /// <para>Hydrology is deliberately built on its own grid rather than the simulation lattice, so
+    /// unlike the rest of the terrain layer it does cost samples. What matters is the shape of that
+    /// cost: one bulk batch at world creation, memoised, and never repeated. This test pins that
+    /// shape — and that the network is actually usable, since an earlier version built on the
+    /// 256-unit lattice produced four disconnected fragments and technically passed a
+    /// "rivers exist" assertion.</para>
     /// </remarks>
     [Fact]
-    public void HydrologyCostsNoSamples()
+    public void HydrologyIsDerivedOnceAndProducesAConnectedNetwork()
     {
         var counter = new CountingTerrainSampler(
             new ProceduralTerrainSampler(3, TerrainBounds.Square(4096)));
-        var atlas = new TerrainAtlas(counter, stride: 256);
+        var atlas = new TerrainAtlas(counter, stride: 256, hydrologyStride: 64);
 
         atlas.EnsurePrimed();
-        long baseline = counter.SampleCount;
+        long afterPriming = counter.SampleCount;
 
         Hydrology hydrology = atlas.Hydrology;
+        long afterHydrology = counter.SampleCount;
 
-        Assert.Equal(baseline, counter.SampleCount);
+        // Never asked of the sampler — no backend claims to supply rivers.
         Assert.False(atlas.Capabilities.HasFlag(TerrainCapabilities.Rivers));
-        Assert.True(hydrology.RiverNodeCount > 0, "Derived hydrology produced no rivers at all.");
+
+        // A 4096-unit world at stride 64 is a 65x65 grid.
+        long hydrologySamples = afterHydrology - afterPriming;
+        Assert.InRange(hydrologySamples, 1, 65 * 65);
+
+        // Memoised: reading it again samples nothing further.
+        _ = atlas.Hydrology;
+        Assert.Equal(afterHydrology, counter.SampleCount);
+
+        // Enough reaches to be a network rather than a scatter of fragments.
+        int segments = hydrology.RiverSegments().Count();
+        Assert.True(
+            segments >= 20,
+            $"Derived hydrology produced only {segments} river reaches, which renders as " +
+            "disconnected fragments rather than watercourses. The hydrology grid is too coarse.");
     }
 
     /// <summary>

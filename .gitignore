@@ -19,3 +19,4 @@ viewer/.astro/
 # Test artifacts
 TestResults/
 *.trx
+viewer/public/worlds/

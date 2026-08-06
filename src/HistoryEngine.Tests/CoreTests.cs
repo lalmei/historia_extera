@@ -274,7 +274,7 @@ public sealed class ConfigTests
         {
             nameof(WorldConfig.Years), nameof(WorldConfig.StartYear), nameof(WorldConfig.WorldSize),
             nameof(WorldConfig.RegionSize), nameof(WorldConfig.TerrainStride),
-            nameof(WorldConfig.InitialCivilizations),
+            nameof(WorldConfig.HydrologyStride), nameof(WorldConfig.InitialCivilizations),
         };
 
         // Excluded on purpose: Seed is exported separately as the run's other half, and

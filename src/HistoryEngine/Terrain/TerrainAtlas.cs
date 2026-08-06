@@ -38,6 +38,17 @@ public sealed class TerrainAtlas
     /// <summary>Lattice spacing in world units. Must be a power of two.</summary>
     public const int DefaultStride = 256;
 
+    /// <summary>
+    /// Default hydrology grid spacing.
+    /// </summary>
+    /// <remarks>
+    /// Chosen as the cheapest resolution that produces a recognisable river network: on a
+    /// 4096-unit world this is a 65×65 grid, about 4,200 samples — roughly six seconds against
+    /// Vintage Story's sampler, once, at world creation. Coarser than this and rivers break into
+    /// disconnected fragments; finer buys detail the simulation cannot use.
+    /// </remarks>
+    public const int DefaultHydrologyStride = 64;
+
     private readonly ITerrainSampler _sampler;
     private readonly TerrainSample[] _lattice;
     private readonly Dictionary<long, TerrainSample> _exact = new();
@@ -45,7 +56,10 @@ public sealed class TerrainAtlas
     private bool _primed;
     private Hydrology? _hydrology;
 
-    public TerrainAtlas(ITerrainSampler sampler, int stride = DefaultStride)
+    public TerrainAtlas(
+        ITerrainSampler sampler,
+        int stride = DefaultStride,
+        int hydrologyStride = DefaultHydrologyStride)
     {
         if (stride <= 0 || (stride & (stride - 1)) != 0)
         {
@@ -53,8 +67,15 @@ public sealed class TerrainAtlas
                 nameof(stride), stride, "Stride must be a positive power of two.");
         }
 
+        if (hydrologyStride <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(hydrologyStride), hydrologyStride, "Hydrology stride must be positive.");
+        }
+
         _sampler = sampler;
         Stride = stride;
+        HydrologyStride = hydrologyStride;
 
         // The lattice spans the bounds inclusively at both edges, so interpolation
         // never needs to extrapolate.
@@ -83,16 +104,90 @@ public sealed class TerrainAtlas
     /// Never asked of the sampler. A point sampler fundamentally cannot answer "is there a
     /// river here" — the answer depends on the whole upstream catchment — and Vintage
     /// Story's sampler does not report rivers at all unless the Watersheds sampler is
-    /// installed. Deriving them from height means rivers exist in all three phases, are
-    /// always consistent with the terrain they run over, and cost no samples at all.
+    /// installed. Deriving them from height means rivers exist in all three phases and are
+    /// always consistent with the terrain they run over.
+    ///
+    /// <para>Built on its own grid at <see cref="HydrologyStride"/> rather than the simulation
+    /// lattice, so unlike the rest of this class it does cost samples: one bulk batch at world
+    /// creation, memoised thereafter. See <see cref="Terrain.Hydrology"/> for why the lattice is too
+    /// coarse to derive a river network from.</para>
     /// </remarks>
     public Hydrology Hydrology
     {
         get
         {
             EnsurePrimed();
-            return _hydrology ??= Terrain.Hydrology.FromLattice(this);
+            return _hydrology ??= Terrain.Hydrology.Build(this, HydrologyStride);
         }
+    }
+
+    /// <summary>
+    /// Grid spacing for hydrology, finer than <see cref="Stride"/>.
+    /// </summary>
+    /// <remarks>
+    /// Rivers need their own resolution. The simulation lattice is deliberately coarse — at a
+    /// 256-unit stride a 4096-unit world is a 17×17 grid, which cannot represent a river network at
+    /// all; flow accumulation over it yields a handful of disconnected cells. Drainage is a
+    /// fundamentally finer-grained phenomenon than "how good is this region", so it gets its own
+    /// one-off grid rather than degrading the simulation lattice everywhere to suit it.
+    /// </remarks>
+    public int HydrologyStride { get; }
+
+    /// <summary>
+    /// Batch-samples a full-world grid at <paramref name="stride"/> and memoises every point.
+    /// </summary>
+    /// <remarks>
+    /// One bulk call, so a backend that amortises setup across a batch gets the chance to. Points
+    /// land in the same cache the three access tiers use, so a later refinement or raster pass over
+    /// the same coordinates is free.
+    /// </remarks>
+    public TerrainSample[] SampleGrid(int stride, out int columns, out int rows)
+    {
+        columns = ((Bounds.Width + stride - 1) / stride) + 1;
+        rows = ((Bounds.Height + stride - 1) / stride) + 1;
+
+        var points = new Point2[columns * rows];
+        for (int j = 0; j < rows; j++)
+        {
+            for (int i = 0; i < columns; i++)
+            {
+                points[(j * columns) + i] =
+                    Bounds.Clamp(Bounds.MinX + (i * stride), Bounds.MinZ + (j * stride));
+            }
+        }
+
+        var samples = new TerrainSample[points.Length];
+
+        // Serve what is already cached; batch the rest in one call.
+        var missing = new List<int>();
+        for (int i = 0; i < points.Length; i++)
+        {
+            if (_exact.TryGetValue(PackKey(points[i].X, points[i].Z), out TerrainSample cached))
+            {
+                samples[i] = cached;
+            }
+            else
+            {
+                missing.Add(i);
+            }
+        }
+
+        if (missing.Count > 0)
+        {
+            var toSample = new Point2[missing.Count];
+            for (int i = 0; i < missing.Count; i++) toSample[i] = points[missing[i]];
+
+            var fetched = new TerrainSample[missing.Count];
+            _sampler.SampleBatch(toSample, fetched);
+
+            for (int i = 0; i < missing.Count; i++)
+            {
+                samples[missing[i]] = fetched[i];
+                _exact[PackKey(toSample[i].X, toSample[i].Z)] = fetched[i];
+            }
+        }
+
+        return samples;
     }
 
     /// <summary>Fills the lattice if it has not been filled yet.</summary>
