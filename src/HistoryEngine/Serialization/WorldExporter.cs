@@ -5,6 +5,7 @@ using System.Text.Json;
 using HistoryEngine.Core;
 using HistoryEngine.Entities;
 using HistoryEngine.Events;
+using HistoryEngine.Naming;
 using HistoryEngine.Systems;
 using HistoryEngine.Terrain;
 using HistoryEngine.World;
@@ -136,9 +137,13 @@ public static class WorldExporter
         return list;
     }
 
+    /// <summary>How many example names per category the lexicon carries.</summary>
+    private const int LexiconSampleCount = 6;
+
     private static List<ExportCulture> BuildCultures(WorldState world)
     {
         var list = new List<ExportCulture>(world.Cultures.Count);
+        var markov = world.Names as MarkovNameGenerator;
 
         foreach (Culture culture in world.Cultures)
         {
@@ -151,10 +156,56 @@ public static class WorldExporter
                 Expansionism: culture.Values.Expansionism,
                 Piety: culture.Values.Piety,
                 Tradition: culture.Values.Tradition,
-                Mercantile: culture.Values.Mercantile));
+                Mercantile: culture.Values.Mercantile,
+                Lexicon: BuildLexicon(markov, culture)));
         }
 
         return list;
+    }
+
+    /// <summary>
+    /// Describes a culture's language, or an empty lexicon when names are placeholders.
+    /// </summary>
+    /// <remarks>
+    /// Sample names are drawn from a stream keyed on the culture and a fixed purpose, so they are
+    /// reproducible, and from indices far outside the world's entity range so they cannot be
+    /// mistaken for — or collide with — an entity that actually exists.
+    /// </remarks>
+    private static ExportLexicon BuildLexicon(MarkovNameGenerator? markov, Culture culture)
+    {
+        if (markov is null)
+        {
+            return new ExportLexicon(
+                Array.Empty<ExportLexiconSource>(),
+                Array.Empty<string>(),
+                Array.Empty<string>(),
+                Array.Empty<string>());
+        }
+
+        NamingLanguage language = markov.LanguageOf(culture);
+
+        var sources = new List<ExportLexiconSource>(language.Sources.Count);
+        foreach (NamingLanguage.CorpusWeight source in language.Sources)
+        {
+            sources.Add(new ExportLexiconSource(source.Family, source.Weight));
+        }
+
+        var shifts = new List<string>(language.Mutations.Count);
+        foreach (MutationRule rule in language.Mutations) shifts.Add(rule.ToString());
+
+        var people = new List<string>(LexiconSampleCount);
+        var places = new List<string>(LexiconSampleCount);
+
+        IRng peopleStream = new Pcg32(language.Seed).Fork("lexicon.people", culture.Id.ToDiscriminator());
+        IRng placeStream = new Pcg32(language.Seed).Fork("lexicon.places", culture.Id.ToDiscriminator());
+
+        for (int i = 0; i < LexiconSampleCount; i++)
+        {
+            people.Add(language.Person(peopleStream));
+            places.Add(language.Place(placeStream));
+        }
+
+        return new ExportLexicon(sources, shifts, people, places);
     }
 
     private static List<ExportCivilization> BuildCivilizations(WorldState world)

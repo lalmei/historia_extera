@@ -20,4 +20,11 @@
          is in the BCL on both targets. -->
   </PropertyGroup>
 
+  <ItemGroup>
+    <!-- Name corpora travel inside the assembly, so the artefact that eventually loads
+         into Vintage Story carries its own training data and cannot be shipped
+         half-configured. All eight families together are a few tens of kilobytes. -->
+    <EmbeddedResource Include="Naming\Corpora\*.txt" />
+  </ItemGroup>
+
 </Project>

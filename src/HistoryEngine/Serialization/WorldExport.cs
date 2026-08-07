@@ -147,7 +147,26 @@ public sealed record ExportCulture(
     double Expansionism,
     double Piety,
     double Tradition,
-    double Mercantile);
+    double Mercantile,
+    ExportLexicon Lexicon);
+
+/// <summary>
+/// A culture's naming language, described well enough to be inspected.
+/// </summary>
+/// <remarks>
+/// The brief calls for per-culture name lexicons in the export. Shipping the trained Markov
+/// tables would be large and useless to a reader; what actually answers the question "why do this
+/// culture's names look like that" is the corpus blend, the sound shifts, and a handful of names
+/// the language would produce. <see cref="SampleNames"/> are generated from ids outside the
+/// world's own range, so showing them cannot collide with a real entity's name.
+/// </remarks>
+public sealed record ExportLexicon(
+    IReadOnlyList<ExportLexiconSource> Sources,
+    IReadOnlyList<string> SoundShifts,
+    IReadOnlyList<string> SampleNames,
+    IReadOnlyList<string> SamplePlaces);
+
+public sealed record ExportLexiconSource(string Family, int Weight);
 
 public sealed record ExportCivilization(
     EntityId Id,

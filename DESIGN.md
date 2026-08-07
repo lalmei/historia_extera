@@ -4,8 +4,8 @@ A Dwarf Fortress-style world history generator for Vintage Story, plus a Legends
 viewer. This file is the running decision log: what was chosen, and why, so that a
 decision can be revisited on its merits rather than rediscovered.
 
-**Status:** Milestone 1 complete — a vertical slice runs end to end. Names are
-placeholders until M3.
+**Status:** Milestones 0–3 complete. A vertical slice runs end to end with real
+per-culture naming languages.
 
 ---
 
@@ -220,27 +220,70 @@ writes POCOs in declaration order).
 
 ### Naming: per-culture Markov chains over public-domain corpora
 
-Chosen over procedural phonology. Two decisions that follow from it:
+Chosen over procedural phonology, and built in M3.
 
-- **N distinct cultures from M corpora**: each culture's model is a weighted blend of
-  1–3 corpora plus a per-culture phoneme mutation applied post-generation. So cultures
-  are invented-but-coherent rather than "this civ is Norse, that one's Latin", and the
-  count is not capped by the corpus count.
-- **Memorisation guard**: order-3 character models on a few hundred names will
-  occasionally emit a training name verbatim, sometimes a real living person's.
-  Generated names are rejected if they appear in the source corpus.
+**Corpora are public-domain and self-authored only.** Eight families — celtic, finnic,
+hellenic, latin, norse, semitic, slavic, turkic — authored for this repository after
+the public-domain historical record, all CC0. Zero attribution or share-alike
+obligations, so `Naming/Corpora/` stays clean to redistribute inside a mod
+indefinitely. Wiktionary's CC BY-SA lists were the faster route to broad coverage and
+were rejected for exactly that reason: share-alike is awkward to unwind once it is
+inside a published mod. They are embedded resources, so the assembly carries its own
+training data.
 
-**Corpora are public-domain and self-authored only** — pre-1929 texts, PD saga
-translations, PD prosopographies, US Census surname files, plus authored fills for
-gaps. Zero attribution or share-alike obligations, so the corpus directory stays clean
-to redistribute inside a mod indefinitely. Wiktionary's CC BY-SA lists were the faster
-route to broad coverage and were rejected for that reason: share-alike is awkward to
-unwind once it is inside a published mod.
+**A family is not a culture.** No generated world contains "the Norse civilization".
+Two mechanisms keep it that way:
 
-`INameGenerator` is the seam; M1 ships `PlaceholderNameGenerator` producing
-deliberately unmistakable labels ("Settlement 7"). Placeholder names that look
-plausible are worse than obviously fake ones, because they hide that the milestone has
-not happened.
+- **Blending.** Each culture draws on 1–3 families with weights, blended at the level
+  of transition *counts* rather than by alternating outputs — so the model learns that
+  `-us` and `-vik` are both endings for the same name-shape and invents forms neither
+  corpus contains. Weighted toward two-family blends: one stays recognisably a real
+  tradition, three averages out bland. The first family dominates so a blend has a
+  clear primary character. Eight families give 92 distinct palettes.
+- **Sound shifts.** 1–3 curated substitutions (`th→v`, `s→sh`, `b→p`) applied to every
+  name the culture ever produces. That consistency is what reads as a language: a
+  culture that turns every `th` into `v` does so for its kings, its cities and its
+  dynasties alike.
+
+**Order 3, specifically.** Order 1–2 produces mush; order 4+ on corpora this size
+mostly reproduces the training data, because each context has one or two continuations
+and generation degenerates into recall.
+
+**Novelty is enforced.** `MarkovNameModel` rejects any candidate present in its
+training set. Not a nicety — the corpora are modelled on the historical record, so a
+reproduced training name can be a real person's name.
+
+**Names depend only on their entity id**, never on the order names are requested in.
+So adding a system, or founding one more settlement earlier in a run, cannot alter any
+existing name. The cost is that names are not guaranteed unique: deduplicating would
+make settlement 40's name depend on what settlements 1–39 took, reintroducing exactly
+the order-dependence the rest of the design removes. Collisions are rare across a
+culture's few dozen settlements, real geography repeats place names freely, and the
+viewer keys on ids regardless.
+
+**Regions are named in a world-level language** derived from the world seed, not by
+whoever claims them. Also the more truthful model: a river valley has a name older than
+the realm that holds it. It shows in the chronicle — a Slavic-Semitic civilization
+expands into `Bergajarvi` and `Ormsholmadal`.
+
+`INameGenerator` is the seam. `PlaceholderNameGenerator` is retained after M3 because
+numbered labels make simulation tests far easier to read, and skip Markov training.
+
+Three defects found by reading generated output rather than by tests:
+
+- `s→sh` fired on text already containing `sh`, emitting `shh` — "Vladishhovovo".
+  A shift now skips text already in its target form.
+- Ethnonyms built from place roots ran to 18 characters ("Lundfjordalilaiset"), and a
+  civilization's name is the most-repeated string in the chronicle. Roots are now
+  capped, cutting at a vowel.
+- Root/suffix seams produced stutters ("Ilibalimim") and consonant pile-ups. `Join`
+  drops repeated letters, resolves hiatus, and inserts a linking vowel.
+
+**Lexicons are exported** per culture — the corpus blend, the sound shifts, and six
+sample names each for people and places. The brief asks for per-culture name lexicons;
+shipping the trained tables would be large and unreadable, whereas the recipe plus
+sample output is what actually answers "why do this culture's names look like that".
+The viewer renders it, so `slavic + semitic, b→p` sits next to `Ekallatograd`.
 
 ### Viewer: Astro shell, React island, client routing
 
@@ -267,8 +310,8 @@ territory, settlements), deliberately ignorant of what produced the terrain.
 | M0 | Repo, solution skeleton, DESIGN.md | done |
 | M1 | Vertical slice + terrain discipline | done |
 | M2 | Determinism hardening | done (landed with M1) |
-| M3 | Markov naming languages | next |
-| M4 | Culture traits + settlement lifecycle depth | |
+| M3 | Markov naming languages | done |
+| M4 | Culture traits + settlement lifecycle depth | next |
 | M5 | Figures: dynasties, succession, marriages | |
 | M6 | Diplomacy & war: named battles, territory transfer | |
 | M7 | Viewer depth: territory rendering, richer filters | |
@@ -286,11 +329,12 @@ Measured on seed 42, 300 years, 8 civilizations, 4096-unit world:
 
 | | |
 |---|---|
-| Wall clock | ~40 ms |
+| Wall clock | ~55 ms |
 | Events | 359 |
 | Simulation samples | 5,678 (≈8.5s in Vintage Story) |
 | Raster samples | 60,276 (≈90s — presentation only, budgeted separately) |
-| Export size | 0.61 MB |
+| Export size | 0.62 MB |
+| Tests | 91 |
 
 **Event volume is the known gap.** 359 events over 300 years is thin against the brief's
 50k target, and that is expected with four systems and no war, dynasties, or flavour.
@@ -299,6 +343,17 @@ The bulk arrives in M5, M6 and M8. The viewer is built for 50k regardless.
 Also thin by design: nothing yet causes settlements to be abandoned or civilizations to
 fall, since logistic growth without disasters or war only ever grows. The machinery for
 both exists and is exercised by tests; the causes arrive with later milestones.
+
+A sample of what M3 produces, seed 42:
+
+```
+  1  Zvonigyane was founded, with its seat at Shche.
+  1  Ladimil became King of Zvonigyane at Shche.
+ 27  Ladimil died at the age of 63, of old age.
+ 27  Radmil became King of Zvonigyane at Shche.
+ 79  Zvonigyane extended its reach into Bergajarvi.
+180  Walls were raised around Shche.
+```
 
 ---
 

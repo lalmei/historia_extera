@@ -87,9 +87,14 @@ export function CivilizationPage({ world, civ }: { world: World; civ: Civilizati
       </Panel>
 
       {culture && (
-        <Panel title="Cultural values">
-          <ValueBars culture={culture} />
-        </Panel>
+        <div className="grid gap-5 lg:grid-cols-2">
+          <Panel title="Cultural values">
+            <ValueBars culture={culture} />
+          </Panel>
+          <Panel title="Naming language">
+            <LexiconPanel culture={culture} />
+          </Panel>
+        </div>
       )}
 
       <Panel title={`Settlements (${settlements.length})`}>
@@ -302,6 +307,10 @@ export function RegionPage({ world, region }: { world: World; region: Region }) 
 export function CulturePage({ world, culture }: { world: World; culture: Culture }) {
   const civs = world.export.civilizations.filter((civ) => civ.cultureId === culture.id);
 
+  // No event kind currently references a culture, so this is normally empty. Rendered
+  // conditionally rather than removed, since later milestones may add culture-level events.
+  const cultureEvents = world.eventsFor(culture.id);
+
   return (
     <div className="space-y-5">
       <PageTitle
@@ -310,9 +319,14 @@ export function CulturePage({ world, culture }: { world: World; culture: Culture
         meta={<Badge>Rulers styled &ldquo;{culture.rulerTitle}&rdquo;</Badge>}
       />
 
-      <Panel title="Cultural values">
-        <ValueBars culture={culture} />
-      </Panel>
+      <div className="grid gap-5 lg:grid-cols-2">
+        <Panel title="Cultural values">
+          <ValueBars culture={culture} />
+        </Panel>
+        <Panel title="Naming language">
+          <LexiconPanel culture={culture} />
+        </Panel>
+      </div>
 
       <Panel title="Civilizations">
         <ul className="space-y-1 text-sm">
@@ -330,6 +344,76 @@ export function CulturePage({ world, culture }: { world: World; culture: Culture
       <Panel title="Chronicle">
         <EventList world={world} events={world.eventsFor(culture.id)} />
       </Panel>
+    </div>
+  );
+}
+
+/**
+ * Shows how a culture's names are built.
+ *
+ * The corpus blend and sound shifts are the whole recipe, and seeing them next to sample
+ * output is what makes an invented language legible rather than just decorative — you can
+ * read "slavic + semitic, b→p" and then see Ekallatograd and understand where it came from.
+ */
+function LexiconPanel({ culture }: { culture: Culture }) {
+  const { lexicon } = culture;
+
+  if (!lexicon || lexicon.sources.length === 0) {
+    return (
+      <p className="text-sm text-[var(--ink-faint)]">
+        This world was generated with placeholder names.
+      </p>
+    );
+  }
+
+  const total = lexicon.sources.reduce((sum, s) => sum + s.weight, 0);
+
+  return (
+    <div className="space-y-3 text-sm">
+      <div>
+        <div className="mb-1.5 text-[0.7rem] font-medium tracking-wide uppercase text-[var(--ink-faint)]">
+          Roots
+        </div>
+        <div className="space-y-1">
+          {lexicon.sources.map((source) => (
+            <div key={source.family} className="flex items-center gap-2">
+              <span className="w-20 shrink-0 capitalize">{source.family}</span>
+              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--rule)]">
+                <div
+                  className="h-full rounded-full bg-[var(--accent)]"
+                  style={{ width: `${Math.round((source.weight / total) * 100)}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {lexicon.soundShifts.length > 0 && (
+        <div>
+          <div className="mb-1.5 text-[0.7rem] font-medium tracking-wide uppercase text-[var(--ink-faint)]">
+            Sound shifts
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {lexicon.soundShifts.map((shift) => (
+              <code
+                key={shift}
+                className="rounded border border-[var(--rule)] px-1.5 py-0.5 font-mono text-xs"
+              >
+                {shift}
+              </code>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div>
+        <div className="mb-1 text-[0.7rem] font-medium tracking-wide uppercase text-[var(--ink-faint)]">
+          The language would also produce
+        </div>
+        <p className="text-[var(--ink-soft)]">{lexicon.sampleNames.join(' · ')}</p>
+        <p className="mt-0.5 text-[var(--ink-soft)]">{lexicon.samplePlaces.join(' · ')}</p>
+      </div>
     </div>
   );
 }
