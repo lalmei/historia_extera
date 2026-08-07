@@ -29,15 +29,21 @@ public sealed class Simulator
     /// The Milestone 1 system order.
     /// </summary>
     /// <remarks>
-    /// Reads as a causal chain within each year: populations change, that changes what
-    /// settlements are, pressure from that drives expansion, and rulers live and die
-    /// independently of all of it. Milestones 6 and 8 insert diplomacy, war and flavour systems
-    /// into this list.
+    /// <para>Reads as a causal chain within each year: populations change against the harvest, that
+    /// changes what settlements are, a settlement that has outgrown a hamlet acquires a character,
+    /// pressure drives expansion, and rulers live and die independently of all of it. Milestones 6
+    /// and 8 insert diplomacy, war and flavour systems into this list.</para>
+    ///
+    /// <para>Specialization sits after lifecycle so a settlement promoted this year can acquire its
+    /// character in the same year, and the two events read consecutively in the chronicle. It
+    /// therefore feeds capacity from the following year onward, which avoids a same-year dependency
+    /// loop between what a settlement is and how many people it supports.</para>
     /// </remarks>
     public static IReadOnlyList<IYearSystem> DefaultSystems() => new IYearSystem[]
     {
         new PopulationSystem(),
         new SettlementLifecycleSystem(),
+        new SpecializationSystem(),
         new ExpansionSystem(),
         new FigureLifecycleSystem(),
     };

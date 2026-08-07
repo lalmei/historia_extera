@@ -4,8 +4,8 @@ A Dwarf Fortress-style world history generator for Vintage Story, plus a Legends
 viewer. This file is the running decision log: what was chosen, and why, so that a
 decision can be revisited on its merits rather than rediscovered.
 
-**Status:** Milestones 0–3 complete. A vertical slice runs end to end with real
-per-culture naming languages.
+**Status:** Milestones 0–4 complete. Real naming languages, and a settlement
+lifecycle that runs its full course rather than only ever growing.
 
 ---
 
@@ -146,6 +146,62 @@ deliberately.
 Rivers are exported as **line segments following the flow graph**, not as a raster
 plane: a per-cell flag rasterises to a block the size of the grid stride, which renders
 as a scatter of squares that read as lakes.
+
+### Settlement lifecycle: what made decline possible
+
+The M4 deliverable was specialization and abandonment. Specialization was easy; making
+abandonment *reachable* took five wrong answers, and each one is worth recording because
+each looked correct in isolation and each passed its own tests.
+
+**The chain of bugs, in the order they were found:**
+
+1. **Fixed carrying capacity.** Capacity was a function of regional fertility alone, so
+   headroom was always positive and every settlement grew monotonically to its ceiling.
+   Fixed by making capacity move with the harvest.
+2. **Fertility saturated at 1.0.** The measure was a product of three clamped ramps that
+   each read 1.0 across their whole comfortable range, so every temperate lowland scored
+   exactly 1.0. Settled regions clustered at fertility 1.000 and capacity was effectively
+   uniform. Fixed with `DetMath.Bump`, a unimodal curve with one optimum rather than a
+   plateau of them.
+3. **The world was uniformly hospitable.** Rainfall added a large constant to every warm
+   region, putting a floor under temperate rainfall, so median land fertility was 0.85 and
+   marginal land did not exist. Fixed by making temperature *scale* rainfall rather than
+   offset it, and adding a broad arid-belt noise field. Median land fertility is now 0.26.
+4. **The decline counter measured the wrong thing.** It counted consecutive shrinking
+   years, but collapse and recovery are wildly asymmetric — a settlement sheds people at
+   ~17% a year and regrows at under 2%, so it spends five years falling and forty slowly
+   climbing back. The counter peaked at five and then decayed. Replaced with
+   `YearsDepressed`: consecutive years below half the peak, which accumulates *during* the
+   long recovery instead of being erased by it.
+5. **Populations never reached their ceiling.** The one that mattered most. At 1.6% annual
+   growth a settlement founded with seventy people needed 269 years to approach a capacity
+   of five thousand — so for essentially the whole run every settlement sat far below its
+   ceiling with positive headroom, and a failed harvest merely slowed growth. Raising
+   growth to 3.8% brings settlements to their ceiling in ~110 years, after which they live
+   at the mercy of the harvest for two centuries. That is the regime the whole lifecycle
+   was designed around, and nothing else worked until it held.
+
+The lesson worth keeping: every one of these was a *calibration* fault presenting as a
+missing feature. `SettlementLifecycleTests` now asserts the outcomes appear — promotions,
+specializations, famines, tier declines — rather than that the code paths exist, because
+the code paths existed the whole time.
+
+**Harvest** is two noise fields, not one: weather on a ~9-year period and regional in
+extent, plus climate on a ~70-year period covering a large part of the map. Weather alone
+could not kill anything, because a settlement always recovered before a drought moved on.
+Historical abandonments follow multi-decade climate shifts, so the slow component is the
+one a village cannot outlast.
+
+**Specialization** is chosen once, when a settlement outgrows a hamlet, from terrain with
+culture as a thumb on the scale. Terrain proposes and culture disposes: a pious realm
+founds more shrines, but nothing can put a fishing village inland. Each specialization then
+carries its own fertility weight, flat capacity, harvest sensitivity and supply dependence —
+which is what makes a bad decade empty the farming villages and leave the mining town
+standing.
+
+**Culture traits are now load-bearing.** Aggression drove fortification and Expansionism
+drove expansion already; M4 adds Mercantile (town capacity, trade siting), Piety (shrine
+siting and shrine capacity) and Tradition (how long a people clings to a dying town).
 
 ### Events: flat records plus narration templates
 
@@ -311,8 +367,8 @@ territory, settlements), deliberately ignorant of what produced the terrain.
 | M1 | Vertical slice + terrain discipline | done |
 | M2 | Determinism hardening | done (landed with M1) |
 | M3 | Markov naming languages | done |
-| M4 | Culture traits + settlement lifecycle depth | next |
-| M5 | Figures: dynasties, succession, marriages | |
+| M4 | Culture traits + settlement lifecycle depth | done |
+| M5 | Figures: dynasties, succession, marriages | next |
 | M6 | Diplomacy & war: named battles, territory transfer | |
 | M7 | Viewer depth: territory rendering, richer filters | |
 | M8 | Flavour: religions, artifacts, plagues, disasters | |
@@ -329,20 +385,27 @@ Measured on seed 42, 300 years, 8 civilizations, 4096-unit world:
 
 | | |
 |---|---|
-| Wall clock | ~55 ms |
-| Events | 359 |
-| Simulation samples | 5,678 (≈8.5s in Vintage Story) |
-| Raster samples | 60,276 (≈90s — presentation only, budgeted separately) |
-| Export size | 0.62 MB |
-| Tests | 91 |
+| Wall clock | ~65 ms |
+| Events | 950 |
+| Settlements | 96 (15 cities), 1 abandoned |
+| Simulation samples | 6,050 (≈9.1s in Vintage Story) |
+| Raster samples | 59,904 (≈90s — presentation only, budgeted separately) |
+| Export size | 0.73 MB |
+| Tests | 100 |
 
-**Event volume is the known gap.** 359 events over 300 years is thin against the brief's
-50k target, and that is expected with four systems and no war, dynasties, or flavour.
-The bulk arrives in M5, M6 and M8. The viewer is built for 50k regardless.
+**Event volume** went from 359 to 950 with M4, and to ~4,000 over 800 years with 15
+civilizations. Still short of the brief's 50k target, which arrives with M5's dynasties,
+M6's wars and M8's flavour systems. The viewer is built for 50k regardless.
 
-Also thin by design: nothing yet causes settlements to be abandoned or civilizations to
-fall, since logistic growth without disasters or war only ever grows. The machinery for
-both exists and is exercised by tests; the causes arrive with later milestones.
+**Civilizations still do not fall** at this scale, and that is the honest outcome rather
+than a gap to tune away. Capitals sit on the best-scored land and carry a capacity bonus,
+so climate alone cannot finish one — a realm loses its marginal holdings and keeps its
+seat. Collapse properly requires conquest, which is M6. One civilization does fall in an
+800-year run, when its last settlements are lost.
+
+**Abandonment is rare by design** — one settlement in 300 years, more over longer runs.
+Marginal settlements are only founded once a civilization has run out of good land nearby,
+and on a 1024-region world that takes centuries.
 
 A sample of what M3 produces, seed 42:
 
@@ -350,9 +413,12 @@ A sample of what M3 produces, seed 42:
   1  Zvonigyane was founded, with its seat at Shche.
   1  Ladimil became King of Zvonigyane at Shche.
  27  Ladimil died at the age of 63, of old age.
- 27  Radmil became King of Zvonigyane at Shche.
+ 56  Ascula grew into a town.
  79  Zvonigyane extended its reach into Bergajarvi.
 180  Walls were raised around Shche.
+216  Vladishov suffered a catastrophic failure of the harvest, losing 177 people.
+230  Koprivnikice came to be known for farming.
+255  Sandomice was abandoned after 254 years, its people lost to years of decline.
 ```
 
 ---

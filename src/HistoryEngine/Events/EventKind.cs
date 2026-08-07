@@ -32,6 +32,8 @@ public enum EventKind
     SettlementDeclined = 202,
     SettlementAbandoned = 203,
     SettlementFortified = 204,
+    SettlementSpecialized = 205,
+    SettlementFamine = 206,
 
     // ---- Figures (300) ----
     FigureBorn = 300,

@@ -56,8 +56,11 @@ public static class Narration
         Set(EventKind.SettlementFounded, "{subject} was founded[ by {object}].");
         Set(EventKind.SettlementPromoted, "{subject} grew into a {data:tier}.");
         Set(EventKind.SettlementDeclined, "{subject} dwindled to a {data:tier}.");
-        Set(EventKind.SettlementAbandoned, "{subject} was abandoned[ after {data:years} years].");
+        Set(EventKind.SettlementAbandoned,
+            "{subject} was abandoned[ after {data:years} years][, its people lost to {data:cause}].");
         Set(EventKind.SettlementFortified, "Walls were raised around {subject}.");
+        Set(EventKind.SettlementSpecialized, "{subject} came to be known for {data:trade}.");
+        Set(EventKind.SettlementFamine, "{subject} suffered {data:severity}[, losing {data:lost} people].");
 
         Set(EventKind.FigureBorn, "{subject} was born[ in {location}].");
         Set(EventKind.FigureDied, "{subject} died[ at the age of {data:age}][, of {data:cause}].");

@@ -247,10 +247,13 @@ public static class WorldExporter
                 X: settlement.X,
                 Z: settlement.Z,
                 Tier: settlement.Tier,
+                Specialization: settlement.Specialization,
+                SpecializedYear: settlement.SpecializedYear,
                 Population: settlement.Population,
                 PeakPopulation: settlement.PeakPopulation,
                 FoundedYear: settlement.FoundedYear,
                 AbandonedYear: settlement.AbandonedYear,
+                YearsDepressed: settlement.YearsDepressed,
                 IsCapital: settlement.IsCapital,
                 IsFortified: settlement.IsFortified));
         }

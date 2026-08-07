@@ -103,10 +103,17 @@ public readonly record struct TerrainSample(
     /// Derived crop-growing potential in [0, 1].
     /// </summary>
     /// <remarks>
-    /// A crude Liebig's-law-of-the-minimum model: rainfall and temperature each gate the
-    /// result, so a place is only fertile when both are adequate, and steep or submerged
-    /// ground is discounted. Deliberately simple — it exists so settlement siting has an
-    /// opinion, and it is expected to be replaced once Phase 2 supplies real climate.
+    /// <para>A crude Liebig's-law-of-the-minimum model: rainfall and temperature each gate the
+    /// result, so a place is only fertile when both are adequate, and high ground is discounted.
+    /// Deliberately simple — it exists so settlement siting has an opinion, and it is expected to
+    /// be replaced once Phase 2 supplies real climate.</para>
+    ///
+    /// <para><b>Unimodal, not plateaued.</b> An earlier version used clamped ramps that each read
+    /// 1.0 across the whole comfortable range, so every temperate lowland scored exactly 1.0 and
+    /// the measure could not distinguish good farmland from excellent. Everything downstream
+    /// inherited that: settled regions clustered at fertility 1.000, carrying capacity was
+    /// effectively uniform, and no settlement could ever be marginal enough to fail. Peaking at one
+    /// optimum instead gives the whole range something to say.</para>
     /// </remarks>
     public float Fertility
     {
@@ -115,17 +122,13 @@ public readonly record struct TerrainSample(
             if (IsSubmerged) return 0f;
 
             // Wet enough to farm, not so wet it is swamp.
-            double moisture = Rainfall < 0.15
-                ? DetMath.InverseLerp(0.0, 0.15, Rainfall)
-                : DetMath.Lerp(1.0, 0.65, DetMath.InverseLerp(0.75, 1.0, Rainfall));
+            double moisture = DetMath.Bump(Rainfall, optimum: 0.55, tolerance: 0.31);
 
-            // Temperate band, tapering to nothing at either extreme.
-            double warmth = Temperature < 5.0
-                ? DetMath.InverseLerp(-10.0, 5.0, Temperature)
-                : DetMath.Lerp(1.0, 0.5, DetMath.InverseLerp(24.0, 40.0, Temperature));
+            // Temperate. Falls away toward both frost and desert heat.
+            double warmth = DetMath.Bump(Temperature, optimum: 14.0, tolerance: 23.0);
 
-            // Highlands are poorer ground regardless of climate.
-            double altitude = DetMath.Lerp(1.0, 0.35, DetMath.InverseLerp(600.0, 2200.0, Height));
+            // Lowlands are the best ground regardless of climate.
+            double altitude = DetMath.Lerp(1.0, 0.30, DetMath.InverseLerp(0.0, 1800.0, Height));
 
             return (float)DetMath.Clamp01(moisture * warmth * altitude);
         }

@@ -191,10 +191,13 @@ public sealed record ExportSettlement(
     int X,
     int Z,
     SettlementTier Tier,
+    SettlementSpecialization Specialization,
+    int? SpecializedYear,
     int Population,
     int PeakPopulation,
     int FoundedYear,
     int? AbandonedYear,
+    int YearsDepressed,
     bool IsCapital,
     bool IsFortified);
 

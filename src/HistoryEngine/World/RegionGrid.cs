@@ -61,6 +61,7 @@ public static class RegionGrid
         double fertilitySum = 0.0;
         double rainfallSum = 0.0;
         double temperatureSum = 0.0;
+        double geologySum = 0.0;
         int landCount = 0;
         int total = 0;
         bool hasRiver = false;
@@ -78,6 +79,7 @@ public static class RegionGrid
                 heightSum += s.Height;
                 rainfallSum += s.Rainfall;
                 temperatureSum += s.Temperature;
+                geologySum += s.GeologicActivity;
                 total++;
 
                 if (!s.IsSubmerged)
@@ -96,6 +98,7 @@ public static class RegionGrid
         double meanHeight = heightSum / total;
         double meanRainfall = rainfallSum / total;
         double meanTemperature = temperatureSum / total;
+        double meanGeology = geologySum / total;
 
         // A region counts as land when most of it is above water. Fertility averages over
         // the land portion only, so a mostly-ocean region is not scored as barren land.
@@ -123,6 +126,7 @@ public static class RegionGrid
             meanHeight,
             meanRainfall,
             meanTemperature,
+            meanGeology,
             isLand,
             hasRiver && isLand,
             isCoastal && isLand);

@@ -13,8 +13,16 @@ public enum SettlementTier
 
 public static class SettlementTiers
 {
-    /// <summary>Population at which each tier is reached. Index matches <see cref="SettlementTier"/>.</summary>
-    public static readonly int[] PopulationThresholds = { 0, 250, 1200, 6000 };
+    /// <summary>
+    /// Population at which each tier is reached. Index matches <see cref="SettlementTier"/>.
+    /// </summary>
+    /// <remarks>
+    /// Calibrated against the carrying capacities the terrain actually produces, which range from a
+    /// few hundred on marginal ground to around eleven thousand on the best. The original ladder
+    /// was set against a world whose fertility saturated at 1.0 everywhere; once that was fixed,
+    /// a city at six thousand was unreachable outside a handful of regions.
+    /// </remarks>
+    public static readonly int[] PopulationThresholds = { 0, 180, 900, 4000 };
 
     /// <summary>The tier a given population qualifies for.</summary>
     public static SettlementTier ForPopulation(int population)
@@ -100,6 +108,31 @@ public sealed class Settlement
     public int PeakPopulation { get; set; }
 
     public SettlementTier Tier { get; set; }
+
+    /// <summary>
+    /// What the settlement is chiefly known for. Established once it outgrows a hamlet.
+    /// </summary>
+    public SettlementSpecialization Specialization { get; set; } = SettlementSpecialization.None;
+
+    /// <summary>The year its character was established, if it has one.</summary>
+    public int? SpecializedYear { get; set; }
+
+    /// <summary>
+    /// Consecutive years spent below half the population this settlement once held.
+    /// </summary>
+    /// <remarks>
+    /// <para>Abandonment is a decision about a sustained state, not about the direction of travel.
+    /// Counting <em>declining</em> years instead — the obvious first attempt — could never work
+    /// here, because collapse and recovery are wildly asymmetric: a settlement sheds people at
+    /// nearly twenty percent a year when its land fails, then creeps back at under two. It spends
+    /// five years falling and forty slowly growing, so a declining-year counter peaked at five and
+    /// then decayed, and no settlement was ever abandoned however long the world ran.</para>
+    ///
+    /// <para>"Has been a shadow of itself for a generation" is the condition that actually
+    /// describes a place people give up on, and it accumulates during the long recovery rather
+    /// than being erased by it.</para>
+    /// </remarks>
+    public int YearsDepressed { get; set; }
 
     public bool IsFortified { get; set; }
 

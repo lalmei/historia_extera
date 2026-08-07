@@ -50,6 +50,26 @@ public static class DetMath
         return t * t * t * ((t * ((t * 6.0) - 15.0)) + 10.0);
     }
 
+    /// <summary>
+    /// A unimodal response in [0, 1]: 1 at <paramref name="optimum"/>, falling to 0 at
+    /// <paramref name="tolerance"/> either side.
+    /// </summary>
+    /// <remarks>
+    /// For "how well does this value suit that requirement" scoring. The obvious alternative — a
+    /// pair of clamped <see cref="Lerp"/> ramps — plateaus at 1 across the whole comfortable range,
+    /// which makes a product of several such factors saturate: every temperate lowland scored a
+    /// perfect 1.0 for fertility, so the model could not tell good farmland from excellent and
+    /// nothing downstream of it could discriminate either. A quadratic falls away immediately from
+    /// the optimum, so there is only one best value rather than a plateau of them.
+    /// </remarks>
+    public static double Bump(double value, double optimum, double tolerance)
+    {
+        if (tolerance <= 0.0) return value == optimum ? 1.0 : 0.0;
+
+        double offset = (value - optimum) / tolerance;
+        return Clamp01(1.0 - (offset * offset));
+    }
+
     /// <summary>Correctly rounded per IEEE 754, so safe on a decision path.</summary>
     public static double Sqrt(double value) => Math.Sqrt(value);
 
