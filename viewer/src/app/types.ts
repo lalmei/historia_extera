@@ -168,6 +168,21 @@ export interface Culture {
   piety: number;
   tradition: number;
   mercantile: number;
+  lexicon: Lexicon;
+}
+
+/**
+ * A culture's naming language, as described by the engine.
+ *
+ * The engine ships the corpus blend, sound shifts, and a few example names rather than
+ * the trained Markov tables — what answers "why do this culture's names look like
+ * that" is the recipe, not the weights.
+ */
+export interface Lexicon {
+  sources: { family: string; weight: number }[];
+  soundShifts: string[];
+  sampleNames: string[];
+  samplePlaces: string[];
 }
 
 export interface Civilization {

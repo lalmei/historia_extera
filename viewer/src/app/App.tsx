@@ -164,8 +164,8 @@ function Footer({ world }: { world: World }) {
         {meta.configHash} · systems {meta.systemOrder.join(' → ')}
       </p>
       <p className="mt-1">
-        Names are placeholders until the naming milestone lands — per-culture Markov chains over
-        public-domain corpora.
+        Names come from per-culture Markov chains over public-domain corpora, blended and
+        sound-shifted per culture. No generated name appears in its training data.
       </p>
     </footer>
   );

@@ -36,7 +36,10 @@ public static class WorldBuilder
     /// <summary>Candidate capital sites evaluated per axis within the chosen region.</summary>
     private const int SitesPerAxis = 8;
 
-    public static WorldState Create(WorldConfig config, ITerrainSampler? sampler = null)
+    public static WorldState Create(
+        WorldConfig config,
+        ITerrainSampler? sampler = null,
+        INameGenerator? names = null)
     {
         config.Validate();
 
@@ -47,7 +50,7 @@ public static class WorldBuilder
             config,
             atlas,
             new Pcg32(config.Seed),
-            new PlaceholderNameGenerator());
+            names ?? new MarkovNameGenerator(config.Seed));
 
         RegionGrid.Build(atlas, config.RegionSize, world.Regions);
 
@@ -147,8 +150,8 @@ public static class WorldBuilder
         EntityId cultureId = world.Cultures.NextId;
         var culture = new Culture(
             cultureId,
-            world.Names.ForCulture(cultureId, rng),
-            languageSeed: Hash.Combine(world.Config.Seed, (ulong)cultureId.ToDiscriminator()),
+            world.Names.ForCulture(cultureId),
+            languageSeed: world.Names.LanguageSeedFor(cultureId),
             values: CultureValues.Roll(rng),
             government: (GovernmentForm)rng.NextInt(Enum.GetValues(typeof(GovernmentForm)).Length));
         world.Cultures.Add(culture);
@@ -157,7 +160,7 @@ public static class WorldBuilder
         var civilization = new Civilization(
             civId,
             cultureId,
-            world.Names.ForCivilization(civId, culture, rng),
+            world.Names.ForCivilization(civId, culture),
             year);
         world.Civilizations.Add(civilization);
 
@@ -194,7 +197,7 @@ public static class WorldBuilder
             id,
             civilization.Id,
             region.Id,
-            world.Names.ForSettlement(id, culture, rng),
+            world.Names.ForSettlement(id, culture),
             site.X,
             site.Z,
             year,
@@ -231,7 +234,7 @@ public static class WorldBuilder
             id,
             civilization.Id,
             culture.Id,
-            world.Names.ForFigure(id, culture, rng),
+            world.Names.ForFigure(id, culture),
             birthYear: year - age)
         {
             BirthSettlementId = civilization.CapitalId,
