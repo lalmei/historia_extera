@@ -11,7 +11,7 @@ import {
   yearRange,
 } from '../components/common';
 import { cultureOf, regionOf, settlementOf, type World } from '../store';
-import type { Civilization, Culture, Figure, Region, Settlement } from '../types';
+import { SPECIALIZATION_LABELS, type Civilization, type Culture, type Figure, type Region, type Settlement } from '../types';
 
 /**
  * The entity pages.
@@ -120,6 +120,12 @@ export function SettlementPage({ world, settlement }: { world: World; settlement
           <>
             {settlement.isCapital && <Badge tone="accent">Capital</Badge>}
             {settlement.isFortified && <Badge>Fortified</Badge>}
+            {settlement.specialization !== 'None' && (
+              <Badge>{SPECIALIZATION_LABELS[settlement.specialization]}</Badge>
+            )}
+            {settlement.yearsDepressed > 10 && settlement.abandonedYear === undefined && (
+              <Badge tone="muted">declining {settlement.yearsDepressed}y</Badge>
+            )}
             <Badge tone={settlement.abandonedYear === undefined ? 'accent' : 'muted'}>
               {settlement.abandonedYear === undefined ? 'Inhabited' : 'Abandoned'}
             </Badge>
@@ -143,6 +149,22 @@ export function SettlementPage({ world, settlement }: { world: World; settlement
 
       <Panel title="Details">
         <dl>
+          <Field label="Known for">
+            {settlement.specialization === 'None' ? (
+              <span className="text-[var(--ink-faint)]">
+                Too small to have a character of its own
+              </span>
+            ) : (
+              <>
+                {SPECIALIZATION_LABELS[settlement.specialization]}
+                {settlement.specializedYear !== undefined && (
+                  <span className="ml-2 text-[var(--ink-faint)]">
+                    since {settlement.specializedYear}
+                  </span>
+                )}
+              </>
+            )}
+          </Field>
           <Field label="Civilization">
             <EntityLink world={world} id={settlement.civilizationId} />
           </Field>
@@ -341,9 +363,11 @@ export function CulturePage({ world, culture }: { world: World; culture: Culture
         </ul>
       </Panel>
 
-      <Panel title="Chronicle">
-        <EventList world={world} events={world.eventsFor(culture.id)} />
-      </Panel>
+      {cultureEvents.length > 0 && (
+        <Panel title="Chronicle">
+          <EventList world={world} events={cultureEvents} />
+        </Panel>
+      )}
     </div>
   );
 }
@@ -470,6 +494,16 @@ export function SettlementTable({
     },
     { key: 'tier', header: 'Tier', cell: (s) => s.tier, sort: (s) => s.population },
     {
+      key: 'trade',
+      header: 'Known for',
+      cell: (s) => (
+        <span className={s.specialization === 'None' ? 'text-[var(--ink-faint)]' : ''}>
+          {SPECIALIZATION_LABELS[s.specialization] ?? s.specialization}
+        </span>
+      ),
+      sort: (s) => s.specialization,
+    },
+    {
       key: 'population',
       header: 'Population',
       cell: (s) => s.population.toLocaleString(),
@@ -500,7 +534,7 @@ export function SettlementTable({
     <DataTable
       rows={settlements}
       columns={columns}
-      searchText={(s) => `${s.name} ${s.tier}`}
+      searchText={(s) => `${s.name} ${s.tier} ${s.specialization}`}
       placeholder="Search settlements…"
       initialSort={{ key: 'population', descending: true }}
     />

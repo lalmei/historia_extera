@@ -40,6 +40,7 @@ public sealed class WorldState
         Regions = new EntityTable<Region>(EntityKind.Region);
 
         Chronicle = new Chronicle();
+        Harvest = new HarvestModel(config.Seed);
         Year = config.StartYear;
     }
 
@@ -57,6 +58,16 @@ public sealed class WorldState
     public INameGenerator Names { get; }
 
     public Chronicle Chronicle { get; }
+
+    /// <summary>
+    /// How each year went, per region.
+    /// </summary>
+    /// <remarks>
+    /// Stateless and seeded, so it can be queried for any region and year without keeping history.
+    /// It is what makes carrying capacity move, and therefore what makes decline, abandonment and
+    /// the fall of civilizations reachable at all.
+    /// </remarks>
+    public HarvestModel Harvest { get; }
 
     public EntityTable<Culture> Cultures { get; }
 

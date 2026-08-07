@@ -204,6 +204,28 @@ export type SettlementTier = 'Hamlet' | 'Village' | 'Town' | 'City';
 
 export const TIER_ORDER: SettlementTier[] = ['Hamlet', 'Village', 'Town', 'City'];
 
+/** What a settlement is chiefly known for. `None` means it is still a hamlet. */
+export type SettlementSpecialization =
+  | 'None'
+  | 'Farming'
+  | 'Pastoral'
+  | 'Fishing'
+  | 'Mining'
+  | 'Trade'
+  | 'Crafts'
+  | 'Shrine';
+
+export const SPECIALIZATION_LABELS: Record<SettlementSpecialization, string> = {
+  None: '—',
+  Farming: 'Farming',
+  Pastoral: 'Herding',
+  Fishing: 'Fishing',
+  Mining: 'Mining',
+  Trade: 'Trade',
+  Crafts: 'Craftwork',
+  Shrine: 'Pilgrimage',
+};
+
 export interface Settlement {
   id: EntityId;
   name: string;
@@ -213,10 +235,14 @@ export interface Settlement {
   x: number;
   z: number;
   tier: SettlementTier;
+  specialization: SettlementSpecialization;
+  specializedYear?: number;
   population: number;
   peakPopulation: number;
   foundedYear: number;
   abandonedYear?: number;
+  /** Consecutive years below half the peak population. A dying settlement. */
+  yearsDepressed: number;
   isCapital: boolean;
   isFortified: boolean;
 }

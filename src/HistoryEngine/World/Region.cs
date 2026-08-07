@@ -26,6 +26,7 @@ public sealed class Region
         double meanHeight,
         double rainfall,
         double temperature,
+        double geologicActivity,
         bool isLand,
         bool hasRiver,
         bool isCoastal)
@@ -37,6 +38,7 @@ public sealed class Region
         MeanHeight = meanHeight;
         Rainfall = rainfall;
         Temperature = temperature;
+        GeologicActivity = geologicActivity;
         IsLand = isLand;
         HasRiver = hasRiver;
         IsCoastal = isCoastal;
@@ -61,6 +63,9 @@ public sealed class Region
     public double Rainfall { get; }
 
     public double Temperature { get; }
+
+    /// <summary>Mean geologic activity, in [0, 1]. Drives mining specialization.</summary>
+    public double GeologicActivity { get; }
 
     public bool IsLand { get; }
 

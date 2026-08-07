@@ -62,6 +62,7 @@ public sealed class ProceduralTerrainSampler : ITerrainSampler
     private readonly ulong _rainSeed;
     private readonly ulong _tempSeed;
     private readonly ulong _geologySeed;
+    private readonly ulong _aridSeed;
     private readonly ulong _lakeSeed;
 
     public ProceduralTerrainSampler(ulong seed, TerrainBounds bounds, TerrainSettings? settings = null)
@@ -76,6 +77,7 @@ public sealed class ProceduralTerrainSampler : ITerrainSampler
         _rainSeed = Hash.Combine(seed, Hash.OfString("terrain.rainfall"));
         _tempSeed = Hash.Combine(seed, Hash.OfString("terrain.temperature"));
         _geologySeed = Hash.Combine(seed, Hash.OfString("terrain.geology"));
+        _aridSeed = Hash.Combine(seed, Hash.OfString("terrain.aridity"));
         _lakeSeed = Hash.Combine(seed, Hash.OfString("terrain.lake"));
     }
 
@@ -170,20 +172,43 @@ public sealed class ProceduralTerrainSampler : ITerrainSampler
         return banded + variance - lapse;
     }
 
+    /// <summary>
+    /// Annual rainfall in [0, 1].
+    /// </summary>
+    /// <remarks>
+    /// <para>Two noise fields rather than one: a regional field at
+    /// <see cref="TerrainSettings.RainfallScale"/>, plus a much broader one that creates
+    /// continent-spanning arid and humid belts. Without the second, rainfall varied only locally and
+    /// averaged out — every temperate region came out moderately wet, so the whole world was
+    /// farmable and no settlement anywhere could be marginal.</para>
+    ///
+    /// <para>The earlier version also added a large constant to every warm region, which put a floor
+    /// under temperate rainfall and guaranteed hospitable land. Temperature now <em>scales</em>
+    /// rainfall instead of adding to it — cold air genuinely carries less moisture — so a cold dry
+    /// region is dry rather than merely less wet.</para>
+    /// </remarks>
     private double RainfallAt(int x, int z, double height, double temperature)
     {
         if (height < 0.0) return 1.0;
 
-        double field = (ValueNoise.Fbm(
+        double regional = ValueNoise.Fbm(
             _rainSeed,
             x / _settings.RainfallScale,
             z / _settings.RainfallScale,
-            octaves: 4) * 0.5) + 0.5;
+            octaves: 4);
 
-        // Warm air carries more moisture, so the cold latitudes read as dry.
-        double warmth = DetMath.InverseLerp(-22.0, 14.0, temperature);
+        double belt = ValueNoise.Fbm(
+            _aridSeed,
+            x / (_settings.RainfallScale * 3.5),
+            z / (_settings.RainfallScale * 3.5),
+            octaves: 2);
 
-        return DetMath.Clamp01((field * 0.68) + (warmth * 0.32));
+        double wetness = DetMath.Clamp01(0.46 + (regional * 0.42) + (belt * 0.30));
+
+        // Cold air holds little moisture, so this scales rather than offsets.
+        double warmth = DetMath.InverseLerp(-24.0, 10.0, temperature);
+
+        return DetMath.Clamp01(wetness * DetMath.Lerp(0.30, 1.0, warmth));
     }
 
     private double GeologyAt(int x, int z)
