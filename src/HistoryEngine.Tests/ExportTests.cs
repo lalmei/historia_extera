@@ -121,13 +121,24 @@ public sealed class ExportTests
             EntityKind.Civilization => export.Civilizations.Count,
             EntityKind.Settlement => export.Settlements.Count,
             EntityKind.Figure => export.Figures.Count,
+            EntityKind.Dynasty => export.Dynasties.Count,
             EntityKind.Region => export.Regions.Count,
             _ => -1,
         };
 
         foreach (ExportEvent entry in export.Events)
         {
-            foreach (EntityId? slot in new[] { entry.Subject, entry.Object, entry.Location })
+            var slots = new List<EntityId?> { entry.Subject, entry.Object, entry.Location };
+
+            // Extra carries a marriage's two houses and a birth's other parent, so it reaches
+            // entities no named slot does — and an id that only ever appears there would otherwise
+            // be checked by nothing at all.
+            if (entry.Extra is not null)
+            {
+                foreach (EntityId id in entry.Extra) slots.Add(id);
+            }
+
+            foreach (EntityId? slot in slots)
             {
                 if (slot is null) continue;
 

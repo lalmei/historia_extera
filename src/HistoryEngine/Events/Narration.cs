@@ -62,10 +62,23 @@ public static class Narration
         Set(EventKind.SettlementSpecialized, "{subject} came to be known for {data:trade}.");
         Set(EventKind.SettlementFamine, "{subject} suffered {data:severity}[, losing {data:lost} people].");
 
-        Set(EventKind.FigureBorn, "{subject} was born[ in {location}].");
+        Set(EventKind.FigureBorn, "{subject} was born[ to {object}][ in {location}].");
         Set(EventKind.FigureDied, "{subject} died[ at the age of {data:age}][, of {data:cause}].");
-        Set(EventKind.RulerCrowned, "{subject} became {data:title} of {object}[ at {location}].");
+        Set(EventKind.RulerCrowned,
+            "{subject} became {data:title} of {object}[ at {location}][, {data:claim}].");
         Set(EventKind.RulerDeposed, "{subject} was deposed as {data:title} of {object}.");
+        Set(EventKind.FigureMarried, "{subject} married {object}[ at {location}].");
+        Set(EventKind.RulerTermEnded,
+            "{subject} laid down the office of {data:title}[ of {object}][ after {data:years} years].");
+        Set(EventKind.RegencyBegan,
+            "{subject} governed as regent for {object}[, a child of {data:age}].");
+        Set(EventKind.RegencyEnded, "{subject} came of age and took {object} in hand.");
+        Set(EventKind.SuccessionDisputed,
+            "{subject} prevailed over {object} in a disputed succession[ in {location}].");
+
+        Set(EventKind.DynastyFounded, "The {subject} rose[ under {object}][ in {location}].");
+        Set(EventKind.DynastyEnded, "The {subject} died out[ after {data:years}].");
+        Set(EventKind.DynastyAscended, "The {subject} took the throne of {object}.");
 
         Set(EventKind.RegionClaimed, "{object} extended its reach into {subject}.");
 

@@ -29,6 +29,7 @@ public sealed record WorldExport(
     IReadOnlyList<ExportRegion> Regions,
     IReadOnlyList<ExportCulture> Cultures,
     IReadOnlyList<ExportCivilization> Civilizations,
+    IReadOnlyList<ExportDynasty> Dynasties,
     IReadOnlyList<ExportSettlement> Settlements,
     IReadOnlyList<ExportFigure> Figures,
     IReadOnlyList<ExportEvent> Events,
@@ -39,7 +40,11 @@ public sealed record WorldExport(
     /// Bumped on any breaking change to this shape. The viewer checks it and refuses politely
     /// rather than misrendering a file it does not understand.
     /// </summary>
-    public const int CurrentSchemaVersion = 1;
+    /// <remarks>
+    /// Version 2 added dynasties and the family links on a figure, and replaced the figure's
+    /// two-element parent list with named mother and father.
+    /// </remarks>
+    public const int CurrentSchemaVersion = 2;
 }
 
 public sealed record ExportMeta(
@@ -143,6 +148,8 @@ public sealed record ExportCulture(
     string Name,
     GovernmentForm Government,
     string RulerTitle,
+    SuccessionLaw SuccessionLaw,
+    int TermYears,
     double Aggression,
     double Expansionism,
     double Piety,
@@ -176,11 +183,33 @@ public sealed record ExportCivilization(
     int? EndedYear,
     EntityId? CapitalId,
     EntityId? CurrentRulerId,
+    EntityId? RulingDynastyId,
+    EntityId? RegentId,
+    int RulerSinceYear,
     int Population,
     int PeakPopulation,
     IReadOnlyList<EntityId> RulerIds,
     IReadOnlyList<EntityId> SettlementIds,
     IReadOnlyList<EntityId> TerritoryRegionIds);
+
+/// <summary>
+/// A ruling house.
+/// </summary>
+/// <remarks>
+/// <see cref="MemberIds"/> is blood only — consorts are reachable through their spouses and keep
+/// whatever house they were born into. Without that distinction a house can never die out, and the
+/// most interesting thing a dynasty can do is die out.
+/// </remarks>
+public sealed record ExportDynasty(
+    EntityId Id,
+    string Name,
+    EntityId CultureId,
+    int FoundedYear,
+    int? EndedYear,
+    EntityId FounderId,
+    EntityId? OriginCivilizationId,
+    IReadOnlyList<EntityId> RulerIds,
+    IReadOnlyList<EntityId> MemberIds);
 
 public sealed record ExportSettlement(
     EntityId Id,
@@ -201,17 +230,30 @@ public sealed record ExportSettlement(
     bool IsCapital,
     bool IsFortified);
 
+/// <summary>
+/// One person, with enough of the family tree attached to draw it.
+/// </summary>
+/// <remarks>
+/// Mother and father are named rather than listed as parents, because every question asked of them
+/// — which house does this child inherit, who is the queen mother — is about a specific one.
+/// <see cref="ChildIds"/> is the redundant half of the same links, carried so the viewer can walk a
+/// tree downward without indexing the whole figure table first.
+/// </remarks>
 public sealed record ExportFigure(
     EntityId Id,
     string Name,
+    Sex Sex,
     EntityId CivilizationId,
     EntityId CultureId,
+    EntityId? DynastyId,
     int BirthYear,
     int? DeathYear,
     DeathCause DeathCause,
     EntityId? BirthSettlementId,
     IReadOnlyList<ExportTitle> Titles,
-    IReadOnlyList<EntityId> ParentIds,
+    EntityId? MotherId,
+    EntityId? FatherId,
+    IReadOnlyList<EntityId> ChildIds,
     IReadOnlyList<EntityId> SpouseIds);
 
 public sealed record ExportTitle(string Title, EntityId CivilizationId, int FromYear, int? ToYear);

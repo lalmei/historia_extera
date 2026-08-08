@@ -1,10 +1,19 @@
 import { useEffect, useState } from 'react';
 import { href, useRoute } from './router';
 import { loadWorld, type World } from './store';
-import { kindOf, type Civilization, type Culture, type Figure, type Region, type Settlement } from './types';
+import {
+  kindOf,
+  type Civilization,
+  type Culture,
+  type Dynasty,
+  type Figure,
+  type Region,
+  type Settlement,
+} from './types';
 import {
   CivilizationPage,
   CulturePage,
+  DynastyPage,
   FigurePage,
   RegionPage,
   SettlementPage,
@@ -12,6 +21,7 @@ import {
 import {
   CivilizationList,
   CultureList,
+  DynastyList,
   FigureList,
   Overview,
   RegionList,
@@ -29,6 +39,7 @@ const NAV = [
   { path: '/timeline', label: 'Timeline' },
   { path: '/civ', label: 'Civilizations' },
   { path: '/set', label: 'Settlements' },
+  { path: '/dyn', label: 'Houses' },
   { path: '/fig', label: 'Figures' },
   { path: '/cul', label: 'Cultures' },
   { path: '/reg', label: 'Regions' },
@@ -80,6 +91,8 @@ function renderRoute(world: World, path: string) {
       return <CivilizationList world={world} />;
     case 'set':
       return <SettlementList world={world} />;
+    case 'dyn':
+      return <DynastyList world={world} />;
     case 'fig':
       return <FigureList world={world} />;
     case 'cul':
@@ -100,6 +113,8 @@ function renderRoute(world: World, path: string) {
       return <CivilizationPage world={world} civ={entity as Civilization} />;
     case 'set':
       return <SettlementPage world={world} settlement={entity as Settlement} />;
+    case 'dyn':
+      return <DynastyPage world={world} house={entity as Dynasty} />;
     case 'fig':
       return <FigurePage world={world} figure={entity as Figure} />;
     case 'reg':

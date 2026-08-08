@@ -1,4 +1,3 @@
-using System.Globalization;
 using HistoryEngine.Core;
 using HistoryEngine.Entities;
 using HistoryEngine.Events;
@@ -177,7 +176,8 @@ public static class WorldBuilder
         world.Chronicle.Record(
             year, EventKind.CivilizationFounded, civId, location: capital.Id);
 
-        CrownNewRuler(world, civilization, culture, year, rng);
+        Figure founder = Houses.FoundDynasty(world, civilization, culture, year, rng);
+        Houses.Enthrone(world, civilization, culture, founder, year, "by the founding of the realm");
     }
 
     /// <summary>Creates a settlement, wires it to its civilization, and records the founding.</summary>
@@ -216,46 +216,4 @@ public static class WorldBuilder
         return settlement;
     }
 
-    /// <summary>
-    /// Raises a new ruler and crowns them.
-    /// </summary>
-    /// <remarks>
-    /// Rulers arrive as fully-grown adults with no parents. Milestone 5 replaces this with real
-    /// dynasties, marriages and heirs; until then a succession is a new figure rather than a
-    /// claim traced through a family tree.
-    /// </remarks>
-    public static Figure CrownNewRuler(
-        WorldState world, Civilization civilization, Culture culture, int year, IRng rng)
-    {
-        EntityId id = world.Figures.NextId;
-
-        int age = rng.NextInt(22, 46);
-        var ruler = new Figure(
-            id,
-            civilization.Id,
-            culture.Id,
-            world.Names.ForFigure(id, culture),
-            birthYear: year - age)
-        {
-            BirthSettlementId = civilization.CapitalId,
-        };
-
-        world.Figures.Add(ruler);
-
-        ruler.Titles.Add(new TitleHolding(culture.RulerTitle, civilization.Id, year, null));
-        civilization.CurrentRulerId = id;
-        civilization.RulerIds.Add(id);
-
-        world.Chronicle.Record(
-            year,
-            EventKind.RulerCrowned,
-            id,
-            obj: civilization.Id,
-            location: civilization.CapitalId,
-            data: Chronicle.Data(
-                ("title", culture.RulerTitle),
-                ("age", age.ToString(CultureInfo.InvariantCulture))));
-
-        return ruler;
-    }
 }

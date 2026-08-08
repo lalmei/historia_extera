@@ -10,8 +10,19 @@ import {
   Stat,
   yearRange,
 } from '../components/common';
-import { cultureOf, regionOf, settlementOf, type World } from '../store';
-import { SPECIALIZATION_LABELS, type Civilization, type Culture, type Figure, type Region, type Settlement } from '../types';
+import { cultureOf, dynastyOf, figureOf, figures, regionOf, settlementOf, type World } from '../store';
+import {
+  DEATH_LABELS,
+  SPECIALIZATION_LABELS,
+  SUCCESSION_LABELS,
+  type Civilization,
+  type Culture,
+  type Dynasty,
+  type EntityId,
+  type Figure,
+  type Region,
+  type Settlement,
+} from '../types';
 
 /**
  * The entity pages.
@@ -68,22 +79,34 @@ export function CivilizationPage({ world, civ }: { world: World; civ: Civilizati
           </Field>
           <Field label="Current ruler">
             <EntityLink world={world} id={civ.currentRulerId} />
-          </Field>
-          <Field label="Rulers">
-            {civ.rulerIds.length === 0 ? (
-              <span className="text-[var(--ink-faint)]">None recorded</span>
-            ) : (
-              <span className="flex flex-wrap gap-x-2 gap-y-1">
-                {civ.rulerIds.map((id, index) => (
-                  <span key={id}>
-                    <EntityLink world={world} id={id} />
-                    {index < civ.rulerIds.length - 1 && <span className="text-[var(--ink-faint)]">,</span>}
-                  </span>
-                ))}
-              </span>
+            {civ.currentRulerId && (
+              <span className="ml-2 text-[var(--ink-faint)]">since {civ.rulerSinceYear}</span>
             )}
           </Field>
+          {civ.regentId && (
+            <Field label="Regent">
+              <EntityLink world={world} id={civ.regentId} />
+              <span className="ml-2 text-[var(--ink-faint)]">governing for a minor</span>
+            </Field>
+          )}
+          <Field label="Ruling house">
+            <EntityLink world={world} id={civ.rulingDynastyId} />
+          </Field>
+          {culture && (
+            <Field label="Succession">
+              {SUCCESSION_LABELS[culture.successionLaw] ?? culture.successionLaw}
+              {culture.termYears > 0 && (
+                <span className="ml-2 text-[var(--ink-faint)]">
+                  terms of {culture.termYears} years
+                </span>
+              )}
+            </Field>
+          )}
         </dl>
+      </Panel>
+
+      <Panel title={`Rulers (${civ.rulerIds.length})`}>
+        <Succession world={world} rulerIds={civ.rulerIds} />
       </Panel>
 
       {culture && (
@@ -199,10 +222,19 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
       ? world.export.meta.endYear - figure.birthYear
       : figure.deathYear - figure.birthYear;
 
+  const house = dynastyOf(world, figure.dynastyId);
+  const hasFamily =
+    figure.motherId !== undefined ||
+    figure.fatherId !== undefined ||
+    figure.spouseIds.length > 0 ||
+    figure.childIds.length > 0;
+
   return (
     <div className="space-y-5">
       <PageTitle
-        eyebrow={figure.titles[0]?.title ?? 'Figure'}
+        eyebrow={
+          house ? `${figure.titles[0]?.title ?? 'Of the house of'} · ${house.name}` : 'Figure'
+        }
         title={figure.name}
         meta={
           <>
@@ -218,6 +250,13 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
 
       <Panel title="Details">
         <dl>
+          <Field label="House">
+            {house ? (
+              <EntityLink world={world} id={house.id} />
+            ) : (
+              <span className="text-[var(--ink-faint)]">Of no recorded house</span>
+            )}
+          </Field>
           <Field label="Civilization">
             <EntityLink world={world} id={figure.civilizationId} />
           </Field>
@@ -237,7 +276,9 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
             <Field label="Died">
               {figure.deathYear}
               {figure.deathCause !== 'Unknown' && (
-                <span className="ml-2 text-[var(--ink-faint)]">{figure.deathCause}</span>
+                <span className="ml-2 text-[var(--ink-faint)]">
+                  of {DEATH_LABELS[figure.deathCause] ?? figure.deathCause}
+                </span>
               )}
             </Field>
           )}
@@ -257,22 +298,252 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
               </ul>
             )}
           </Field>
-          {figure.parentIds.length > 0 && (
-            <Field label="Parents">
-              {figure.parentIds.map((id) => (
-                <span key={id} className="mr-2">
-                  <EntityLink world={world} id={id} />
-                </span>
-              ))}
-            </Field>
-          )}
         </dl>
       </Panel>
+
+      {hasFamily && (
+        <Panel title="Family">
+          <FamilyTree world={world} figure={figure} />
+        </Panel>
+      )}
 
       <Panel title="Chronicle">
         <EventList world={world} events={world.eventsFor(figure.id)} />
       </Panel>
     </div>
+  );
+}
+
+/**
+ * Three generations around one person: parents above, spouses beside, children below.
+ *
+ * Deliberately not a drawn tree. A rendered graph looks impressive on a king with two
+ * children and falls apart on one with eleven, and the thing this view is actually for is
+ * getting to the next person in one click — which a list of links does better than a
+ * diagram, at any family size. Each child carries their own children's count, so the depth
+ * of a line is visible without expanding it.
+ */
+function FamilyTree({ world, figure }: { world: World; figure: Figure }) {
+  const parents = figures(world, [figure.motherId, figure.fatherId].filter(Boolean) as EntityId[]);
+  const spouses = figures(world, figure.spouseIds);
+  const children = figures(world, figure.childIds);
+
+  return (
+    <div className="space-y-3 text-sm">
+      <Relations world={world} label="Parents" people={parents} />
+      <Relations world={world} label="Married" people={spouses} />
+      <Relations world={world} label="Children" people={children} />
+    </div>
+  );
+}
+
+function Relations({
+  world,
+  label,
+  people,
+}: {
+  world: World;
+  label: string;
+  people: Figure[];
+}) {
+  if (people.length === 0) return null;
+
+  return (
+    <div>
+      <div className="mb-1 text-[0.7rem] font-medium tracking-wide uppercase text-[var(--ink-faint)]">
+        {label}
+      </div>
+      <ul className="space-y-0.5">
+        {people.map((person) => (
+          <li key={person.id} className="flex flex-wrap items-baseline gap-x-2">
+            <EntityLink world={world} id={person.id} />
+            <span className="text-xs text-[var(--ink-faint)]">
+              {yearRange(person.birthYear, person.deathYear)}
+              {person.titles.length > 0 && ` · ${person.titles[0].title}`}
+              {person.childIds.length > 0 &&
+                ` · ${person.childIds.length} ${person.childIds.length === 1 ? 'child' : 'children'}`}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/**
+ * A list of rulers in accession order, marking where the crown changed house.
+ *
+ * The house break is the interesting event in any list of rulers, and it is invisible in a
+ * plain sequence of names — so it is called out where it happens rather than left to be
+ * inferred by opening each reign in turn.
+ */
+function Succession({ world, rulerIds }: { world: World; rulerIds: EntityId[] }) {
+  const rulers = figures(world, rulerIds);
+
+  if (rulers.length === 0) {
+    return <p className="text-sm text-[var(--ink-faint)]">None recorded.</p>;
+  }
+
+  return (
+    <ol className="space-y-1 text-sm">
+      {rulers.map((ruler, index) => {
+        const previous = index > 0 ? rulers[index - 1] : undefined;
+        const changedHouse =
+          previous !== undefined && ruler.dynastyId !== previous.dynastyId;
+        const reign = ruler.titles.find((title) => title.title !== 'Regent');
+
+        return (
+          <li key={`${ruler.id}-${index}`} className="flex flex-wrap items-baseline gap-x-2">
+            <span className="w-6 shrink-0 text-right text-xs tabular-nums text-[var(--ink-faint)]">
+              {index + 1}
+            </span>
+            <EntityLink world={world} id={ruler.id} />
+            {reign && (
+              <span className="text-xs tabular-nums text-[var(--ink-faint)]">
+                {yearRange(reign.fromYear, reign.toYear)}
+              </span>
+            )}
+            {changedHouse && ruler.dynastyId && (
+              <span className="text-xs text-[var(--ink-faint)]">
+                — the crown passed to <EntityLink world={world} id={ruler.dynastyId} />
+              </span>
+            )}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+export function DynastyPage({ world, house }: { world: World; house: Dynasty }) {
+  const members = figures(world, house.memberIds);
+  const living = members.filter((member) => member.deathYear === undefined);
+  const founder = figureOf(world, house.founderId);
+
+  // Blood only — a house that counted its consorts as members could never die out.
+  const consorts = new Map<EntityId, Figure>();
+  for (const member of members) {
+    for (const spouseId of member.spouseIds) {
+      const spouse = figureOf(world, spouseId);
+      if (spouse && spouse.dynastyId !== house.id) consorts.set(spouse.id, spouse);
+    }
+  }
+
+  const thrones = new Set(figures(world, house.rulerIds).map((r) => r.civilizationId));
+
+  return (
+    <div className="space-y-5">
+      <PageTitle
+        eyebrow="House"
+        title={house.name}
+        meta={
+          <>
+            <Badge tone={house.endedYear === undefined ? 'accent' : 'muted'}>
+              {house.endedYear === undefined ? 'Extant' : 'Died out'}
+            </Badge>
+            <span className="text-[var(--ink-faint)]">
+              {yearRange(house.foundedYear, house.endedYear)}
+            </span>
+          </>
+        }
+      />
+
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <Stat label="Rulers" value={house.rulerIds.length} hint="Reigns held, across all realms" />
+        <Stat label="Blood" value={`${living.length} / ${members.length}`} hint="Living of all born" />
+        <Stat label="Married in" value={consorts.size} />
+        <Stat label="Thrones" value={thrones.size} />
+      </div>
+
+      <Panel title="Details">
+        <dl>
+          <Field label="Founder">
+            <EntityLink world={world} id={house.founderId} />
+            {founder && (
+              <span className="ml-2 text-[var(--ink-faint)]">
+                {yearRange(founder.birthYear, founder.deathYear)}
+              </span>
+            )}
+          </Field>
+          <Field label="Rose in">
+            <EntityLink world={world} id={house.originCivilizationId} />
+          </Field>
+          <Field label="Culture">
+            <EntityLink world={world} id={house.cultureId} />
+          </Field>
+        </dl>
+      </Panel>
+
+      <Panel title={`Reigns (${house.rulerIds.length})`}>
+        <Succession world={world} rulerIds={house.rulerIds} />
+      </Panel>
+
+      <Panel title={`Members (${members.length})`}>
+        <MemberTable world={world} members={members} />
+      </Panel>
+
+      <Panel title="Chronicle">
+        <EventList world={world} events={world.eventsFor(house.id)} />
+      </Panel>
+    </div>
+  );
+}
+
+function MemberTable({ world, members }: { world: World; members: Figure[] }) {
+  const columns: Column<Figure>[] = [
+    {
+      key: 'name',
+      header: 'Name',
+      cell: (f) => <EntityLink world={world} id={f.id} />,
+      sort: (f) => f.name,
+    },
+    { key: 'sex', header: 'Sex', cell: (f) => f.sex, sort: (f) => f.sex },
+    {
+      key: 'title',
+      header: 'Held',
+      cell: (f) =>
+        f.titles.length === 0 ? (
+          <span className="text-[var(--ink-faint)]">—</span>
+        ) : (
+          f.titles[0].title
+        ),
+      sort: (f) => f.titles[0]?.title ?? '',
+    },
+    {
+      key: 'born',
+      header: 'Born',
+      cell: (f) => f.birthYear,
+      sort: (f) => f.birthYear,
+      align: 'right',
+    },
+    {
+      key: 'died',
+      header: 'Died',
+      cell: (f) =>
+        f.deathYear === undefined ? (
+          <span className="text-[var(--ink-faint)]">—</span>
+        ) : (
+          `${f.deathYear}, ${DEATH_LABELS[f.deathCause] ?? f.deathCause}`
+        ),
+      sort: (f) => f.deathYear ?? Number.MAX_SAFE_INTEGER,
+    },
+    {
+      key: 'children',
+      header: 'Children',
+      cell: (f) => f.childIds.length,
+      sort: (f) => f.childIds.length,
+      align: 'right',
+    },
+  ];
+
+  return (
+    <DataTable
+      rows={members}
+      columns={columns}
+      searchText={(f) => `${f.name} ${f.titles[0]?.title ?? ''}`}
+      placeholder="Search the house…"
+      initialSort={{ key: 'born', descending: false }}
+    />
   );
 }
 
