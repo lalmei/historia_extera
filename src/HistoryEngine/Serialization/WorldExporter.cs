@@ -62,6 +62,8 @@ public static class WorldExporter
             Dynasties: BuildDynasties(world),
             Settlements: BuildSettlements(world),
             Figures: BuildFigures(world),
+            Wars: BuildWars(world),
+            Battles: BuildBattles(world),
             Events: events,
             Indices: BuildIndices(world, events),
             Narration: ToDictionary(Narration.Templates));
@@ -232,7 +234,99 @@ public static class WorldExporter
                 PeakPopulation: civilization.PeakPopulation,
                 RulerIds: civilization.RulerIds.ToArray(),
                 SettlementIds: civilization.SettlementIds.ToArray(),
-                TerritoryRegionIds: civilization.TerritoryRegionIds.ToArray()));
+                TerritoryRegionIds: civilization.TerritoryRegionIds.ToArray(),
+                Relations: BuildRelations(civilization),
+                Allies: BuildAlliances(civilization)));
+        }
+
+        return list;
+    }
+
+    /// <summary>
+    /// A realm's opinion of everyone it has ever met, in id order.
+    /// </summary>
+    /// <remarks>
+    /// The truce is folded in here rather than carried as a list of its own, because a truce is
+    /// only ever read alongside the opinion it is holding in check — "hates them, and cannot do
+    /// anything about it until 214" is one fact about one pair of realms.
+    /// </remarks>
+    private static List<ExportRelation> BuildRelations(Civilization civilization)
+    {
+        var list = new List<ExportRelation>(civilization.Relations.Count);
+
+        foreach (KeyValuePair<EntityId, double> relation in civilization.Relations)
+        {
+            int truce = civilization.Truces.GetOrDefault(relation.Key, int.MinValue);
+
+            list.Add(new ExportRelation(
+                relation.Key, relation.Value, truce == int.MinValue ? null : truce));
+        }
+
+        return list;
+    }
+
+    private static List<ExportAlliance> BuildAlliances(Civilization civilization)
+    {
+        var list = new List<ExportAlliance>(civilization.Allies.Count);
+
+        foreach (KeyValuePair<EntityId, int> pact in civilization.Allies)
+        {
+            list.Add(new ExportAlliance(pact.Key, pact.Value));
+        }
+
+        return list;
+    }
+
+    private static List<ExportWar> BuildWars(WorldState world)
+    {
+        var list = new List<ExportWar>(world.Wars.Count);
+
+        foreach (War war in world.Wars)
+        {
+            list.Add(new ExportWar(
+                Id: war.Id,
+                Name: war.Name,
+                Cause: war.Cause,
+                Outcome: war.Outcome,
+                StartYear: war.StartYear,
+                EndYear: war.EndYear,
+                AggressorId: war.AggressorId,
+                DefenderId: war.DefenderId,
+                Attackers: war.Attackers.ToArray(),
+                Defenders: war.Defenders.ToArray(),
+                BattleIds: war.BattleIds.ToArray(),
+                CededRegionIds: war.CededRegionIds.ToArray(),
+                AttackerLosses: war.AttackerLosses,
+                DefenderLosses: war.DefenderLosses));
+        }
+
+        return list;
+    }
+
+    private static List<ExportBattle> BuildBattles(WorldState world)
+    {
+        var list = new List<ExportBattle>(world.Battles.Count);
+
+        foreach (Battle battle in world.Battles)
+        {
+            list.Add(new ExportBattle(
+                Id: battle.Id,
+                Name: battle.Name,
+                WarId: battle.WarId,
+                Year: battle.Year,
+                RegionId: battle.RegionId,
+                SettlementId: OrNull(battle.SettlementId),
+                WasSiege: battle.IsSiege,
+                AttackerId: battle.AttackerId,
+                DefenderId: battle.DefenderId,
+                VictorId: battle.VictorId,
+                AttackerCommanderId: OrNull(battle.AttackerCommanderId),
+                DefenderCommanderId: OrNull(battle.DefenderCommanderId),
+                AttackerStrength: battle.AttackerStrength,
+                DefenderStrength: battle.DefenderStrength,
+                AttackerLosses: battle.AttackerLosses,
+                DefenderLosses: battle.DefenderLosses,
+                Sacked: battle.Sacked));
         }
 
         return list;

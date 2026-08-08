@@ -7,7 +7,7 @@
  * stops moving.
  */
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 /** `"civ:3"`, `"fig:1204"` — readable, greppable, and directly usable as a route. */
 export type EntityId = string;
@@ -34,6 +34,8 @@ export interface WorldExport {
   dynasties: Dynasty[];
   settlements: Settlement[];
   figures: Figure[];
+  wars: War[];
+  battles: Battle[];
   events: HistoryEvent[];
   indices: ExportIndices;
   narration: Record<string, string>;
@@ -222,6 +224,109 @@ export interface Civilization {
   rulerIds: EntityId[];
   settlementIds: EntityId[];
   territoryRegionIds: EntityId[];
+  relations: Relation[];
+  allies: Alliance[];
+}
+
+/**
+ * One realm's standing opinion of another, in [-1, 1].
+ *
+ * Directed: this is what *this* realm thinks, and the other side's entry usually differs.
+ * A peace costs the beaten realm far more goodwill than the realm that beat it, and that
+ * difference is what sends a loser back for its province a generation later.
+ */
+export interface Relation {
+  civilizationId: EntityId;
+  opinion: number;
+  /** Set while a peace treaty still forbids war between the two. */
+  truceUntilYear?: number;
+}
+
+export interface Alliance {
+  civilizationId: EntityId;
+  sinceYear: number;
+}
+
+/** Why a war was declared. Each one is reached by a different route in the engine. */
+export type CasusBelli =
+  | 'Unknown'
+  | 'BorderDispute'
+  | 'Conquest'
+  | 'DynasticClaim'
+  | 'Revanche';
+
+export const CAUSE_LABELS: Record<CasusBelli, string> = {
+  Unknown: 'No stated cause',
+  BorderDispute: 'Border dispute',
+  Conquest: 'Conquest',
+  DynasticClaim: 'Dynastic claim',
+  Revanche: 'Revanche',
+};
+
+export type WarOutcome =
+  | 'Ongoing'
+  | 'AggressorVictory'
+  | 'DefenderVictory'
+  | 'Stalemate';
+
+export const OUTCOME_LABELS: Record<WarOutcome, string> = {
+  Ongoing: 'Still being fought',
+  AggressorVictory: 'Won by the aggressor',
+  DefenderVictory: 'Won by the defender',
+  Stalemate: 'Fought to exhaustion',
+};
+
+/**
+ * A war, its coalitions, and what it cost.
+ *
+ * `name` is composed by the engine from the places and houses it was fought over —
+ * "Second War of Bergajarvi", "War of the Lykos Succession" — rather than drawn from a
+ * naming language, because nobody names a war in advance.
+ */
+export interface War {
+  id: EntityId;
+  name: string;
+  cause: CasusBelli;
+  outcome: WarOutcome;
+  startYear: number;
+  endYear?: number;
+  aggressorId: EntityId;
+  defenderId: EntityId;
+  /** Principal first, then whoever answered the call to arms. */
+  attackers: EntityId[];
+  defenders: EntityId[];
+  battleIds: EntityId[];
+  cededRegionIds: EntityId[];
+  attackerLosses: number;
+  defenderLosses: number;
+}
+
+/**
+ * One engagement, named for where it was fought.
+ *
+ * A siege is a battle with `wasSiege` set, not a kind of its own. `settlementId` is
+ * present whenever a settlement stood on the ground, siege or not — a field battle
+ * outside an unwalled village is still a battle for that village.
+ */
+export interface Battle {
+  id: EntityId;
+  name: string;
+  warId: EntityId;
+  year: number;
+  regionId: EntityId;
+  settlementId?: EntityId;
+  wasSiege: boolean;
+  attackerId: EntityId;
+  defenderId: EntityId;
+  victorId: EntityId;
+  /** The ruler who led in person, absent if the army went without them. */
+  attackerCommanderId?: EntityId;
+  defenderCommanderId?: EntityId;
+  attackerStrength: number;
+  defenderStrength: number;
+  attackerLosses: number;
+  defenderLosses: number;
+  sacked: boolean;
 }
 
 /**
@@ -371,7 +476,15 @@ export interface ExportIndices {
   eventCountsByKind: Record<string, number>;
 }
 
-export type AnyEntity = Region | Culture | Civilization | Dynasty | Settlement | Figure;
+export type AnyEntity =
+  | Region
+  | Culture
+  | Civilization
+  | Dynasty
+  | Settlement
+  | Figure
+  | War
+  | Battle;
 
 export function kindOf(id: EntityId): EntityKind {
   return id.slice(0, id.indexOf(':')) as EntityKind;

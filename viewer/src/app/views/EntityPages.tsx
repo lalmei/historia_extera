@@ -10,18 +10,33 @@ import {
   Stat,
   yearRange,
 } from '../components/common';
-import { cultureOf, dynastyOf, figureOf, figures, regionOf, settlementOf, type World } from '../store';
 import {
+  battlesOf,
+  cultureOf,
+  dynastyOf,
+  figureOf,
+  figures,
+  regionOf,
+  settlementOf,
+  warOf,
+  type World,
+} from '../store';
+import {
+  CAUSE_LABELS,
   DEATH_LABELS,
+  OUTCOME_LABELS,
   SPECIALIZATION_LABELS,
   SUCCESSION_LABELS,
+  type Battle,
   type Civilization,
   type Culture,
   type Dynasty,
   type EntityId,
   type Figure,
   type Region,
+  type Relation,
   type Settlement,
+  type War,
 } from '../types';
 
 /**
@@ -107,6 +122,14 @@ export function CivilizationPage({ world, civ }: { world: World; civ: Civilizati
 
       <Panel title={`Rulers (${civ.rulerIds.length})`}>
         <Succession world={world} rulerIds={civ.rulerIds} />
+      </Panel>
+
+      <Panel title="Standing with its neighbours">
+        <DiplomacyPanel world={world} civ={civ} />
+      </Panel>
+
+      <Panel title="Wars">
+        <WarTable world={world} wars={warsOf(world, civ.id)} />
       </Panel>
 
       {culture && (
@@ -808,6 +831,406 @@ export function SettlementTable({
       searchText={(s) => `${s.name} ${s.tier} ${s.specialization}`}
       placeholder="Search settlements…"
       initialSort={{ key: 'population', descending: true }}
+    />
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Wars and battles
+// ---------------------------------------------------------------------------
+
+/**
+ * A war: who fought it, where it was decided, and what it moved.
+ *
+ * The battle list is the spine of the page, because a war is only legible through the
+ * engagements that decided it — a name, two coalitions and an outcome say nothing about
+ * whether the thing was a border skirmish or twenty years at the same walls.
+ */
+export function WarPage({ world, war }: { world: World; war: War }) {
+  const battles = battlesOf(world, war);
+  const dead = war.attackerLosses + war.defenderLosses;
+  const victor = victorOf(war);
+
+  return (
+    <div className="space-y-5">
+      <PageTitle
+        eyebrow={CAUSE_LABELS[war.cause] ?? 'War'}
+        title={war.name}
+        meta={
+          <>
+            <Badge tone={war.outcome === 'Ongoing' ? 'accent' : 'muted'}>
+              {OUTCOME_LABELS[war.outcome] ?? war.outcome}
+            </Badge>
+            <span className="text-[var(--ink-faint)]">
+              {yearRange(war.startYear, war.endYear)}
+            </span>
+          </>
+        }
+      />
+
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <Stat label="Battles" value={battles.length} />
+        <Stat label="Dead" value={dead.toLocaleString()} hint="Across both coalitions" />
+        <Stat label="Territory" value={`${war.cededRegionIds.length} regions`} hint="Changed hands at the peace" />
+        <Stat
+          label="Length"
+          value={`${(war.endYear ?? world.export.meta.endYear) - war.startYear}y`}
+        />
+      </div>
+
+      <Panel title="Belligerents">
+        <dl>
+          <Field label="Declared by">
+            <EntityLink world={world} id={war.aggressorId} />
+          </Field>
+          <Field label="Declared on">
+            <EntityLink world={world} id={war.defenderId} />
+          </Field>
+          {war.attackers.length > 1 && (
+            <Field label="Attacking">
+              <Coalition world={world} ids={war.attackers} />
+            </Field>
+          )}
+          {war.defenders.length > 1 && (
+            <Field label="Defending">
+              <Coalition world={world} ids={war.defenders} />
+            </Field>
+          )}
+          <Field label="Outcome">
+            {OUTCOME_LABELS[war.outcome] ?? war.outcome}
+            {victor && (
+              <>
+                {' — '}
+                <EntityLink world={world} id={war.attackers.includes(victor) ? war.aggressorId : war.defenderId} />
+              </>
+            )}
+          </Field>
+          {war.cededRegionIds.length > 0 && (
+            <Field label="Ceded">
+              <Coalition world={world} ids={war.cededRegionIds} />
+            </Field>
+          )}
+        </dl>
+      </Panel>
+
+      <Panel title="Battles">
+        {battles.length === 0 ? (
+          <p className="p-4 text-sm text-[var(--ink-faint)]">
+            The two sides never came within reach of each other.
+          </p>
+        ) : (
+          <BattleTable world={world} battles={battles} />
+        )}
+      </Panel>
+
+      <Panel title="Chronicle">
+        <EventList world={world} events={world.eventsFor(war.id)} />
+      </Panel>
+    </div>
+  );
+}
+
+/** The winning coalition's principal, or undefined when nobody won. */
+function victorOf(war: War): EntityId | undefined {
+  if (war.outcome === 'AggressorVictory') return war.aggressorId;
+  if (war.outcome === 'DefenderVictory') return war.defenderId;
+  return undefined;
+}
+
+function Coalition({ world, ids }: { world: World; ids: EntityId[] }) {
+  return (
+    <span className="flex flex-wrap gap-x-2 gap-y-1">
+      {ids.map((id, index) => (
+        <span key={id}>
+          <EntityLink world={world} id={id} />
+          {index < ids.length - 1 && <span className="text-[var(--ink-faint)]">,</span>}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+/**
+ * One engagement.
+ *
+ * Commanders are the reason this is a page rather than a row: a ruler who led in person
+ * links a battle straight into the family tree, and a ruler who died at one is how a
+ * house ends.
+ */
+export function BattlePage({ world, battle }: { world: World; battle: Battle }) {
+  const war = warOf(world, battle.warId);
+
+  return (
+    <div className="space-y-5">
+      <PageTitle
+        eyebrow={war ? war.name : battle.wasSiege ? 'Siege' : 'Battle'}
+        title={battle.name}
+        meta={
+          <>
+            <Badge tone="accent">{world.nameOf(battle.victorId)} prevailed</Badge>
+            {battle.wasSiege && <Badge>Siege</Badge>}
+            {battle.sacked && <Badge tone="muted">Sacked</Badge>}
+            <span className="text-[var(--ink-faint)]">{battle.year}</span>
+          </>
+        }
+      />
+
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <Stat
+          label="Attacker"
+          value={battle.attackerStrength.toLocaleString()}
+          hint={`${world.nameOf(battle.attackerId)} · ${battle.attackerLosses.toLocaleString()} lost`}
+        />
+        <Stat
+          label="Defender"
+          value={battle.defenderStrength.toLocaleString()}
+          hint={`${world.nameOf(battle.defenderId)} · ${battle.defenderLosses.toLocaleString()} lost`}
+        />
+        <Stat label="Dead" value={(battle.attackerLosses + battle.defenderLosses).toLocaleString()} />
+        <Stat label="Year" value={battle.year} />
+      </div>
+
+      <Panel title="Details">
+        <dl>
+          <Field label="War">
+            <EntityLink world={world} id={battle.warId} />
+          </Field>
+          <Field label="Attacker">
+            <EntityLink world={world} id={battle.attackerId} />
+          </Field>
+          <Field label="Defender">
+            <EntityLink world={world} id={battle.defenderId} />
+          </Field>
+          <Field label="Ground">
+            <EntityLink world={world} id={battle.regionId} />
+          </Field>
+          {battle.settlementId && (
+            <Field label={battle.wasSiege ? 'Besieged' : 'Fought over'}>
+              <EntityLink world={world} id={battle.settlementId} />
+              {battle.sacked && <span className="ml-2 text-[var(--ink-faint)]">put to the sack</span>}
+            </Field>
+          )}
+          {battle.attackerCommanderId && (
+            <Field label="Led the attack">
+              <EntityLink world={world} id={battle.attackerCommanderId} />
+            </Field>
+          )}
+          {battle.defenderCommanderId && (
+            <Field label="Led the defence">
+              <EntityLink world={world} id={battle.defenderCommanderId} />
+            </Field>
+          )}
+        </dl>
+      </Panel>
+
+      <Panel title="Chronicle">
+        <EventList world={world} events={world.eventsFor(battle.id)} />
+      </Panel>
+    </div>
+  );
+}
+
+export function BattleTable({ world, battles }: { world: World; battles: Battle[] }) {
+  const columns: Column<Battle>[] = [
+    {
+      key: 'name',
+      header: 'Battle',
+      cell: (b) => (
+        <span className="flex items-center gap-1.5">
+          <EntityLink world={world} id={b.id} />
+          {b.sacked && <Badge tone="muted">sacked</Badge>}
+        </span>
+      ),
+      sort: (b) => b.name,
+    },
+    { key: 'year', header: 'Year', cell: (b) => b.year, sort: (b) => b.year, align: 'right' },
+    {
+      key: 'victor',
+      header: 'Carried by',
+      cell: (b) => <EntityLink world={world} id={b.victorId} />,
+      sort: (b) => world.nameOf(b.victorId),
+    },
+    {
+      key: 'strength',
+      header: 'Strength',
+      cell: (b) => `${b.attackerStrength.toLocaleString()} / ${b.defenderStrength.toLocaleString()}`,
+      sort: (b) => b.attackerStrength + b.defenderStrength,
+      align: 'right',
+    },
+    {
+      key: 'losses',
+      header: 'Dead',
+      cell: (b) => (b.attackerLosses + b.defenderLosses).toLocaleString(),
+      sort: (b) => b.attackerLosses + b.defenderLosses,
+      align: 'right',
+    },
+  ];
+
+  return (
+    <DataTable
+      rows={battles}
+      columns={columns}
+      searchText={(b) => `${b.name} ${world.nameOf(b.victorId)}`}
+      placeholder="Search battles…"
+      initialSort={{ key: 'year' }}
+      emptyMessage="No battles."
+    />
+  );
+}
+
+/**
+ * A realm's standing with everyone it has met.
+ *
+ * Directed, so this is one realm's own view and the other side's page will usually
+ * disagree — which is the model rather than an inconsistency, and the reason a beaten
+ * realm comes back for its province a generation later.
+ */
+export function DiplomacyPanel({ world, civ }: { world: World; civ: Civilization }) {
+  const allies = new Map(civ.allies.map((pact) => [pact.civilizationId, pact.sinceYear]));
+  const ranked = [...civ.relations].sort((a, b) => b.opinion - a.opinion);
+
+  if (ranked.length === 0) {
+    return (
+      <p className="p-4 text-sm text-[var(--ink-faint)]">
+        No other realm ever came within reach.
+      </p>
+    );
+  }
+
+  return (
+    <ul className="divide-y divide-[var(--rule)]">
+      {ranked.map((relation) => (
+        <li key={relation.civilizationId} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2 text-sm">
+          <span className="min-w-40 flex-1">
+            <EntityLink world={world} id={relation.civilizationId} />
+          </span>
+          <OpinionBar opinion={relation.opinion} />
+          <span className="w-28 text-right text-xs text-[var(--ink-faint)]">
+            {standingLabel(relation.opinion)}
+          </span>
+          <span className="flex gap-1.5">
+            {allies.has(relation.civilizationId) && (
+              <Badge tone="accent">allied since {allies.get(relation.civilizationId)}</Badge>
+            )}
+            {truceHolds(world, relation) && (
+              <Badge tone="muted">truce to {relation.truceUntilYear}</Badge>
+            )}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function truceHolds(world: World, relation: Relation): boolean {
+  return relation.truceUntilYear !== undefined
+    && relation.truceUntilYear >= world.export.meta.endYear;
+}
+
+/** Diverging from the centre, so hostility and warmth read as opposite directions. */
+function OpinionBar({ opinion }: { opinion: number }) {
+  const width = Math.min(Math.abs(opinion), 1) * 50;
+  const hostile = opinion < 0;
+
+  return (
+    <span className="relative hidden h-1.5 w-32 shrink-0 overflow-hidden rounded-full bg-[var(--rule)] sm:block">
+      <span
+        className={`absolute top-0 h-full ${hostile ? 'bg-[var(--ink-faint)]' : 'bg-[var(--accent)]'}`}
+        style={hostile ? { right: '50%', width: `${width}%` } : { left: '50%', width: `${width}%` }}
+      />
+    </span>
+  );
+}
+
+function standingLabel(opinion: number): string {
+  if (opinion <= -0.6) return 'implacable';
+  if (opinion <= -0.3) return 'hostile';
+  if (opinion <= -0.1) return 'cold';
+  if (opinion < 0.1) return 'indifferent';
+  if (opinion < 0.28) return 'cordial';
+  return 'friendly';
+}
+
+/** Every war a realm was a belligerent in, oldest first. */
+export function warsOf(world: World, civId: EntityId): War[] {
+  return world.export.wars.filter(
+    (war) => war.attackers.includes(civId) || war.defenders.includes(civId),
+  );
+}
+
+export function WarTable({ world, wars }: { world: World; wars: War[] }) {
+  const columns: Column<War>[] = [
+    {
+      key: 'name',
+      header: 'War',
+      cell: (w) => <EntityLink world={world} id={w.id} />,
+      sort: (w) => w.name,
+    },
+    {
+      key: 'cause',
+      header: 'Cause',
+      cell: (w) => CAUSE_LABELS[w.cause] ?? w.cause,
+      sort: (w) => w.cause,
+    },
+    {
+      key: 'sides',
+      header: 'Fought between',
+      cell: (w) => (
+        <span className="flex flex-wrap items-center gap-1">
+          <EntityLink world={world} id={w.aggressorId} />
+          <span className="text-[var(--ink-faint)]">v</span>
+          <EntityLink world={world} id={w.defenderId} />
+          {w.attackers.length + w.defenders.length > 2 && (
+            <Badge tone="muted">+{w.attackers.length + w.defenders.length - 2}</Badge>
+          )}
+        </span>
+      ),
+      sort: (w) => world.nameOf(w.aggressorId),
+    },
+    {
+      key: 'span',
+      header: 'Span',
+      cell: (w) => yearRange(w.startYear, w.endYear),
+      sort: (w) => w.startYear,
+    },
+    {
+      key: 'battles',
+      header: 'Battles',
+      cell: (w) => w.battleIds.length,
+      sort: (w) => w.battleIds.length,
+      align: 'right',
+    },
+    {
+      key: 'outcome',
+      header: 'Outcome',
+      cell: (w) =>
+        w.outcome === 'Stalemate' ? (
+          <Badge tone="muted">exhaustion</Badge>
+        ) : w.outcome === 'Ongoing' ? (
+          <Badge tone="accent">ongoing</Badge>
+        ) : (
+          <span className="flex items-center gap-1">
+            <EntityLink
+              world={world}
+              id={w.outcome === 'AggressorVictory' ? w.aggressorId : w.defenderId}
+            />
+            {w.cededRegionIds.length > 0 && (
+              <Badge tone="muted">+{w.cededRegionIds.length}</Badge>
+            )}
+          </span>
+        ),
+      sort: (w) => w.outcome,
+    },
+  ];
+
+  return (
+    <DataTable
+      rows={wars}
+      columns={columns}
+      searchText={(w) => `${w.name} ${w.cause} ${world.nameOf(w.aggressorId)} ${world.nameOf(w.defenderId)}`}
+      placeholder="Search wars…"
+      initialSort={{ key: 'span' }}
+      emptyMessage="This realm was never at war."
     />
   );
 }

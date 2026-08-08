@@ -50,7 +50,8 @@ public static class Narration
         Set(EventKind.WorldCreated, "The world took shape.");
 
         Set(EventKind.CivilizationFounded, "{subject} was founded[, with its seat at {location}].");
-        Set(EventKind.CivilizationFell, "{subject} came to an end[ after {data:years} years].");
+        Set(EventKind.CivilizationFell,
+            "{subject} came to an end[ after {data:years} years][, {data:cause}][ by {object}].");
         Set(EventKind.CapitalMoved, "{subject} moved its seat of government to {location}.");
 
         Set(EventKind.SettlementFounded, "{subject} was founded[ by {object}].");
@@ -81,6 +82,22 @@ public static class Narration
         Set(EventKind.DynastyAscended, "The {subject} took the throne of {object}.");
 
         Set(EventKind.RegionClaimed, "{object} extended its reach into {subject}.");
+        Set(EventKind.RegionCeded,
+            "{subject} was ceded to {object}[, and with it {location}].");
+
+        Set(EventKind.AllianceFormed, "{subject} and {object} swore an alliance.");
+        Set(EventKind.AllianceBroken,
+            "The alliance between {subject} and {object} was broken[ after {data:years}].");
+        Set(EventKind.WarDeclared,
+            "{subject} declared war on {object}[, {data:cause}]. So began the {location}.");
+        Set(EventKind.WarJoined,
+            "{subject} entered the {object} alongside {location}.");
+        Set(EventKind.BattleFought,
+            "{object} prevailed at the {subject}[, at a cost of {data:losses} dead].");
+        Set(EventKind.SettlementSacked,
+            "{subject} was sacked by {object}[, losing {data:lost} people].");
+        Set(EventKind.WarEnded,
+            "The {subject} ended[ after {data:years}][, {data:outcome}][ for {object}].");
 
         Set(EventKind.Unknown, "Something happened.");
 

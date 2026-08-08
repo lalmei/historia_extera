@@ -38,6 +38,8 @@ public sealed class WorldState
         Settlements = new EntityTable<Settlement>(EntityKind.Settlement);
         Figures = new EntityTable<Figure>(EntityKind.Figure);
         Dynasties = new EntityTable<Dynasty>(EntityKind.Dynasty);
+        Wars = new EntityTable<War>(EntityKind.War);
+        Battles = new EntityTable<Battle>(EntityKind.Battle);
         Regions = new EntityTable<Region>(EntityKind.Region);
 
         Chronicle = new Chronicle();
@@ -87,6 +89,12 @@ public sealed class WorldState
     /// </remarks>
     public EntityTable<Dynasty> Dynasties { get; }
 
+    /// <summary>Every war ever declared, running or settled.</summary>
+    public EntityTable<War> Wars { get; }
+
+    /// <summary>Every battle fought, in the order they were fought.</summary>
+    public EntityTable<Battle> Battles { get; }
+
     public EntityTable<Region> Regions { get; }
 
     /// <summary>The year currently being simulated.</summary>
@@ -119,6 +127,11 @@ public sealed class WorldState
         // Houses are spoken of as "the Vethric", so the article and the plural live in the
         // narration template rather than in the stored name.
         EntityKind.Dynasty when Dynasties.Contains(id) => Dynasties[id].Name,
+        // Wars and battles carry the whole phrase — "Second Siege of Ekallatograd" — because
+        // unlike every other name here it is composed rather than generated, and composing it
+        // once at creation is what keeps two references to the same battle worded identically.
+        EntityKind.War when Wars.Contains(id) => Wars[id].Name,
+        EntityKind.Battle when Battles.Contains(id) => Battles[id].Name,
         // Regions are generated in bulk before any culture exists, so unlike other
         // entities they have no owning culture to name them — their labels come from
         // biome instead.
@@ -135,6 +148,15 @@ public sealed class WorldState
         foreach (Civilization civ in Civilizations)
         {
             if (civ.IsActive) yield return civ;
+        }
+    }
+
+    /// <summary>Wars still being fought, in the order they were declared.</summary>
+    public IEnumerable<War> ActiveWars()
+    {
+        foreach (War war in Wars)
+        {
+            if (war.IsActive) yield return war;
         }
     }
 
