@@ -26,24 +26,30 @@ public sealed class Simulator
         _systems = systems ?? DefaultSystems();
 
     /// <summary>
-    /// The system order as of Milestone 5.
+    /// The system order as of Milestone 6.
     /// </summary>
     /// <remarks>
     /// <para>Reads as a causal chain within each year: populations change against the harvest, that
     /// changes what settlements are, a settlement that has outgrown a hamlet acquires a character,
-    /// pressure drives expansion, people die, thrones left empty by those deaths are filled, and
-    /// the houses go on — marrying and bearing children against the line as it now stands.
-    /// Milestones 6 and 8 insert diplomacy, war and flavour systems into this list.</para>
+    /// pressure drives expansion, expansion moves borders, neighbours judge each other across the
+    /// borders as they now stand, the wars that follow from that are fought, people die — of age,
+    /// of illness and of wounds alike — thrones left empty by those deaths are filled, and the
+    /// houses go on, marrying and bearing children against the line as it now stands.</para>
     ///
     /// <para>Specialization sits after lifecycle so a settlement promoted this year can acquire its
     /// character in the same year, and the two events read consecutively in the chronicle. It
     /// therefore feeds capacity from the following year onward, which avoids a same-year dependency
     /// loop between what a settlement is and how many people it supports.</para>
     ///
-    /// <para>The final three are the tightest coupling in the list. Deaths must precede succession
-    /// or a realm spends a year without a ruler for no reason the chronicle can explain, and
-    /// succession must precede the houses or a new king's brothers are still ranked as heirs on the
-    /// day he is crowned — and marry accordingly.</para>
+    /// <para>Diplomacy follows expansion so that an opinion is formed about the frontier that
+    /// exists rather than last year's, and war follows diplomacy so a war declared this spring is
+    /// fought this summer instead of waiting a year for anything to happen.</para>
+    ///
+    /// <para>The final three are the tightest coupling in the list, and war now leans on the same
+    /// property. Deaths must precede succession or a realm spends a year without a ruler for no
+    /// reason the chronicle can explain — which is as true of a king killed at a siege as of one
+    /// who died in bed — and succession must precede the houses or a new king's brothers are still
+    /// ranked as heirs on the day he is crowned, and marry accordingly.</para>
     /// </remarks>
     public static IReadOnlyList<IYearSystem> DefaultSystems() => new IYearSystem[]
     {
@@ -51,6 +57,8 @@ public sealed class Simulator
         new SettlementLifecycleSystem(),
         new SpecializationSystem(),
         new ExpansionSystem(),
+        new DiplomacySystem(),
+        new WarSystem(),
         new FigureLifecycleSystem(),
         new SuccessionSystem(),
         new HouseholdSystem(),

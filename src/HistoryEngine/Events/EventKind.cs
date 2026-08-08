@@ -53,7 +53,16 @@ public enum EventKind
 
     // ---- Territory (400) ----
     RegionClaimed = 400,
+    RegionCeded = 401,
 
-    // ---- Diplomacy and war (500) — Milestone 6 ----
+    // ---- Diplomacy and war (500) ----
+    AllianceFormed = 500,
+    AllianceBroken = 501,
+    WarDeclared = 502,
+    WarJoined = 503,
+    BattleFought = 504,
+    SettlementSacked = 505,
+    WarEnded = 506,
+
     // ---- Flavour (600) — Milestone 8 ----
 }

@@ -3,20 +3,24 @@ import { href, useRoute } from './router';
 import { loadWorld, type World } from './store';
 import {
   kindOf,
+  type Battle,
   type Civilization,
   type Culture,
   type Dynasty,
   type Figure,
   type Region,
   type Settlement,
+  type War,
 } from './types';
 import {
+  BattlePage,
   CivilizationPage,
   CulturePage,
   DynastyPage,
   FigurePage,
   RegionPage,
   SettlementPage,
+  WarPage,
 } from './views/EntityPages';
 import {
   CivilizationList,
@@ -27,6 +31,7 @@ import {
   RegionList,
   SettlementList,
   Timeline,
+  WarList,
 } from './views/Lists';
 import { WorldMap } from './views/WorldMap';
 
@@ -38,6 +43,7 @@ const NAV = [
   { path: '/map', label: 'Map' },
   { path: '/timeline', label: 'Timeline' },
   { path: '/civ', label: 'Civilizations' },
+  { path: '/war', label: 'Wars' },
   { path: '/set', label: 'Settlements' },
   { path: '/dyn', label: 'Houses' },
   { path: '/fig', label: 'Figures' },
@@ -89,6 +95,8 @@ function renderRoute(world: World, path: string) {
       return <Timeline world={world} />;
     case 'civ':
       return <CivilizationList world={world} />;
+    case 'war':
+      return <WarList world={world} />;
     case 'set':
       return <SettlementList world={world} />;
     case 'dyn':
@@ -121,6 +129,10 @@ function renderRoute(world: World, path: string) {
       return <RegionPage world={world} region={entity as Region} />;
     case 'cul':
       return <CulturePage world={world} culture={entity as Culture} />;
+    case 'war':
+      return <WarPage world={world} war={entity as War} />;
+    case 'bat':
+      return <BattlePage world={world} battle={entity as Battle} />;
     default:
       return <NotFound id={target} />;
   }
