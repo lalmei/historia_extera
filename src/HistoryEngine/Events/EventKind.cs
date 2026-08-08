@@ -40,6 +40,16 @@ public enum EventKind
     FigureDied = 301,
     RulerCrowned = 302,
     RulerDeposed = 303,
+    FigureMarried = 304,
+    RulerTermEnded = 305,
+    RegencyBegan = 306,
+    RegencyEnded = 307,
+    SuccessionDisputed = 308,
+
+    // ---- Dynasties (310, within the figures block) ----
+    DynastyFounded = 310,
+    DynastyEnded = 311,
+    DynastyAscended = 312,
 
     // ---- Territory (400) ----
     RegionClaimed = 400,

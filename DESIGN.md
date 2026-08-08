@@ -4,8 +4,9 @@ A Dwarf Fortress-style world history generator for Vintage Story, plus a Legends
 viewer. This file is the running decision log: what was chosen, and why, so that a
 decision can be revisited on its merits rather than rediscovered.
 
-**Status:** Milestones 0–4 complete. Real naming languages, and a settlement
-lifecycle that runs its full course rather than only ever growing.
+**Status:** Milestones 0–5 complete. Real naming languages, a settlement lifecycle that
+runs its full course rather than only ever growing, and rulers who inherit from a family
+tree instead of appearing from nowhere.
 
 ---
 
@@ -201,7 +202,105 @@ standing.
 
 **Culture traits are now load-bearing.** Aggression drove fortification and Expansionism
 drove expansion already; M4 adds Mercantile (town capacity, trade siting), Piety (shrine
-siting and shrine capacity) and Tradition (how long a people clings to a dying town).
+siting and shrine capacity) and Tradition (how long a people clings to a dying town). M5
+gives three of them a second job in the dynastic systems, where they are far more visible:
+Tradition chooses among the monarchical succession laws, Aggression sets how often a
+succession is contested and how the loser fares, and Mercantile decides how outward-looking
+a people is about marriage — so a trading culture's family tree reaches across the map while
+an insular one marries its neighbours.
+
+### Dynasties: one traversal, two questions
+
+The M5 deliverable was replacing "a successor is a new adult figure from nowhere" with a
+real line of descent. Almost all of it reduces to one function, `Succession`, and the two
+questions asked of it.
+
+**The traversal.** From the last ruler, walk their descendants depth-first with the eldest
+line exhausted before the next child is considered — so a king's grandson by his eldest son
+outranks his own second son, which is what primogeniture *means* and what a sorted list of
+relatives gets wrong. Only when that line is spent does the walk climb to the ruler's parent
+and descend again, picking up siblings and their lines, then the grandparent for uncles and
+cousins, and so on to the founder.
+
+**Climb through the house, descend through anyone.** The upward climb stops at the first
+ancestor who is not blood of the ruling house, because a claim originates in a house. The
+downward walk is not house-bounded, because a daughter's children belong to their father's
+house and still inherit under every law but the agnatic one — which is exactly how a crown
+passes between houses without anyone dying out. House-bounding the descent is the tempting
+simplification and it silently converts every such succession into an extinction.
+
+**Two consumers.** `Claimants` answers who may take the throne. `Kin` answers who is close
+enough to it for the chronicle to keep following. Same walk, different filter.
+
+**The second question is what makes the milestone tractable at all.** A house where everyone
+marries and every couple has children grows exponentially — three children a generation over
+ten generations is fifty thousand people per realm. Capping births bounds the count and
+produces implausibly small families. What is capped instead is *proximity to the throne*: a
+figure is married off, and a couple has children, only while they stand near the front of
+their house's line. As the ruler's own children are born, cousins are pushed down and quietly
+stop being written about. That is not a claim about who had children; it is a claim about
+whose children a chronicle bothers to name, which is the right thing for this engine to
+model, and it makes the figure table grow with the number of reigns rather than with the
+number of generations.
+
+**Four laws, one tree.** Agnatic, male-preference, absolute, seniority and election are five
+traversals of the same structure, derived from government form with Tradition choosing among
+the monarchical variants. Republics and oligarchies additionally hold office for a *term*,
+which is the one place government form changes the rhythm of a chronicle rather than its
+vocabulary — a republic electing a consul every eight years holds four times the successions
+of a monarchy over the same span.
+
+**Where the calibration fights back.** Two failures were the same shape as M4's, and both
+looked like sound modelling right up until a long run was inspected:
+
+- **A house out of power stopped existing.** Ranking only against thrones currently held
+  meant a house that lost one could never marry, never have children, and so could never
+  return — five of eight founding houses froze at one or two members. Dormant houses now get
+  a much smaller budget: followed at the head of their line and nowhere else.
+- **Per-court ranking is a runaway; per-house ranking starves.** Ranking a house once per
+  throne it holds gives a house with five crowns five times the fertile couples, and since a
+  larger house wins more elections, that compounds — three centuries ended with two families
+  of two hundred and everyone else extinct. Ranking once per *house* fixes that and creates
+  the opposite failure: houses consolidate, the number of houses falls, and with it the whole
+  tracked population — eight centuries ended with two houses and fifty living people in the
+  world. The budget has to be per court, so the world follows a number of people
+  proportional to the number of realms; the compounding is dealt with where it actually
+  happens, in the ballot, which passes over a house that already rules elsewhere. That is
+  also why historical elective monarchies balanced against dominant houses.
+
+**Extinction is detected at the graveside**, not when a throne next falls vacant. A house
+that has already lost power is never asked for an heir again, so leaving the check to
+succession means the houses that fade quietly — much the commonest way a family ends — are
+never recorded as ending at all. Note the distinction the check turns on: a house with no
+*eligible* claimant is not extinct. An agnatic house reduced to daughters has plenty of
+living members and still cannot produce a king, and those daughters carry their father's
+claim into another house's nursery.
+
+**Mortality is now the young end of the curve as much as the old.** Rulers were the only
+people who existed before M5, so the curve started at twenty. A flat curve through infancy
+means every heir born survives to inherit, so no house ever fails and no throne passes
+sideways — the succession machinery would be entirely correct and never exercised. Roughly a
+fifth in the first year and a quarter before five, where pre-modern populations actually sat,
+is what makes an heir predeceasing their father happen at a believable rate. The adult rate
+sets reign length and through it the whole event volume of a chronicle.
+
+### Regnal numbers, and what M5 did to naming
+
+M3 accepted that names are not unique, reasoning about "a culture's few dozen settlements".
+M5 took a world from eighty named people to over a thousand, and that reasoning no longer
+covers the regime: **over half of all figures now share a name with someone else in their
+culture**, and in an 800-year run **43% of reigns belonged to a realm that had already had
+another ruler of the same name**. A line of succession reading *Stein, Gunn, Stein, Vella,
+Stein* is unreadable.
+
+The fix is the one every real chronicle uses. A ruler who shares a name with a predecessor of
+the same realm is numbered at accession, and the first of the name is numbered retroactively
+when the second appears — which costs nothing, because events carry ids and resolve names
+when they are rendered. Numbering depends on who ruled rather than on the order names were
+requested, so it keeps the property `INameGenerator` exists to protect.
+
+It deliberately fixes only the case that matters. Two unrelated cousins sharing a name is
+what real onomastics looks like, and the viewer distinguishes them by dates and house.
 
 ### Events: flat records plus narration templates
 
@@ -368,34 +467,46 @@ territory, settlements), deliberately ignorant of what produced the terrain.
 | M2 | Determinism hardening | done (landed with M1) |
 | M3 | Markov naming languages | done |
 | M4 | Culture traits + settlement lifecycle depth | done |
-| M5 | Figures: dynasties, succession, marriages | next |
-| M6 | Diplomacy & war: named battles, territory transfer | |
+| M5 | Figures: dynasties, succession, marriages | done |
+| M6 | Diplomacy & war: named battles, territory transfer | next |
 | M7 | Viewer depth: territory rendering, richer filters | |
 | M8 | Flavour: religions, artifacts, plagues, disasters | |
 | M9 | Phase 2 spike: raster-backed `ITerrainSampler` | |
 
-### M1 as built
+### As built
 
-Four yearly systems, in order (the order is hashed): `population` →
-`settlement-lifecycle` → `expansion` → `figure-lifecycle`. Reads as a causal chain:
-populations change, that changes what settlements are, pressure from that drives
-expansion, rulers live and die independently.
+Seven yearly systems, in order (the order is hashed): `population` →
+`settlement-lifecycle` → `specialization` → `expansion` → `figure-lifecycle` →
+`succession` → `houses`. Reads as a causal chain: populations change against the harvest,
+that changes what settlements are, a settlement that has outgrown a hamlet acquires a
+character, pressure drives expansion, people die, thrones emptied by those deaths are
+filled, and the houses go on — marrying and bearing children against the line as it now
+stands. The last three are the tightest coupling in the list: deaths must precede
+succession or a realm spends a year without a ruler for no reason the chronicle can
+explain, and succession must precede the houses or a new king's brothers are still ranked
+as heirs on the day he is crowned, and marry accordingly.
 
 Measured on seed 42, 300 years, 8 civilizations, 4096-unit world:
 
-| | |
-|---|---|
-| Wall clock | ~65 ms |
-| Events | 950 |
-| Settlements | 96 (15 cities), 1 abandoned |
-| Simulation samples | 6,050 (≈9.1s in Vintage Story) |
-| Raster samples | 59,904 (≈90s — presentation only, budgeted separately) |
-| Export size | 0.73 MB |
-| Tests | 100 |
+| | M1 | M4 | M5 |
+|---|---|---|---|
+| Wall clock | ~65 ms | ~67 ms | ~215 ms |
+| Events | 359 | 950 | 3,299 |
+| Settlements | 96 | 96 (15 cities), 1 abandoned | 96 (15 cities), 1 abandoned |
+| Figures | 81 | 81 | 1,072 |
+| Houses | — | — | 16 (8 standing, 8 died out) |
+| Simulation samples | 6,050 | 6,050 | 6,050 |
+| Export size | 0.73 MB | 0.73 MB | 1.36 MB |
+| Tests | 100 | 100 | 114 |
 
-**Event volume** went from 359 to 950 with M4, and to ~4,000 over 800 years with 15
-civilizations. Still short of the brief's 50k target, which arrives with M5's dynasties,
-M6's wars and M8's flavour systems. The viewer is built for 50k regardless.
+**Terrain sampling did not move at all**, which is the discipline working: dynasties are
+pure bookkeeping over entities that already exist, and a milestone that quadrupled the
+event count spent not one extra sample. Wall clock did move, and it is the line-of-succession
+walk — recomputed per realm per year — that costs it.
+
+**Event volume** went 359 → 950 → 3,299 across M1, M4 and M5, and to 19,257 over 800 years
+with 15 civilizations. Approaching the brief's 50k target, with M6's wars and M8's flavour
+systems still to come. The viewer is built for 50k regardless.
 
 **Civilizations still do not fall** at this scale, and that is the honest outcome rather
 than a gap to tune away. Capitals sit on the best-scored land and carry a capacity bonus,
@@ -403,22 +514,44 @@ so climate alone cannot finish one — a realm loses its marginal holdings and k
 seat. Collapse properly requires conquest, which is M6. One civilization does fall in an
 800-year run, when its last settlements are lost.
 
+**Houses consolidate over long runs** — an 800-year world ends with seven houses holding
+fourteen thrones, having seen twenty-five rise and eighteen die out. Two rules slow this
+without stopping it, and neither should stop it: an elective ballot fields one candidate
+per house rather than a whole line, and passes over a house that already rules elsewhere.
+A handful of great houses spread across neighbouring realms by marriage is what
+late-medieval Europe actually looked like.
+
+**Government form is legible in the shape of a ruler list.** Over three centuries the two
+chiefdoms hold 18 and 19 reigns between one and two houses; the three realms that elect a
+ruler for a fixed term hold 25, 28 and 41 across five to seven. A theocracy that elects for
+life sits between them at 13 across three. The office changes hands on a schedule, and it
+changes families while doing so — which is exactly the difference the law was meant to make
+and the thing that was invisible before the ballot fielded one candidate per house.
+
 **Abandonment is rare by design** — one settlement in 300 years, more over longer runs.
 Marginal settlements are only founded once a civilization has run out of good land nearby,
 and on a 1024-region world that takes centuries.
 
-A sample of what M3 produces, seed 42:
+The dynastic spine of one world, seed 42 — every event in three centuries that changed
+which family held a crown:
 
 ```
-  1  Zvonigyane was founded, with its seat at Shche.
-  1  Ladimil became King of Zvonigyane at Shche.
- 27  Ladimil died at the age of 63, of old age.
- 56  Ascula grew into a town.
- 79  Zvonigyane extended its reach into Bergajarvi.
-180  Walls were raised around Shche.
-216  Vladishov suffered a catastrophic failure of the harvest, losing 177 people.
-230  Koprivnikice came to be known for farming.
-255  Sandomice was abandoned after 254 years, its people lost to years of decline.
+  1  The Jaroslav rose under Ladimil in Shche.
+  1  The Euphros died out.
+  1  The Lykos rose under Kleides in Aigionanvos.
+  1  The Lykos took the throne of Heraanes.
+  2  Radmil governed as regent for Podmel, a child of 1 year.
+  4  The Jaroslav died out after 3 years.
+  4  The Tihomila took the throne of Zvonigyane.
+ 45  The Shtan died out after 44 years.
+ 45  Herakles governed as regent for Otolydoros, a child of 3 years.
+ 58  Otolydoros came of age and took Ilibalim in hand.
+ 98  The Martti died out after 82 years.
+ 99  The Ragnos died out after 90 years.
+106  Spysl II prevailed over Lupomil in a disputed succession in Sandomice.
+151  The Sima died out after 121 years.
+158  The Rodoslavi died out after 157 years.
+185  The Polykerakles took the throne of Heraanes.
 ```
 
 ---

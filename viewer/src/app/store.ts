@@ -6,6 +6,7 @@ import {
   type Biome,
   type Civilization,
   type Culture,
+  type Dynasty,
   type EntityId,
   type Figure,
   type HistoryEvent,
@@ -77,6 +78,7 @@ export function buildWorld(data: WorldExport): World {
     data.regions,
     data.cultures,
     data.civilizations,
+    data.dynasties,
     data.settlements,
     data.figures,
   ] as AnyEntity[][]) {
@@ -148,4 +150,21 @@ export function regionOf(world: World, id: EntityId | undefined): Region | undef
 
 export function cultureOf(world: World, id: EntityId | undefined): Culture | undefined {
   return id && kindOf(id) === 'cul' ? (world.byId.get(id) as Culture) : undefined;
+}
+
+export function dynastyOf(world: World, id: EntityId | undefined): Dynasty | undefined {
+  return id && kindOf(id) === 'dyn' ? (world.byId.get(id) as Dynasty) : undefined;
+}
+
+/** Resolves a list of figure ids, dropping any that do not. */
+export function figures(world: World, ids: EntityId[] | undefined): Figure[] {
+  if (!ids) return [];
+
+  const found: Figure[] = [];
+  for (const id of ids) {
+    const figure = figureOf(world, id);
+    if (figure) found.push(figure);
+  }
+
+  return found;
 }

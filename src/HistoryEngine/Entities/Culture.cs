@@ -76,6 +76,12 @@ public sealed class Culture
 
     public GovernmentForm Government { get; }
 
+    /// <summary>How this culture chooses the next holder of a throne.</summary>
+    public SuccessionLaw Succession => SuccessionLaws.For(Government, Values);
+
+    /// <summary>Years a ruler serves before standing down, or zero if the office is held for life.</summary>
+    public int TermYears => SuccessionLaws.TermYears(Government);
+
     /// <summary>The title this culture gives its head of state.</summary>
     public string RulerTitle => Government switch
     {

@@ -26,18 +26,24 @@ public sealed class Simulator
         _systems = systems ?? DefaultSystems();
 
     /// <summary>
-    /// The Milestone 1 system order.
+    /// The system order as of Milestone 5.
     /// </summary>
     /// <remarks>
     /// <para>Reads as a causal chain within each year: populations change against the harvest, that
     /// changes what settlements are, a settlement that has outgrown a hamlet acquires a character,
-    /// pressure drives expansion, and rulers live and die independently of all of it. Milestones 6
-    /// and 8 insert diplomacy, war and flavour systems into this list.</para>
+    /// pressure drives expansion, people die, thrones left empty by those deaths are filled, and
+    /// the houses go on — marrying and bearing children against the line as it now stands.
+    /// Milestones 6 and 8 insert diplomacy, war and flavour systems into this list.</para>
     ///
     /// <para>Specialization sits after lifecycle so a settlement promoted this year can acquire its
     /// character in the same year, and the two events read consecutively in the chronicle. It
     /// therefore feeds capacity from the following year onward, which avoids a same-year dependency
     /// loop between what a settlement is and how many people it supports.</para>
+    ///
+    /// <para>The final three are the tightest coupling in the list. Deaths must precede succession
+    /// or a realm spends a year without a ruler for no reason the chronicle can explain, and
+    /// succession must precede the houses or a new king's brothers are still ranked as heirs on the
+    /// day he is crowned — and marry accordingly.</para>
     /// </remarks>
     public static IReadOnlyList<IYearSystem> DefaultSystems() => new IYearSystem[]
     {
@@ -46,6 +52,8 @@ public sealed class Simulator
         new SpecializationSystem(),
         new ExpansionSystem(),
         new FigureLifecycleSystem(),
+        new SuccessionSystem(),
+        new HouseholdSystem(),
     };
 
     public IReadOnlyList<IYearSystem> Systems => _systems;

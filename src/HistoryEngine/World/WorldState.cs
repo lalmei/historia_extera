@@ -37,6 +37,7 @@ public sealed class WorldState
         Civilizations = new EntityTable<Civilization>(EntityKind.Civilization);
         Settlements = new EntityTable<Settlement>(EntityKind.Settlement);
         Figures = new EntityTable<Figure>(EntityKind.Figure);
+        Dynasties = new EntityTable<Dynasty>(EntityKind.Dynasty);
         Regions = new EntityTable<Region>(EntityKind.Region);
 
         Chronicle = new Chronicle();
@@ -77,6 +78,15 @@ public sealed class WorldState
 
     public EntityTable<Figure> Figures { get; }
 
+    /// <summary>
+    /// The ruling houses.
+    /// </summary>
+    /// <remarks>
+    /// A table of their own rather than a field on <see cref="Civilization"/>, because a house
+    /// outlives the reign that made it and can hold a different throne afterwards — or none.
+    /// </remarks>
+    public EntityTable<Dynasty> Dynasties { get; }
+
     public EntityTable<Region> Regions { get; }
 
     /// <summary>The year currently being simulated.</summary>
@@ -88,6 +98,9 @@ public sealed class WorldState
 
     /// <summary>The culture of a given civilization.</summary>
     public Culture CultureOf(Civilization civilization) => Cultures[civilization.CultureId];
+
+    /// <summary>The culture of a given figure.</summary>
+    public Culture CultureOf(Figure figure) => Cultures[figure.CultureId];
 
     /// <summary>
     /// Display name for any entity id. Backs <see cref="Narration.Render"/> and the CLI.
@@ -101,7 +114,11 @@ public sealed class WorldState
         EntityKind.Culture when Cultures.Contains(id) => Cultures[id].Name,
         EntityKind.Civilization when Civilizations.Contains(id) => Civilizations[id].Name,
         EntityKind.Settlement when Settlements.Contains(id) => Settlements[id].Name,
-        EntityKind.Figure when Figures.Contains(id) => Figures[id].Name,
+        // The styled name, so a chronicle distinguishes the second Spysl from the first.
+        EntityKind.Figure when Figures.Contains(id) => Figures[id].FullName,
+        // Houses are spoken of as "the Vethric", so the article and the plural live in the
+        // narration template rather than in the stored name.
+        EntityKind.Dynasty when Dynasties.Contains(id) => Dynasties[id].Name,
         // Regions are generated in bulk before any culture exists, so unlike other
         // entities they have no owning culture to name them — their labels come from
         // biome instead.

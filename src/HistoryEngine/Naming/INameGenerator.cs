@@ -43,6 +43,16 @@ public interface INameGenerator
     string ForFigure(EntityId id, Culture culture);
 
     /// <summary>
+    /// A ruling house's name.
+    /// </summary>
+    /// <remarks>
+    /// Drawn from the same people-name model as its members rather than from place names, because
+    /// houses are named for an ancestor far more often than for a seat, and a house whose name
+    /// sounds like its kings is what makes the two read as one family.
+    /// </remarks>
+    string ForDynasty(EntityId id, Culture culture);
+
+    /// <summary>
     /// A geographic name.
     /// </summary>
     /// <remarks>
@@ -73,6 +83,8 @@ public sealed class PlaceholderNameGenerator : INameGenerator
     public string ForSettlement(EntityId id, Culture culture) => Label("Settlement", id);
 
     public string ForFigure(EntityId id, Culture culture) => Label("Figure", id);
+
+    public string ForDynasty(EntityId id, Culture culture) => Label("House", id);
 
     public string ForRegion(EntityId id, Biome biome) =>
         biome.ToString() + " " + id.Index.ToString(CultureInfo.InvariantCulture);

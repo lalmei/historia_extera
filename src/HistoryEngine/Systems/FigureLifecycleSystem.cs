@@ -1,25 +1,26 @@
-using System.Globalization;
 using HistoryEngine.Core;
 using HistoryEngine.Entities;
-using HistoryEngine.Events;
 using HistoryEngine.World;
 
 namespace HistoryEngine.Systems;
 
 /// <summary>
-/// Ages rulers, kills them, and crowns their successors.
+/// Ages everyone the chronicle is following, and kills them.
 /// </summary>
 /// <remarks>
-/// Deliberately coarse: one ruler per civilization, arriving as an adult with no family. That
-/// is the brief's choice — simulating every citizen is what makes a history generator take
-/// minutes instead of seconds — and Milestone 5 replaces it with dynasties, marriages and
-/// heirs traced through a family tree.
+/// <para>Before Milestone 5 this system aged one ruler per civilization and crowned their
+/// replacement in the same breath, because a ruler was the only person who existed. Now it ages
+/// every member of every house — children, cadets, consorts — and crowning has moved to
+/// <see cref="SuccessionSystem"/>, which runs immediately after it. That split is what makes a
+/// death and the succession it causes two separate events written by two systems, rather than one
+/// system quietly doing both.</para>
 ///
-/// <para>The mortality curve is the one thing worth getting roughly right even now, because it
-/// sets the rhythm of the whole chronicle. Rulers who never die produce a history of nothing
-/// but settlement growth; rulers who die too often produce noise. A curve that is flat through
-/// adulthood and steepens after fifty gives reigns of a plausible length, which means
-/// succession events land at a readable rate.</para>
+/// <para><b>The mortality curve sets the rhythm of the whole chronicle</b>, and now that children
+/// are in it the young end matters as much as the old one. A curve that is flat from birth means
+/// every heir born survives to inherit, so no house ever fails and no throne ever passes sideways;
+/// the succession machinery would be correct and never exercised. Pre-modern infant mortality is
+/// what makes an heir predeceasing their father — the engine of most interesting successions —
+/// happen at a believable rate.</para>
 /// </remarks>
 public sealed class FigureLifecycleSystem : IYearSystem
 {
@@ -29,29 +30,15 @@ public sealed class FigureLifecycleSystem : IYearSystem
     {
         IRng rng = world.Root.Fork(Name, year);
 
-        foreach (Civilization civilization in world.ActiveCivilizations())
+        // Id order, which is birth order — stable regardless of who is currently near a throne.
+        foreach (Figure figure in world.Figures)
         {
-            Culture culture = world.CultureOf(civilization);
+            if (!figure.IsAlive) continue;
 
-            // An interregnum — first year, or a ruler lost with no successor yet.
-            if (civilization.CurrentRulerId.IsNone)
-            {
-                EnsureCapital(world, civilization, year);
-                WorldBuilder.CrownNewRuler(world, civilization, culture, year, rng);
-                continue;
-            }
+            int age = figure.AgeIn(year);
+            if (age < 0 || !rng.Chance(AnnualMortality(age))) continue;
 
-            Figure ruler = world.Figures[civilization.CurrentRulerId];
-            if (!ruler.IsAlive) continue;
-
-            int age = ruler.AgeIn(year);
-            if (!rng.Chance(AnnualMortality(age))) continue;
-
-            Die(world, ruler, year, age >= 55 ? DeathCause.OldAge : DeathCause.Illness);
-
-            civilization.CurrentRulerId = EntityId.None;
-            EnsureCapital(world, civilization, year);
-            WorldBuilder.CrownNewRuler(world, civilization, culture, year, rng);
+            Houses.Die(world, figure, year, CauseAt(age));
         }
     }
 
@@ -59,89 +46,40 @@ public sealed class FigureLifecycleSystem : IYearSystem
     /// Yearly chance of death at a given age.
     /// </summary>
     /// <remarks>
-    /// Low and flat through adulthood, then rising quadratically past fifty-five and certain by
-    /// the late nineties. Quadratic rather than the exponential a real Gompertz curve would use,
-    /// because <c>Math.Exp</c> is not guaranteed bit-identical across runtimes and a single
-    /// differing ULP next to this comparison would fork the entire history — see
-    /// <see cref="DetMath"/>.
+    /// Steep through infancy, low and flat through adulthood, then rising quadratically past
+    /// fifty-five and near-certain by the late nineties. Quadratic rather than the exponential a
+    /// real Gompertz curve would use, because <c>Math.Exp</c> is not guaranteed bit-identical
+    /// across runtimes and a single differing ULP next to this comparison would fork the entire
+    /// history — see <see cref="DetMath"/>.
+    ///
+    /// <para>The infant figures are deliberately harsh: roughly a fifth in the first year and a
+    /// quarter before five, which is where pre-modern populations actually sat. Softening them
+    /// makes every royal nursery produce a surplus of adult heirs and the line of succession stops
+    /// mattering.</para>
+    ///
+    /// <para>The adult rate is the dial that sets reign length, and through it the whole event
+    /// volume of a chronicle. At 1.3% a year someone who reaches twenty can expect roughly another
+    /// forty, which puts a typical reign at thirty-odd years and — more to the point — makes a
+    /// ruler predeceasing their heir's majority happen often enough that regencies are a feature of
+    /// the history rather than a curiosity in it.</para>
     /// </remarks>
     public static double AnnualMortality(int age)
     {
-        if (age < 20) return 0.004;
-        if (age < 55) return 0.009;
+        if (age < 1) return 0.19;
+        if (age < 5) return 0.055;
+        if (age < 15) return 0.012;
+        if (age < 55) return 0.013;
 
         double t = DetMath.InverseLerp(55.0, 97.0, age);
         return DetMath.Clamp(DetMath.Lerp(0.012, 0.85, t * t), 0.0, 1.0);
     }
 
-    private static void Die(WorldState world, Figure figure, int year, DeathCause cause)
-    {
-        figure.DeathYear = year;
-        figure.DeathCause = cause;
-        figure.EndCurrentTitle(year);
-
-        world.Chronicle.Record(
-            year,
-            EventKind.FigureDied,
-            figure.Id,
-            obj: figure.CivilizationId,
-            data: Chronicle.Data(
-                ("age", figure.AgeIn(year).ToString(CultureInfo.InvariantCulture)),
-                ("cause", CauseLabel(cause))));
-    }
-
     /// <summary>
-    /// Repoints a civilization's capital if the current one is gone.
+    /// What the record says carried someone off.
     /// </summary>
     /// <remarks>
-    /// A coronation names the place it happened, so a civilization whose capital has been
-    /// abandoned needs a new seat before the next ruler can be crowned there.
+    /// Age alone, with no roll: a chronicle that attributes a two-year-old's death to old age
+    /// reads as a bug even when the simulation underneath is correct.
     /// </remarks>
-    private static void EnsureCapital(WorldState world, Civilization civilization, int year)
-    {
-        bool capitalStands = !civilization.CapitalId.IsNone
-            && world.Settlements[civilization.CapitalId].IsActive;
-
-        if (capitalStands) return;
-
-        Settlement? replacement = null;
-        foreach (Settlement candidate in world.ActiveSettlementsOf(civilization))
-        {
-            // Largest surviving settlement, id breaking ties.
-            if (replacement is null
-                || candidate.Population > replacement.Population
-                || (candidate.Population == replacement.Population
-                    && candidate.Id.CompareTo(replacement.Id) < 0))
-            {
-                replacement = candidate;
-            }
-        }
-
-        if (replacement is null) return;
-
-        if (!civilization.CapitalId.IsNone && world.Settlements.Contains(civilization.CapitalId))
-        {
-            world.Settlements[civilization.CapitalId].IsCapital = false;
-        }
-
-        replacement.IsCapital = true;
-        civilization.CapitalId = replacement.Id;
-
-        world.Chronicle.Record(
-            year,
-            EventKind.CapitalMoved,
-            civilization.Id,
-            location: replacement.Id);
-    }
-
-    private static string CauseLabel(DeathCause cause) => cause switch
-    {
-        DeathCause.OldAge => "old age",
-        DeathCause.Illness => "illness",
-        DeathCause.Battle => "wounds taken in battle",
-        DeathCause.Assassination => "assassination",
-        DeathCause.Accident => "misadventure",
-        DeathCause.Execution => "execution",
-        _ => "unknown causes",
-    };
+    private static DeathCause CauseAt(int age) => age >= 55 ? DeathCause.OldAge : DeathCause.Illness;
 }

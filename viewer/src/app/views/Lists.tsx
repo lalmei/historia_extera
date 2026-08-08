@@ -11,7 +11,15 @@ import {
   yearRange,
 } from '../components/common';
 import type { World } from '../store';
-import type { Civilization, Culture, Figure, Region } from '../types';
+import {
+  DEATH_LABELS,
+  SUCCESSION_LABELS,
+  type Civilization,
+  type Culture,
+  type Dynasty,
+  type Figure,
+  type Region,
+} from '../types';
 import { SettlementTable } from './EntityPages';
 
 export function CivilizationList({ world }: { world: World }) {
@@ -87,6 +95,73 @@ export function SettlementList({ world }: { world: World }) {
   );
 }
 
+export function DynastyList({ world }: { world: World }) {
+  const columns: Column<Dynasty>[] = [
+    {
+      key: 'name',
+      header: 'House',
+      cell: (house) => <EntityLink world={world} id={house.id} />,
+      sort: (house) => house.name,
+    },
+    {
+      key: 'origin',
+      header: 'Rose in',
+      cell: (house) => <EntityLink world={world} id={house.originCivilizationId} />,
+      sort: (house) => (house.originCivilizationId ? world.nameOf(house.originCivilizationId) : ''),
+    },
+    {
+      key: 'rulers',
+      header: 'Rulers',
+      cell: (house) => house.rulerIds.length,
+      sort: (house) => house.rulerIds.length,
+      align: 'right',
+    },
+    {
+      key: 'members',
+      header: 'Blood',
+      cell: (house) => house.memberIds.length,
+      sort: (house) => house.memberIds.length,
+      align: 'right',
+    },
+    {
+      key: 'span',
+      header: 'Span',
+      cell: (house) => (
+        <span className={house.endedYear !== undefined ? 'text-[var(--ink-faint)]' : ''}>
+          {yearRange(house.foundedYear, house.endedYear)}
+        </span>
+      ),
+      sort: (house) => house.foundedYear,
+    },
+    {
+      key: 'fate',
+      header: 'Fate',
+      cell: (house) =>
+        house.endedYear === undefined ? (
+          <Badge tone="accent">extant</Badge>
+        ) : (
+          <Badge tone="muted">died out {house.endedYear}</Badge>
+        ),
+      sort: (house) => house.endedYear ?? Number.MAX_SAFE_INTEGER,
+    },
+  ];
+
+  return (
+    <div>
+      <PageTitle eyebrow="Index" title="Houses" />
+      <Panel>
+        <DataTable
+          rows={world.export.dynasties}
+          columns={columns}
+          searchText={(house) => house.name}
+          placeholder="Search houses…"
+          initialSort={{ key: 'rulers', descending: true }}
+        />
+      </Panel>
+    </div>
+  );
+}
+
 export function FigureList({ world }: { world: World }) {
   const columns: Column<Figure>[] = [
     {
@@ -100,6 +175,17 @@ export function FigureList({ world }: { world: World }) {
       header: 'Title',
       cell: (figure) => figure.titles[0]?.title ?? '—',
       sort: (figure) => figure.titles[0]?.title ?? '',
+    },
+    {
+      key: 'house',
+      header: 'House',
+      cell: (figure) =>
+        figure.dynastyId ? (
+          <EntityLink world={world} id={figure.dynastyId} />
+        ) : (
+          <span className="text-[var(--ink-faint)]">—</span>
+        ),
+      sort: (figure) => (figure.dynastyId ? world.nameOf(figure.dynastyId) : ''),
     },
     {
       key: 'civ',
@@ -128,7 +214,9 @@ export function FigureList({ world }: { world: World }) {
         figure.deathYear === undefined ? (
           <Badge tone="accent">living</Badge>
         ) : (
-          <span className="text-[var(--ink-faint)]">{figure.deathCause}</span>
+          <span className="text-[var(--ink-faint)]">
+            {DEATH_LABELS[figure.deathCause] ?? figure.deathCause}
+          </span>
         ),
       sort: (figure) => figure.deathCause,
     },
@@ -142,7 +230,9 @@ export function FigureList({ world }: { world: World }) {
           rows={world.export.figures}
           columns={columns}
           searchText={(figure) =>
-            `${figure.name} ${figure.titles[0]?.title ?? ''} ${world.nameOf(figure.civilizationId)}`
+            `${figure.name} ${figure.titles[0]?.title ?? ''} ` +
+            `${figure.dynastyId ? world.nameOf(figure.dynastyId) : ''} ` +
+            `${world.nameOf(figure.civilizationId)}`
           }
           placeholder="Search figures…"
           initialSort={{ key: 'lived' }}
@@ -243,6 +333,19 @@ export function CultureList({ world }: { world: World }) {
       sort: (culture) => culture.government,
     },
     { key: 'title', header: 'Ruler styled', cell: (culture) => culture.rulerTitle },
+    {
+      key: 'succession',
+      header: 'Succession',
+      cell: (culture) => (
+        <span>
+          {SUCCESSION_LABELS[culture.successionLaw] ?? culture.successionLaw}
+          {culture.termYears > 0 && (
+            <span className="text-[var(--ink-faint)]"> · {culture.termYears}y terms</span>
+          )}
+        </span>
+      ),
+      sort: (culture) => culture.successionLaw,
+    },
     {
       key: 'aggression',
       header: 'Aggression',
@@ -366,15 +469,19 @@ export function Timeline({ world }: { world: World }) {
 }
 
 export function Overview({ world }: { world: World }) {
-  const { meta, civilizations, settlements, figures, events, indices } = world.export;
+  const { meta, civilizations, dynasties, settlements, figures, events, indices } = world.export;
 
   const standing = civilizations.filter((civ) => civ.endedYear === undefined);
   const inhabited = settlements.filter((s) => s.abandonedYear === undefined);
   const cities = inhabited.filter((s) => s.tier === 'City');
   const living = figures.filter((f) => f.deathYear === undefined);
+  const extant = dynasties.filter((house) => house.endedYear === undefined);
 
   const largest = [...inhabited].sort((a, b) => b.population - a.population).slice(0, 5);
   const kindCounts = Object.entries(indices.eventCountsByKind).sort((a, b) => b[1] - a[1]);
+
+  // Longest-lived houses by reigns held — the closest thing a world has to a protagonist.
+  const greatest = [...dynasties].sort((a, b) => b.rulerIds.length - a.rulerIds.length).slice(0, 5);
 
   return (
     <div className="space-y-5">
@@ -397,10 +504,32 @@ export function Overview({ world }: { world: World }) {
         <Stat label="Settlements" value={inhabited.length} />
         <Stat label="Cities" value={cities.length} />
         <Stat label="Figures" value={figures.length} hint={`${living.length} still living`} />
-        <Stat label="Regions" value={world.export.regions.length} />
+        <Stat
+          label="Houses"
+          value={`${extant.length} / ${dynasties.length}`}
+          hint="Extant of all that ever rose"
+        />
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2">
+        <Panel title="Great houses">
+          <ol className="space-y-1.5 text-sm">
+            {greatest.map((house) => (
+              <li key={house.id} className="flex items-baseline justify-between gap-3">
+                <span>
+                  <EntityLink world={world} id={house.id} />
+                  <span className="ml-2 text-[var(--ink-faint)]">
+                    {yearRange(house.foundedYear, house.endedYear)}
+                  </span>
+                </span>
+                <span className="shrink-0 tabular-nums text-[var(--ink-faint)]">
+                  {house.rulerIds.length} {house.rulerIds.length === 1 ? 'reign' : 'reigns'}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </Panel>
+
         <Panel title="Largest settlements">
           <ol className="space-y-1.5 text-sm">
             {largest.map((settlement) => (
@@ -419,19 +548,21 @@ export function Overview({ world }: { world: World }) {
           </ol>
         </Panel>
 
-        <Panel title="What happened">
-          <ul className="space-y-1 text-sm">
-            {kindCounts.map(([kind, count]) => (
-              <li key={kind} className="flex items-baseline justify-between gap-3">
-                <span>{humanise(kind)}</span>
-                <span className="tabular-nums text-[var(--ink-faint)]">
-                  {count.toLocaleString()}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </Panel>
       </div>
+
+      <Panel title="What happened">
+        {/* Two columns: dynasties roughly tripled the number of distinct event kinds. */}
+        <ul className="grid gap-x-8 gap-y-1 text-sm sm:grid-cols-2">
+          {kindCounts.map(([kind, count]) => (
+            <li key={kind} className="flex items-baseline justify-between gap-3">
+              <span>{humanise(kind)}</span>
+              <span className="tabular-nums text-[var(--ink-faint)]">
+                {count.toLocaleString()}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </Panel>
 
       <Panel title="Terrain sampling">
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">

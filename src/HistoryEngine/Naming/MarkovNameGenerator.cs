@@ -106,7 +106,6 @@ public sealed class MarkovNameGenerator : INameGenerator
             return language.Place(StreamFor(language.Seed, "region", id));
         });
 
-    /// <summary>A dynasty name. Reserved for Milestone 5.</summary>
     public string ForDynasty(EntityId id, Culture culture) =>
         Memoise(id, () =>
         {
