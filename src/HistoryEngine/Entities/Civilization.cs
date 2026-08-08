@@ -47,6 +47,21 @@ public sealed class Civilization
 
     public EntityId CurrentRulerId { get; set; } = EntityId.None;
 
+    /// <summary>The year the sitting ruler took office. Drives fixed-term governments.</summary>
+    public int RulerSinceYear { get; set; }
+
+    /// <summary>
+    /// The house currently holding the throne.
+    /// </summary>
+    /// <remarks>
+    /// Held on the civilization as well as being readable from the ruler, because succession has to
+    /// know whose claim it is resolving during the moment when there is no ruler to ask.
+    /// </remarks>
+    public EntityId RulingDynastyId { get; set; } = EntityId.None;
+
+    /// <summary>Who governs while the ruler is a minor. <see cref="EntityId.None"/> otherwise.</summary>
+    public EntityId RegentId { get; set; } = EntityId.None;
+
     /// <summary>Every ruler in order of accession. The civilization's spine for the viewer.</summary>
     public List<EntityId> RulerIds { get; }
 

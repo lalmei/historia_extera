@@ -59,6 +59,7 @@ public static class WorldExporter
             Regions: BuildRegions(world),
             Cultures: BuildCultures(world),
             Civilizations: BuildCivilizations(world),
+            Dynasties: BuildDynasties(world),
             Settlements: BuildSettlements(world),
             Figures: BuildFigures(world),
             Events: events,
@@ -162,6 +163,8 @@ public static class WorldExporter
                 Name: culture.Name,
                 Government: culture.Government,
                 RulerTitle: culture.RulerTitle,
+                SuccessionLaw: culture.Succession,
+                TermYears: culture.TermYears,
                 Aggression: culture.Values.Aggression,
                 Expansionism: culture.Values.Expansionism,
                 Piety: culture.Values.Piety,
@@ -232,11 +235,35 @@ public static class WorldExporter
                 EndedYear: civilization.EndedYear,
                 CapitalId: OrNull(civilization.CapitalId),
                 CurrentRulerId: OrNull(civilization.CurrentRulerId),
+                RulingDynastyId: OrNull(civilization.RulingDynastyId),
+                RegentId: OrNull(civilization.RegentId),
+                RulerSinceYear: civilization.RulerSinceYear,
                 Population: civilization.Population,
                 PeakPopulation: civilization.PeakPopulation,
                 RulerIds: civilization.RulerIds.ToArray(),
                 SettlementIds: civilization.SettlementIds.ToArray(),
                 TerritoryRegionIds: civilization.TerritoryRegionIds.ToArray()));
+        }
+
+        return list;
+    }
+
+    private static List<ExportDynasty> BuildDynasties(WorldState world)
+    {
+        var list = new List<ExportDynasty>(world.Dynasties.Count);
+
+        foreach (Dynasty house in world.Dynasties)
+        {
+            list.Add(new ExportDynasty(
+                Id: house.Id,
+                Name: house.Name,
+                CultureId: house.CultureId,
+                FoundedYear: house.FoundedYear,
+                EndedYear: house.EndedYear,
+                FounderId: house.FounderId,
+                OriginCivilizationId: OrNull(house.OriginCivilizationId),
+                RulerIds: house.RulerIds.ToArray(),
+                MemberIds: house.MemberIds.ToArray()));
         }
 
         return list;
@@ -286,15 +313,20 @@ public static class WorldExporter
 
             list.Add(new ExportFigure(
                 Id: figure.Id,
-                Name: figure.Name,
+                // The styled name, numeral and all — the viewer shows what the chronicle says.
+                Name: figure.FullName,
+                Sex: figure.Sex,
                 CivilizationId: figure.CivilizationId,
                 CultureId: figure.CultureId,
+                DynastyId: OrNull(figure.DynastyId),
                 BirthYear: figure.BirthYear,
                 DeathYear: figure.DeathYear,
                 DeathCause: figure.DeathCause,
                 BirthSettlementId: OrNull(figure.BirthSettlementId),
                 Titles: titles,
-                ParentIds: figure.ParentIds.ToArray(),
+                MotherId: OrNull(figure.MotherId),
+                FatherId: OrNull(figure.FatherId),
+                ChildIds: figure.ChildIds.ToArray(),
                 SpouseIds: figure.SpouseIds.ToArray()));
         }
 

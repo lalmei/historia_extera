@@ -1,3 +1,4 @@
+using System.Globalization;
 using HistoryEngine.Core;
 
 namespace HistoryEngine.Events;
@@ -60,6 +61,17 @@ public sealed class Chronicle : IChronicle
         _events.Add(entry);
         return entry;
     }
+
+    /// <summary>
+    /// A span of years as prose, pluralised.
+    /// </summary>
+    /// <remarks>
+    /// Pluralised at the point the payload is built, because the template grammar has optional
+    /// segments but deliberately no conditionals — and "a child of 1 years" is not reason enough
+    /// to give it any.
+    /// </remarks>
+    public static string Years(int count) =>
+        count == 1 ? "1 year" : count.ToString(CultureInfo.InvariantCulture) + " years";
 
     /// <summary>Convenience for building a small display payload without ceremony at call sites.</summary>
     public static DetMap<string, string> Data(params (string Key, string Value)[] pairs)

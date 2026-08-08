@@ -107,6 +107,14 @@ internal static class Program
             if (figure.IsAlive) living++;
         }
 
+        int standingHouses = 0;
+        int extinctHouses = 0;
+        foreach (Dynasty house in world.Dynasties)
+        {
+            if (house.IsExtinct) extinctHouses++;
+            else standingHouses++;
+        }
+
         ExportSampleStats sampling = export.Meta.TerrainSampling;
 
         Console.WriteLine();
@@ -116,6 +124,7 @@ internal static class Program
         Console.WriteLine($"  civilizations  {activeCivs} standing, {fallenCivs} fallen");
         Console.WriteLine($"  settlements    {activeSettlements} active ({cities} cities), {abandoned} abandoned");
         Console.WriteLine($"  figures        {world.Figures.Count} recorded, {living} living");
+        Console.WriteLine($"  houses         {standingHouses} standing, {extinctHouses} died out");
         Console.WriteLine($"  regions        {world.Regions.Count}");
         Console.WriteLine();
         Console.WriteLine("── Terrain sampling ─────────────────────");
