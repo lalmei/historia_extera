@@ -20,7 +20,46 @@ import {
   type Figure,
   type Region,
 } from '../types';
-import { SettlementTable } from './EntityPages';
+import { BattleTable, SettlementTable, WarTable } from './EntityPages';
+
+/**
+ * Every war ever fought, and every engagement in them.
+ *
+ * Two tables rather than one page per war, because the interesting question at this level
+ * is comparative — which wars actually moved a border, and which were the bloodiest — and
+ * that is a thing you sort a column by rather than click through twenty pages for.
+ */
+export function WarList({ world }: { world: World }) {
+  const { wars, battles } = world.export;
+  const settled = wars.filter((war) => war.endYear !== undefined);
+  const decided = settled.filter((war) => war.outcome !== 'Stalemate');
+  const dead = battles.reduce((sum, b) => sum + b.attackerLosses + b.defenderLosses, 0);
+
+  return (
+    <div className="space-y-5">
+      <PageTitle eyebrow="Index" title="Wars" />
+
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <Stat label="Wars" value={wars.length} />
+        <Stat
+          label="Decided"
+          value={`${decided.length} / ${settled.length}`}
+          hint="The rest were fought to exhaustion"
+        />
+        <Stat label="Battles" value={battles.length} />
+        <Stat label="Dead" value={dead.toLocaleString()} hint="In battle, across every war" />
+      </div>
+
+      <Panel title="Wars">
+        <WarTable world={world} wars={wars} />
+      </Panel>
+
+      <Panel title="Battles">
+        <BattleTable world={world} battles={battles} />
+      </Panel>
+    </div>
+  );
+}
 
 export function CivilizationList({ world }: { world: World }) {
   const columns: Column<Civilization>[] = [
@@ -469,7 +508,8 @@ export function Timeline({ world }: { world: World }) {
 }
 
 export function Overview({ world }: { world: World }) {
-  const { meta, civilizations, dynasties, settlements, figures, events, indices } = world.export;
+  const { meta, civilizations, dynasties, settlements, figures, events, indices, wars } =
+    world.export;
 
   const standing = civilizations.filter((civ) => civ.endedYear === undefined);
   const inhabited = settlements.filter((s) => s.abandonedYear === undefined);
@@ -498,7 +538,7 @@ export function Overview({ world }: { world: World }) {
         }
       />
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-7">
         <Stat label="Events" value={events.length.toLocaleString()} />
         <Stat label="Civilizations" value={`${standing.length} / ${civilizations.length}`} hint="Standing of all founded" />
         <Stat label="Settlements" value={inhabited.length} />
@@ -508,6 +548,11 @@ export function Overview({ world }: { world: World }) {
           label="Houses"
           value={`${extant.length} / ${dynasties.length}`}
           hint="Extant of all that ever rose"
+        />
+        <Stat
+          label="Wars"
+          value={wars.length}
+          hint={`${world.export.battles.length} battles fought`}
         />
       </div>
 

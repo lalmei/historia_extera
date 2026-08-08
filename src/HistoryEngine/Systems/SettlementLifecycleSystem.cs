@@ -82,7 +82,9 @@ public sealed class SettlementLifecycleSystem : IYearSystem
 
             if (survivingSettlements == 0)
             {
-                Fall(world, civilization, year);
+                // Shared with the war systems, so a realm that starves and one that is conquered
+                // leave the world in the same state. See Realms.Fall.
+                Realms.Fall(world, civilization, year);
             }
         }
     }
@@ -180,25 +182,4 @@ public sealed class SettlementLifecycleSystem : IYearSystem
                 ("peakPopulation", settlement.PeakPopulation.ToString(CultureInfo.InvariantCulture))));
     }
 
-    private static void Fall(WorldState world, Civilization civilization, int year)
-    {
-        civilization.EndedYear = year;
-        civilization.Population = 0;
-
-        // A ruler without a realm stops ruling, but does not die of it.
-        if (!civilization.CurrentRulerId.IsNone)
-        {
-            Figure ruler = world.Figures[civilization.CurrentRulerId];
-            if (ruler.IsAlive) ruler.EndCurrentTitle(year);
-            civilization.CurrentRulerId = EntityId.None;
-        }
-
-        world.Chronicle.Record(
-            year,
-            EventKind.CivilizationFell,
-            civilization.Id,
-            data: Chronicle.Data(
-                ("years", (year - civilization.FoundedYear).ToString(CultureInfo.InvariantCulture)),
-                ("peakPopulation", civilization.PeakPopulation.ToString(CultureInfo.InvariantCulture))));
-    }
 }

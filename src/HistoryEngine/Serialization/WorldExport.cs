@@ -32,6 +32,8 @@ public sealed record WorldExport(
     IReadOnlyList<ExportDynasty> Dynasties,
     IReadOnlyList<ExportSettlement> Settlements,
     IReadOnlyList<ExportFigure> Figures,
+    IReadOnlyList<ExportWar> Wars,
+    IReadOnlyList<ExportBattle> Battles,
     IReadOnlyList<ExportEvent> Events,
     ExportIndices Indices,
     IReadOnlyDictionary<string, string> Narration)
@@ -42,9 +44,10 @@ public sealed record WorldExport(
     /// </summary>
     /// <remarks>
     /// Version 2 added dynasties and the family links on a figure, and replaced the figure's
-    /// two-element parent list with named mother and father.
+    /// two-element parent list with named mother and father. Version 3 added wars and battles,
+    /// and the relations, alliances and truces on a civilization.
     /// </remarks>
-    public const int CurrentSchemaVersion = 2;
+    public const int CurrentSchemaVersion = 3;
 }
 
 public sealed record ExportMeta(
@@ -190,7 +193,76 @@ public sealed record ExportCivilization(
     int PeakPopulation,
     IReadOnlyList<EntityId> RulerIds,
     IReadOnlyList<EntityId> SettlementIds,
-    IReadOnlyList<EntityId> TerritoryRegionIds);
+    IReadOnlyList<EntityId> TerritoryRegionIds,
+    IReadOnlyList<ExportRelation> Relations,
+    IReadOnlyList<ExportAlliance> Allies);
+
+/// <summary>
+/// One realm's standing opinion of another, in [-1, 1].
+/// </summary>
+/// <remarks>
+/// <para>A list of pairs rather than an object keyed by id, so the export stays an array of
+/// records like everything else in this file and the viewer can sort it however it likes.</para>
+///
+/// <para>Directed: this is what <em>this</em> realm thinks, and the other side's entry will
+/// usually differ. The asymmetry is the model — a peace costs the beaten realm far more goodwill
+/// than the one that beat it — and flattening it into a single number per pair would remove the
+/// only thing that produces a war of revanche.</para>
+/// </remarks>
+public sealed record ExportRelation(EntityId CivilizationId, double Opinion, int? TruceUntilYear);
+
+public sealed record ExportAlliance(EntityId CivilizationId, int SinceYear);
+
+/// <summary>
+/// A war, its coalitions, and what it cost.
+/// </summary>
+/// <remarks>
+/// <see cref="Name"/> is composed rather than generated — "Second War of Bergajarvi", "War of the
+/// Lykos Succession" — because nobody names a war in advance, and every part a chronicle names it
+/// after is already an entity in this file that the reader can follow.
+/// </remarks>
+public sealed record ExportWar(
+    EntityId Id,
+    string Name,
+    CasusBelli Cause,
+    WarOutcome Outcome,
+    int StartYear,
+    int? EndYear,
+    EntityId AggressorId,
+    EntityId DefenderId,
+    IReadOnlyList<EntityId> Attackers,
+    IReadOnlyList<EntityId> Defenders,
+    IReadOnlyList<EntityId> BattleIds,
+    IReadOnlyList<EntityId> CededRegionIds,
+    int AttackerLosses,
+    int DefenderLosses);
+
+/// <summary>
+/// One engagement, named for where it was fought.
+/// </summary>
+/// <remarks>
+/// A siege is a battle with a <see cref="SettlementId"/>, not a kind of its own. Strengths are the
+/// forces actually committed rather than either realm's total levy, since the difference between
+/// the two is most of why a smaller realm sometimes wins.
+/// </remarks>
+public sealed record ExportBattle(
+    EntityId Id,
+    string Name,
+    EntityId WarId,
+    int Year,
+    EntityId RegionId,
+    EntityId? SettlementId,
+    bool WasSiege,
+    EntityId AttackerId,
+    EntityId DefenderId,
+    EntityId VictorId,
+    EntityId? AttackerCommanderId,
+    EntityId? DefenderCommanderId,
+    int AttackerStrength,
+    int DefenderStrength,
+    int AttackerLosses,
+    int DefenderLosses,
+    bool Sacked);
 
 /// <summary>
 /// A ruling house.

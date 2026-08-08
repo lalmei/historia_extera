@@ -3,6 +3,7 @@ import {
   SCHEMA_VERSION,
   kindOf,
   type AnyEntity,
+  type Battle,
   type Biome,
   type Civilization,
   type Culture,
@@ -12,6 +13,7 @@ import {
   type HistoryEvent,
   type Region,
   type Settlement,
+  type War,
   type WorldExport,
 } from './types';
 
@@ -81,6 +83,8 @@ export function buildWorld(data: WorldExport): World {
     data.dynasties,
     data.settlements,
     data.figures,
+    data.wars,
+    data.battles,
   ] as AnyEntity[][]) {
     for (const entity of collection) byId.set(entity.id, entity);
   }
@@ -154,6 +158,22 @@ export function cultureOf(world: World, id: EntityId | undefined): Culture | und
 
 export function dynastyOf(world: World, id: EntityId | undefined): Dynasty | undefined {
   return id && kindOf(id) === 'dyn' ? (world.byId.get(id) as Dynasty) : undefined;
+}
+
+export function warOf(world: World, id: EntityId | undefined): War | undefined {
+  return id && kindOf(id) === 'war' ? (world.byId.get(id) as War) : undefined;
+}
+
+/** Every battle of one war, in the order they were fought. */
+export function battlesOf(world: World, war: War): Battle[] {
+  const found: Battle[] = [];
+
+  for (const id of war.battleIds) {
+    const battle = world.byId.get(id) as Battle | undefined;
+    if (battle) found.push(battle);
+  }
+
+  return found;
 }
 
 /** Resolves a list of figure ids, dropping any that do not. */

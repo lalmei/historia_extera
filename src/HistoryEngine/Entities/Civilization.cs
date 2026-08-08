@@ -27,6 +27,8 @@ public sealed class Civilization
         SettlementIds = new List<EntityId>();
         TerritoryRegionIds = new List<EntityId>();
         Relations = new DetMap<EntityId, double>();
+        Allies = new DetMap<EntityId, int>();
+        Truces = new DetMap<EntityId, int>();
         RulerIds = new List<EntityId>();
     }
 
@@ -72,8 +74,39 @@ public sealed class Civilization
     /// <summary>
     /// Opinion of other civilizations, in [-1, 1]. Negative is hostile.
     /// </summary>
-    /// <remarks>Populated from Milestone 6 onward; empty during the Milestone 1 slice.</remarks>
+    /// <remarks>
+    /// <para><b>Directed, not shared.</b> Each realm keeps its own view, and the two rarely agree.
+    /// A shared number per pair would be half the state and would lose the asymmetry that drives
+    /// the most interesting wars: a peace costs the beaten realm far more goodwill than the realm
+    /// that beat it, and that difference is what sends the loser back for its province a
+    /// generation later. Symmetric relations cannot express a grudge, only a quarrel.</para>
+    ///
+    /// <para>Note what this does <em>not</em> claim. The loser is not therefore the colder of the
+    /// two — the winner is usually the more aggressive realm and so structurally the colder,
+    /// before and after. What is asymmetric is the movement, not the level.</para>
+    ///
+    /// <para>Entries appear on contact — a shared frontier — and persist afterwards, so two realms
+    /// that once fought still remember each other when the border between them has moved away.</para>
+    /// </remarks>
     public DetMap<EntityId, double> Relations { get; }
+
+    /// <summary>Standing alliances, keyed by ally, valued by the year the pact was sworn.</summary>
+    /// <remarks>
+    /// The year is kept because it is the only thing that makes an alliance legible in a chronicle
+    /// — "allied these forty years" is what distinguishes a dynastic bond from a marriage of
+    /// convenience sworn last spring.
+    /// </remarks>
+    public DetMap<EntityId, int> Allies { get; }
+
+    /// <summary>
+    /// Years through which peace is guaranteed, keyed by the other realm.
+    /// </summary>
+    /// <remarks>
+    /// A settlement imposes a truce, and without one the loser's collapsed relations re-declare the
+    /// same war the following spring. Wars then run continuously, every chronicle reads as one
+    /// unbroken campaign, and neither exhaustion nor recovery ever appears.
+    /// </remarks>
+    public DetMap<EntityId, int> Truces { get; }
 
     /// <summary>Total population across active settlements. Recomputed each tick.</summary>
     public int Population { get; set; }
