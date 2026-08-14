@@ -49,6 +49,28 @@ public sealed record WorldConfig
 
     public TerrainSettings Terrain { get; init; } = new();
 
+    /// <summary>
+    /// Identity of the terrain backend, when it is not Phase 1's procedural one.
+    /// </summary>
+    /// <remarks>
+    /// <para>Empty means the noise sampler, whose entire input is <see cref="Seed"/> and
+    /// <see cref="Terrain"/> — both already hashed. A raster backend's input is a set of files,
+    /// and a file path is not the pixels: re-export the map and the same path is a different
+    /// world. So <see cref="RasterTerrainSampler.Provenance"/> puts a content digest here, and
+    /// the determinism contract keeps meaning what it says.</para>
+    ///
+    /// <para>Set it with <see cref="WithTerrain"/> rather than by hand, which also squares
+    /// <see cref="WorldSize"/> with the extent the rasters actually cover.</para>
+    /// </remarks>
+    public string TerrainSource { get; init; } = string.Empty;
+
+    /// <summary>Points this config at a raster backend, recording both its extent and its identity.</summary>
+    public WorldConfig WithTerrain(RasterTerrainSampler sampler) => this with
+    {
+        WorldSize = sampler.Bounds.Width,
+        TerrainSource = sampler.Provenance,
+    };
+
     /// <summary>Resolution per axis of the map raster written to the export.</summary>
     /// <remarks>
     /// Presentation only, and budgeted separately from simulation sampling — see
@@ -87,6 +109,14 @@ public sealed record WorldConfig
             Append(nameof(HydrologyStride), HydrologyStride);
             Append(nameof(InitialCivilizations), InitialCivilizations);
 
+            // Appended only when a foreign backend is in play. Not a convenience: an empty
+            // source means the procedural sampler, whose inputs are already hashed below, so
+            // omitting it leaves every world generated before Phase 2 hashing to the value it
+            // has always hashed to. A field that shifted the provenance of files already
+            // written, without any history having changed, would be the exact reflex the
+            // golden test exists to discourage.
+            if (TerrainSource.Length > 0) Append(nameof(TerrainSource), TerrainSource);
+
             Append(nameof(TerrainSettings.ContinentScale), Terrain.ContinentScale);
             Append(nameof(TerrainSettings.RidgeScale), Terrain.RidgeScale);
             Append(nameof(TerrainSettings.RainfallScale), Terrain.RainfallScale);
@@ -105,10 +135,14 @@ public sealed record WorldConfig
     }
 
     /// <summary>
-    /// Number of fields folded into <see cref="ConfigHash"/>. Guards against a new
+    /// Number of fields <see cref="ConfigHash"/> can fold in. Guards against a new
     /// simulation-affecting field being added without extending the hash.
     /// </summary>
-    public const int HashedFieldCount = 19;
+    /// <remarks>
+    /// A ceiling rather than a count: <see cref="TerrainSource"/> contributes only when a
+    /// foreign terrain backend is in play.
+    /// </remarks>
+    public const int HashedFieldCount = 20;
 
     public void Validate()
     {

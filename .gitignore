@@ -10,6 +10,10 @@ obj/
 worlds/
 *.world.json
 
+# Baked terrain raster sets (regenerable with `make terrain-bake`)
+build/
+*.pgm
+
 # Viewer
 node_modules/
 viewer/dist/
