@@ -54,7 +54,14 @@ public sealed class HistoryRun
     /// Terrain backend. Defaults to Phase 1's noise sampler; Phase 2 and 3 pass their own here,
     /// and that is the entire integration surface.
     /// </param>
-    public static HistoryRun Execute(WorldConfig config, ITerrainSampler? inner = null)
+    /// <param name="simulator">
+    /// The system list to run. Defaults to the standard order, which is what every real run uses;
+    /// tests pass a subset to measure what one system is responsible for. Note that the system
+    /// order is folded into the run's identity, so a custom list produces a legitimately
+    /// different history rather than a comparable one.
+    /// </param>
+    public static HistoryRun Execute(
+        WorldConfig config, ITerrainSampler? inner = null, Simulator? simulator = null)
     {
         config.Validate();
 
@@ -64,7 +71,7 @@ public sealed class HistoryRun
         var stopwatch = Stopwatch.StartNew();
 
         WorldState world = WorldBuilder.Create(config, counter);
-        var simulator = new Simulator();
+        simulator ??= new Simulator();
         simulator.Run(world);
 
         stopwatch.Stop();

@@ -26,15 +26,31 @@ public sealed class Simulator
         _systems = systems ?? DefaultSystems();
 
     /// <summary>
-    /// The system order as of Milestone 6.
+    /// The system order as of Milestone 8.
     /// </summary>
     /// <remarks>
-    /// <para>Reads as a causal chain within each year: populations change against the harvest, that
-    /// changes what settlements are, a settlement that has outgrown a hamlet acquires a character,
-    /// pressure drives expansion, expansion moves borders, neighbours judge each other across the
-    /// borders as they now stand, the wars that follow from that are fought, people die — of age,
-    /// of illness and of wounds alike — thrones left empty by those deaths are filled, and the
-    /// houses go on, marrying and bearing children against the line as it now stands.</para>
+    /// <para>Reads as a causal chain within each year: populations change against the harvest,
+    /// pestilence and the land itself take their share of what is left, that changes what
+    /// settlements are, a settlement that has outgrown a hamlet acquires a character, pressure
+    /// drives expansion, expansion moves borders, faiths travel across the borders as they now
+    /// stand, neighbours judge each other by both, the wars that follow from that are fought,
+    /// people die — of age, of illness, of plague and of wounds alike — thrones left empty by
+    /// those deaths are filled, the houses go on, and what the year's survivors made is written
+    /// down.</para>
+    ///
+    /// <para>Plague and disaster follow population rather than preceding it, so a year's growth
+    /// is applied to a settlement before the year's mortality takes from it — the other order
+    /// lets a town regrow inside the same tick that emptied it, and the plague reads as half the
+    /// size it was. They precede the lifecycle so that a settlement gutted this year is judged
+    /// this year, which is what makes a plague able to finish a place.</para>
+    ///
+    /// <para>Religion sits between expansion and diplomacy for the same reason diplomacy sits
+    /// after expansion: an opinion should be formed about the frontier and the faith that exist
+    /// now, not last year's. It also means a province taken in a spring campaign is judged by its
+    /// new owner's faith in the same year it changed hands.</para>
+    ///
+    /// <para>Artifacts run last, after the houses: a crown made in the reign of a ruler crowned
+    /// this spring belongs to them and not to whoever the year opened with.</para>
     ///
     /// <para>Specialization sits after lifecycle so a settlement promoted this year can acquire its
     /// character in the same year, and the two events read consecutively in the chronicle. It
@@ -54,14 +70,18 @@ public sealed class Simulator
     public static IReadOnlyList<IYearSystem> DefaultSystems() => new IYearSystem[]
     {
         new PopulationSystem(),
+        new PlagueSystem(),
+        new DisasterSystem(),
         new SettlementLifecycleSystem(),
         new SpecializationSystem(),
         new ExpansionSystem(),
+        new ReligionSystem(),
         new DiplomacySystem(),
         new WarSystem(),
         new FigureLifecycleSystem(),
         new SuccessionSystem(),
         new HouseholdSystem(),
+        new ArtifactSystem(),
     };
 
     public IReadOnlyList<IYearSystem> Systems => _systems;

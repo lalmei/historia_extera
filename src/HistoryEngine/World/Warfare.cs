@@ -538,6 +538,10 @@ public static class Warfare
             location: target.RegionId,
             extra: new[] { war.Id, battle.Id, owner.Id },
             data: Chronicle.Data(("lost", lost.ToString(CultureInfo.InvariantCulture))));
+
+        // What the place was keeping goes home with the army, or does not survive the night.
+        // Recorded after the sack so the chronicle reads in the order it happened.
+        Treasures.Loot(world, target, sacker, year, rng);
     }
 
     /// <summary>

@@ -190,6 +190,17 @@ public sealed class SettlementLifecycleSystem : IYearSystem
             world.Chronicle.Record(
                 year, EventKind.RegionReleased, region.Id, obj: settlement.CivilizationId);
         }
+
+        // Whatever the place was keeping stays in it. An artifact does not walk out with the last
+        // family to leave — that is precisely what makes a ruin worth digging up later.
+        Treasures.LoseAll(world, settlement, year, "abandoned with the town");
+
+        // A faith loses a congregation. Left to the religion system to pronounce dead, which it
+        // does when the last one goes.
+        if (!settlement.ReligionId.IsNone && world.Religions.Contains(settlement.ReligionId))
+        {
+            world.Religions[settlement.ReligionId].Lose(settlement.Id);
+        }
     }
 
 }
