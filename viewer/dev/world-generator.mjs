@@ -2,7 +2,7 @@
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { createReadStream } from 'node:fs';
-import { stat } from 'node:fs/promises';
+import { mkdir, open, readdir, rename, stat, unlink } from 'node:fs/promises';
 import path from 'node:path';
 
 /**
@@ -26,6 +26,12 @@ import path from 'node:path';
  */
 
 const RUNS = '/api/worlds/runs';
+
+/** Lists finished exports without making the browser download each entire world. */
+const WORLD_CATALOG = '/api/worlds';
+
+/** Exact world files that can be moved out of the catalog. */
+const WORLD_FILES = `${WORLD_CATALOG}/files/`;
 
 /** Where the viewer asks for a world file, and what `?world=` points at. */
 const WORLDS = '/worlds/';
@@ -141,6 +147,35 @@ function generatorEndpoint() {
         const url = new URL(req.url ?? '/', 'http://localhost');
 
         if (url.pathname.startsWith(WORLDS)) return serveWorld(url.pathname, req, res, next);
+
+        if (req.method === 'GET' && url.pathname === WORLD_CATALOG) {
+          listWorlds(worldDir)
+            .then((worlds) => send(res, 200, { worlds }))
+            .catch((cause) => send(res, 500, { error: message(cause) }));
+          return;
+        }
+
+        if (req.method === 'DELETE' && url.pathname.startsWith(WORLD_FILES)) {
+          let name;
+          let permanent;
+          try {
+            name = worldName(url.pathname.slice(WORLD_FILES.length));
+            permanent = permanentDeletion(url.searchParams.get('permanent'));
+          } catch (cause) {
+            send(res, 400, { error: message(cause) });
+            return;
+          }
+
+          removeWorld(worldDir, name, permanent)
+            .then((deleted) => send(res, 200, deleted))
+            .catch((cause) =>
+              send(res, isNodeError(cause) && cause.code === 'ENOENT' ? 404 : 500, {
+                error: message(cause),
+              }),
+            );
+          return;
+        }
+
         if (!url.pathname.startsWith(RUNS)) return next();
 
         const id = url.pathname.slice(RUNS.length).replace(/^\//, '');
@@ -346,6 +381,177 @@ function generatorEndpoint() {
       }
     },
   };
+}
+
+/**
+ * Reads only the beginning of each export. The schema version is deliberately the
+ * first property in the canonical file, so cataloguing several multi-megabyte worlds
+ * does not mean parsing or retaining all of their chronicles.
+ *
+ * @param {string} worldDir
+ */
+async function listWorlds(worldDir) {
+  let entries;
+  try {
+    entries = await readdir(worldDir, { withFileTypes: true });
+  } catch (cause) {
+    if (isNodeError(cause) && cause.code === 'ENOENT') return [];
+    throw cause;
+  }
+
+  const worlds = await Promise.all(
+    entries
+      .filter((entry) => entry.isFile() && entry.name.endsWith('.json'))
+      .map(async (entry) => inspectWorld(path.join(worldDir, entry.name), entry.name)),
+  );
+
+  return worlds.sort((a, b) => (b.modifiedAt ?? '').localeCompare(a.modifiedAt ?? ''));
+}
+
+/**
+ * @param {string} file
+ * @param {string} name
+ */
+async function inspectWorld(file, name) {
+  let info;
+  try {
+    info = await stat(file);
+  } catch (cause) {
+    return {
+      name,
+      world: `worlds/${name}`,
+      bytes: 0,
+      schemaVersion: null,
+      error: message(cause),
+    };
+  }
+
+  try {
+    return {
+      name,
+      world: `worlds/${name}`,
+      bytes: info.size,
+      modifiedAt: info.mtime.toISOString(),
+      schemaVersion: await readSchemaVersion(file),
+    };
+  } catch (cause) {
+    return {
+      name,
+      world: `worlds/${name}`,
+      bytes: info.size,
+      modifiedAt: info.mtime.toISOString(),
+      schemaVersion: null,
+      error: message(cause),
+    };
+  }
+}
+
+/**
+ * @param {string} file
+ */
+async function readSchemaVersion(file) {
+  const handle = await open(file, 'r');
+
+  try {
+    const buffer = Buffer.alloc(16 * 1024);
+    const { bytesRead } = await handle.read(buffer, 0, buffer.length, 0);
+    const header = buffer.toString('utf8', 0, bytesRead);
+    const match = /"schemaVersion"\s*:\s*(\d+)/.exec(header);
+
+    if (!match) throw new Error('schemaVersion is missing from the file header');
+
+    const version = Number(match[1]);
+    if (!Number.isSafeInteger(version)) throw new Error('schemaVersion is not a whole number');
+
+    return version;
+  } finally {
+    await handle.close();
+  }
+}
+
+/**
+ * Accepts one encoded basename only. Rejecting path components before joining it to
+ * `worldDir` keeps a crafted request from moving anything outside the generated-world folder.
+ *
+ * @param {string} encoded
+ */
+function worldName(encoded) {
+  let name;
+  try {
+    name = decodeURIComponent(encoded);
+  } catch {
+    throw new Error('world name is not valid URL text');
+  }
+
+  if (name.length === 0 || name !== path.basename(name) || !name.endsWith('.json')) {
+    throw new Error('world name must be one JSON filename');
+  }
+
+  return name;
+}
+
+/** @param {string | null} value */
+function permanentDeletion(value) {
+  if (value === null || value === 'false') return false;
+  if (value === 'true') return true;
+  throw new Error('permanent must be true or false');
+}
+
+/**
+ * @param {string} worldDir
+ * @param {string} name
+ * @param {boolean} permanent
+ */
+async function removeWorld(worldDir, name, permanent) {
+  const source = await worldFile(worldDir, name);
+
+  if (permanent) {
+    await unlink(source);
+    return { name, permanent: true };
+  }
+
+  return trashWorld(worldDir, name, source);
+}
+
+/**
+ * @param {string} worldDir
+ * @param {string} name
+ */
+async function worldFile(worldDir, name) {
+  const source = path.join(worldDir, name);
+  const info = await stat(source);
+  if (!info.isFile()) throw new Error(`${name} is not a generated world file`);
+  return source;
+}
+
+/**
+ * Moves a generated export into a hidden recovery folder instead of unlinking it.
+ * The UUID keeps repeated deletions of the same regenerated filename from overwriting
+ * an earlier recovery copy.
+ *
+ * @param {string} worldDir
+ * @param {string} name
+ * @param {string} source
+ */
+async function trashWorld(worldDir, name, source) {
+  const trashDir = path.join(worldDir, '.trash');
+  await mkdir(trashDir, { recursive: true });
+
+  const extension = path.extname(name);
+  const stem = name.slice(0, -extension.length);
+  const trashedName = `${stem}-${Date.now()}-${randomUUID().slice(0, 8)}${extension}`;
+  await rename(source, path.join(trashDir, trashedName));
+
+  return {
+    name,
+    permanent: false,
+    recoveryPath: path.posix.join('viewer/public/worlds/.trash', trashedName),
+  };
+}
+
+/** @param {unknown} cause */
+function isNodeError(cause) {
+  return cause instanceof Error && 'code' in cause;
 }
 
 /**
