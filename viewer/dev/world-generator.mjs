@@ -8,15 +8,21 @@ import path from 'node:path';
 /**
  * Runs the generator CLI on request, for the dev server only.
  *
- * The viewer is a static bundle and stays one: this is a Vite dev middleware, not an
- * Astro route, so nothing about it survives `astro build`. A built viewer still has no
- * server behind it, still opens from disk, and still treats the export file as the whole
- * contract with the engine. What it buys during development is the loop that was
- * otherwise two terminals — pick a seed, run it, look at it — done in the page that is
- * already open.
+ * The viewer is a static bundle and stays one. This is an Astro integration that does
+ * nothing unless the command is `dev`, and then does two things: it injects `/new` (the
+ * page in this directory, which the file router never sees) and it installs the endpoint
+ * below as Vite middleware rather than as an Astro route — an on-demand route would make
+ * `astro build` demand an adapter, which is exactly the coupling the static shell exists
+ * to avoid.
  *
- * The client half is `src/app/generate.ts`, gated on `import.meta.env.DEV`, so the
- * calling code is compiled out of the production bundle rather than merely unused.
+ * So a built viewer has no generator page, no endpoint, and none of the island's code:
+ * it is still a folder of files that opens from disk, with the export as its whole
+ * contract with the engine. What this buys during development is the loop that was
+ * otherwise two terminals — pick a seed, run it, look at it.
+ *
+ * Editing this file needs the dev server restarted by hand. Astro restarts itself when
+ * the config changes, but Node has already imported this module and keeps the copy it
+ * has, so a reload silently runs the old code.
  */
 
 const RUNS = '/api/worlds/runs';
@@ -72,9 +78,27 @@ const RUN_HISTORY = 20;
  */
 
 /**
- * @returns {import('vite').Plugin}
+ * @returns {import('astro').AstroIntegration}
  */
 export function worldGenerator() {
+  return {
+    name: 'historia:world-generator',
+    hooks: {
+      'astro:config:setup': ({ command, injectRoute, updateConfig }) => {
+        // `build` and `preview` get nothing at all — not the route, not the endpoint.
+        if (command !== 'dev') return;
+
+        injectRoute({ pattern: '/new', entrypoint: './dev/new.astro' });
+        updateConfig({ vite: { plugins: [generatorEndpoint()] } });
+      },
+    },
+  };
+}
+
+/**
+ * @returns {import('vite').Plugin}
+ */
+function generatorEndpoint() {
   /** @type {Map<string, Run>} */
   const runs = new Map();
 
@@ -83,7 +107,7 @@ export function worldGenerator() {
   let active = null;
 
   return {
-    name: 'historia:world-generator',
+    name: 'historia:world-generator-endpoint',
 
     // Ordered ahead of Astro's own dev middleware, which would otherwise answer these
     // paths with its 404 page.

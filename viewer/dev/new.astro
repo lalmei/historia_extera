@@ -1,0 +1,68 @@
+---
+import { NewWorld } from '../src/app/views/NewWorld';
+import '../src/styles/global.css';
+
+const viewer = import.meta.env.BASE_URL;
+---
+
+<!--
+  The generator, on its own page.
+
+  Everything here that can be static is static: the shell, the chrome and the prose are
+  Astro, and the only island is the form, because the form is the only part that holds
+  state. It is `client:load` rather than `client:only` — unlike the viewer app it has
+  nothing to fetch before it can render, so the markup is prerendered and hydration only
+  has to attach behaviour.
+
+  A page rather than a route inside the viewer app, because it is not a view of a world:
+  it needs no world loaded, which is exactly the case — an empty `public/worlds/` — where
+  it is most useful. It hands its result to the viewer as `?world=`.
+
+  It lives here rather than in `src/pages/` so that Astro's file router never sees it. The
+  integration in world-generator.mjs injects it as `/new` under `astro dev` only, which is
+  what keeps a built viewer free of both a page that cannot work and the island's code:
+  a static import from `src/pages/` would have pulled the form into a shared client chunk
+  even with nothing rendering it.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>New world — Historia Extera</title>
+    <meta name="robots" content="noindex" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  </head>
+  <body>
+    <div class="mx-auto max-w-3xl px-4 py-6 sm:px-6">
+      <header
+        class="flex flex-wrap items-baseline justify-between gap-3 border-b border-[var(--rule)] pb-3"
+      >
+        <a href={viewer} class="font-serif text-xl tracking-tight">
+          Historia Extera
+          <span class="ml-2 text-sm font-normal text-[var(--ink-faint)]">Legends</span>
+        </a>
+        <span class="text-xs text-[var(--ink-faint)]">Development only</span>
+      </header>
+
+      <main class="mt-6">
+        <div class="text-xs font-medium tracking-widest uppercase text-[var(--ink-faint)]">
+          Generator
+        </div>
+        <h1 class="mt-1 font-serif text-3xl">New world</h1>
+        <p class="mt-2 max-w-prose text-sm text-[var(--ink-soft)]">
+          Runs the engine over a seed and opens the history it writes. Every other setting
+          stays at the CLI's defaults, so what comes out is the file that seed gives through
+          <code class="rounded bg-[var(--panel)] px-1 py-0.5">make generate</code>.
+        </p>
+
+        <div class="mt-6">
+          <NewWorld client:load />
+        </div>
+
+        <p class="mt-6 text-sm">
+          <a href={viewer} class="text-[var(--accent)] underline">Back to the viewer</a>
+        </p>
+      </main>
+    </div>
+  </body>
+</html>

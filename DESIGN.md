@@ -667,10 +667,11 @@ and it needs a process spawn, which a static bundle with no server behind it can
 
 An Astro API route is the obvious shape and was rejected: a non-prerendered route makes the
 build want an adapter, which is precisely the coupling the static shell exists to avoid.
-The generator is a **Vite dev middleware** instead (`viewer/dev/world-generator.mjs`), and
-the UI calling it is gated on `import.meta.env.DEV`, which Vite replaces with a literal at
-build time. So the feature is not hidden in a production build, it is **absent** from it,
-and the built viewer still opens straight off disk.
+An **Astro integration** (`viewer/dev/world-generator.mjs`) instead injects `/new` and a
+Vite dev middleware only for `astro dev`. The page lives outside `src/pages/`, with a React
+island for the form and static Astro around it, so neither route nor island enters the
+production graph. The feature is not hidden in a production build, it is **absent** from
+it, and the built viewer still opens straight off disk.
 
 The endpoint takes three numbers — seed, years, civilizations — bounded, and handed to
 `spawn` with no shell between them. `--size` and `--raster` are deliberately not exposed
@@ -680,6 +681,10 @@ invocations contend over one `obj/`; a poll every 600ms carries the CLI's own su
 which is what actually answers "was that seed worth looking at"; and cancelling signals the
 process group rather than the launcher, which is the difference between stopping a
 simulation and orphaning it.
+
+The generator does not become a second viewer. When a run finishes, `/new` navigates to
+the ordinary viewer with the export in `?world=`; parsing and indexing the chronicle stays
+the viewer's job, and the generator island does not load megabytes just before leaving.
 
 Serving the result took one more piece. Vite lists `public/` once at startup, so a world
 written after that is a 404 — which was already true of `make generate OUT=…` into a
