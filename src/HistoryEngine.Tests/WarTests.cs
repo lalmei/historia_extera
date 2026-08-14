@@ -125,9 +125,13 @@ public sealed class WarTests
 
                 if (relic.LostYear is not int lost || lost > ended)
                 {
-                    Assert.Contains(
-                        relic.Provenance,
-                        holding => holding.Year == ended && holding.How == "claimed in peace");
+                    // The war got what it was declared for. How the object travelled is the
+                    // army's business: a relic carried off when its town was sacked is already
+                    // home, and is not handed over a second time at the peace.
+                    Assert.True(world.Settlements.Contains(relic.HolderId));
+                    Assert.Equal(
+                        war.AggressorId,
+                        world.Settlements[relic.HolderId].CivilizationId);
                 }
             }
 
