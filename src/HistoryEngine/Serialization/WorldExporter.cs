@@ -18,7 +18,7 @@ namespace HistoryEngine.Serialization;
 public static class WorldExporter
 {
     /// <summary>Reported in the export so a world file records which engine produced it.</summary>
-    public const string EngineVersion = "0.5.0";
+    public const string EngineVersion = "0.6.0";
 
     public static WorldExport Build(
         WorldState world,
