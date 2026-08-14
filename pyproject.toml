@@ -1,6 +1,6 @@
 [project]
 name = "historia-extera"
-version = "0.1.0"
+version = "0.8.2"
 description = "Historia Extera — procedural world history generator and Legends viewer."
 requires-python = ">=3.11"
 dependencies = []
