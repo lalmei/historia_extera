@@ -116,10 +116,14 @@ public static class Realms
 
         // Land outlives the realm that held it. Releasing it is what lets a neighbour expand into
         // the vacancy a generation later, which is the whole point of a realm having fallen.
+        var released = new List<EntityId>();
         foreach (EntityId regionId in civilization.TerritoryRegionIds)
         {
             Region region = world.Regions[regionId];
-            if (region.Owner == civilization.Id) region.Owner = EntityId.None;
+            if (region.Owner != civilization.Id) continue;
+
+            region.Owner = EntityId.None;
+            released.Add(regionId);
         }
 
         civilization.TerritoryRegionIds.Clear();
@@ -132,6 +136,14 @@ public static class Realms
 
         world.Chronicle.Record(
             year, EventKind.CivilizationFell, civilization.Id, obj: conqueror, data: data);
+
+        // After the ending, because a province is only masterless once the realm is gone — and
+        // because a reader wants to hear that a realm fell before hearing what became of its land.
+        foreach (EntityId regionId in released)
+        {
+            world.Chronicle.Record(
+                year, EventKind.RegionReleased, regionId, obj: civilization.Id);
+        }
     }
 
     /// <summary>True once a realm has no settlement left standing.</summary>

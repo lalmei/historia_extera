@@ -176,6 +176,11 @@ public static class WorldBuilder
         world.Chronicle.Record(
             year, EventKind.CivilizationFounded, civId, location: capital.Id);
 
+        // The homeland is claimed like any other region. Recording it means every acre a realm
+        // ever held entered the chronicle by an event, so territory at any year can be replayed
+        // from the log rather than inferred from where a realm happened to put its first town.
+        world.Chronicle.Record(year, EventKind.RegionClaimed, homeland.Id, obj: civId);
+
         Figure founder = Houses.FoundDynasty(world, civilization, culture, year, rng);
         Houses.Enthrone(world, civilization, culture, founder, year, "by the founding of the realm");
     }

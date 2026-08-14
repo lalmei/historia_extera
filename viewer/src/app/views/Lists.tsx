@@ -5,12 +5,13 @@ import {
   type Column,
   DataTable,
   EntityLink,
+  type Facet,
   PageTitle,
   Panel,
   Stat,
   yearRange,
 } from '../components/common';
-import type { World } from '../store';
+import { cultureOf, figures, type World } from '../store';
 import {
   DEATH_LABELS,
   SUCCESSION_LABELS,
@@ -20,7 +21,7 @@ import {
   type Figure,
   type Region,
 } from '../types';
-import { BattleTable, SettlementTable, WarTable } from './EntityPages';
+import { BattleTable, SettlementTable, WarTable, warsOf } from './EntityPages';
 
 /**
  * Every war ever fought, and every engagement in them.
@@ -107,6 +108,31 @@ export function CivilizationList({ world }: { world: World }) {
     },
   ];
 
+  const governmentOf = (civ: Civilization) => cultureOf(world, civ.cultureId)?.government;
+
+  const facets: Facet<Civilization>[] = [
+    {
+      key: 'status',
+      label: 'Status',
+      options: [
+        { value: 'standing', label: 'Standing', match: (civ) => civ.endedYear === undefined },
+        { value: 'fallen', label: 'Fallen', match: (civ) => civ.endedYear !== undefined },
+        { value: 'war', label: 'Fought a war', match: (civ) => warsOf(world, civ.id).length > 0 },
+      ],
+    },
+    {
+      key: 'government',
+      label: 'Government',
+      options: distinct(world.export.cultures.map((culture) => culture.government)).map(
+        (government) => ({
+          value: government,
+          label: government,
+          match: (civ: Civilization) => governmentOf(civ) === government,
+        }),
+      ),
+    },
+  ];
+
   return (
     <div>
       <PageTitle eyebrow="Index" title="Civilizations" />
@@ -114,6 +140,7 @@ export function CivilizationList({ world }: { world: World }) {
         <DataTable
           rows={world.export.civilizations}
           columns={columns}
+          facets={facets}
           searchText={(civ) => `${civ.name} ${world.nameOf(civ.cultureId)}`}
           placeholder="Search civilizations…"
           initialSort={{ key: 'population', descending: true }}
@@ -121,6 +148,11 @@ export function CivilizationList({ world }: { world: World }) {
       </Panel>
     </div>
   );
+}
+
+/** The distinct values present, in first-seen order. */
+function distinct<T>(values: T[]): T[] {
+  return [...new Set(values)];
 }
 
 export function SettlementList({ world }: { world: World }) {
@@ -185,6 +217,33 @@ export function DynastyList({ world }: { world: World }) {
     },
   ];
 
+  const facets: Facet<Dynasty>[] = [
+    {
+      key: 'status',
+      label: 'Status',
+      options: [
+        { value: 'extant', label: 'Extant', match: (house) => house.endedYear === undefined },
+        { value: 'ended', label: 'Died out', match: (house) => house.endedYear !== undefined },
+      ],
+    },
+    {
+      key: 'throne',
+      label: 'Throne',
+      options: [
+        { value: 'ruled', label: 'Held one', match: (house) => house.rulerIds.length > 0 },
+        { value: 'never', label: 'Never held one', match: (house) => house.rulerIds.length === 0 },
+        {
+          value: 'many',
+          label: 'Ruled more than one realm',
+          match: (house) =>
+            new Set(
+              figures(world, house.rulerIds).map((ruler) => ruler.civilizationId),
+            ).size > 1,
+        },
+      ],
+    },
+  ];
+
   return (
     <div>
       <PageTitle eyebrow="Index" title="Houses" />
@@ -192,6 +251,7 @@ export function DynastyList({ world }: { world: World }) {
         <DataTable
           rows={world.export.dynasties}
           columns={columns}
+          facets={facets}
           searchText={(house) => house.name}
           placeholder="Search houses…"
           initialSort={{ key: 'rulers', descending: true }}
@@ -261,6 +321,43 @@ export function FigureList({ world }: { world: World }) {
     },
   ];
 
+  const facets: Facet<Figure>[] = [
+    {
+      key: 'fate',
+      label: 'Fate',
+      options: [
+        { value: 'living', label: 'Still living', match: (f) => f.deathYear === undefined },
+        ...distinct(
+          world.export.figures.filter((f) => f.deathYear !== undefined).map((f) => f.deathCause),
+        ).map((cause) => ({
+          value: cause,
+          label: `Died of ${DEATH_LABELS[cause] ?? cause}`,
+          match: (f: Figure) => f.deathYear !== undefined && f.deathCause === cause,
+        })),
+      ],
+    },
+    {
+      key: 'role',
+      label: 'Role',
+      options: [
+        { value: 'ruled', label: 'Ruled', match: (f) => f.titles.length > 0 },
+        { value: 'never', label: 'Never ruled', match: (f) => f.titles.length === 0 },
+        // Consorts keep the house they were born into, so no house means married in from
+        // outside — which is the only way to find them in a list of a thousand people.
+        { value: 'married-in', label: 'Married in', match: (f) => f.dynastyId === undefined },
+      ],
+    },
+    {
+      key: 'realm',
+      label: 'Realm',
+      options: world.export.civilizations.map((civ) => ({
+        value: civ.id,
+        label: civ.name,
+        match: (f: Figure) => f.civilizationId === civ.id,
+      })),
+    },
+  ];
+
   return (
     <div>
       <PageTitle eyebrow="Index" title="Figures" />
@@ -268,6 +365,7 @@ export function FigureList({ world }: { world: World }) {
         <DataTable
           rows={world.export.figures}
           columns={columns}
+          facets={facets}
           searchText={(figure) =>
             `${figure.name} ${figure.titles[0]?.title ?? ''} ` +
             `${figure.dynastyId ? world.nameOf(figure.dynastyId) : ''} ` +
@@ -329,6 +427,43 @@ export function RegionList({ world }: { world: World }) {
     },
   ];
 
+  const facets: Facet<Region>[] = [
+    {
+      key: 'owner',
+      label: 'Held by',
+      options: [
+        { value: 'none', label: 'Nobody', match: (region) => region.owner === undefined },
+        ...world.export.civilizations.map((civ) => ({
+          value: civ.id,
+          label: civ.name,
+          match: (region: Region) => region.owner === civ.id,
+        })),
+      ],
+    },
+    {
+      key: 'biome',
+      label: 'Biome',
+      options: distinct(rows.map((region) => region.biome)).map((biome) => ({
+        value: biome,
+        label: biome,
+        match: (region: Region) => region.biome === biome,
+      })),
+    },
+    {
+      key: 'features',
+      label: 'Features',
+      options: [
+        { value: 'river', label: 'On a river', match: (region) => region.hasRiver },
+        { value: 'coast', label: 'On the coast', match: (region) => region.isCoastal },
+        {
+          value: 'both',
+          label: 'River and coast',
+          match: (region) => region.hasRiver && region.isCoastal,
+        },
+      ],
+    },
+  ];
+
   return (
     <div>
       <PageTitle eyebrow="Index" title="Regions" />
@@ -348,6 +483,7 @@ export function RegionList({ world }: { world: World }) {
         <DataTable
           rows={rows}
           columns={columns}
+          facets={facets}
           searchText={(region) => `${region.name} ${region.biome}`}
           placeholder="Search regions…"
           initialSort={{ key: 'habitability', descending: true }}
@@ -401,6 +537,32 @@ export function CultureList({ world }: { world: World }) {
     },
   ];
 
+  const facets: Facet<Culture>[] = [
+    {
+      key: 'government',
+      label: 'Government',
+      options: distinct(world.export.cultures.map((culture) => culture.government)).map(
+        (government) => ({
+          value: government,
+          label: government,
+          match: (culture: Culture) => culture.government === government,
+        }),
+      ),
+    },
+    {
+      key: 'succession',
+      label: 'Succession',
+      options: [
+        ...distinct(world.export.cultures.map((culture) => culture.successionLaw)).map((law) => ({
+          value: law,
+          label: SUCCESSION_LABELS[law] ?? law,
+          match: (culture: Culture) => culture.successionLaw === law,
+        })),
+        { value: 'term', label: 'Serves a fixed term', match: (culture) => culture.termYears > 0 },
+      ],
+    },
+  ];
+
   return (
     <div>
       <PageTitle eyebrow="Index" title="Cultures" />
@@ -408,6 +570,7 @@ export function CultureList({ world }: { world: World }) {
         <DataTable
           rows={world.export.cultures}
           columns={columns}
+          facets={facets}
           searchText={(culture) => `${culture.name} ${culture.government}`}
           placeholder="Search cultures…"
         />

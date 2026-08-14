@@ -164,7 +164,9 @@ public sealed class SettlementLifecycleSystem : IYearSystem
         settlement.AbandonedYear = year;
 
         Region region = world.Regions[settlement.RegionId];
-        if (region.Owner == settlement.CivilizationId)
+        bool released = region.Owner == settlement.CivilizationId;
+
+        if (released)
         {
             region.Owner = EntityId.None;
             world.Civilizations[settlement.CivilizationId].TerritoryRegionIds.Remove(region.Id);
@@ -180,6 +182,14 @@ public sealed class SettlementLifecycleSystem : IYearSystem
                 ("years", (year - settlement.FoundedYear).ToString(CultureInfo.InvariantCulture)),
                 ("cause", cause),
                 ("peakPopulation", settlement.PeakPopulation.ToString(CultureInfo.InvariantCulture))));
+
+        // The claim leaves with the people. Recorded rather than left implicit because a border
+        // that recedes is a border change like any other, and the map replays these.
+        if (released)
+        {
+            world.Chronicle.Record(
+                year, EventKind.RegionReleased, region.Id, obj: settlement.CivilizationId);
+        }
     }
 
 }

@@ -1,3 +1,4 @@
+import { buildTimeline, type Timeline } from './timeline';
 import {
   BIOME_ORDER,
   SCHEMA_VERSION,
@@ -30,6 +31,10 @@ export interface World {
   eventsFor: (id: EntityId) => HistoryEvent[];
   nameOf: (id: EntityId) => string;
   raster: DecodedRaster;
+  /** The world as it stood in any year, replayed from the chronicle. */
+  timeline: Timeline;
+  /** One colour per realm, shared by every view that shows more than one. */
+  colourOf: (id: EntityId) => string;
 }
 
 export interface DecodedRaster {
@@ -103,7 +108,23 @@ export function buildWorld(data: WorldExport): World {
     return id;
   };
 
-  return { export: data, byId, eventsFor, nameOf, raster: decodeRaster(data) };
+  // Evenly spaced around the wheel by the golden angle, so neighbouring realms are unlikely to
+  // land on neighbouring hues however many there are. Assigned once here rather than per view,
+  // because a realm that is teal on the map and orange in a list is a realm you cannot follow.
+  const colours = new Map<EntityId, string>();
+  data.civilizations.forEach((civ, index) => {
+    colours.set(civ.id, `hsl(${(index * 137.508) % 360} 62% 52%)`);
+  });
+
+  return {
+    export: data,
+    byId,
+    eventsFor,
+    nameOf,
+    raster: decodeRaster(data),
+    timeline: buildTimeline(data),
+    colourOf: (id) => colours.get(id) ?? 'var(--ink-faint)',
+  };
 }
 
 function decodeRaster(data: WorldExport): DecodedRaster {
