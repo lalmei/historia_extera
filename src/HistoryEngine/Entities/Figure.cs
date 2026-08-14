@@ -13,6 +13,9 @@ public enum DeathCause
     Accident = 5,
     Execution = 6,
     Childbirth = 7,
+    Plague = 8,
+    Disaster = 9,
+    Poisoning = 10,
 }
 
 /// <summary>
@@ -112,6 +115,16 @@ public sealed class Figure
     public int? DeathYear { get; set; }
 
     public DeathCause DeathCause { get; set; } = DeathCause.Unknown;
+
+    /// <summary>
+    /// The particular form the cause took, when the system that killed this figure knows it.
+    /// </summary>
+    /// <remarks>
+    /// The enum is the stable, filterable category; this is the chronicle's human detail —
+    /// "the Speckled Fever", "wildfire", or "a riding accident". Natural deaths leave it empty
+    /// and use the category's ordinary label.
+    /// </remarks>
+    public string? DeathDetail { get; set; }
 
     public bool IsAlive => DeathYear is null;
 

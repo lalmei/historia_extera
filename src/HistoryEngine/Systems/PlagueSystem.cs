@@ -312,7 +312,11 @@ public sealed class PlagueSystem : IYearSystem
             if (!afflicted.Contains(figure.CivilizationId)) continue;
             if (figure.AgeIn(year) < 0) continue;
 
-            if (rng.Chance(DetMath.Clamp01(mortality))) Houses.Die(world, figure, year, DeathCause.Illness);
+            if (rng.Chance(DetMath.Clamp01(mortality)))
+            {
+                Houses.Die(
+                    world, figure, year, DeathCause.Plague, "the " + outbreak.Name);
+            }
         }
     }
 

@@ -18,7 +18,7 @@ namespace HistoryEngine.Serialization;
 public static class WorldExporter
 {
     /// <summary>Reported in the export so a world file records which engine produced it.</summary>
-    public const string EngineVersion = "0.9.0";
+    public const string EngineVersion = "0.9.1";
 
     public static WorldExport Build(
         WorldState world,
@@ -574,6 +574,7 @@ public static class WorldExporter
                 BirthYear: figure.BirthYear,
                 DeathYear: figure.DeathYear,
                 DeathCause: figure.DeathCause,
+                DeathDetail: figure.DeathDetail,
                 BirthSettlementId: OrNull(figure.BirthSettlementId),
                 Titles: titles,
                 MotherId: OrNull(figure.MotherId),

@@ -203,10 +203,16 @@ public static class Houses
     /// succession system means a throne is empty the instant its holder dies, whatever order the
     /// systems happen to run in.
     /// </remarks>
-    public static void Die(WorldState world, Figure figure, int year, DeathCause cause)
+    public static void Die(
+        WorldState world,
+        Figure figure,
+        int year,
+        DeathCause cause,
+        string? detail = null)
     {
         figure.DeathYear = year;
         figure.DeathCause = cause;
+        figure.DeathDetail = detail;
         figure.EndAllTitles(year);
 
         if (world.Figures.Contains(figure.SpouseId))
@@ -237,7 +243,7 @@ public static class Houses
             extra: figure.DynastyId.IsNone ? null : new[] { figure.DynastyId },
             data: Chronicle.Data(
                 ("age", figure.AgeIn(year).ToString(CultureInfo.InvariantCulture)),
-                ("cause", CauseLabel(cause))));
+                ("cause", detail ?? CauseLabel(cause))));
 
         CloseHouseIfLast(world, figure, year);
     }
@@ -287,6 +293,9 @@ public static class Houses
         DeathCause.Accident => "misadventure",
         DeathCause.Execution => "execution",
         DeathCause.Childbirth => "childbed",
+        DeathCause.Plague => "plague",
+        DeathCause.Disaster => "a disaster",
+        DeathCause.Poisoning => "poisoning",
         _ => "unknown causes",
     };
 }

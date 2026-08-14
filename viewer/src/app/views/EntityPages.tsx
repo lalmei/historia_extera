@@ -502,7 +502,7 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
               {figure.deathYear}
               {figure.deathCause !== 'Unknown' && (
                 <span className="ml-2 text-[var(--ink-faint)]">
-                  of {DEATH_LABELS[figure.deathCause] ?? figure.deathCause}
+                  of {figure.deathDetail ?? DEATH_LABELS[figure.deathCause] ?? figure.deathCause}
                 </span>
               )}
             </Field>
@@ -748,7 +748,7 @@ function MemberTable({ world, members }: { world: World; members: Figure[] }) {
         f.deathYear === undefined ? (
           <span className="text-[var(--ink-faint)]">—</span>
         ) : (
-          `${f.deathYear}, ${DEATH_LABELS[f.deathCause] ?? f.deathCause}`
+          `${f.deathYear}, ${f.deathDetail ?? DEATH_LABELS[f.deathCause] ?? f.deathCause}`
         ),
       sort: (f) => f.deathYear ?? Number.MAX_SAFE_INTEGER,
     },

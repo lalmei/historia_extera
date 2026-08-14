@@ -7,7 +7,7 @@
  * stops moving.
  */
 
-export const SCHEMA_VERSION = 7;
+export const SCHEMA_VERSION = 8;
 
 /** `"civ:3"`, `"fig:1204"` — readable, greppable, and directly usable as a route. */
 export type EntityId = string;
@@ -578,7 +578,10 @@ export type DeathCause =
   | 'Assassination'
   | 'Accident'
   | 'Execution'
-  | 'Childbirth';
+  | 'Childbirth'
+  | 'Plague'
+  | 'Disaster'
+  | 'Poisoning';
 
 export const DEATH_LABELS: Record<DeathCause, string> = {
   Unknown: 'unknown causes',
@@ -589,6 +592,9 @@ export const DEATH_LABELS: Record<DeathCause, string> = {
   Accident: 'misadventure',
   Execution: 'execution',
   Childbirth: 'childbed',
+  Plague: 'plague',
+  Disaster: 'a disaster',
+  Poisoning: 'poisoning',
 };
 
 export type Sex = 'Female' | 'Male';
@@ -618,6 +624,8 @@ export interface Figure {
   birthYear: number;
   deathYear?: number;
   deathCause: DeathCause;
+  /** Specific form of the cause when known, such as a named plague or a flood. */
+  deathDetail?: string;
   birthSettlementId?: EntityId;
   titles: Title[];
   motherId?: EntityId;

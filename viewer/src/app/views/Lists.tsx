@@ -812,7 +812,7 @@ export function FigureList({ world }: { world: World }) {
           <Badge tone="accent">living</Badge>
         ) : (
           <span className="text-[var(--ink-faint)]">
-            {DEATH_LABELS[figure.deathCause] ?? figure.deathCause}
+            {figure.deathDetail ?? DEATH_LABELS[figure.deathCause] ?? figure.deathCause}
           </span>
         ),
       sort: (figure) => figure.deathCause,

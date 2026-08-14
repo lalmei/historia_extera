@@ -52,9 +52,10 @@ public sealed record WorldExport(
     /// and the relations, alliances and truces on a civilization. Version 5 added the contents and
     /// circulation of a tome, and the particular relic and two faiths named by the new religious
     /// causes of war. Version 6 added persistent trade routes. Version 7 added holy sites as
-    /// independent map entities.
+    /// independent map entities. Version 8 added the exact detail behind a figure's categorical
+    /// cause of death.
     /// </remarks>
-    public const int CurrentSchemaVersion = 7;
+    public const int CurrentSchemaVersion = 8;
 }
 
 public sealed record ExportMeta(
@@ -431,6 +432,7 @@ public sealed record ExportFigure(
     int BirthYear,
     int? DeathYear,
     DeathCause DeathCause,
+    string? DeathDetail,
     EntityId? BirthSettlementId,
     IReadOnlyList<ExportTitle> Titles,
     EntityId? MotherId,

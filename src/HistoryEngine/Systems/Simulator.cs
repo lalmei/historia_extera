@@ -34,8 +34,8 @@ public sealed class Simulator
     /// settlements are, a settlement that has outgrown a hamlet acquires a character, pressure
     /// drives expansion, expansion moves borders, faiths travel across the borders as they now
     /// stand, neighbours judge each other by both, the wars that follow from that are fought,
-    /// trade links respond to the resulting peace or war, people die — of age, of illness, of
-    /// plague and of wounds alike — thrones left empty by those deaths are filled, the houses go
+    /// trade links respond to the resulting peace or war, personal hazards and biological mortality
+    /// take their turns, thrones left empty by those deaths are filled, the houses go
     /// on, and what the year's survivors made is written down.</para>
     ///
     /// <para>Plague and disaster follow population rather than preceding it, so a year's growth
@@ -84,6 +84,7 @@ public sealed class Simulator
         new DiplomacySystem(),
         new WarSystem(),
         new TradeRouteSystem(),
+        new FigureIncidentSystem(),
         new FigureLifecycleSystem(),
         new SuccessionSystem(),
         new HouseholdSystem(),

@@ -142,7 +142,7 @@ wheels = [
 
 [[package]]
 name = "historia-extera"
-version = "0.9.0"
+version = "0.9.1"
 source = { virtual = "." }
 
 [package.dev-dependencies]
