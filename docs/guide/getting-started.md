@@ -38,6 +38,12 @@ make generate ARGS='--pretty --sample 20'
 make generate OUT=viewer/public/worlds/custom.json
 ```
 
+When using a custom output name, select it with the viewer's `world` query parameter:
+
+```text
+http://localhost:4321/?world=worlds/custom.json
+```
+
 Equivalent without Make:
 
 ```bash

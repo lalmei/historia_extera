@@ -19,8 +19,21 @@ Default CLI output:
 viewer/public/worlds/world.json
 ```
 
-That directory is gitignored — regenerate with `make generate`. Custom paths work if
-you point the viewer at them (or copy into `public/worlds/`).
+That directory is gitignored — regenerate with `make generate`. To keep more than one
+export, give it a distinct name and select it through the `world` query parameter:
+
+```bash
+make generate OUT=viewer/public/worlds/custom.json
+make viewer
+```
+
+Then open `http://localhost:4321/?world=worlds/custom.json`. Relative paths are resolved
+from the viewer root; remote URLs also need to permit cross-origin browser requests.
+
+The parameter belongs before the `#`, where it survives navigation — routing is
+hash-based, so `/?world=…#/civ:3` opens a specific page of a chosen world. Appending it
+to a copied deep link instead (`/#/civ:3?world=…`) is read too, but only until the next
+click.
 
 ## Scripts
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { href, useRoute } from './router';
+import { hashParams, href, useRoute } from './router';
 import { loadWorld, type World } from './store';
 import {
   kindOf,
@@ -44,6 +44,20 @@ import { WorldMap } from './views/WorldMap';
 /** Where the CLI writes by default. */
 const DEFAULT_WORLD = `${import.meta.env.BASE_URL}worlds/world.json`.replace('//', '/');
 
+/**
+ * A different export can be selected without rebuilding the static viewer.
+ * Relative paths are resolved by fetch against the viewer page, so
+ * `?world=worlds/custom.json` also works when the viewer has a base path.
+ *
+ * Accepted before the `#` (canonical — it survives navigation) or inside it,
+ * which is where the parameter lands when appended to a copied deep link.
+ */
+function selectedWorldUrl(): string {
+  const search = new URLSearchParams(window.location.search).get('world')?.trim();
+  const requested = search || hashParams().get('world')?.trim();
+  return requested || DEFAULT_WORLD;
+}
+
 const NAV = [
   { path: '/', label: 'Overview' },
   { path: '/map', label: 'Map' },
@@ -68,7 +82,7 @@ export default function App() {
     // Loaded once for the lifetime of the app. Routing is client-side precisely so
     // that navigating between entities never re-fetches or re-parses a file that
     // can run to tens of megabytes.
-    loadWorld(DEFAULT_WORLD)
+    loadWorld(selectedWorldUrl())
       .then(setWorld)
       .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)));
   }, []);
