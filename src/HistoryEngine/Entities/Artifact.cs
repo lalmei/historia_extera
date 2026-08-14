@@ -13,6 +13,93 @@ public enum ArtifactKind
     Jewel = 5,
 }
 
+/// <summary>The kind of account preserved inside a <see cref="ArtifactKind.Tome"/>.</summary>
+/// <remarks>
+/// Explicit values because the kind crosses the export boundary. A tome's kind says what
+/// questions its sections answer; the subject id says who or what those answers are about.
+/// </remarks>
+public enum TomeContentKind
+{
+    Biography = 0,
+    Campaign = 1,
+    ReligiousRite = 2,
+    ReligiousTeaching = 3,
+    Annals = 4,
+    ArtifactHistory = 5,
+}
+
+/// <summary>One passage in a tome, with the entities a reader can follow from it.</summary>
+public sealed record TomeSection(
+    string Heading,
+    string Text,
+    IReadOnlyList<EntityId> References);
+
+/// <summary>A copy made in another settlement from an exemplar already available there.</summary>
+/// <remarks>
+/// This is a distribution record, not another famous artifact. It says that a copy was made;
+/// later abandonment may mean that copy no longer survives.
+/// </remarks>
+public sealed record TomeCopy(
+    int Year,
+    EntityId SettlementId,
+    EntityId SourceSettlementId);
+
+/// <summary>
+/// The contents fixed inside a tome when it was made.
+/// </summary>
+/// <remarks>
+/// Stored rather than rendered from final world state: a campaign still under way when a codex
+/// was written must not acquire the peace settlement thirty years later. <see cref="ContextId"/>
+/// carries the war for a campaign account and is otherwise empty; section references carry the
+/// rest of the people, places and events named by the text.
+/// </remarks>
+public sealed class TomeContents
+{
+    public TomeContents(
+        TomeContentKind kind,
+        EntityId subjectId,
+        EntityId contextId,
+        IReadOnlyList<TomeSection> sections)
+    {
+        Kind = kind;
+        SubjectId = subjectId;
+        ContextId = contextId;
+        Sections = sections;
+    }
+
+    public TomeContentKind Kind { get; }
+
+    public EntityId SubjectId { get; }
+
+    public EntityId ContextId { get; }
+
+    public IReadOnlyList<TomeSection> Sections { get; }
+
+    /// <summary>Maximum number of additional settlement copies this work may produce.</summary>
+    public int CopyLimit { get; internal set; }
+
+    /// <summary>Copies made from this work, in chronological order.</summary>
+    public List<TomeCopy> Copies { get; } = new();
+
+    internal void CopyTo(int year, EntityId settlementId, EntityId sourceSettlementId)
+    {
+        if (Copies.Count >= CopyLimit)
+        {
+            throw new InvalidOperationException("A tome cannot exceed its circulation limit.");
+        }
+
+        foreach (TomeCopy copy in Copies)
+        {
+            if (copy.SettlementId == settlementId)
+            {
+                throw new InvalidOperationException("A settlement cannot receive the same tome twice.");
+            }
+        }
+
+        Copies.Add(new TomeCopy(year, settlementId, sourceSettlementId));
+    }
+}
+
 public static class ArtifactKinds
 {
     /// <summary>
@@ -110,6 +197,9 @@ public sealed class Artifact
 
     /// <summary>The faith it is sacred to, for relics and idols.</summary>
     public EntityId ReligionId { get; set; } = EntityId.None;
+
+    /// <summary>The written account, for books, codices, chronicles and testaments.</summary>
+    public TomeContents? TomeContents { get; set; }
 
     public int CreatedYear { get; }
 

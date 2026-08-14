@@ -442,6 +442,7 @@ public static class WorldExporter
                 CreatorId: OrNull(artifact.CreatorId),
                 OriginSettlementId: artifact.OriginSettlementId,
                 ReligionId: OrNull(artifact.ReligionId),
+                TomeContents: BuildTomeContents(artifact.TomeContents),
                 CreatedYear: artifact.CreatedYear,
                 HolderId: OrNull(artifact.HolderId),
                 LostYear: artifact.LostYear,
@@ -449,6 +450,37 @@ public static class WorldExporter
         }
 
         return list;
+    }
+
+    private static ExportTomeContents? BuildTomeContents(TomeContents? contents)
+    {
+        if (contents is null) return null;
+
+        var copies = new List<ExportTomeCopy>(contents.Copies.Count);
+        foreach (TomeCopy copy in contents.Copies)
+        {
+            copies.Add(new ExportTomeCopy(
+                Year: copy.Year,
+                SettlementId: copy.SettlementId,
+                SourceSettlementId: copy.SourceSettlementId));
+        }
+
+        var sections = new List<ExportTomeSection>(contents.Sections.Count);
+        foreach (TomeSection section in contents.Sections)
+        {
+            sections.Add(new ExportTomeSection(
+                Heading: section.Heading,
+                Text: section.Text,
+                References: section.References.ToArray()));
+        }
+
+        return new ExportTomeContents(
+            Kind: contents.Kind,
+            SubjectId: contents.SubjectId,
+            ContextId: OrNull(contents.ContextId),
+            CopyLimit: contents.CopyLimit,
+            Copies: copies,
+            Sections: sections);
     }
 
     private static List<ExportFigure> BuildFigures(WorldState world)

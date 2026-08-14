@@ -951,6 +951,24 @@ place was sacked in 142 one was carried off to Aigionanvos and the other did not
 the night. Both facts are on both objects' pages, and neither needed an event kind of its
 own — a sack already knew how to happen.
 
+**A tome contains the history available when it was written, not the final export's
+omniscience.** Books choose among a ruler's life, a commander's service in one war, the
+settlement's faith and its own local annals, then preserve several linked passages on the
+artifact. A campaign account written before the treaty continues to say that the outcome
+was unsettled even after the simulation knows the victor. Rites and teachings are the one
+invented part: they are derived from the faith's identity rather than from the individual
+book, so two codices of one religion agree about what its followers do.
+
+**Written works circulate without becoming a pile of new artifacts.** A tome's copying
+ceiling is fixed when it is written: tradition, mercantile culture, religious subject matter,
+city and capital scriptoria, and trade, craft or shrine specializations make duplication more
+likely. Some manuscripts remain unique, most reproducible ones allow one or two additional
+settlement copies, and a hard ceiling of four preserves scarcity. The ceiling is only potential;
+an actual copy takes a later yearly roll and an active route within a realm, along the tome's
+faith, or through a nearby trade centre. Each copy records its destination and the settlement
+whose exemplar it used, so distribution can branch gradually without giving every copy the full
+provenance and fame of a singular treasure.
+
 ### M9: terrain from somewhere else
 
 The claim the whole three-phase plan rests on is that the simulation runs against an

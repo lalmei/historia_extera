@@ -368,6 +368,50 @@ export const ARTIFACT_LABELS: Record<ArtifactKind, string> = {
   Jewel: 'Jewel',
 };
 
+export type TomeContentKind =
+  | 'Biography'
+  | 'Campaign'
+  | 'ReligiousRite'
+  | 'ReligiousTeaching'
+  | 'Annals'
+  | 'ArtifactHistory';
+
+export const TOME_CONTENT_LABELS: Record<TomeContentKind, string> = {
+  Biography: 'Life',
+  Campaign: 'Campaign account',
+  ReligiousRite: 'Book of rites',
+  ReligiousTeaching: 'Religious teaching',
+  Annals: 'Local annals',
+  ArtifactHistory: 'Artifact history',
+};
+
+export interface TomeSection {
+  heading: string;
+  text: string;
+  /** People, places, wars and other entities named by the passage. */
+  references: EntityId[];
+}
+
+/** A settlement copy made from an exemplar already circulating elsewhere. */
+export interface TomeCopy {
+  year: number;
+  settlementId: EntityId;
+  sourceSettlementId: EntityId;
+}
+
+/** Contents fixed when the tome was made; later history never rewrites them. */
+export interface TomeContents {
+  kind: TomeContentKind;
+  subjectId: EntityId;
+  /** The war for a campaign account. */
+  contextId?: EntityId;
+  /** Maximum additional settlement copies chosen when the work was written. */
+  copyLimit?: number;
+  /** Historical copying records; absent in exports made before circulation was modelled. */
+  copies?: TomeCopy[];
+  sections: TomeSection[];
+}
+
 /** Where an artifact was, from a given year, and how it got there. */
 export interface Provenance {
   year: number;
@@ -391,6 +435,8 @@ export interface Artifact {
   originSettlementId: EntityId;
   /** The faith it is sacred to, for relics and idols. */
   religionId?: EntityId;
+  /** Present only for books, codices, chronicles and testaments. */
+  tomeContents?: TomeContents;
   createdYear: number;
   /** The settlement holding it now. Absent once it is lost. */
   holderId?: EntityId;

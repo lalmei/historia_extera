@@ -76,6 +76,7 @@ public enum EventKind
     ArtifactCreated = 620,
     ArtifactTaken = 621,
     ArtifactLost = 622,
+    ArtifactCopied = 623,
 
     // ---- Plague (640) ----
     PlagueBegan = 640,
