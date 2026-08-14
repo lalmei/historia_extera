@@ -4,6 +4,7 @@ import {
   type Column,
   DataTable,
   EntityLink,
+  type Facet,
   Field,
   PageTitle,
   Panel,
@@ -27,6 +28,7 @@ import {
   OUTCOME_LABELS,
   SPECIALIZATION_LABELS,
   SUCCESSION_LABELS,
+  TIER_ORDER,
   type Battle,
   type Civilization,
   type Culture,
@@ -118,6 +120,10 @@ export function CivilizationPage({ world, civ }: { world: World; civ: Civilizati
             </Field>
           )}
         </dl>
+      </Panel>
+
+      <Panel title="Extent">
+        <ExtentChart world={world} civ={civ} />
       </Panel>
 
       <Panel title={`Rulers (${civ.rulerIds.length})`}>
@@ -599,6 +605,10 @@ export function RegionPage({ world, region }: { world: World; region: Region }) 
         <Stat label="Extent" value={`${region.width} × ${region.height}`} />
       </div>
 
+      <Panel title="Held by">
+        <Tenures world={world} region={region} />
+      </Panel>
+
       <Panel title="Neighbours">
         <div className="flex flex-wrap gap-x-3 gap-y-1.5 text-sm">
           {region.adjacent.map((id) => (
@@ -616,6 +626,125 @@ export function RegionPage({ world, region }: { world: World; region: Region }) 
       <Panel title="Chronicle">
         <EventList world={world} events={world.eventsFor(region.id)} />
       </Panel>
+    </div>
+  );
+}
+
+/**
+ * Every realm that ever held one region, and for how long.
+ *
+ * Replayed from the chronicle rather than read from the export, which only carries the last
+ * owner. A frontier province that changed hands three times is the most interesting thing a
+ * region has to say about itself, and the flat field says none of it.
+ */
+function Tenures({ world, region }: { world: World; region: Region }) {
+  const held = world.timeline.historyOf(region.id);
+
+  if (held.length === 0) {
+    return (
+      <p className="text-sm text-[var(--ink-faint)]">
+        No realm ever claimed this ground.
+      </p>
+    );
+  }
+
+  return (
+    <ol className="space-y-1.5 text-sm">
+      {held.map((tenure, index) => (
+        <li key={index} className="flex items-baseline justify-between gap-3">
+          <span className="flex items-center gap-2">
+            <span
+              className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
+              style={{ background: world.colourOf(tenure.owner) }}
+            />
+            <EntityLink world={world} id={tenure.owner} />
+          </span>
+          <span className="shrink-0 tabular-nums text-[var(--ink-faint)]">
+            {yearRange(tenure.since, tenure.until)}
+            {tenure.until !== undefined && (
+              <span className="ml-2">
+                {tenure.until - tenure.since}{' '}
+                {tenure.until - tenure.since === 1 ? 'year' : 'years'}
+              </span>
+            )}
+          </span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+/**
+ * How much land a realm held, year by year, with the years it spent at war behind it.
+ *
+ * The single number the export ships — regions held at the end — cannot distinguish a realm
+ * that grew steadily from one that was carved up and clawed its way back. Put the wars behind
+ * the curve and the causation is visible without a word of explanation: the steps up land on
+ * the bands.
+ */
+function ExtentChart({ world, civ }: { world: World; civ: Civilization }) {
+  const { startYear, endYear } = world.export.meta;
+  const series = world.timeline.extentOf(civ.id);
+  const wars = warsOf(world, civ.id);
+
+  const peak = Math.max(1, ...series);
+  const peakYear = startYear + series.indexOf(peak);
+  const width = 300;
+  const height = 60;
+  const top = 6;
+
+  const x = (year: number) =>
+    ((year - startYear) / Math.max(1, endYear - startYear)) * width;
+  const y = (count: number) => height - (count / peak) * (height - top);
+
+  // One step per year, drawn as steps rather than a smooth line: territory changes on the
+  // day a treaty is signed, and a diagonal would imply a province arriving by degrees.
+  const steps = series
+    .map((count, index) => `${index === 0 ? 'M' : 'L'}${x(startYear + index)} ${y(count)}`)
+    .join('');
+
+  const colour = world.colourOf(civ.id);
+
+  return (
+    <div>
+      <svg viewBox={`0 0 ${width} ${height}`} className="h-24 w-full" preserveAspectRatio="none">
+        {/* Neutral rather than a war-like red: realm colours run the whole wheel, and one of
+            them is always red. A band that reads as "shaded" beside every hue is worth more
+            than one that reads as "bloody" beside seven and vanishes beside the eighth. */}
+        {wars.map((war) => (
+          <rect
+            key={war.id}
+            x={x(war.startYear)}
+            y={0}
+            width={Math.max(0.6, x(war.endYear ?? endYear) - x(war.startYear))}
+            height={height}
+            fill="var(--ink)"
+            fillOpacity={0.1}
+          />
+        ))}
+
+        <path d={`${steps}L${x(endYear)} ${height}L${x(startYear)} ${height}z`} fill={colour} fillOpacity={0.22} />
+        <path
+          d={steps}
+          fill="none"
+          stroke={colour}
+          strokeWidth={1.5}
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
+
+      <div className="mt-1 flex flex-wrap items-baseline justify-between gap-x-4 text-xs text-[var(--ink-faint)]">
+        <span className="tabular-nums">
+          {startYear} – {endYear}
+        </span>
+        <span>
+          <span className="tabular-nums">{peak}</span> regions at its height, in{' '}
+          <span className="tabular-nums">{peakYear}</span>
+          {wars.length > 0 && (
+            <span> · shaded where it was at war</span>
+          )}
+        </span>
+      </div>
     </div>
   );
 }
@@ -824,15 +953,89 @@ export function SettlementTable({
     },
   ];
 
+  const facets: Facet<Settlement>[] = [
+    {
+      key: 'status',
+      label: 'Status',
+      options: [
+        { value: 'standing', label: 'Standing', match: (s) => s.abandonedYear === undefined },
+        { value: 'gone', label: 'Abandoned', match: (s) => s.abandonedYear !== undefined },
+        { value: 'seat', label: 'Seat of a realm', match: (s) => s.isCapital },
+        { value: 'walled', label: 'Walled', match: (s) => s.isFortified },
+      ],
+    },
+    {
+      key: 'tier',
+      label: 'Tier',
+      options: TIER_ORDER.map((tier) => ({
+        value: tier,
+        label: tier,
+        match: (s: Settlement) => s.tier === tier,
+      })),
+    },
+    {
+      key: 'trade',
+      label: 'Known for',
+      options: present(settlements.map((s) => s.specialization)).map((specialization) => ({
+        value: specialization,
+        label: SPECIALIZATION_LABELS[specialization] ?? specialization,
+        match: (s: Settlement) => s.specialization === specialization,
+      })),
+    },
+    ...realmFacet(world, settlements, (s) => [s.civilizationId]),
+  ];
+
   return (
     <DataTable
       rows={settlements}
       columns={columns}
+      facets={facets}
       searchText={(s) => `${s.name} ${s.tier} ${s.specialization}`}
       placeholder="Search settlements…"
       initialSort={{ key: 'population', descending: true }}
     />
   );
+}
+
+/**
+ * A "whose?" facet, offered only when the rows actually span more than one realm.
+ *
+ * The same tables serve a global index and a single realm's page. Rather than a flag at every
+ * call site, the filter simply does not appear when it would have one option.
+ */
+function realmFacet<T>(
+  world: World,
+  rows: T[],
+  civsOf: (row: T) => (EntityId | undefined)[],
+  label = 'Realm',
+): Facet<T>[] {
+  const involved = new Set<EntityId>();
+  for (const row of rows) {
+    for (const id of civsOf(row)) {
+      if (id !== undefined) involved.add(id);
+    }
+  }
+
+  if (involved.size < 2) return [];
+
+  return [
+    {
+      key: 'realm',
+      label,
+      options: world.export.civilizations
+        .filter((civ) => involved.has(civ.id))
+        .map((civ) => ({
+          value: civ.id,
+          label: civ.name,
+          match: (row: T) => civsOf(row).includes(civ.id),
+        })),
+    },
+  ];
+}
+
+/** The distinct values actually present, in first-seen order, minus the "none" placeholder. */
+function present<T extends string>(values: T[]): T[] {
+  return [...new Set(values)].filter((value) => value !== 'None' && value !== 'Unknown');
 }
 
 // ---------------------------------------------------------------------------
@@ -1066,10 +1269,37 @@ export function BattleTable({ world, battles }: { world: World; battles: Battle[
     },
   ];
 
+  const facets: Facet<Battle>[] = [
+    {
+      key: 'kind',
+      label: 'Kind',
+      options: [
+        { value: 'siege', label: 'Siege', match: (b) => b.wasSiege },
+        { value: 'field', label: 'Field battle', match: (b) => !b.wasSiege },
+        { value: 'sack', label: 'Ended in a sacking', match: (b) => b.sacked },
+        {
+          value: 'royal',
+          label: 'A ruler led in person',
+          match: (b) => b.attackerCommanderId !== undefined || b.defenderCommanderId !== undefined,
+        },
+      ],
+    },
+    {
+      key: 'side',
+      label: 'Decided for',
+      options: [
+        { value: 'attacker', label: 'The attacker', match: (b) => b.victorId === b.attackerId },
+        { value: 'defender', label: 'The defender', match: (b) => b.victorId === b.defenderId },
+      ],
+    },
+    ...realmFacet(world, battles, (b) => [b.attackerId, b.defenderId], 'Fought by'),
+  ];
+
   return (
     <DataTable
       rows={battles}
       columns={columns}
+      facets={facets}
       searchText={(b) => `${b.name} ${world.nameOf(b.victorId)}`}
       placeholder="Search battles…"
       initialSort={{ key: 'year' }}
@@ -1223,10 +1453,37 @@ export function WarTable({ world, wars }: { world: World; wars: War[] }) {
     },
   ];
 
+  const facets: Facet<War>[] = [
+    {
+      key: 'cause',
+      label: 'Cause',
+      options: present(wars.map((w) => w.cause)).map((cause) => ({
+        value: cause,
+        label: CAUSE_LABELS[cause] ?? cause,
+        match: (w: War) => w.cause === cause,
+      })),
+    },
+    {
+      key: 'outcome',
+      label: 'Outcome',
+      options: [
+        ...present(wars.map((w) => w.outcome)).map((outcome) => ({
+          value: outcome,
+          label: OUTCOME_LABELS[outcome] ?? outcome,
+          match: (w: War) => w.outcome === outcome,
+        })),
+        // The question the war list exists to answer: which of these actually moved a border?
+        { value: 'ceded', label: 'Moved a border', match: (w: War) => w.cededRegionIds.length > 0 },
+      ],
+    },
+    ...realmFacet(world, wars, (w) => [...w.attackers, ...w.defenders], 'Fought by'),
+  ];
+
   return (
     <DataTable
       rows={wars}
       columns={columns}
+      facets={facets}
       searchText={(w) => `${w.name} ${w.cause} ${world.nameOf(w.aggressorId)} ${world.nameOf(w.defenderId)}`}
       placeholder="Search wars…"
       initialSort={{ key: 'span' }}

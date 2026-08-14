@@ -54,6 +54,7 @@ public enum EventKind
     // ---- Territory (400) ----
     RegionClaimed = 400,
     RegionCeded = 401,
+    RegionReleased = 402,
 
     // ---- Diplomacy and war (500) ----
     AllianceFormed = 500,

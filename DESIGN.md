@@ -4,10 +4,10 @@ A Dwarf Fortress-style world history generator for Vintage Story, plus a Legends
 viewer. This file is the running decision log: what was chosen, and why, so that a
 decision can be revisited on its merits rather than rediscovered.
 
-**Status:** Milestones 0–6 complete. Real naming languages, a settlement lifecycle that
+**Status:** Milestones 0–7 complete. Real naming languages, a settlement lifecycle that
 runs its full course rather than only ever growing, rulers who inherit from a family
-tree instead of appearing from nowhere, and realms that fall to conquest as well as to
-the weather.
+tree instead of appearing from nowhere, realms that fall to conquest as well as to the
+weather, and a map that can be scrubbed to any year of the run to watch them do it.
 
 ---
 
@@ -603,6 +603,40 @@ run to tens of megabytes — and cross-linking is the product.
 Map rendering is canvas (terrain raster via `ImageData`) plus SVG overlays (rivers,
 territory, settlements), deliberately ignorant of what produced the terrain.
 
+### Territory over time: replayed, not snapshotted
+
+The export ships **final** state — a region's last owner, a settlement's last tier. A map
+that answers "what did this world look like in 187?" needs every year, and there were two
+ways to have them.
+
+Shipping a snapshot per year was rejected on arithmetic: a thousand regions times eight
+hundred years is most of a megabyte of ownership alone, on a file that is already 4.5 MB at
+that length, to carry a value that changes perhaps thirty times per region. The viewer
+instead **replays the chronicle** and stores one entry per actual change.
+
+That trade only works if the log is complete, and it was not. Three transfers of land were
+happening silently, because none of them went through the expansion system that records
+claims: the homeland a realm takes at its founding, the provinces a fallen realm releases,
+and the region given up when its last settlement is abandoned. Each was a border move with
+no event behind it, so a replay drifted from the exported map — a dead realm's colour still
+sitting on land a neighbour had since taken.
+
+The fix is three events rather than a viewer that special-cases them, because the gap was
+in the record and not in the reader. `RegionReleased` joins `RegionClaimed` and
+`RegionCeded` in the territory block, and the founding claim is now recorded like any
+other. It costs +9 events on the standard seed and changes no simulation behaviour: the
+same world, more completely written down. Fjordvik's page now names who held it before
+Heraanes took it, which is exactly the sort of thing the chronicle should always have said.
+
+**`TerritoryTests` is the contract.** It asserts across three seeds that replaying the log
+reproduces the exported map exactly, that every realm claims its homeland in its founding
+year, and that no land is ever attributed to a realm that has already ended. The property
+belongs to the engine, so the test lives there — a Milestone 8 system that moves a border
+without recording it fails in the engine's own suite rather than by drawing a plausible
+and wrong map three layers away. The viewer additionally checks the replay against the
+final map on load and warns, which covers a world file written by a newer engine than the
+viewer reading it.
+
 ---
 
 ## Milestones
@@ -616,8 +650,8 @@ territory, settlements), deliberately ignorant of what produced the terrain.
 | M4 | Culture traits + settlement lifecycle depth | done |
 | M5 | Figures: dynasties, succession, marriages | done |
 | M6 | Diplomacy & war: named battles, territory transfer | done |
-| M7 | Viewer depth: territory rendering, richer filters | next |
-| M8 | Flavour: religions, artifacts, plagues, disasters | |
+| M7 | Viewer depth: territory rendering, richer filters | done |
+| M8 | Flavour: religions, artifacts, plagues, disasters | next |
 | M9 | Phase 2 spike: raster-backed `ITerrainSampler` | |
 
 ### As built
@@ -642,18 +676,18 @@ ranked as heirs on the day he is crowned, and marry accordingly.
 
 Measured on seed 42, 300 years, 8 civilizations, 4096-unit world:
 
-| | M1 | M4 | M5 | M6 |
-|---|---|---|---|---|
-| Wall clock | ~65 ms | ~67 ms | ~215 ms | ~250 ms |
-| Events | 359 | 950 | 3,299 | 3,216 |
-| Settlements | 96 | 96 (15 cities), 1 abandoned | 96 (15 cities), 1 abandoned | 91 (15 cities), 1 abandoned |
-| Figures | 81 | 81 | 1,072 | 1,033 |
-| Houses | — | — | 16 (8 standing, 8 died out) | 15 (6 standing, 9 died out) |
-| Wars / battles | — | — | — | 10 / 38 |
-| Civilizations fallen | 0 | 0 | 0 | 2 |
-| Simulation samples | 6,050 | 6,050 | 6,050 | 5,990 |
-| Export size | 0.73 MB | 0.73 MB | 1.36 MB | 1.36 MB |
-| Tests | 100 | 100 | 114 | 129 |
+| | M1 | M4 | M5 | M6 | M7 |
+|---|---|---|---|---|---|
+| Wall clock | ~65 ms | ~67 ms | ~215 ms | ~250 ms | ~233 ms |
+| Events | 359 | 950 | 3,299 | 3,216 | 3,225 |
+| Settlements | 96 | 96 (15 cities), 1 abandoned | 96 (15 cities), 1 abandoned | 91 (15 cities), 1 abandoned | 91 (15 cities), 1 abandoned |
+| Figures | 81 | 81 | 1,072 | 1,033 | 1,033 |
+| Houses | — | — | 16 (8 standing, 8 died out) | 15 (6 standing, 9 died out) | 15 (6 standing, 9 died out) |
+| Wars / battles | — | — | — | 10 / 38 | 10 / 38 |
+| Civilizations fallen | 0 | 0 | 0 | 2 | 2 |
+| Simulation samples | 6,050 | 6,050 | 6,050 | 5,990 | 5,990 |
+| Export size | 0.73 MB | 0.73 MB | 1.36 MB | 1.36 MB | 1.36 MB |
+| Tests | 100 | 100 | 114 | 129 | 134 |
 
 **Terrain sampling went down.** Two systems that both reason about geography added nothing
 to the budget — every question they ask is answered from region statistics derived once at
@@ -685,10 +719,10 @@ successions. Approaching the brief's 50k target now depends on M8's flavour syst
 longer runs rather than on more realms surviving. The viewer is built for 50k regardless.
 
 **One aggressive culture can dominate a world, and the chronicle says so plainly.**
-Heraanes on seed 42 rolls Aggression 0.97, declares eight of the world's ten wars,
-extinguishes two realms and takes six provinces across three centuries. That is not a
-runaway to tune out — it is the trait doing exactly what it is for, and it is the most
-legible thing in the export.
+Heraanes on seed 42 rolls Aggression 0.97, declares nine of the world's ten wars,
+extinguishes two realms and takes five provinces across three centuries — every province
+any realm took from another that run. That is not a runaway to tune out — it is the trait
+doing exactly what it is for, and it is the most legible thing in the export.
 
 **Houses consolidate over long runs, and war accelerates it** — an 800-year world now ends
 with four houses standing and twenty died out, against seven and eighteen before M6. A
@@ -758,6 +792,43 @@ is the neighbour it cannot finish, attacked four times in a century — twice to
 standstill, once on a marriage claim and once for a province. Two realms end. The wars
 that settle nothing are as visible as the wars that do, which is what stops the
 chronicle reading as a scoreboard.
+
+### M7: the map in time
+
+The only figure M7 moved is the event count, +9 on the standard seed, and that is the
+milestone working as intended: it is a viewer milestone, and the engine changes it needed
+were three missing records rather than any change to what happens.
+
+**Territory is drawn as realms, not as the cells it is stored in.** One filled path per
+realm and an outline only where the neighbouring cell belongs to somebody else. The
+per-region rectangles it replaced made every realm look like graph paper and made a
+frontier between two realms indistinguishable from the seam between two provinces of one —
+on a map whose subject is where the borders are.
+
+**Every political layer is drawn for a selected year**, replayed from the chronicle:
+borders, which towns existed and at what size, who sat which throne, and the battles fought
+that year. The slider plays. Scrubbing an 800-year world of 15,909 events costs ~7 ms a
+step, so playback runs at its full rate on the largest history the engine currently
+produces — the cost is one binary search per region rather than a snapshot per year, which
+is also why the export did not have to grow.
+
+**It changes what the world file is worth reading for.** Seed 42's flat final map shows
+Heraanes holding 22 regions. Scrubbed, it shows how: one region for its first thirty
+years, four by 79, and 22 by 286 — of which **18 came from settling empty land and five
+were taken at a peace table**, in 79, 130, 246, 256 and 278. Every one of those five years
+is the last year of a war it declared, and its page shades the years it spent at war
+behind the extent curve, so the five steps that sit on a shaded band separate themselves
+from the eighteen that do not. The realm that reads as a runaway in the summary reads as
+nine declarations and a great deal of ordinary expansion in the history, which is the
+difference the viewer exists to make.
+
+**Filters are faceted, and the counts are the point.** Each list carries filters built from
+what is actually in the world, and each option shows how many rows it would leave —
+counted against every other filter but its own, so narrowing to cities tells you how many
+are known for mining rather than repeating that there are ninety settlements. It answers
+the comparative questions the tables were already sorted for: which wars moved a border
+(5 of 10), which houses ruled more than one realm, which figures married in rather than
+being born to a house.
 
 ---
 
