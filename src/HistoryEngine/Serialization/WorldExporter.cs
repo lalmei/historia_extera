@@ -82,7 +82,8 @@ public static class WorldExporter
         ?? throw new InvalidOperationException("World export deserialised to null.");
 
     /// <summary>
-    /// SHA-256 of the canonical serialisation, excluding the engine's own version.
+    /// SHA-256 of the canonical serialisation, excluding every number that versions the file
+    /// rather than describes the history.
     /// </summary>
     /// <remarks>
     /// <para>The value the golden determinism test pins. Because the export carries no timestamp
@@ -90,17 +91,36 @@ public static class WorldExporter
     /// digest — and any accidental nondeterminism anywhere in the engine surfaces here rather
     /// than as a subtly different history nobody notices.</para>
     ///
-    /// <para><b><see cref="EngineVersion"/> is deliberately excluded.</b> The digest answers one
-    /// question — did the history for this seed change? — and a release number is not part of a
-    /// history. Leaving it in meant every version bump failed the golden test and had to be
-    /// answered by regenerating the golden, which is exactly the reflex the test exists to
-    /// prevent: regenerate often enough for reasons that are fine and you will regenerate the one
-    /// time it was not. The version still travels in the export, where a viewer can read which
-    /// engine wrote a world file.</para>
+    /// <para><b>The digest answers one question: did the history for this seed change?</b> So the
+    /// three numbers that describe the <em>file</em> rather than the world are cleared first —
+    /// <see cref="ExportMeta.EngineVersion"/>, <see cref="WorldExport.SchemaVersion"/> and
+    /// <see cref="ExportMeta.NarrationSyntaxVersion"/>. None of them is part of a history. Leaving
+    /// one in means a release, a new exported field, or a template-grammar change fails the golden
+    /// test and is answered by regenerating the golden — which is exactly the reflex the test
+    /// exists to prevent: regenerate often enough for reasons that are fine and you will
+    /// regenerate the one time it was not.</para>
+    ///
+    /// <para>Only <see cref="ExportMeta.EngineVersion"/> was excluded originally, and the cost of
+    /// the omission was visible: four consecutive milestones each bumped the schema and each
+    /// regenerated this digest, so the golden moved five times for four real changes in
+    /// behaviour and nobody could tell by looking which move was which. All three still travel in
+    /// the export, where a viewer reads them to decide whether it understands the file.</para>
+    ///
+    /// <para>Adding a field to the export still moves the digest, and should: a world that carries
+    /// new facts is a new export even when the simulation behind it is unchanged. What no longer
+    /// moves it is renumbering the contract that describes those facts.</para>
     /// </remarks>
     public static string Fingerprint(WorldExport export)
     {
-        WorldExport world = export with { Meta = export.Meta with { EngineVersion = string.Empty } };
+        WorldExport world = export with
+        {
+            SchemaVersion = 0,
+            Meta = export.Meta with
+            {
+                EngineVersion = string.Empty,
+                NarrationSyntaxVersion = 0,
+            },
+        };
 
         byte[] bytes = Encoding.UTF8.GetBytes(ToJson(world));
         return Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();

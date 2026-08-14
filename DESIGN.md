@@ -90,6 +90,15 @@ byte, across processes and machines.
   parallel mutation.
 - **System order is part of the run's identity.** Swapping two systems changes the
   history as much as changing the seed, so `SystemOrder` is hashed and exported.
+- **Versioning the file is not part of the run's identity.** The fingerprint clears the
+  engine release, the schema version and the narration syntax version before hashing. The
+  digest answers one question — did the history for this seed change? — and none of those
+  three is a fact about a history. Only the engine release was excluded at first, and the
+  omission cost exactly what the config-hash asymmetry above predicts: four consecutive
+  milestones each added exported fields and each bumped the schema, so the golden moved
+  five times for four changes in behaviour and no reviewer could tell by looking which
+  move was which. Adding a field still moves the digest, and should — a world carrying new
+  facts is a new export. Renumbering the contract that describes those facts does not.
 
 Enforced by `DeterminismGuardTests`, which scans engine source for these constructs.
 Escape hatch: a trailing `// det:ok` comment. The point is to make using one a

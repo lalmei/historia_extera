@@ -32,4 +32,13 @@ make fingerprint
 If it changes when you did *not* intend to change simulation behaviour, that is the
 bug the test exists to find.
 
+The digest deliberately excludes the three numbers that version the *file* rather than
+the world — the engine release, `schemaVersion`, and the narration syntax version. Bumping
+any of them is a statement to consumers, not a change of history, and leaving one in the
+digest turns a routine bump into a golden failure answered by regenerating it. All three
+still travel in the export, where the viewer reads them.
+
+Adding a field to the export does still move the digest, and should: a world that carries
+new facts is a new export even when the simulation behind it is unchanged.
+
 See [Testing](testing.md).

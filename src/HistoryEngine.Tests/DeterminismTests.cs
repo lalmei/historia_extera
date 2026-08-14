@@ -32,6 +32,44 @@ public sealed class DeterminismTests
     }
 
     /// <summary>
+    /// Renumbering the file's contract is not a change of history.
+    /// </summary>
+    /// <remarks>
+    /// <para>The golden's whole value is that a move means the simulation changed. Three numbers in
+    /// the export version the <em>file</em> rather than the world — the engine's release, the
+    /// schema, and the narration grammar — and any of them left in the digest turns a bump into a
+    /// failed golden that has to be answered by regenerating it. Regenerate often enough for
+    /// reasons that are fine and you will regenerate the one time it was not.</para>
+    ///
+    /// <para>This is not hypothetical. Four consecutive milestones each added exported fields and
+    /// each bumped the schema, so the digest moved for both reasons at once and no reviewer could
+    /// separate them by looking.</para>
+    /// </remarks>
+    [Fact]
+    public void VersioningTheFileDoesNotCountAsChangingTheHistory()
+    {
+        WorldExport export = HistoryRun.Execute(TestWorlds.Standard()).ToExport();
+
+        WorldExport reversioned = export with
+        {
+            SchemaVersion = export.SchemaVersion + 1,
+            Meta = export.Meta with
+            {
+                EngineVersion = export.Meta.EngineVersion + "-rc1",
+                NarrationSyntaxVersion = export.Meta.NarrationSyntaxVersion + 1,
+            },
+        };
+
+        Assert.Equal(WorldExporter.Fingerprint(export), WorldExporter.Fingerprint(reversioned));
+
+        // The exemption is exactly those three fields. Anything else in the meta block is a fact
+        // about the run, and moving one must still be visible.
+        Assert.NotEqual(
+            WorldExporter.Fingerprint(export),
+            WorldExporter.Fingerprint(export with { Meta = export.Meta with { Seed = 43 } }));
+    }
+
+    /// <summary>
     /// A run split in two must equal one continuous run.
     /// </summary>
     /// <remarks>
