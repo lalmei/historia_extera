@@ -1,0 +1,140 @@
+using HistoryEngine.Core;
+
+namespace HistoryEngine.Entities;
+
+/// <summary>What kind of thing an artifact is. Explicit values — part of the export format.</summary>
+public enum ArtifactKind
+{
+    Regalia = 0,
+    Weapon = 1,
+    Relic = 2,
+    Tome = 3,
+    Idol = 4,
+    Jewel = 5,
+}
+
+public static class ArtifactKinds
+{
+    /// <summary>
+    /// Nouns an artifact's name can be built on, per kind.
+    /// </summary>
+    /// <remarks>
+    /// Several per kind rather than one, chosen by the artifact's own id. Naming is a pure
+    /// function of identity here as it is everywhere else — nothing consults what has been named
+    /// already — so the only defence against two relics out of the same shrine being called the
+    /// same thing is to have more than one word for a relic. It is also simply better writing:
+    /// a world with a Shroud, a Reliquary and a Censer in it reads richer than one with three
+    /// Relics.
+    /// </remarks>
+    private static readonly string[][] Nouns =
+    {
+        new[] { "Crown", "Diadem", "Sceptre", "Throne" },       // Regalia
+        new[] { "Sword", "Spear", "Axe", "Blade" },             // Weapon
+        new[] { "Relic", "Shroud", "Reliquary", "Censer" },     // Relic
+        new[] { "Book", "Codex", "Chronicle", "Testament" },    // Tome
+        new[] { "Idol", "Effigy", "Statue", "Icon" },           // Idol
+        new[] { "Jewel", "Circlet", "Torc", "Ring" },           // Jewel
+    };
+
+    /// <summary>The noun this artifact's name is built on: "the <b>Shroud</b> of Aigionanvos".</summary>
+    public static string Noun(ArtifactKind kind, int discriminator)
+    {
+        int index = (int)kind;
+        if (index < 0 || index >= Nouns.Length) return "Treasure";
+
+        string[] choices = Nouns[index];
+
+        // Non-negative regardless of the discriminator's sign, so the mapping never throws on an
+        // id that arrives negative.
+        return choices[Math.Abs(discriminator) % choices.Length];
+    }
+
+    public static string Label(ArtifactKind kind) => kind switch
+    {
+        ArtifactKind.Regalia => "regalia",
+        ArtifactKind.Weapon => "a weapon",
+        ArtifactKind.Relic => "a relic",
+        ArtifactKind.Tome => "a book",
+        ArtifactKind.Idol => "an idol",
+        ArtifactKind.Jewel => "a jewel",
+        _ => "a treasure",
+    };
+}
+
+/// <summary>Where an artifact was, from a given year, and how it got there.</summary>
+public sealed record ArtifactHolding(int Year, EntityId SettlementId, string How);
+
+/// <summary>
+/// A made thing that outlives whoever made it.
+/// </summary>
+/// <remarks>
+/// <para><b>Artifacts are held by settlements, not by people.</b> A crown carried by a king is the
+/// more romantic model and a worse one: every death would need a rule for where the thing went,
+/// and most of those rules would be arbitrary. A treasury sits in a place, and that place can be
+/// sacked, abandoned or ceded — which is what makes an artifact a way of reading the map's
+/// history rather than an inventory line. The person who made it is recorded and does not have
+/// to still be alive for the object to matter.</para>
+///
+/// <para><b>Provenance is the point.</b> Every move is appended, never overwritten, so an object
+/// that was made in one realm, looted into a second and lost when a third burned the place down
+/// carries all three facts — which is a great deal of history in one page.</para>
+/// </remarks>
+public sealed class Artifact
+{
+    public Artifact(
+        EntityId id,
+        string name,
+        ArtifactKind kind,
+        EntityId originSettlementId,
+        int createdYear)
+    {
+        Id = id;
+        Name = name;
+        Kind = kind;
+        OriginSettlementId = originSettlementId;
+        CreatedYear = createdYear;
+        HolderId = originSettlementId;
+        Provenance = new List<ArtifactHolding> { new(createdYear, originSettlementId, "where it was made") };
+    }
+
+    public EntityId Id { get; }
+
+    public string Name { get; }
+
+    public ArtifactKind Kind { get; }
+
+    /// <summary>Whoever commissioned or made it, if the chronicle knows.</summary>
+    public EntityId CreatorId { get; set; } = EntityId.None;
+
+    public EntityId OriginSettlementId { get; }
+
+    /// <summary>The faith it is sacred to, for relics and idols.</summary>
+    public EntityId ReligionId { get; set; } = EntityId.None;
+
+    public int CreatedYear { get; }
+
+    /// <summary>The settlement holding it now. <see cref="EntityId.None"/> once it is lost.</summary>
+    public EntityId HolderId { get; set; }
+
+    public int? LostYear { get; set; }
+
+    public bool IsExtant => LostYear is null;
+
+    /// <summary>Everywhere it has been, oldest first.</summary>
+    public List<ArtifactHolding> Provenance { get; }
+
+    public void MoveTo(EntityId settlementId, int year, string how)
+    {
+        HolderId = settlementId;
+        Provenance.Add(new ArtifactHolding(year, settlementId, how));
+    }
+
+    public void Lose(int year, string how)
+    {
+        HolderId = EntityId.None;
+        LostYear = year;
+        Provenance.Add(new ArtifactHolding(year, EntityId.None, how));
+    }
+
+    public override string ToString() => $"{Id} {Name}";
+}

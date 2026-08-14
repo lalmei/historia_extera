@@ -47,6 +47,16 @@ public sealed class Civilization
 
     public EntityId CapitalId { get; set; } = EntityId.None;
 
+    /// <summary>
+    /// The faith of the realm, as its seat of government held it when the year began.
+    /// </summary>
+    /// <remarks>
+    /// Written only by the religion system, which syncs it from the capital once a year. Everything
+    /// downstream — diplomacy above all — reads this rather than chasing the capital, so every
+    /// judgement made within one year is made against the same answer.
+    /// </remarks>
+    public EntityId StateReligionId { get; set; } = EntityId.None;
+
     public EntityId CurrentRulerId { get; set; } = EntityId.None;
 
     /// <summary>The year the sitting ruler took office. Drives fixed-term governments.</summary>

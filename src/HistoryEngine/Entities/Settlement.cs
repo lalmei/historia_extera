@@ -136,6 +136,12 @@ public sealed class Settlement
 
     public bool IsFortified { get; set; }
 
+    /// <summary>The faith followed here, or none while the place keeps its own counsel.</summary>
+    public EntityId ReligionId { get; set; } = EntityId.None;
+
+    /// <summary>The year the current faith took hold, if one has.</summary>
+    public int? ConvertedYear { get; set; }
+
     /// <summary>True while this settlement is its civilization's seat of government.</summary>
     public bool IsCapital { get; set; }
 

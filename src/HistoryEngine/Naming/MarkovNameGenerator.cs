@@ -114,6 +114,21 @@ public sealed class MarkovNameGenerator : INameGenerator
         });
 
     /// <summary>
+    /// A faith's name.
+    /// </summary>
+    /// <remarks>
+    /// From the people-name model rather than the place model: faiths are called after the people
+    /// who first held them far more often than after the town it started in, and an ethnonym is
+    /// what lets the chronicle say "the Semnoi" the way it says "the Vethric".
+    /// </remarks>
+    public string ForReligion(EntityId id, Culture culture) =>
+        Memoise(id, () =>
+        {
+            NamingLanguage language = LanguageOf(culture);
+            return language.People(StreamFor(language.Seed, "religion", id));
+        });
+
+    /// <summary>
     /// The stream one name is drawn from: language seed, purpose, and entity id.
     /// </summary>
     /// <remarks>

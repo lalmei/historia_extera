@@ -41,9 +41,12 @@ public sealed class WorldState
         Wars = new EntityTable<War>(EntityKind.War);
         Battles = new EntityTable<Battle>(EntityKind.Battle);
         Regions = new EntityTable<Region>(EntityKind.Region);
+        Religions = new EntityTable<Religion>(EntityKind.Religion);
+        Artifacts = new EntityTable<Artifact>(EntityKind.Artifact);
 
         Chronicle = new Chronicle();
         Harvest = new HarvestModel(config.Seed);
+        Outbreaks = new List<Outbreak>();
         Year = config.StartYear;
     }
 
@@ -97,6 +100,22 @@ public sealed class WorldState
 
     public EntityTable<Region> Regions { get; }
 
+    /// <summary>Every faith ever preached, living or forgotten.</summary>
+    public EntityTable<Religion> Religions { get; }
+
+    /// <summary>Every made thing the chronicle follows, held or lost.</summary>
+    public EntityTable<Artifact> Artifacts { get; }
+
+    /// <summary>
+    /// Epidemics currently running.
+    /// </summary>
+    /// <remarks>
+    /// A plain list rather than an entity table, because an outbreak is not something history
+    /// refers to by name after the fact the way a war or a house is — it is a state the plague
+    /// system carries between years. What survives it is the events it wrote.
+    /// </remarks>
+    public List<Outbreak> Outbreaks { get; }
+
     /// <summary>The year currently being simulated.</summary>
     public int Year { get; set; }
 
@@ -136,6 +155,11 @@ public sealed class WorldState
         // entities they have no owning culture to name them — their labels come from
         // biome instead.
         EntityKind.Region when Regions.Contains(id) => Names.ForRegion(id, Regions[id].Biome),
+        // Faiths are spoken of as "the Semnoi", like houses: the article lives in the template.
+        EntityKind.Religion when Religions.Contains(id) => Religions[id].Name,
+        // Artifact names are composed at creation — "the Crown of Aigionanvos" — so that two
+        // references to the same object are worded identically, as with wars and battles.
+        EntityKind.Artifact when Artifacts.Contains(id) => Artifacts[id].Name,
         _ => id.ToString(),
     };
 
@@ -159,6 +183,26 @@ public sealed class WorldState
             if (war.IsActive) yield return war;
         }
     }
+
+    /// <summary>Faiths still followed somewhere, in the order they were founded.</summary>
+    public IEnumerable<Religion> ActiveReligions()
+    {
+        foreach (Religion religion in Religions)
+        {
+            if (religion.IsActive) yield return religion;
+        }
+    }
+
+    /// <summary>
+    /// The faith of a realm: whatever its seat of government followed when the year began.
+    /// </summary>
+    /// <remarks>
+    /// Stored on the realm and synced from the capital once a year by the religion system, rather
+    /// than read live from the capital on every call. Two reasons: a realm whose seat is taken in
+    /// war does not change religion the instant the walls fall, and every consumer asking the same
+    /// question inside one year gets the same answer regardless of what has converted since.
+    /// </remarks>
+    public EntityId FaithOf(Civilization civilization) => civilization.StateReligionId;
 
     /// <summary>Active settlements of one civilization, in id order.</summary>
     public IEnumerable<Settlement> ActiveSettlementsOf(Civilization civilization)

@@ -65,5 +65,23 @@ public enum EventKind
     SettlementSacked = 505,
     WarEnded = 506,
 
-    // ---- Flavour (600) — Milestone 8 ----
+    // ---- Religion (600) ----
+    ReligionFounded = 600,
+    ReligionAdopted = 601,
+    ReligionSchism = 602,
+    ReligionFaded = 603,
+    StateFaithChanged = 604,
+
+    // ---- Artifacts (620) ----
+    ArtifactCreated = 620,
+    ArtifactTaken = 621,
+    ArtifactLost = 622,
+
+    // ---- Plague (640) ----
+    PlagueBegan = 640,
+    PlagueSpread = 641,
+    PlagueEnded = 642,
+
+    // ---- Disasters (660) ----
+    DisasterStruck = 660,
 }
