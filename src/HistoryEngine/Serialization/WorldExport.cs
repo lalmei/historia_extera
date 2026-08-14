@@ -34,6 +34,8 @@ public sealed record WorldExport(
     IReadOnlyList<ExportFigure> Figures,
     IReadOnlyList<ExportWar> Wars,
     IReadOnlyList<ExportBattle> Battles,
+    IReadOnlyList<ExportReligion> Religions,
+    IReadOnlyList<ExportArtifact> Artifacts,
     IReadOnlyList<ExportEvent> Events,
     ExportIndices Indices,
     IReadOnlyDictionary<string, string> Narration)
@@ -47,7 +49,7 @@ public sealed record WorldExport(
     /// two-element parent list with named mother and father. Version 3 added wars and battles,
     /// and the relations, alliances and truces on a civilization.
     /// </remarks>
-    public const int CurrentSchemaVersion = 3;
+    public const int CurrentSchemaVersion = 4;
 }
 
 public sealed record ExportMeta(
@@ -188,6 +190,7 @@ public sealed record ExportCivilization(
     EntityId? CurrentRulerId,
     EntityId? RulingDynastyId,
     EntityId? RegentId,
+    EntityId? StateReligionId,
     int RulerSinceYear,
     int Population,
     int PeakPopulation,
@@ -300,7 +303,54 @@ public sealed record ExportSettlement(
     int? AbandonedYear,
     int YearsDepressed,
     bool IsCapital,
-    bool IsFortified);
+    bool IsFortified,
+    EntityId? ReligionId,
+    int? ConvertedYear);
+
+/// <summary>
+/// A faith, and the settlements that follow it.
+/// </summary>
+/// <remarks>
+/// <see cref="SettlementIds"/> is the congregation as it stands at the end of the run, so a faith
+/// that once held a continent and now holds one valley exports one valley — which is why
+/// <see cref="PeakSettlements"/> is carried separately. Its whole rise and fall is replayable
+/// from the adoption events, the same way territory is.
+/// </remarks>
+public sealed record ExportReligion(
+    EntityId Id,
+    string Name,
+    EntityId CultureId,
+    EntityId? FounderId,
+    EntityId OriginSettlementId,
+    EntityId? ParentId,
+    int FoundedYear,
+    int? EndedYear,
+    double Fervour,
+    int PeakSettlements,
+    IReadOnlyList<EntityId> SettlementIds);
+
+/// <summary>
+/// A made thing, and everywhere it has been.
+/// </summary>
+/// <remarks>
+/// <see cref="Provenance"/> is the point of exporting these at all: an object made in one realm,
+/// looted into a second and lost when a third burned the place down carries all three facts, and
+/// a viewer can draw the whole journey without replaying anything.
+/// </remarks>
+public sealed record ExportArtifact(
+    EntityId Id,
+    string Name,
+    ArtifactKind Kind,
+    EntityId? CreatorId,
+    EntityId OriginSettlementId,
+    EntityId? ReligionId,
+    int CreatedYear,
+    EntityId? HolderId,
+    int? LostYear,
+    IReadOnlyList<ExportProvenance> Provenance);
+
+/// <summary>Where an artifact was, from a given year, and how it got there.</summary>
+public sealed record ExportProvenance(int Year, EntityId? SettlementId, string How);
 
 /// <summary>
 /// One person, with enough of the family tree attached to draw it.

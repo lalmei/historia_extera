@@ -53,6 +53,18 @@ public interface INameGenerator
     string ForDynasty(EntityId id, Culture culture);
 
     /// <summary>
+    /// A faith's name.
+    /// </summary>
+    /// <remarks>
+    /// Drawn from the people-name model of the culture it arose among, so a faith sounds like the
+    /// tongue that first preached it and keeps that sound after it has spread somewhere else — the
+    /// same reason a house keeps its name in a realm it married into. Naming a faith "the Faith of
+    /// Aigionanvos" would have been easier and would undercut the invented language exactly where
+    /// the chronicle repeats it most.
+    /// </remarks>
+    string ForReligion(EntityId id, Culture culture);
+
+    /// <summary>
     /// A geographic name.
     /// </summary>
     /// <remarks>
@@ -85,6 +97,8 @@ public sealed class PlaceholderNameGenerator : INameGenerator
     public string ForFigure(EntityId id, Culture culture) => Label("Figure", id);
 
     public string ForDynasty(EntityId id, Culture culture) => Label("House", id);
+
+    public string ForReligion(EntityId id, Culture culture) => Label("Faith", id);
 
     public string ForRegion(EntityId id, Biome biome) =>
         biome.ToString() + " " + id.Index.ToString(CultureInfo.InvariantCulture);

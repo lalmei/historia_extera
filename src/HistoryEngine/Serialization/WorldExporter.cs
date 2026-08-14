@@ -64,6 +64,8 @@ public static class WorldExporter
             Figures: BuildFigures(world),
             Wars: BuildWars(world),
             Battles: BuildBattles(world),
+            Religions: BuildReligions(world),
+            Artifacts: BuildArtifacts(world),
             Events: events,
             Indices: BuildIndices(world, events),
             Narration: ToDictionary(Narration.Templates));
@@ -239,6 +241,7 @@ public static class WorldExporter
                 CurrentRulerId: OrNull(civilization.CurrentRulerId),
                 RulingDynastyId: OrNull(civilization.RulingDynastyId),
                 RegentId: OrNull(civilization.RegentId),
+                StateReligionId: OrNull(civilization.StateReligionId),
                 RulerSinceYear: civilization.RulerSinceYear,
                 Population: civilization.Population,
                 PeakPopulation: civilization.PeakPopulation,
@@ -386,7 +389,63 @@ public static class WorldExporter
                 AbandonedYear: settlement.AbandonedYear,
                 YearsDepressed: settlement.YearsDepressed,
                 IsCapital: settlement.IsCapital,
-                IsFortified: settlement.IsFortified));
+                IsFortified: settlement.IsFortified,
+                ReligionId: OrNull(settlement.ReligionId),
+                ConvertedYear: settlement.ConvertedYear));
+        }
+
+        return list;
+    }
+
+    private static List<ExportReligion> BuildReligions(WorldState world)
+    {
+        var list = new List<ExportReligion>(world.Religions.Count);
+
+        foreach (Religion religion in world.Religions)
+        {
+            list.Add(new ExportReligion(
+                Id: religion.Id,
+                Name: religion.Name,
+                CultureId: religion.CultureId,
+                FounderId: OrNull(religion.FounderId),
+                OriginSettlementId: religion.OriginSettlementId,
+                ParentId: OrNull(religion.ParentId),
+                FoundedYear: religion.FoundedYear,
+                EndedYear: religion.EndedYear,
+                Fervour: religion.Fervour,
+                PeakSettlements: religion.PeakSettlements,
+                SettlementIds: religion.SettlementIds.ToArray()));
+        }
+
+        return list;
+    }
+
+    private static List<ExportArtifact> BuildArtifacts(WorldState world)
+    {
+        var list = new List<ExportArtifact>(world.Artifacts.Count);
+
+        foreach (Artifact artifact in world.Artifacts)
+        {
+            var provenance = new List<ExportProvenance>(artifact.Provenance.Count);
+            foreach (ArtifactHolding holding in artifact.Provenance)
+            {
+                provenance.Add(new ExportProvenance(
+                    Year: holding.Year,
+                    SettlementId: OrNull(holding.SettlementId),
+                    How: holding.How));
+            }
+
+            list.Add(new ExportArtifact(
+                Id: artifact.Id,
+                Name: artifact.Name,
+                Kind: artifact.Kind,
+                CreatorId: OrNull(artifact.CreatorId),
+                OriginSettlementId: artifact.OriginSettlementId,
+                ReligionId: OrNull(artifact.ReligionId),
+                CreatedYear: artifact.CreatedYear,
+                HolderId: OrNull(artifact.HolderId),
+                LostYear: artifact.LostYear,
+                Provenance: provenance));
         }
 
         return list;

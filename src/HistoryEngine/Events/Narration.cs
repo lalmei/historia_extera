@@ -100,6 +100,32 @@ public static class Narration
         Set(EventKind.WarEnded,
             "The {subject} ended[ after {data:years}][, {data:outcome}][ for {object}].");
 
+        Set(EventKind.ReligionFounded,
+            "The {subject} was first preached[ by {object}][ at {location}].");
+        Set(EventKind.ReligionAdopted, "{subject} came to follow the {object}.");
+        Set(EventKind.ReligionSchism,
+            "The {subject} broke from the {object}[ at {location}].");
+        Set(EventKind.ReligionFaded,
+            "The {subject} passed out of memory[, {data:years} after it was first preached].");
+        Set(EventKind.StateFaithChanged,
+            "{subject} took the {object} for its own[, under {data:ruler}].");
+
+        Set(EventKind.ArtifactCreated,
+            "{subject}, {data:kind}, was made[ at {location}][ for {object}].");
+        Set(EventKind.ArtifactTaken,
+            "{subject} was carried off[ to {location}][ by {object}].");
+        Set(EventKind.ArtifactLost, "{subject} was lost[ at {location}][, {data:cause}].");
+
+        Set(EventKind.PlagueBegan,
+            "The {data:name} broke out in {subject}[, carrying off {data:lost} people].");
+        Set(EventKind.PlagueSpread,
+            "The {data:name} reached {subject}[ from {location}][, carrying off {data:lost} people].");
+        Set(EventKind.PlagueEnded,
+            "The {data:name} burned itself out[ after {data:years}][, having killed {data:dead} in all].");
+
+        Set(EventKind.DisasterStruck,
+            "{subject} was struck by {data:kind}[, losing {data:lost} people].");
+
         Set(EventKind.Unknown, "Something happened.");
 
         return map;
