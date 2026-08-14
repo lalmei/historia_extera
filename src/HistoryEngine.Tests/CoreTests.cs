@@ -275,6 +275,10 @@ public sealed class ConfigTests
             nameof(WorldConfig.Years), nameof(WorldConfig.StartYear), nameof(WorldConfig.WorldSize),
             nameof(WorldConfig.RegionSize), nameof(WorldConfig.TerrainStride),
             nameof(WorldConfig.HydrologyStride), nameof(WorldConfig.InitialCivilizations),
+
+            // Contributes only when it is set: an empty source means the procedural backend,
+            // whose own inputs are hashed below. See WorldConfig.ConfigHash.
+            nameof(WorldConfig.TerrainSource),
         };
 
         // Excluded on purpose: Seed is exported separately as the run's other half, and

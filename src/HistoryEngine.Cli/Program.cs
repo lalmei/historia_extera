@@ -3,6 +3,7 @@ using HistoryEngine;
 using HistoryEngine.Entities;
 using HistoryEngine.Events;
 using HistoryEngine.Serialization;
+using HistoryEngine.Terrain;
 using HistoryEngine.World;
 
 namespace HistoryEngine.Cli;
@@ -47,17 +48,38 @@ internal static class Program
             MapRasterResolution = options.RasterResolution,
         };
 
+        if (options.EmitTerrain is not null) return EmitTerrain(config, options);
+
+        RasterTerrainSampler? raster = null;
+
+        if (options.Terrain is not null)
+        {
+            raster = RasterTerrainSampler.Load(options.Terrain);
+
+            if (options.SizeGiven && options.WorldSize != raster.Bounds.Width)
+            {
+                Console.Error.WriteLine(
+                    $"note: --size {options.WorldSize} ignored; the raster set covers " +
+                    $"{raster.Bounds.Width} units.");
+            }
+
+            // Records both the extent the rasters cover and their content digest, so the
+            // exported config hash identifies the terrain this history was run over.
+            config = config.WithTerrain(raster);
+        }
+
         if (options.FingerprintOnly)
         {
             // Nothing but the digest on stdout, so the output can be redirected straight into the
             // golden file that GoldenExportTests pins.
-            Console.WriteLine(WorldExporter.Fingerprint(HistoryRun.Execute(config).ToExport()));
+            Console.WriteLine(
+                WorldExporter.Fingerprint(HistoryRun.Execute(config, raster).ToExport()));
             return 0;
         }
 
         Console.WriteLine($"Generating {config.Years} years, seed {config.Seed}, config {config.ConfigHash}");
 
-        HistoryRun run = HistoryRun.Execute(config);
+        HistoryRun run = HistoryRun.Execute(config, raster);
         WorldExport export = run.ToExport();
 
         string json = WorldExporter.ToJson(export, options.Pretty);
@@ -69,6 +91,34 @@ internal static class Program
         PrintSummary(run, export, json.Length, options.Output);
 
         if (options.SampleEvents > 0) PrintSampleEvents(run, options.SampleEvents);
+
+        return 0;
+    }
+
+    /// <summary>
+    /// Bakes the configured world out as a raster set and simulates nothing.
+    /// </summary>
+    /// <remarks>
+    /// The other half of the Phase 2 route. <c>--terrain</c> reads rasters some other generator
+    /// produced; this writes a set from Phase 1's own noise world, which gives anyone wiring up a
+    /// real generator a reference manifest to compare theirs against, and gives the test suite a
+    /// world it can reach by two entirely different paths.
+    /// </remarks>
+    private static int EmitTerrain(WorldConfig config, CliOptions options)
+    {
+        config.Validate();
+
+        var sampler = new ProceduralTerrainSampler(config.Seed, config.Bounds, config.Terrain);
+        string manifest = TerrainRasterBake.Write(sampler, options.EmitTerrain!, options.TerrainResolution);
+
+        int perAxis = options.TerrainResolution;
+
+        Console.WriteLine(
+            $"Baked seed {config.Seed} at {perAxis}x{perAxis} " +
+            $"({config.WorldSize / (double)perAxis:F1} units per pixel)");
+        Console.WriteLine($"  written  {manifest}");
+        Console.WriteLine();
+        Console.WriteLine($"Run a history over it with:  legends --terrain {manifest}");
 
         return 0;
     }
@@ -118,6 +168,21 @@ internal static class Program
         ExportSampleStats sampling = export.Meta.TerrainSampling;
 
         Console.WriteLine();
+        Console.WriteLine("── Terrain ──────────────────────────────");
+        Console.WriteLine($"  backend        {Backend(world.Config)}");
+        Console.WriteLine($"  extent         {world.Terrain.Bounds.Width} x {world.Terrain.Bounds.Height}");
+        Console.WriteLine($"  measured       {Fields(world.Terrain.Capabilities)}");
+
+        // The fields no backend measured are modelled from elevation and latitude. Printing
+        // them is the point of the capability flags: a world built on a bare heightmap should
+        // say so rather than present six fields as if they were all observed.
+        TerrainCapabilities modelled = TerrainCapabilities.Standard & ~world.Terrain.Capabilities;
+        if (modelled != TerrainCapabilities.None)
+        {
+            Console.WriteLine($"  modelled       {Fields(modelled)}");
+        }
+
+        Console.WriteLine();
         Console.WriteLine("── History ──────────────────────────────");
         Console.WriteLine($"  years          {world.StartYear}–{world.EndYear}");
         Console.WriteLine($"  events         {world.Chronicle.Count:N0}");
@@ -140,6 +205,14 @@ internal static class Program
         Console.WriteLine($"  size           {jsonLength / 1024.0 / 1024.0:F2} MB");
         Console.WriteLine($"  written        {path}");
     }
+
+    private static string Backend(WorldConfig config) =>
+        config.TerrainSource.Length == 0
+            ? "procedural (Phase 1 noise)"
+            : config.TerrainSource;
+
+    private static string Fields(TerrainCapabilities capabilities) =>
+        capabilities == TerrainCapabilities.None ? "none" : capabilities.ToString();
 
     /// <summary>
     /// Prints a spread of narrated events across the whole timespan.
@@ -180,6 +253,17 @@ internal static class Program
         Console.WriteLine("  --sample <n>      print n narrated events (default 12, 0 to disable)");
         Console.WriteLine("  --fingerprint     print only the export digest, write nothing");
         Console.WriteLine();
+        Console.WriteLine("Phase 2 terrain — run a history over rasters from another generator:");
+        Console.WriteLine();
+        Console.WriteLine("  --terrain <path>  terrain manifest (JSON) to sample instead of noise;");
+        Console.WriteLine("                    sets the world size and is recorded in the config hash");
+        Console.WriteLine("  --emit-terrain <dir>");
+        Console.WriteLine("                    bake this seed's noise world into a raster set and exit");
+        Console.WriteLine($"  --terrain-res <n> resolution per axis when baking (default {TerrainRasterBake.DefaultResolution})");
+        Console.WriteLine();
+        Console.WriteLine("Only a height layer is required. Any field no raster supplies is modelled");
+        Console.WriteLine("from elevation and latitude, and left out of the declared capabilities.");
+        Console.WriteLine();
         Console.WriteLine("Identical --seed and config always produce an identical file.");
     }
 }
@@ -212,6 +296,17 @@ internal sealed record CliOptions
     /// <summary>Print only the export fingerprint. For regenerating the golden determinism file.</summary>
     public bool FingerprintOnly { get; init; }
 
+    /// <summary>Terrain manifest to run over, instead of Phase 1's noise sampler.</summary>
+    public string? Terrain { get; init; }
+
+    /// <summary>Directory to bake a raster set into. Simulates nothing.</summary>
+    public string? EmitTerrain { get; init; }
+
+    public int TerrainResolution { get; init; } = TerrainRasterBake.DefaultResolution;
+
+    /// <summary>Whether <c>--size</c> was given, so a raster set silently overriding it can be flagged.</summary>
+    public bool SizeGiven { get; init; }
+
     public static CliOptions Parse(string[] args)
     {
         var options = new CliOptions();
@@ -243,7 +338,23 @@ internal sealed record CliOptions
                     break;
 
                 case "--size":
-                    options = options with { WorldSize = ParseInt(flag, Next(args, ref i)) };
+                    options = options with
+                    {
+                        WorldSize = ParseInt(flag, Next(args, ref i)),
+                        SizeGiven = true,
+                    };
+                    break;
+
+                case "--terrain":
+                    options = options with { Terrain = Next(args, ref i) };
+                    break;
+
+                case "--emit-terrain":
+                    options = options with { EmitTerrain = Next(args, ref i) };
+                    break;
+
+                case "--terrain-res":
+                    options = options with { TerrainResolution = ParseInt(flag, Next(args, ref i)) };
                     break;
 
                 case "--raster":

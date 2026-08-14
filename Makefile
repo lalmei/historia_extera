@@ -23,6 +23,10 @@ OUT    ?=
 SAMPLE ?=
 ARGS   ?=
 
+# Phase 2 terrain: where a baked raster set lands, and at what resolution.
+TERRAIN     ?= build/terrain
+TERRAIN_RES ?= 512
+
 CLI_FLAGS := --seed $(SEED) --years $(YEARS) --civs $(CIVS) --size $(SIZE) --raster $(RASTER)
 ifneq ($(OUT),)
   CLI_FLAGS += --out $(OUT)
@@ -32,13 +36,15 @@ ifneq ($(SAMPLE),)
 endif
 CLI_FLAGS += $(ARGS)
 
-.PHONY: help generate legends fingerprint test build viewer install preview docs-build docs-serve clean
+.PHONY: help generate legends fingerprint terrain-bake terrain-generate test build viewer install preview docs-build docs-serve clean
 
 help:
 	@echo "Historia Extera"
 	@echo
 	@echo "  make generate [SEED=42 YEARS=300 CIVS=8 SIZE=4096 RASTER=256]"
 	@echo "  make fingerprint   # regenerate golden digest for seed 42"
+	@echo "  make terrain-bake  # bake the noise world to rasters (TERRAIN, TERRAIN_RES)"
+	@echo "  make terrain-generate  # then run a history over them"
 	@echo "  make test"
 	@echo "  make build"
 	@echo "  make viewer        # npm run dev in viewer/"
@@ -69,6 +75,15 @@ fingerprint:
 		trap - 0 1 2 3 15; \
 		echo "wrote $(GOLDEN)"
 
+# Phase 2: bake this seed's noise world out as a raster set, then read it back in.
+# The round trip is the reference for wiring up a real generator's export.
+terrain-bake:
+	dotnet run --project $(CLI_PROJECT) -- \
+		--seed $(SEED) --size $(SIZE) --emit-terrain $(TERRAIN) --terrain-res $(TERRAIN_RES)
+
+terrain-generate:
+	dotnet run --project $(CLI_PROJECT) -- $(CLI_FLAGS) --terrain $(TERRAIN)/terrain.json
+
 test:
 	dotnet test
 
@@ -95,4 +110,4 @@ docs-serve:
 
 clean:
 	dotnet clean
-	rm -rf $(VIEWER)/dist $(VIEWER)/.astro site
+	rm -rf $(VIEWER)/dist $(VIEWER)/.astro site build
