@@ -4,11 +4,12 @@ A Dwarf Fortress-style world history generator for Vintage Story, plus a Legends
 viewer. This file is the running decision log: what was chosen, and why, so that a
 decision can be revisited on its merits rather than rediscovered.
 
-**Status:** Milestones 0–8 complete. Real naming languages, a settlement lifecycle that
+**Status:** Milestones 0–9 complete. Real naming languages, a settlement lifecycle that
 runs its full course rather than only ever growing, rulers who inherit from a family
 tree instead of appearing from nowhere, realms that fall to conquest as well as to the
-weather, faiths and pestilence that cross the borders those realms draw, and a map that
-can be scrubbed to any year of the run to watch all of it happen.
+weather, faiths and pestilence that cross the borders those realms draw, a map that
+can be scrubbed to any year of the run to watch all of it happen — and, since M9, a
+world that can be built on terrain the engine did not generate.
 
 ---
 
@@ -16,8 +17,8 @@ can be scrubbed to any year of the run to watch all of it happen.
 
 | Phase | Terrain backing | State |
 |---|---|---|
-| 1 | Noise-based placeholder | **current** |
-| 2 | Open-source 2D terrain generator | designed for, not built |
+| 1 | Noise-based placeholder | **current default** |
+| 2 | Open-source 2D terrain generator | reachable — raster route built in M9 |
 | 3 | Vintage Story worldgen | designed for, not built |
 
 The architectural consequence that drives everything: the simulation runs against an
@@ -149,6 +150,51 @@ deliberately.
 Rivers are exported as **line segments following the flow graph**, not as a raster
 plane: a per-cell flag rasterises to a block the size of the grid stride, which renders
 as a scatter of squares that read as lakes.
+
+### Terrain raster interchange
+
+Phase 2's backend reads terrain from rasters rather than binding to a generator's code,
+so any generator that can export a heightmap is usable for the cost of one conversion.
+
+**PGM (netpbm), not PNG.** The engine has no NuGet dependencies by design and the BCL
+decodes no image format at all, so the interchange format has to be one that is a hundred
+lines to parse. PGM is that, both encodings are accepted on read, and 16-bit is written —
+eight bits over a 3,300-metre range quantises to 13-metre steps, which flattens the
+coastal gradient that decides where a town goes.
+
+**A JSON manifest carries everything a raster cannot.** A PGM knows its samples run
+0..65535 and nothing else, so the manifest declares, per layer, what the extremes mean in
+the field's own units, and for height additionally the normalised value that is the
+shoreline:
+
+```json
+{
+  "worldSize": 4096,
+  "height":      { "file": "height.pgm", "min": -900, "max": 2400, "seaLevel": 0.2 },
+  "temperature": { "file": "temperature.pgm", "min": -25, "max": 32 },
+  "rainfall":    { "file": "rainfall.pgm" },
+  "water":       { "file": "water.pgm" }
+}
+```
+
+Only `height` is required, and it is the only field that cannot be inferred from the
+others. `seaLevel` is what makes the datum contract hold: the range below it maps onto
+`[min, 0]` and the range above onto `[0, max]`, two linear pieces meeting exactly at
+zero, so a generator's own shoreline convention is honoured rather than approximated.
+Layers with a natural [0, 1] range may omit `min`/`max`; temperature may not, because
+0..1 °C is not a world.
+
+**Absent layers are modelled, never claimed.** Missing fields are derived from latitude
+and elevation and deliberately excluded from `TerrainCapabilities`, which is the first
+time in this project that the flag set has had a backend declaring less than everything.
+
+**The manifest and every plane it names are digested into `WorldConfig.TerrainSource`**,
+because a file path is not the pixels and the determinism contract has to keep covering
+the terrain. It contributes to `ConfigHash` only when set — an empty source means the
+procedural backend, whose inputs are hashed already.
+
+`TerrainRasterBake` writes this format from any `ITerrainSampler`, which is how the
+round trip is tested and how a reference set is produced for comparison.
 
 ### Settlement lifecycle: what made decline possible
 
@@ -653,7 +699,8 @@ viewer reading it.
 | M6 | Diplomacy & war: named battles, territory transfer | done |
 | M7 | Viewer depth: territory rendering, richer filters | done |
 | M8 | Flavour: religions, artifacts, plagues, disasters | done |
-| M9 | Phase 2 spike: raster-backed `ITerrainSampler` | next |
+| M9 | Phase 2 spike: raster-backed `ITerrainSampler` | done |
+| M10 | Phase 2 proper: site selection with teeth on real terrain | next |
 
 ### As built
 
@@ -677,19 +724,24 @@ ranked as heirs on the day he is crowned, and marry accordingly.
 
 Measured on seed 42, 300 years, 8 civilizations, 4096-unit world:
 
-| | M1 | M4 | M5 | M6 | M7 | M8 |
-|---|---|---|---|---|---|---|
-| Wall clock | ~65 ms | ~67 ms | ~215 ms | ~250 ms | ~233 ms | ~240 ms |
-| Events | 359 | 950 | 3,299 | 3,216 | 3,225 | 3,083 |
-| Settlements | 96 | 96 (15 cities), 1 abandoned | 96 (15 cities), 1 abandoned | 91 (15 cities), 1 abandoned | 91 (15 cities), 1 abandoned | 75 (13 cities), 1 abandoned |
-| Figures | 81 | 81 | 1,072 | 1,033 | 1,033 | 919 |
-| Houses | — | — | 16 (8 standing, 8 died out) | 15 (6 standing, 9 died out) | 15 (6 standing, 9 died out) | 15 (4 standing, 11 died out) |
-| Wars / battles | — | — | — | 10 / 38 | 10 / 38 | 10 / 40 |
-| Faiths / artifacts | — | — | — | — | — | 13 / 27 |
-| Civilizations fallen | 0 | 0 | 0 | 2 | 2 | 3 |
-| Simulation samples | 6,050 | 6,050 | 6,050 | 5,990 | 5,990 | 5,798 |
-| Export size | 0.73 MB | 0.73 MB | 1.36 MB | 1.36 MB | 1.36 MB | 1.31 MB |
-| Tests | 100 | 100 | 114 | 129 | 134 | 145 |
+| | M1 | M4 | M5 | M6 | M7 | M8 | M9 |
+|---|---|---|---|---|---|---|---|
+| Wall clock | ~65 ms | ~67 ms | ~215 ms | ~250 ms | ~233 ms | ~240 ms | ~253 ms |
+| Events | 359 | 950 | 3,299 | 3,216 | 3,225 | 3,083 | 3,083 |
+| Settlements | 96 | 96 (15 cities), 1 abandoned | 96 (15 cities), 1 abandoned | 91 (15 cities), 1 abandoned | 91 (15 cities), 1 abandoned | 75 (13 cities), 1 abandoned | 75 (13 cities), 1 abandoned |
+| Figures | 81 | 81 | 1,072 | 1,033 | 1,033 | 919 | 919 |
+| Houses | — | — | 16 (8 standing, 8 died out) | 15 (6 standing, 9 died out) | 15 (6 standing, 9 died out) | 15 (4 standing, 11 died out) | 15 (4 standing, 11 died out) |
+| Wars / battles | — | — | — | 10 / 38 | 10 / 38 | 10 / 40 | 10 / 40 |
+| Faiths / artifacts | — | — | — | — | — | 13 / 27 | 13 / 27 |
+| Civilizations fallen | 0 | 0 | 0 | 2 | 2 | 3 | 3 |
+| Simulation samples | 6,050 | 6,050 | 6,050 | 5,990 | 5,990 | 5,798 | 5,798 |
+| Export size | 0.73 MB | 0.73 MB | 1.36 MB | 1.36 MB | 1.36 MB | 1.31 MB | 1.31 MB |
+| Tests | 100 | 100 | 114 | 129 | 134 | 145 | 164 |
+
+**M9's column is M8's column, and that is the result.** A milestone that added a second
+terrain backend moved nothing but the test count, because the export fingerprint for seed 42
+is unchanged — the same history, byte for byte, which is the only proof that the new backend
+was added *beside* the simulation rather than *into* it.
 
 **Terrain sampling went down.** Two systems that both reason about geography added nothing
 to the budget — every question they ask is answered from region statistics derived once at
@@ -899,24 +951,134 @@ place was sacked in 142 one was carried off to Aigionanvos and the other did not
 the night. Both facts are on both objects' pages, and neither needed an event kind of its
 own — a sack already knew how to happen.
 
+### M9: terrain from somewhere else
+
+The claim the whole three-phase plan rests on is that the simulation runs against an
+abstract terrain interface and the backend can be swapped without touching simulation
+code. Until this milestone that claim had never been tested, and could not be: the only
+backend in existence was written alongside the interface, by the same hand, and produced
+every field the interface asks for. M9 is the first time something else answers.
+
+**Rasters, not a library.** Of the three routes in the Phase 2 notes, the raster one is
+built. A backend that consumes heightmap and climate planes binds to no generator's
+codebase, so Azgaar's Fantasy Map Generator, a WorldEngine export, a GIS raster and a
+painted heightmap are all the same amount of work — one conversion. The format is PGM,
+which is not a fashionable choice and is the correct one: the engine takes no NuGet
+dependencies so that the assembly which eventually loads into Vintage Story cannot
+conflict with the game, and the BCL decodes no image format whatsoever. PGM is the one
+raster format that is a hundred lines to parse, and everything writes it.
+
+**Sea level is zero by construction, not by arithmetic.** The datum rule was written in
+M1 — heights are metres relative to a sea level of exactly 0, no backend defines its own
+— and a foreign heightmap is the first thing that could break it. Generators put the
+shoreline where they like; Azgaar's is 20 on a 0..100 scale. Mapping such a plane through
+a single linear range puts the coastline wherever the arithmetic lands, and every coastal
+settlement in the world with it, in a world that still looks entirely plausible. So the
+manifest names the shoreline value and the loader scales the two sides of it separately.
+The join is exact, which turns the contract from something a manifest author has to get
+right into something the loader cannot get wrong.
+
+**`TerrainCapabilities` finally has a backend that declares less than everything.** The
+flag set was written in M1 against a stated fear: Phase 1's noise sampler produces six
+fields as easily as one, so code written against it would silently assume everything is
+always available. That fear was untestable for eight milestones. Real generators export a
+heightmap and, with luck, one climate layer — so the raster backend requires only height,
+models the rest from latitude and elevation, and leaves the modelled fields **out of its
+declaration**. A bare heightmap runs a full world and reports honestly that five of its
+six fields are inferred. The CLI prints the split, because a world built on a heightmap
+should say so rather than present six numbers as though they were all observed.
+
+**Interpolation inside a backend is not the interpolation the contract forbids.**
+`ITerrainSampler` tells implementations to stay dumb — no caching, no interpolation — and
+a raster sampler does bilinear reads. That rule is about not duplicating `TerrainAtlas`,
+which decides *which* points are worth paying for. Reading between the values of a finite
+raster is how this backend answers the point it was asked about at all; nearest-neighbour
+would quantise every coastline to the raster stride and put settlements on a visible grid.
+The distinction is worth stating because the rule as written does not make it.
+
+**The engine exports the format it consumes, which is what made the proof possible.**
+`--emit-terrain` bakes Phase 1's noise world out as a raster set. That gives the test
+suite the same world by two completely different routes — evaluated as noise, and read out
+of a file — reachable from a seed rather than from a multi-megabyte fixture nobody dares
+regenerate. It also gives anyone wiring up a real generator a reference manifest to
+compare theirs against.
+
+**The terrain crosses intact. The history does not, and cannot.** Baking seed 42's
+4096-unit world and reading it back:
+
+| Bake resolution | Units per pixel | On disk | Worst height error | Mean | Shoreline disagreement | Events |
+|---|---|---|---|---|---|---|
+| 128 | 32 | 256 KB | 40.9 m | 0.43 m | 0.12% | 3,874 |
+| 256 | 16 | 928 KB | 19.8 m | 0.19 m | 0.05% | 3,489 |
+| 512 | 8 | 3.5 MB | 6.2 m | 0.14 m | 0.03% | 3,571 |
+| 1024 | 4 | 14 MB | 3.8 m | 0.13 m | 0.02% | 3,253 |
+| *noise, direct* | — | — | — | — | — | *3,083* |
+
+At 1024 the reconstructed world is within four metres of the original at its worst point,
+a tenth of a metre on average, and agrees about land versus sea at 99.98% of points. It
+still produces a different three centuries. Nothing is wrong: a candidate site's score
+moves by a fraction, one founding lands a region over, and three hundred years compound
+it. The history converges toward the noise world as resolution rises and never arrives.
+
+That result is worth more than a matching one would have been, because it is what forced
+the provenance work. **A world file that recorded only the seed and the numeric config
+would have claimed those five runs were the same history.** A raster backend's input is a
+set of files, and a file path is not the pixels — re-export the map and the same path is a
+different world. So `WorldConfig.TerrainSource` carries a content digest of the manifest
+and every plane it names, and the config hash folds it in. The five rows above have five
+different config hashes.
+
+**It is folded in only when it is set**, which is a deliberate asymmetry rather than a
+shortcut. An empty source means the procedural backend, whose inputs are already hashed;
+appending it unconditionally would have changed the config hash of every world generated
+before Phase 2 existed, and with it the golden fingerprint, for a run whose history had
+not changed by one event. That is precisely the reflex the golden test exists to
+discourage — regenerate often enough for reasons that are fine and you will regenerate the
+one time it was not.
+
+**The sample budget did not move**, which is the quieter half of the result. A history over
+rasters spends 5,870–6,098 samples against noise's 5,798, across every resolution tested.
+The budget is a property of how the simulation asks its questions rather than of who
+answers them — and if swapping the backend had moved it, the three-tier access pattern
+would have been measuring the noise sampler rather than the simulation all along.
+
+**What the spike does not prove.** A raster read is an array lookup, so nothing here
+exercises the cost model that the tiering exists for; that remains asserted by
+`CountingTerrainSampler` against a hypothetical 1–2ms sample. And no external generator has
+been driven through the route end to end by a person — the round trip proves the format and
+the contract, not that Azgaar's export ranges are what its documentation says. Both are
+Phase 2 work rather than spike work, and site selection growing teeth on real terrain
+(M10) is the natural place for them.
+
 ---
 
 ## Notes for Phase 2
 
-Evaluate, in rough order of expected fit:
+Three routes were listed here, in rough order of expected fit. **The first is built** —
+see *Terrain raster interchange* above and *M9* for what it proved. The other two are
+still open, and are now alternatives to a working route rather than to nothing:
 
-1. **Raster exports consumed via `ITerrainSampler`** — heightmap/climate/river rasters
-   from any generator (Azgaar's Fantasy Map Generator among them). Makes almost any
-   generator usable without binding to its codebase. Probably the pragmatic winner.
-2. **Custom pipeline on FastNoiseLite** — C#-native, MIT, no interop.
-3. **WorldEngine-style plate tectonics + climate**, ported or adapted.
+1. ~~**Raster exports consumed via `ITerrainSampler`**~~ — built in M9. Any generator's
+   heightmap and climate planes, via one conversion to PGM. It was indeed the pragmatic
+   winner, and the pragmatism was mostly in not binding to a codebase.
+2. **Custom pipeline on FastNoiseLite** — C#-native, MIT, no interop. Now worth
+   considering mainly for worlds generated *in situ* rather than imported, since the
+   raster route already covers import.
+3. **WorldEngine-style plate tectonics + climate**, ported or adapted. Its output can
+   reach the engine as rasters today, which is an argument for adapting rather than
+   porting.
 
-What `ITerrainSampler` needs from whichever wins: height in metres relative to sea
+What `ITerrainSampler` needs from any of them: height in metres relative to sea
 level (sea level is exactly 0 by contract — no backend defines its own datum),
 temperature, rainfall, and an honest `TerrainCapabilities` declaration. Rivers are
 *not* required; hydrology derives them. If a backend does supply real rivers, declare
 `TerrainCapabilities.Rivers` and hydrology becomes the fallback rather than the only
 path.
+
+M9 relaxed one of these in practice: only height is genuinely required. Everything else
+is modelled from elevation and latitude when absent, and left out of the declaration —
+which is what makes "almost any generator" true rather than aspirational, since almost
+none of them export six fields.
 
 Phase 2 is also where site selection should grow teeth — river confluences, harbour
 quality, mountain passes, defensibility from real slope. All of it belongs in
@@ -964,6 +1126,15 @@ Run the viewer:
 
 ```bash
 npm run dev --prefix viewer
+```
+
+Build a world on terrain from elsewhere. `--emit-terrain` bakes the noise world out as a
+raster set, which is both the round trip the tests use and the reference manifest to
+compare a real generator's export against:
+
+```bash
+dotnet run --project src/HistoryEngine.Cli -- --seed 42 --emit-terrain build/terrain
+dotnet run --project src/HistoryEngine.Cli -- --seed 42 --terrain build/terrain/terrain.json
 ```
 
 Tests:
