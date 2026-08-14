@@ -57,6 +57,23 @@ Phase 1 uses noise (`ProceduralTerrainSampler`). Phase 2/3 swap the sampler with
 touching systems. Every run wraps the sampler in `CountingTerrainSampler` so tests can
 budget sample counts.
 
+### Backends
+
+| Backend | Source | Declares |
+|---|---|---|
+| `ProceduralTerrainSampler` | Value noise, from the seed | `Standard` — every field |
+| `RasterTerrainSampler` | PGM planes + a JSON manifest | Only the layers actually supplied |
+
+`RasterTerrainSampler` requires a height layer and nothing else; absent fields are
+modelled from elevation and latitude and **deliberately excluded from
+`TerrainCapabilities`**, so a world built on a bare heightmap reports which of its
+measurements were measured. `TerrainRasterBake` writes the format from any sampler,
+which is how the round trip is tested (`RasterTerrainTests`).
+
+A raster set's content digest goes into `WorldConfig.TerrainSource` and from there into
+the config hash — a file path is not the pixels, and the determinism contract has to keep
+covering the terrain. It contributes only when set, so procedural worlds hash unchanged.
+
 ## Naming
 
 Markov models over language corpora under `Naming/Corpora/`. Licenses for corpus text

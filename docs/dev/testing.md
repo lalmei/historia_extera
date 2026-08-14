@@ -15,6 +15,7 @@ the engine.
 | Determinism | Same seed/config → same export / fingerprint |
 | Determinism guards | Ban non-deterministic BCL patterns in engine source |
 | Terrain discipline | Sample budgets; no accidental exact-sample storms |
+| Raster terrain | Sea level is exactly zero whatever scale a generator used; absent layers are modelled but never claimed as measured; a baked world reloads as the same terrain; a raster run costs the same samples as a noise one |
 | Lifecycle | Decline, abandonment, specialization actually fire |
 | Dynasties / succession | Houses, reigns, ballot behaviour |
 | Diplomacy / war | Wars occur and settle; every grievance is reachable; territory and its settlements move together; truces hold; war costs no terrain samples |
