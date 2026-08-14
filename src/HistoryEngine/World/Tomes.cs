@@ -234,7 +234,7 @@ public static class Tomes
             CopyRoute? best = null;
             foreach (Settlement source in sources)
             {
-                double distance = DetMath.Distance(source.X, source.Z, destination.X, destination.Z);
+                double distance = world.Distance(source.X, source.Z, destination.X, destination.Z);
                 bool sameRealm = source.CivilizationId == destination.CivilizationId;
                 bool faithRoute = IsReligious(contents.Kind)
                     && source.ReligionId == contents.SubjectId

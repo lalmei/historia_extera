@@ -20,6 +20,8 @@ export interface RunParams {
   seed: number;
   years: number;
   civs: number;
+  size: number;
+  eastWestPeriodic: boolean;
 }
 
 export type RunStatus = 'running' | 'done' | 'failed' | 'cancelled';
@@ -37,13 +39,20 @@ export interface Run {
   elapsedMs: number;
 }
 
-export const DEFAULT_PARAMS: RunParams = { seed: 42, years: 300, civs: 8 };
+export const DEFAULT_PARAMS: RunParams = {
+  seed: 42,
+  years: 300,
+  civs: 8,
+  size: 256,
+  eastWestPeriodic: false,
+};
 
 /** The bounds the endpoint enforces, mirrored here so the form can say so before asking. */
 export const BOUNDS = {
   seed: { min: 0, max: Number.MAX_SAFE_INTEGER },
   years: { min: 1, max: 5000 },
   civs: { min: 1, max: 64 },
+  size: { min: 256, max: 8192 },
 } as const;
 
 export async function startRun(params: RunParams): Promise<Run> {

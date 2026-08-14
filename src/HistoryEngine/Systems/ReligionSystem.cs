@@ -451,7 +451,7 @@ public sealed class ReligionSystem : IYearSystem
             TerrainSample sample = candidate.Value;
             if (sample.IsSubmerged || sample.Water != WaterKind.None) continue;
 
-            double distanceSquared = DetMath.DistanceSquared(
+            double distanceSquared = world.DistanceSquared(
                 settlement.X, settlement.Z, candidate.Key.X, candidate.Key.Z);
             if (distanceSquared < minimumDistanceSquared) continue;
 

@@ -101,6 +101,40 @@ public readonly record struct TerrainBounds(int MinX, int MinZ, int Width, int H
 
     public static TerrainBounds Square(int size) => new(0, 0, size, size);
 
+    /// <summary>Wraps an X coordinate onto this extent.</summary>
+    public int WrapX(int x)
+    {
+        int offset = (x - MinX) % Width;
+        if (offset < 0) offset += Width;
+        return MinX + offset;
+    }
+
+    /// <summary>Clamps north/south and optionally wraps east/west.</summary>
+    public Point2 Normalize(int x, int z, bool eastWestPeriodic)
+    {
+        Point2 clamped = Clamp(x, z);
+        return eastWestPeriodic ? new Point2(WrapX(x), clamped.Z) : clamped;
+    }
+
+    /// <summary>Squared distance on a plane or east/west cylinder.</summary>
+    public double DistanceSquared(
+        double x1, double z1, double x2, double z2, bool eastWestPeriodic)
+    {
+        double dx = Math.Abs(x2 - x1);
+        if (eastWestPeriodic)
+        {
+            dx %= Width;
+            dx = Math.Min(dx, Width - dx);
+        }
+
+        double dz = z2 - z1;
+        return (dx * dx) + (dz * dz);
+    }
+
+    /// <summary>Distance on a plane or east/west cylinder.</summary>
+    public double Distance(double x1, double z1, double x2, double z2, bool eastWestPeriodic) =>
+        DetMath.Sqrt(DistanceSquared(x1, z1, x2, z2, eastWestPeriodic));
+
     /// <summary>Clamps a coordinate into these bounds.</summary>
     public Point2 Clamp(int x, int z) => new(
         x < MinX ? MinX : x >= MaxX ? MaxX - 1 : x,

@@ -98,7 +98,7 @@ public static class Diplomacy
             foreach (Settlement theirs in world.ActiveSettlementsOf(b))
             {
                 // Compared squared and rooted once, which is both faster and exact under IEEE 754.
-                double distance = DetMath.DistanceSquared(mine.X, mine.Z, theirs.X, theirs.Z);
+                double distance = world.DistanceSquared(mine.X, mine.Z, theirs.X, theirs.Z);
                 if (distance < nearest) nearest = distance;
             }
         }
@@ -151,7 +151,7 @@ public static class Diplomacy
 
             foreach (Settlement mine in world.ActiveSettlementsOf(civilization))
             {
-                double distance = DetMath.DistanceSquared(
+                double distance = world.DistanceSquared(
                     mine.X, mine.Z, region.CenterX, region.CenterZ);
 
                 if (distance < nearest) nearest = distance;

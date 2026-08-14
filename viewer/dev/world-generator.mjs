@@ -40,9 +40,9 @@ const WORLD_DIR = ['viewer', 'public', 'worlds'];
  * What the form may set, and the bounds each value is held to.
  *
  * Bounds are not a security control — the arguments never reach a shell — but a typo of
- * 500000 years would wedge the machine for the rest of the afternoon. `--size` and
- * `--raster` are deliberately absent and stay at the CLI's own defaults, which is what
- * `make generate` uses, so a world generated here matches one generated from a terminal.
+ * 500000 years would wedge the machine for the rest of the afternoon. World size is aligned
+ * to the engine's 256-unit terrain lattice so a periodic seam can close exactly. `--raster`
+ * remains at the CLI's default.
  *
  * The seed ceiling is JavaScript's, not the engine's: seeds are `ulong` in C#, but a
  * number past 2^53 would arrive here already rounded, and silently simulating a
@@ -52,6 +52,7 @@ const PARAMS = {
   seed: { fallback: 42, min: 0, max: Number.MAX_SAFE_INTEGER },
   years: { fallback: 300, min: 1, max: 5000 },
   civs: { fallback: 8, min: 1, max: 64 },
+  size: { fallback: 256, min: 256, max: 8192 },
 };
 
 /** Lines of CLI output kept per run. Enough for the summary, bounded against a runaway build log. */
@@ -61,7 +62,13 @@ const LOG_LINES = 200;
 const RUN_HISTORY = 20;
 
 /**
- * @typedef {{ seed: number, years: number, civs: number }} RunParams
+ * @typedef {{
+ *   seed: number,
+ *   years: number,
+ *   civs: number,
+ *   size: number,
+ *   eastWestPeriodic: boolean,
+ * }} RunParams
  * @typedef {'running' | 'done' | 'failed' | 'cancelled'} RunStatus
  * @typedef {{
  *   id: string,
@@ -184,7 +191,9 @@ function generatorEndpoint() {
           return send(res, 400, { error: message(cause) });
         }
 
-        const name = `world-s${params.seed}-y${params.years}-c${params.civs}.json`;
+        const boundary = params.eastWestPeriodic ? '-ewp' : '';
+        const name =
+          `world-s${params.seed}-y${params.years}-c${params.civs}-z${params.size}${boundary}.json`;
         const output = path.join(...WORLD_DIR, name);
 
         /** @type {Run} */
@@ -211,6 +220,9 @@ function generatorEndpoint() {
             String(params.years),
             '--civs',
             String(params.civs),
+            '--size',
+            String(params.size),
+            ...(params.eastWestPeriodic ? ['--east-west-periodic'] : []),
             '--out',
             output,
             '--sample',
@@ -368,7 +380,27 @@ function readParams(body) {
     seed: readNumber('seed', given.seed),
     years: readNumber('years', given.years),
     civs: readNumber('civs', given.civs),
+    size: readWorldSize(given.size),
+    eastWestPeriodic: readBoolean('eastWestPeriodic', given.eastWestPeriodic, false),
   };
+}
+
+/** @param {unknown} value */
+function readWorldSize(value) {
+  const size = readNumber('size', value);
+  if (size % 256 !== 0) throw new Error('size must be a multiple of 256');
+  return size;
+}
+
+/**
+ * @param {string} name
+ * @param {unknown} value
+ * @param {boolean} fallback
+ */
+function readBoolean(name, value, fallback) {
+  if (value === undefined || value === null || value === '') return fallback;
+  if (typeof value !== 'boolean') throw new Error(`${name} must be true or false`);
+  return value;
 }
 
 /**

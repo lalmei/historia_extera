@@ -49,11 +49,20 @@ public sealed class HarvestModel
 
     private readonly ulong _weatherSeed;
     private readonly ulong _climateSeed;
+    private readonly int _worldWidth;
+    private readonly bool _eastWestPeriodic;
 
-    public HarvestModel(ulong worldSeed)
+    /// <summary>Creates the traditional bounded-world weather field.</summary>
+    public HarvestModel(ulong worldSeed) : this(new WorldConfig { Seed = worldSeed })
     {
-        _weatherSeed = Hash.Combine(worldSeed, Hash.OfString("harvest.weather"));
-        _climateSeed = Hash.Combine(worldSeed, Hash.OfString("harvest.climate"));
+    }
+
+    public HarvestModel(WorldConfig config)
+    {
+        _weatherSeed = Hash.Combine(config.Seed, Hash.OfString("harvest.weather"));
+        _climateSeed = Hash.Combine(config.Seed, Hash.OfString("harvest.climate"));
+        _worldWidth = config.WorldSize;
+        _eastWestPeriodic = config.EastWestPeriodic;
     }
 
     /// <summary>
@@ -72,20 +81,26 @@ public sealed class HarvestModel
     {
         // Weather: year-to-year variation, regional in extent, over in under a decade.
         double weatherDrift = year / WeatherPeriod;
-        double weather = ValueNoise.Fbm(
-            _weatherSeed,
-            (region.CenterX / SpatialScale) + weatherDrift,
-            (region.CenterZ / SpatialScale) - weatherDrift,
-            octaves: 3);
+        double weatherX = (region.CenterX / SpatialScale) + weatherDrift;
+        double weatherZ = (region.CenterZ / SpatialScale) - weatherDrift;
+        double weather = _eastWestPeriodic
+            ? ValueNoise.FbmPeriodicX(
+                _weatherSeed, weatherX, weatherZ, _worldWidth / SpatialScale, octaves: 3)
+            : ValueNoise.Fbm(_weatherSeed, weatherX, weatherZ, octaves: 3);
 
         // Climate: a slow drift that can hold a whole part of the map in a poor phase for a
         // generation. This is the component a settlement cannot outlast.
         double climateDrift = year / ClimatePeriod;
-        double climate = ValueNoise.Fbm(
-            _climateSeed,
-            (region.CenterX / ClimateSpatialScale) + climateDrift,
-            (region.CenterZ / ClimateSpatialScale) - climateDrift,
-            octaves: 2);
+        double climateX = (region.CenterX / ClimateSpatialScale) + climateDrift;
+        double climateZ = (region.CenterZ / ClimateSpatialScale) - climateDrift;
+        double climate = _eastWestPeriodic
+            ? ValueNoise.FbmPeriodicX(
+                _climateSeed,
+                climateX,
+                climateZ,
+                _worldWidth / ClimateSpatialScale,
+                octaves: 2)
+            : ValueNoise.Fbm(_climateSeed, climateX, climateZ, octaves: 2);
 
         // Noise is concentrated near zero once octaves are normalised, so a straight rescale to
         // [0, 1] leaves almost every year mediocre and none bad enough to matter. Widening past

@@ -275,6 +275,7 @@ public sealed class ConfigTests
         var simulationAffecting = new[]
         {
             nameof(WorldConfig.Years), nameof(WorldConfig.StartYear), nameof(WorldConfig.WorldSize),
+            nameof(WorldConfig.EastWestPeriodic),
             nameof(WorldConfig.RegionSize), nameof(WorldConfig.TerrainStride),
             nameof(WorldConfig.HydrologyStride), nameof(WorldConfig.InitialCivilizations),
 
@@ -312,6 +313,7 @@ public sealed class ConfigTests
 
         Assert.NotEqual(baseline.ConfigHash, (baseline with { Years = 301 }).ConfigHash);
         Assert.NotEqual(baseline.ConfigHash, (baseline with { WorldSize = 2048 }).ConfigHash);
+        Assert.NotEqual(baseline.ConfigHash, (baseline with { EastWestPeriodic = true }).ConfigHash);
         Assert.NotEqual(baseline.ConfigHash, (baseline with { InitialCivilizations = 9 }).ConfigHash);
         Assert.NotEqual(
             baseline.ConfigHash,
@@ -346,5 +348,16 @@ public sealed class ConfigTests
         };
 
         Assert.Throws<InvalidOperationException>(() => config.Validate());
+    }
+
+    [Fact]
+    public void PeriodicWorldsRequireAlignedGrids()
+    {
+        var config = new WorldConfig { WorldSize = 1000, EastWestPeriodic = true };
+
+        InvalidOperationException error =
+            Assert.Throws<InvalidOperationException>(() => config.Validate());
+
+        Assert.Contains("periodic world size", error.Message, StringComparison.OrdinalIgnoreCase);
     }
 }

@@ -205,7 +205,7 @@ public sealed class PopulationSystem : IYearSystem
 
         Settlement seat = world.Settlements[civilization.CapitalId];
 
-        double distance = DetMath.Distance(settlement.X, settlement.Z, seat.X, seat.Z);
+        double distance = world.Distance(settlement.X, settlement.Z, seat.X, seat.Z);
         double reach = DetMath.InverseLerp(0.0, SupplyRange, distance);
 
         // At full distance a supply-dependent settlement keeps 45% of its capacity; an

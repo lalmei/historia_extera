@@ -44,6 +44,7 @@ internal static class Program
             Seed = options.Seed,
             Years = options.Years,
             WorldSize = options.WorldSize,
+            EastWestPeriodic = options.EastWestPeriodic,
             InitialCivilizations = options.Civilizations,
             MapRasterResolution = options.RasterResolution,
         };
@@ -108,7 +109,8 @@ internal static class Program
     {
         config.Validate();
 
-        var sampler = new ProceduralTerrainSampler(config.Seed, config.Bounds, config.Terrain);
+        var sampler = new ProceduralTerrainSampler(
+            config.Seed, config.Bounds, config.Terrain, config.EastWestPeriodic);
         string manifest = TerrainRasterBake.Write(sampler, options.EmitTerrain!, options.TerrainResolution);
 
         int perAxis = options.TerrainResolution;
@@ -177,6 +179,8 @@ internal static class Program
         Console.WriteLine("── Terrain ──────────────────────────────");
         Console.WriteLine($"  backend        {Backend(world.Config)}");
         Console.WriteLine($"  extent         {world.Terrain.Bounds.Width} x {world.Terrain.Bounds.Height}");
+        Console.WriteLine(
+            $"  boundary       {(world.Config.EastWestPeriodic ? "east/west periodic" : "bounded")}");
         Console.WriteLine($"  measured       {Fields(world.Terrain.Capabilities)}");
 
         // The fields no backend measured are modelled from elevation and latitude. Printing
@@ -256,6 +260,8 @@ internal static class Program
         Console.WriteLine("  --years <n>       years to simulate (default 300)");
         Console.WriteLine("  --civs <n>        starting civilizations (default 8)");
         Console.WriteLine("  --size <n>        world side length in units (default 4096)");
+        Console.WriteLine("  --east-west-periodic");
+        Console.WriteLine("                    join the east and west edges for terrain and simulation");
         Console.WriteLine("  --raster <n>      map raster resolution per axis (default 256)");
         Console.WriteLine("  --out <path>      output file (default viewer/public/worlds/world.json)");
         Console.WriteLine("  --pretty          indent the JSON (not the canonical form)");
@@ -293,6 +299,8 @@ internal sealed record CliOptions
     public int Civilizations { get; init; } = 8;
 
     public int WorldSize { get; init; } = 4096;
+
+    public bool EastWestPeriodic { get; init; }
 
     public int RasterResolution { get; init; } = 256;
 
@@ -332,6 +340,10 @@ internal sealed record CliOptions
 
                 case "--fingerprint":
                     options = options with { FingerprintOnly = true };
+                    break;
+
+                case "--east-west-periodic":
+                    options = options with { EastWestPeriodic = true };
                     break;
 
                 case "--seed":

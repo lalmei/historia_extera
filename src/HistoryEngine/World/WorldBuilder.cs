@@ -42,8 +42,13 @@ public static class WorldBuilder
     {
         config.Validate();
 
-        sampler ??= new ProceduralTerrainSampler(config.Seed, config.Bounds, config.Terrain);
-        var atlas = new TerrainAtlas(sampler, config.TerrainStride, config.HydrologyStride);
+        sampler ??= new ProceduralTerrainSampler(
+            config.Seed, config.Bounds, config.Terrain, config.EastWestPeriodic);
+        var atlas = new TerrainAtlas(
+            sampler,
+            config.TerrainStride,
+            config.HydrologyStride,
+            config.EastWestPeriodic);
 
         var world = new WorldState(
             config,
@@ -100,7 +105,7 @@ public static class WorldBuilder
 
         for (int attempt = 0; attempt < 8; attempt++)
         {
-            List<Region> chosen = GreedyPick(candidates, wanted, separation);
+            List<Region> chosen = GreedyPick(world, candidates, wanted, separation);
             if (chosen.Count >= wanted || separation < 1.0)
             {
                 return chosen;
@@ -109,10 +114,11 @@ public static class WorldBuilder
             separation *= 0.7;
         }
 
-        return GreedyPick(candidates, wanted, 0.0);
+        return GreedyPick(world, candidates, wanted, 0.0);
     }
 
-    private static List<Region> GreedyPick(List<Region> candidates, int wanted, double separation)
+    private static List<Region> GreedyPick(
+        WorldState world, List<Region> candidates, int wanted, double separation)
     {
         var chosen = new List<Region>(wanted);
         double minSquared = separation * separation;
@@ -124,7 +130,7 @@ public static class WorldBuilder
             bool tooClose = false;
             for (int i = 0; i < chosen.Count; i++)
             {
-                double distanceSquared = DetMath.DistanceSquared(
+                double distanceSquared = world.DistanceSquared(
                     candidate.CenterX, candidate.CenterZ, chosen[i].CenterX, chosen[i].CenterZ);
 
                 if (distanceSquared < minSquared)
