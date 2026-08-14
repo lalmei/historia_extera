@@ -11,21 +11,23 @@ import {
   type Run,
   type RunParams,
 } from '../generate';
-import { loadWorld, type World } from '../store';
 import { Panel } from '../components/common';
 
 /**
  * Run a seed and open what comes out.
  *
  * The loop this replaces was: leave the viewer, run the CLI in another terminal, come
- * back, reload, discover the seed was dull, repeat. Here the finished export is fetched
- * and swapped into the running app, so trying ten seeds costs ten clicks and never
- * reloads the page.
+ * back, reload, discover the seed was dull, repeat.
  *
- * Development only — `CAN_GENERATE` guards every call site, and the endpoint behind it
- * does not exist in a built viewer.
+ * This is the only interactive part of `/new`, so it is the only part that ships as an
+ * island — the page around it is static Astro. When a run finishes it hands the world to
+ * the viewer as a `?world=` link rather than parsing it here: the viewer is the thing
+ * that knows how to read a chronicle, and a generator that also held one in memory would
+ * be parsing megabytes it is about to navigate away from.
+ *
+ * Development only — the endpoint behind it does not exist in a built viewer.
  */
-export function NewWorld({ onLoaded }: { onLoaded: (world: World, url: string) => void }) {
+export function NewWorld() {
   const [form, setForm] = useState<Record<keyof RunParams, string>>({
     seed: String(DEFAULT_PARAMS.seed),
     years: String(DEFAULT_PARAMS.years),
@@ -63,28 +65,13 @@ export function NewWorld({ onLoaded }: { onLoaded: (world: World, url: string) =
     };
   }, [run?.id, run?.status]);
 
-  // Then read the file it wrote. Parsing and indexing megabytes of chronicle is the slow
-  // half of "generate", so it gets its own visible step rather than looking like a hang.
+  // Then leave for the viewer, pointed at what was just written. `?world=` before the
+  // hash is the form that survives navigation, so the world stays selected from here on.
   useEffect(() => {
     if (run?.status !== 'done' || !run.world) return;
 
-    const url = run.world;
-    let stopped = false;
-
     setOpening(true);
-    loadWorld(url)
-      .then((world) => {
-        if (!stopped) onLoaded(world, url);
-      })
-      .catch((cause: unknown) => {
-        if (stopped) return;
-        setError(messageOf(cause));
-        setOpening(false);
-      });
-
-    return () => {
-      stopped = true;
-    };
+    window.location.assign(viewerUrl(run.world));
   }, [run?.status, run?.world]);
 
   async function submit(event: React.SyntheticEvent) {
@@ -164,8 +151,8 @@ export function NewWorld({ onLoaded }: { onLoaded: (world: World, url: string) =
       </form>
 
       <p className="mt-3 text-xs text-[var(--ink-faint)]">
-        Runs the engine and opens the result here. Identical settings always produce an
-        identical history, so a seed worth keeping is worth writing down — the file lands in{' '}
+        A seed worth keeping is worth writing down: the same settings always give the same
+        history. Each run lands in{' '}
         <code className="rounded bg-[var(--page)] px-1 py-0.5">viewer/public/worlds/</code> and can
         be reopened later with <code className="rounded bg-[var(--page)] px-1 py-0.5">?world=</code>.
       </p>
@@ -197,7 +184,7 @@ function Progress({
       ? `Simulating ${run.params.years} years, seed ${run.params.seed} — ${seconds}s`
       : run.status === 'done'
         ? opening
-          ? `Reading ${megabytes(run.bytes)} of chronicle…`
+          ? `Done in ${seconds}s — opening ${megabytes(run.bytes)}…`
           : `Done in ${seconds}s`
         : run.status === 'cancelled'
           ? 'Cancelled'
@@ -269,6 +256,11 @@ function NumberField({
       />
     </label>
   );
+}
+
+/** The viewer, showing one particular export. `BASE_URL` always ends in a slash. */
+function viewerUrl(world: string): string {
+  return `${import.meta.env.BASE_URL}?world=${world}`;
 }
 
 function megabytes(bytes: number | undefined): string {
