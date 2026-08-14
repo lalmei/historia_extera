@@ -20,8 +20,9 @@ import {
   type Dynasty,
   type Figure,
   type Region,
+  type Religion,
 } from '../types';
-import { BattleTable, SettlementTable, WarTable, warsOf } from './EntityPages';
+import { ArtifactTable, BattleTable, SettlementTable, WarTable, warsOf } from './EntityPages';
 
 /**
  * Every war ever fought, and every engagement in them.
@@ -153,6 +154,149 @@ export function CivilizationList({ world }: { world: World }) {
 /** The distinct values present, in first-seen order. */
 function distinct<T>(values: T[]): T[] {
   return [...new Set(values)];
+}
+
+export function ReligionList({ world }: { world: World }) {
+  const { religions } = world.export;
+  const followed = religions.filter((faith) => faith.endedYear === undefined);
+  const offshoots = religions.filter((faith) => faith.parentId !== undefined);
+
+  const following = (faith: Religion) =>
+    world.export.settlements.filter(
+      (s) => s.religionId === faith.id && s.abandonedYear === undefined,
+    ).length;
+
+  const columns: Column<Religion>[] = [
+    {
+      key: 'name',
+      header: 'Faith',
+      cell: (faith) => (
+        <span className="flex items-center gap-1.5">
+          <EntityLink world={world} id={faith.id} />
+          {faith.parentId && <Badge tone="muted">offshoot</Badge>}
+        </span>
+      ),
+      sort: (faith) => faith.name,
+    },
+    {
+      key: 'origin',
+      header: 'First preached',
+      cell: (faith) => <EntityLink world={world} id={faith.originSettlementId} />,
+      sort: (faith) => world.nameOf(faith.originSettlementId),
+    },
+    {
+      key: 'following',
+      header: 'Settlements',
+      cell: (faith) => following(faith),
+      sort: following,
+      align: 'right',
+    },
+    {
+      key: 'peak',
+      header: 'At its height',
+      cell: (faith) => faith.peakSettlements,
+      sort: (faith) => faith.peakSettlements,
+      align: 'right',
+    },
+    {
+      key: 'fervour',
+      header: 'Fervour',
+      cell: (faith) => faith.fervour.toFixed(2),
+      sort: (faith) => faith.fervour,
+      align: 'right',
+    },
+    {
+      key: 'span',
+      header: 'Span',
+      cell: (faith) => (
+        <span className={faith.endedYear !== undefined ? 'text-[var(--ink-faint)]' : ''}>
+          {yearRange(faith.foundedYear, faith.endedYear)}
+        </span>
+      ),
+      sort: (faith) => faith.foundedYear,
+    },
+  ];
+
+  const facets: Facet<Religion>[] = [
+    {
+      key: 'status',
+      label: 'Status',
+      options: [
+        { value: 'living', label: 'Still followed', match: (f) => f.endedYear === undefined },
+        { value: 'gone', label: 'Forgotten', match: (f) => f.endedYear !== undefined },
+        { value: 'state', label: 'A realm’s faith', match: (f) =>
+          world.export.civilizations.some((civ) => civ.stateReligionId === f.id) },
+      ],
+    },
+    {
+      key: 'origin',
+      label: 'Origin',
+      options: [
+        { value: 'root', label: 'Preached new', match: (f) => f.parentId === undefined },
+        { value: 'schism', label: 'Broke from another', match: (f) => f.parentId !== undefined },
+      ],
+    },
+  ];
+
+  return (
+    <div className="space-y-5">
+      <PageTitle eyebrow="Index" title="Faiths" />
+
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <Stat label="Faiths" value={religions.length} hint="Ever preached" />
+        <Stat label="Still followed" value={followed.length} />
+        <Stat label="Schisms" value={offshoots.length} hint="Broke from another faith" />
+        <Stat
+          label="Converted"
+          value={
+            world.export.settlements.filter(
+              (s) => s.religionId !== undefined && s.abandonedYear === undefined,
+            ).length
+          }
+          hint="Settlements following anything at all"
+        />
+      </div>
+
+      <Panel>
+        <DataTable
+          rows={religions}
+          columns={columns}
+          facets={facets}
+          searchText={(faith) => faith.name}
+          placeholder="Search faiths…"
+          initialSort={{ key: 'peak', descending: true }}
+          emptyMessage="No faith was ever preached in this world."
+        />
+      </Panel>
+    </div>
+  );
+}
+
+export function ArtifactList({ world }: { world: World }) {
+  const { artifacts } = world.export;
+  const held = artifacts.filter((a) => a.lostYear === undefined);
+  const travelled = artifacts.filter((a) => a.provenance.length > 1);
+
+  return (
+    <div className="space-y-5">
+      <PageTitle eyebrow="Index" title="Artifacts" />
+
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <Stat label="Made" value={artifacts.length} />
+        <Stat label="Still held" value={held.length} />
+        <Stat label="Changed hands" value={travelled.length} hint="Looted, or lost with a town" />
+        <Stat
+          label="Sacred"
+          value={artifacts.filter((a) => a.religionId !== undefined).length}
+          hint="Relics and idols of a faith"
+        />
+      </div>
+
+      <Panel>
+        <ArtifactTable world={world} artifacts={artifacts} />
+      </Panel>
+    </div>
+  );
 }
 
 export function SettlementList({ world }: { world: World }) {
@@ -716,6 +860,16 @@ export function Overview({ world }: { world: World }) {
           label="Wars"
           value={wars.length}
           hint={`${world.export.battles.length} battles fought`}
+        />
+        <Stat
+          label="Faiths"
+          value={`${world.export.religions.filter((f) => f.endedYear === undefined).length} / ${world.export.religions.length}`}
+          hint="Still followed of all ever preached"
+        />
+        <Stat
+          label="Artifacts"
+          value={world.export.artifacts.length}
+          hint={`${world.export.artifacts.filter((a) => a.lostYear === undefined).length} still held`}
         />
       </div>
 

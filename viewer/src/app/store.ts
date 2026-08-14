@@ -13,6 +13,8 @@ import {
   type Figure,
   type HistoryEvent,
   type Region,
+  type Religion,
+  type Artifact,
   type Settlement,
   type War,
   type WorldExport,
@@ -90,6 +92,8 @@ export function buildWorld(data: WorldExport): World {
     data.figures,
     data.wars,
     data.battles,
+    data.religions,
+    data.artifacts,
   ] as AnyEntity[][]) {
     for (const entity of collection) byId.set(entity.id, entity);
   }
@@ -195,6 +199,19 @@ export function battlesOf(world: World, war: War): Battle[] {
   }
 
   return found;
+}
+
+export function religionOf(world: World, id: EntityId | undefined): Religion | undefined {
+  return id && kindOf(id) === 'rel' ? (world.byId.get(id) as Religion) : undefined;
+}
+
+export function artifactOf(world: World, id: EntityId | undefined): Artifact | undefined {
+  return id && kindOf(id) === 'art' ? (world.byId.get(id) as Artifact) : undefined;
+}
+
+/** Every artifact one settlement holds now, in the order they were made. */
+export function treasuresOf(world: World, settlementId: EntityId): Artifact[] {
+  return world.export.artifacts.filter((artifact) => artifact.holderId === settlementId);
 }
 
 /** Resolves a list of figure ids, dropping any that do not. */

@@ -35,6 +35,16 @@ import {
 
 type Layer = 'biome' | 'height' | 'habitability';
 
+/**
+ * What the settlement dots are coloured by.
+ *
+ * Realm and faith are the two political maps of the same world, and they disagree in the
+ * interesting places: a frontier province that changed hands but not gods, a realm whose second
+ * city follows the enemy's faith. Sharing the dots between them — rather than building a second
+ * map — is what makes the disagreement visible in one glance.
+ */
+type Colouring = 'realm' | 'faith';
+
 /** Years advanced per tick while playing. */
 const PLAY_INTERVAL_MS = 110;
 
@@ -66,6 +76,7 @@ export function WorldMap({ world }: { world: World }) {
   const { startYear, endYear } = data.meta;
 
   const [layer, setLayer] = useState<Layer>('biome');
+  const [colouring, setColouring] = useState<Colouring>('realm');
   const [showRivers, setShowRivers] = useState(true);
   const [showSettlements, setShowSettlements] = useState(true);
   const [showTerritory, setShowTerritory] = useState(true);
@@ -76,6 +87,16 @@ export function WorldMap({ world }: { world: World }) {
 
   const grid = useMemo(() => buildGrid(data.world, data.regions), [data.world, data.regions]);
   const order = useMemo(() => data.civilizations.map((civ) => civ.id), [data.civilizations]);
+
+  // A second wheel for faiths, offset from the realm hues so the two colourings are never
+  // mistaken for each other at a glance.
+  const faithColours = useMemo(() => {
+    const colours = new Map<EntityId, string>();
+    data.religions.forEach((faith, index) => {
+      colours.set(faith.id, `hsl(${(40 + index * 137.508) % 360} 55% 58%)`);
+    });
+    return colours;
+  }, [data.religions]);
 
   const owners = useMemo(() => timeline.ownersAt(year), [timeline, year]);
   const realms = useMemo(() => buildRealms(grid, owners, order), [grid, owners, order]);
@@ -294,6 +315,15 @@ export function WorldMap({ world }: { world: World }) {
               <option value="height">Elevation</option>
               <option value="habitability">Habitability</option>
             </select>
+            <select
+              value={colouring}
+              onChange={(event) => setColouring(event.target.value as Colouring)}
+              title="What the settlement dots are coloured by"
+              className="rounded border border-[var(--rule)] bg-[var(--page)] px-1.5 py-1 text-xs"
+            >
+              <option value="realm">Dots: realm</option>
+              <option value="faith">Dots: faith</option>
+            </select>
             <Toggle label="Rivers" on={showRivers} onChange={setShowRivers} />
             <Toggle label="Settlements" on={showSettlements} onChange={setShowSettlements} />
             <Toggle label="Territory" on={showTerritory} onChange={setShowTerritory} />
@@ -365,7 +395,13 @@ export function WorldMap({ world }: { world: World }) {
                   cx={toWorld(entry.settlement.x, 'x')}
                   cy={toWorld(entry.settlement.z, 'z')}
                   r={radiusOf(entry)}
-                  fill={world.colourOf(entry.civilizationId)}
+                  fill={
+                    colouring === 'faith'
+                      ? entry.religionId
+                        ? faithColours.get(entry.religionId) ?? 'rgb(150 150 150)'
+                        : 'rgb(120 120 124)'
+                      : world.colourOf(entry.civilizationId)
+                  }
                   fillOpacity={dimmed(entry.civilizationId) ? 0.35 : 1}
                   stroke="rgba(12,12,12,0.75)"
                   strokeWidth={entry.isCapital ? 0.3 : 0.14}
@@ -404,6 +440,8 @@ export function WorldMap({ world }: { world: World }) {
                   <div className="text-[var(--ink-faint)]">
                     {hovered.standing.isCapital ? 'Seat of ' : ''}
                     {hovered.standing.tier} · {world.nameOf(hovered.standing.civilizationId)}
+                    {hovered.standing.religionId &&
+                      ` · ${world.nameOf(hovered.standing.religionId)}`}
                   </div>
                 </>
               ) : (
@@ -444,6 +482,10 @@ export function WorldMap({ world }: { world: World }) {
           focus={focus}
           onFocus={(id) => setFocus(id === focus ? null : id)}
         />
+
+        {colouring === 'faith' && (
+          <FaithLegend world={world} year={year} colours={faithColours} />
+        )}
       </Panel>
 
       {focused && (
@@ -595,6 +637,59 @@ function Legend({
           );
         })}
       </div>
+    </div>
+  );
+}
+
+/**
+ * The faiths with a congregation in the selected year.
+ *
+ * Only the ones actually being followed then — a world's whole list of faiths includes those
+ * preached two centuries later and those forgotten a century before, and neither belongs in a
+ * key to what is on the map now.
+ */
+function FaithLegend({
+  world,
+  year,
+  colours,
+}: {
+  world: World;
+  year: number;
+  colours: Map<EntityId, string>;
+}) {
+  const followed = world.export.religions
+    .map((faith) => ({ faith, following: world.timeline.followingAt(faith.id, year) }))
+    .filter((entry) => entry.following > 0)
+    .sort((a, b) => b.following - a.following);
+
+  return (
+    <div className="mx-auto mt-3 max-w-3xl">
+      <div className="mb-2 text-[0.7rem] font-semibold tracking-wide uppercase text-[var(--ink-faint)]">
+        Faiths
+      </div>
+
+      {followed.length === 0 ? (
+        <p className="text-xs text-[var(--ink-faint)]">
+          Nothing was preached anywhere in the world this year.
+        </p>
+      ) : (
+        <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs">
+          {followed.map(({ faith, following }) => (
+            <a
+              key={faith.id}
+              href={`#/${faith.id}`}
+              className="inline-flex items-center gap-1.5 hover:text-[var(--accent)]"
+            >
+              <span
+                className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
+                style={{ background: colours.get(faith.id) }}
+              />
+              {faith.name}
+              <span className="tabular-nums text-[var(--ink-faint)]">{following}</span>
+            </a>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

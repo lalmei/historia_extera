@@ -19,16 +19,19 @@ import {
   figures,
   regionOf,
   settlementOf,
+  treasuresOf,
   warOf,
   type World,
 } from '../store';
 import {
+  ARTIFACT_LABELS,
   CAUSE_LABELS,
   DEATH_LABELS,
   OUTCOME_LABELS,
   SPECIALIZATION_LABELS,
   SUCCESSION_LABELS,
   TIER_ORDER,
+  type Artifact,
   type Battle,
   type Civilization,
   type Culture,
@@ -37,6 +40,7 @@ import {
   type Figure,
   type Region,
   type Relation,
+  type Religion,
   type Settlement,
   type War,
 } from '../types';
@@ -109,6 +113,13 @@ export function CivilizationPage({ world, civ }: { world: World; civ: Civilizati
           <Field label="Ruling house">
             <EntityLink world={world} id={civ.rulingDynastyId} />
           </Field>
+          <Field label="Faith">
+            {civ.stateReligionId ? (
+              <EntityLink world={world} id={civ.stateReligionId} />
+            ) : (
+              <span className="text-[var(--ink-faint)]">No faith took hold at its seat</span>
+            )}
+          </Field>
           {culture && (
             <Field label="Succession">
               {SUCCESSION_LABELS[culture.successionLaw] ?? culture.successionLaw}
@@ -162,6 +173,7 @@ export function CivilizationPage({ world, civ }: { world: World; civ: Civilizati
 
 export function SettlementPage({ world, settlement }: { world: World; settlement: Settlement }) {
   const region = regionOf(world, settlement.regionId);
+  const treasures = treasuresOf(world, settlement.id);
 
   return (
     <div className="space-y-5">
@@ -235,8 +247,28 @@ export function SettlementPage({ world, settlement }: { world: World; settlement
               </span>
             )}
           </Field>
+          <Field label="Faith">
+            {settlement.religionId ? (
+              <>
+                <EntityLink world={world} id={settlement.religionId} />
+                {settlement.convertedYear !== undefined && (
+                  <span className="ml-2 text-[var(--ink-faint)]">
+                    since {settlement.convertedYear}
+                  </span>
+                )}
+              </>
+            ) : (
+              <span className="text-[var(--ink-faint)]">Keeps its own counsel</span>
+            )}
+          </Field>
         </dl>
       </Panel>
+
+      {treasures.length > 0 && (
+        <Panel title="Treasury">
+          <ArtifactTable world={world} artifacts={treasures} />
+        </Panel>
+      )}
 
       <Panel title="Chronicle">
         <EventList world={world} events={world.eventsFor(settlement.id)} />
@@ -746,6 +778,305 @@ function ExtentChart({ world, civ }: { world: World; civ: Civilization }) {
         </span>
       </div>
     </div>
+  );
+}
+
+/**
+ * A faith: where it was first preached, who follows it, and what it broke from.
+ *
+ * The congregation is drawn for the selected end state, but the curve above it is replayed —
+ * a faith that took half a continent and then lost it says so in one glance, which the flat
+ * settlement list underneath cannot.
+ */
+export function ReligionPage({ world, religion }: { world: World; religion: Religion }) {
+  const following = world.export.settlements.filter(
+    (s) => s.religionId === religion.id && s.abandonedYear === undefined,
+  );
+
+  const offshoots = world.export.religions.filter((r) => r.parentId === religion.id);
+  const relics = world.export.artifacts.filter((a) => a.religionId === religion.id);
+
+  return (
+    <div className="space-y-5">
+      <PageTitle
+        eyebrow={religion.parentId ? 'Faith · an offshoot' : 'Faith'}
+        title={religion.name}
+        meta={
+          <>
+            <Badge tone={religion.endedYear === undefined ? 'accent' : 'muted'}>
+              {religion.endedYear === undefined ? 'Followed' : 'Forgotten'}
+            </Badge>
+            <span className="text-[var(--ink-faint)]">
+              {yearRange(religion.foundedYear, religion.endedYear)}
+            </span>
+          </>
+        }
+      />
+
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <Stat label="Settlements" value={following.length} hint="Following it now" />
+        <Stat label="At its height" value={religion.peakSettlements} />
+        <Stat
+          label="Fervour"
+          value={religion.fervour.toFixed(2)}
+          hint="How hard it presses outwards"
+        />
+        <Stat label="Offshoots" value={offshoots.length} />
+      </div>
+
+      <Panel title="Following">
+        <FollowingChart world={world} religion={religion} />
+      </Panel>
+
+      <Panel title="Details">
+        <dl>
+          <Field label="First preached">
+            <EntityLink world={world} id={religion.originSettlementId} /> in {religion.foundedYear}
+          </Field>
+          <Field label="By">
+            <EntityLink world={world} id={religion.founderId} />
+          </Field>
+          <Field label="Arose among">
+            <EntityLink world={world} id={religion.cultureId} />
+          </Field>
+          {religion.parentId && (
+            <Field label="Broke from">
+              <EntityLink world={world} id={religion.parentId} />
+            </Field>
+          )}
+          {offshoots.length > 0 && (
+            <Field label="Broken by">
+              <span className="flex flex-wrap gap-x-3 gap-y-1">
+                {offshoots.map((r) => (
+                  <EntityLink key={r.id} world={world} id={r.id} />
+                ))}
+              </span>
+            </Field>
+          )}
+        </dl>
+      </Panel>
+
+      {relics.length > 0 && (
+        <Panel title="Sacred to it">
+          <ArtifactTable world={world} artifacts={relics} />
+        </Panel>
+      )}
+
+      {following.length > 0 && (
+        <Panel title={`Settlements (${following.length})`}>
+          <SettlementTable world={world} settlements={following} />
+        </Panel>
+      )}
+
+      <Panel title="Chronicle">
+        <EventList world={world} events={world.eventsFor(religion.id)} />
+      </Panel>
+    </div>
+  );
+}
+
+/** How many settlements followed a faith, year by year. */
+function FollowingChart({ world, religion }: { world: World; religion: Religion }) {
+  const { startYear, endYear } = world.export.meta;
+  const { timeline } = world;
+
+  const series: number[] = [];
+  for (let year = startYear; year <= endYear; year++) {
+    series.push(timeline.followingAt(religion.id, year));
+  }
+
+  const peak = Math.max(1, ...series);
+  const width = 300;
+  const height = 60;
+  const top = 6;
+
+  const x = (year: number) => ((year - startYear) / Math.max(1, endYear - startYear)) * width;
+  const y = (count: number) => height - (count / peak) * (height - top);
+
+  const steps = series
+    .map((count, index) => `${index === 0 ? 'M' : 'L'}${x(startYear + index)} ${y(count)}`)
+    .join('');
+
+  return (
+    <div>
+      <svg viewBox={`0 0 ${width} ${height}`} className="h-24 w-full" preserveAspectRatio="none">
+        <path
+          d={`${steps}L${x(endYear)} ${height}L${x(startYear)} ${height}z`}
+          fill="var(--accent)"
+          fillOpacity={0.2}
+        />
+        <path
+          d={steps}
+          fill="none"
+          stroke="var(--accent)"
+          strokeWidth={1.5}
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
+
+      <div className="mt-1 flex flex-wrap items-baseline justify-between gap-x-4 text-xs text-[var(--ink-faint)]">
+        <span className="tabular-nums">
+          {startYear} – {endYear}
+        </span>
+        <span className="tabular-nums">{peak} settlements at its height</span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * One made thing, and everywhere it has been.
+ *
+ * The provenance list is the page. An object that was made in one realm, looted into a second
+ * and lost when a third burned the place down carries three centuries of history in five lines,
+ * and every one of them is a link.
+ */
+export function ArtifactPage({ world, artifact }: { world: World; artifact: Artifact }) {
+  return (
+    <div className="space-y-5">
+      <PageTitle
+        eyebrow={`${ARTIFACT_LABELS[artifact.kind] ?? artifact.kind} · made ${artifact.createdYear}`}
+        title={artifact.name}
+        meta={
+          artifact.lostYear === undefined ? (
+            <>
+              <Badge tone="accent">Held</Badge>
+              <span>
+                at <EntityLink world={world} id={artifact.holderId} />
+              </span>
+            </>
+          ) : (
+            <Badge tone="muted">Lost in {artifact.lostYear}</Badge>
+          )
+        }
+      />
+
+      <Panel title="Details">
+        <dl>
+          <Field label="Made at">
+            <EntityLink world={world} id={artifact.originSettlementId} />
+          </Field>
+          <Field label="Made for">
+            <EntityLink world={world} id={artifact.creatorId} />
+          </Field>
+          {artifact.religionId && (
+            <Field label="Sacred to">
+              <EntityLink world={world} id={artifact.religionId} />
+            </Field>
+          )}
+          <Field label="Changed hands">
+            {artifact.provenance.length - 1}{' '}
+            {artifact.provenance.length === 2 ? 'time' : 'times'}
+          </Field>
+        </dl>
+      </Panel>
+
+      <Panel title="Provenance">
+        <ol className="space-y-1.5 text-sm">
+          {artifact.provenance.map((holding, index) => (
+            <li key={index} className="flex items-baseline gap-3">
+              <span className="w-14 shrink-0 text-right tabular-nums text-[var(--ink-faint)]">
+                {holding.year}
+              </span>
+              <span>
+                {holding.settlementId ? (
+                  <EntityLink world={world} id={holding.settlementId} />
+                ) : (
+                  <span className="text-[var(--ink-faint)]">lost</span>
+                )}
+                <span className="ml-2 text-[var(--ink-faint)]">{holding.how}</span>
+              </span>
+            </li>
+          ))}
+        </ol>
+      </Panel>
+
+      <Panel title="Chronicle">
+        <EventList world={world} events={world.eventsFor(artifact.id)} />
+      </Panel>
+    </div>
+  );
+}
+
+export function ArtifactTable({ world, artifacts }: { world: World; artifacts: Artifact[] }) {
+  const columns: Column<Artifact>[] = [
+    {
+      key: 'name',
+      header: 'Artifact',
+      cell: (a) => <EntityLink world={world} id={a.id} />,
+      sort: (a) => a.name,
+    },
+    {
+      key: 'kind',
+      header: 'Kind',
+      cell: (a) => ARTIFACT_LABELS[a.kind] ?? a.kind,
+      sort: (a) => a.kind,
+    },
+    {
+      key: 'made',
+      header: 'Made',
+      cell: (a) => a.createdYear,
+      sort: (a) => a.createdYear,
+      align: 'right',
+    },
+    {
+      key: 'origin',
+      header: 'Made at',
+      cell: (a) => <EntityLink world={world} id={a.originSettlementId} />,
+      sort: (a) => world.nameOf(a.originSettlementId),
+    },
+    {
+      key: 'held',
+      header: 'Held at',
+      cell: (a) =>
+        a.lostYear === undefined ? (
+          <EntityLink world={world} id={a.holderId} />
+        ) : (
+          <Badge tone="muted">lost {a.lostYear}</Badge>
+        ),
+      sort: (a) => (a.holderId ? world.nameOf(a.holderId) : '~'),
+    },
+    {
+      key: 'moves',
+      header: 'Moves',
+      cell: (a) => a.provenance.length - 1,
+      sort: (a) => a.provenance.length,
+      align: 'right',
+    },
+  ];
+
+  const facets: Facet<Artifact>[] = [
+    {
+      key: 'kind',
+      label: 'Kind',
+      options: present(artifacts.map((a) => a.kind)).map((kind) => ({
+        value: kind,
+        label: ARTIFACT_LABELS[kind] ?? kind,
+        match: (a: Artifact) => a.kind === kind,
+      })),
+    },
+    {
+      key: 'fate',
+      label: 'Fate',
+      options: [
+        { value: 'held', label: 'Still held', match: (a) => a.lostYear === undefined },
+        { value: 'lost', label: 'Lost', match: (a) => a.lostYear !== undefined },
+        { value: 'moved', label: 'Changed hands', match: (a) => a.provenance.length > 1 },
+        { value: 'sacred', label: 'Sacred to a faith', match: (a) => a.religionId !== undefined },
+      ],
+    },
+  ];
+
+  return (
+    <DataTable
+      rows={artifacts}
+      columns={columns}
+      facets={facets}
+      searchText={(a) => `${a.name} ${a.kind}`}
+      placeholder="Search artifacts…"
+      initialSort={{ key: 'made' }}
+      emptyMessage="Nothing was made here worth remembering."
+    />
   );
 }
 

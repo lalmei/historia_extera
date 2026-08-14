@@ -7,7 +7,7 @@
  * stops moving.
  */
 
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 /** `"civ:3"`, `"fig:1204"` — readable, greppable, and directly usable as a route. */
 export type EntityId = string;
@@ -36,6 +36,8 @@ export interface WorldExport {
   figures: Figure[];
   wars: War[];
   battles: Battle[];
+  religions: Religion[];
+  artifacts: Artifact[];
   events: HistoryEvent[];
   indices: ExportIndices;
   narration: Record<string, string>;
@@ -218,6 +220,8 @@ export interface Civilization {
   rulingDynastyId?: EntityId;
   /** Set only while a minor holds the throne. */
   regentId?: EntityId;
+  /** The realm's faith: whatever its seat of government follows. */
+  stateReligionId?: EntityId;
   rulerSinceYear: number;
   population: number;
   peakPopulation: number;
@@ -330,6 +334,71 @@ export interface Battle {
 }
 
 /**
+ * A faith, and the settlements that follow it.
+ *
+ * `settlementIds` is the congregation at the end of the run, so a faith that once held a
+ * continent and now holds one valley lists one valley — `peakSettlements` is what says so.
+ * Its whole rise and fall replays from the adoption events, the same way territory does.
+ */
+export interface Religion {
+  id: EntityId;
+  name: string;
+  cultureId: EntityId;
+  /** Whoever preached it first, if the chronicle knows. */
+  founderId?: EntityId;
+  originSettlementId: EntityId;
+  /** The faith it broke away from, if it did. */
+  parentId?: EntityId;
+  foundedYear: number;
+  endedYear?: number;
+  /** How hard it presses outwards, in [0, 1]. */
+  fervour: number;
+  peakSettlements: number;
+  settlementIds: EntityId[];
+}
+
+export type ArtifactKind = 'Regalia' | 'Weapon' | 'Relic' | 'Tome' | 'Idol' | 'Jewel';
+
+export const ARTIFACT_LABELS: Record<ArtifactKind, string> = {
+  Regalia: 'Regalia',
+  Weapon: 'Weapon',
+  Relic: 'Relic',
+  Tome: 'Book',
+  Idol: 'Idol',
+  Jewel: 'Jewel',
+};
+
+/** Where an artifact was, from a given year, and how it got there. */
+export interface Provenance {
+  year: number;
+  /** Absent for the entry that records it being lost. */
+  settlementId?: EntityId;
+  how: string;
+}
+
+/**
+ * A made thing, and everywhere it has been.
+ *
+ * Held by settlements rather than people, so it can be sacked, abandoned or ceded along with
+ * the place holding it — which is what makes `provenance` a way of reading the map's history
+ * rather than an inventory line.
+ */
+export interface Artifact {
+  id: EntityId;
+  name: string;
+  kind: ArtifactKind;
+  creatorId?: EntityId;
+  originSettlementId: EntityId;
+  /** The faith it is sacred to, for relics and idols. */
+  religionId?: EntityId;
+  createdYear: number;
+  /** The settlement holding it now. Absent once it is lost. */
+  holderId?: EntityId;
+  lostYear?: number;
+  provenance: Provenance[];
+}
+
+/**
  * A ruling house.
  *
  * `memberIds` is blood only — consorts keep whatever house they were born into and are
@@ -393,6 +462,9 @@ export interface Settlement {
   yearsDepressed: number;
   isCapital: boolean;
   isFortified: boolean;
+  /** The faith followed here, or absent while the place keeps its own counsel. */
+  religionId?: EntityId;
+  convertedYear?: number;
 }
 
 export type DeathCause =
@@ -484,7 +556,9 @@ export type AnyEntity =
   | Settlement
   | Figure
   | War
-  | Battle;
+  | Battle
+  | Religion
+  | Artifact;
 
 export function kindOf(id: EntityId): EntityKind {
   return id.slice(0, id.indexOf(':')) as EntityKind;
