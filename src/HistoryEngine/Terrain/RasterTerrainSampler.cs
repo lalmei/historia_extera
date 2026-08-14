@@ -44,7 +44,14 @@ public sealed record RasterLayerSpec
 /// </remarks>
 public sealed record TerrainRasterManifest
 {
-    /// <summary>Side length of the square world the rasters cover, in world units.</summary>
+    /// <summary>
+    /// Side length of the square world the rasters cover, in world units.
+    /// </summary>
+    /// <remarks>
+    /// One number, so the format describes a square world whose origin is (0, 0) and nothing
+    /// else. <see cref="TerrainRasterBake"/> rejects samplers of any other shape rather than
+    /// writing bounds it cannot express.
+    /// </remarks>
     public int WorldSize { get; init; }
 
     public RasterLayerSpec? Height { get; init; }

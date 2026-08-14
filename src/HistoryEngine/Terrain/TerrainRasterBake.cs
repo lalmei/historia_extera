@@ -34,7 +34,20 @@ public static class TerrainRasterBake
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
-    /// <summary>Writes a manifest and one PGM per field into <paramref name="directory"/>.</summary>
+    /// <summary>Writes a manifest and one PGM per measured field into <paramref name="directory"/>.</summary>
+    /// <remarks>
+    /// <para><b>Only what the source measures is written.</b> A sampler that declares nothing but
+    /// <see cref="TerrainCapabilities.Height"/> still answers every field — the absent ones are
+    /// modelled from elevation and latitude. Serialising those answers as planes would turn a
+    /// model into a measurement: the reloaded set would declare capabilities its source never
+    /// claimed, and the one backend in the project that honestly reports a partial hand would
+    /// stop being able to round-trip. A plane is a record of what was measured, so a field the
+    /// source cannot measure has no file.</para>
+    ///
+    /// <para><b>The format covers a square world at the origin.</b> The manifest carries a single
+    /// <c>worldSize</c>, so a rectangular or offset sampler is rejected rather than silently
+    /// reloaded with its Z extent stretched and its origin discarded.</para>
+    /// </remarks>
     /// <returns>The path of the manifest written.</returns>
     public static string Write(ITerrainSampler sampler, string directory, int resolution = DefaultResolution)
     {
@@ -44,21 +57,41 @@ public static class TerrainRasterBake
                 nameof(resolution), resolution, "Resolution must be at least 2.");
         }
 
+        TerrainBounds bounds = sampler.Bounds;
+        if (bounds.MinX != 0 || bounds.MinZ != 0 || bounds.Width != bounds.Height)
+        {
+            throw new ArgumentException(
+                $"The raster format covers a square world at the origin, and this sampler covers "
+                + $"{bounds.Width}x{bounds.Height} at ({bounds.MinX}, {bounds.MinZ}). A manifest "
+                + "carries one 'worldSize', so baking this would reload as a different shape in a "
+                + "different place — quietly, and only visibly as terrain that no longer matches.",
+                nameof(sampler));
+        }
+
         TerrainSample[] samples = SampleGrid(sampler, resolution);
 
         Directory.CreateDirectory(directory);
 
         var manifest = new TerrainRasterManifest
         {
-            WorldSize = sampler.Bounds.Width,
+            WorldSize = bounds.Width,
             Height = WriteHeight(samples, resolution, directory),
-            Temperature = WritePlane(
-                samples, resolution, directory, "temperature.pgm", s => s.Temperature),
-            Rainfall = WritePlane(samples, resolution, directory, "rainfall.pgm", s => s.Rainfall),
-            Geology = WritePlane(samples, resolution, directory, "geology.pgm", s => s.GeologicActivity),
-            Forest = WritePlane(samples, resolution, directory, "forest.pgm", s => s.ForestDensity),
-            Shrub = WritePlane(samples, resolution, directory, "shrub.pgm", s => s.ShrubDensity),
-            Water = sampler.Supports(TerrainCapabilities.Lakes)
+            Temperature = Measured(sampler, TerrainCapabilities.Temperature)
+                ? WritePlane(samples, resolution, directory, "temperature.pgm", s => s.Temperature)
+                : null,
+            Rainfall = Measured(sampler, TerrainCapabilities.Rainfall)
+                ? WritePlane(samples, resolution, directory, "rainfall.pgm", s => s.Rainfall)
+                : null,
+            Geology = Measured(sampler, TerrainCapabilities.GeologicActivity)
+                ? WritePlane(samples, resolution, directory, "geology.pgm", s => s.GeologicActivity)
+                : null,
+            Forest = Measured(sampler, TerrainCapabilities.ForestDensity)
+                ? WritePlane(samples, resolution, directory, "forest.pgm", s => s.ForestDensity)
+                : null,
+            Shrub = Measured(sampler, TerrainCapabilities.ShrubDensity)
+                ? WritePlane(samples, resolution, directory, "shrub.pgm", s => s.ShrubDensity)
+                : null,
+            Water = Measured(sampler, TerrainCapabilities.Lakes)
                 ? WriteWaterMask(samples, resolution, directory)
                 : null,
         };
@@ -68,6 +101,9 @@ public static class TerrainRasterBake
 
         return manifestPath;
     }
+
+    private static bool Measured(ITerrainSampler sampler, TerrainCapabilities field) =>
+        sampler.Supports(field);
 
     /// <summary>
     /// One bulk batch over the whole world, at the raster's own stride.

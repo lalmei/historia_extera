@@ -51,6 +51,41 @@ public enum TerrainCapabilities
     Standard = Height | Temperature | Rainfall | GeologicActivity | ForestDensity | ShrubDensity | Lakes,
 }
 
+/// <summary>
+/// Claims about the terrain layer itself rather than about any one backend.
+/// </summary>
+/// <remarks>
+/// A static holder rather than more members on <see cref="TerrainCapabilities"/>: the export
+/// carries the flag set as its formatted name, so a composite added to the enum can change how an
+/// existing value prints and move the golden digest for no change in behaviour.
+/// </remarks>
+public static class TerrainFields
+{
+    /// <summary>
+    /// The fields a backend can honestly model from elevation and latitude when no layer supplies
+    /// them.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="TerrainCapabilities.Lakes"/> is deliberately absent, and it is the whole point
+    /// of naming this set separately from <see cref="TerrainCapabilities.Standard"/>. A depression
+    /// in a heightmap is not a lake — whether water stands in it depends on drainage and climate
+    /// no bare heightmap carries — so <see cref="RasterTerrainSampler"/> reports ocean below sea
+    /// level and nothing above it, rather than inventing one. Counting lakes as modelled would
+    /// have a height-only world claim data that was neither measured nor derived, which is the
+    /// exact dishonesty the capability flags exist to prevent.
+    /// </remarks>
+    public const TerrainCapabilities Modelled =
+        TerrainCapabilities.Temperature
+        | TerrainCapabilities.Rainfall
+        | TerrainCapabilities.GeologicActivity
+        | TerrainCapabilities.ForestDensity
+        | TerrainCapabilities.ShrubDensity;
+
+    /// <summary>What a backend measuring <paramref name="measured"/> supplies by modelling instead.</summary>
+    public static TerrainCapabilities ModelledFor(TerrainCapabilities measured) =>
+        Modelled & ~measured;
+}
+
 /// <summary>The rectangular extent a sampler can answer for, in world units.</summary>
 public readonly record struct TerrainBounds(int MinX, int MinZ, int Width, int Height)
 {
