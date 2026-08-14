@@ -83,6 +83,9 @@ public static class Warfare
 
     private const double VictorCommanderFalls = 0.03;
 
+    /// <summary>Chance a court appoints an adult dynast when the ruler stays home.</summary>
+    private const double OfficerTakesField = 0.72;
+
     /// <summary>
     /// Accumulated advantage at which one side can dictate terms.
     /// </summary>
@@ -444,14 +447,14 @@ public static class Warfare
     private static int Commit(WorldState world, IReadOnlyList<EntityId> coalition, IRng rng) =>
         (int)(Diplomacy.Levy(world, coalition) * rng.NextDouble(MinCommitment, MaxCommitment));
 
-    /// <summary>
-    /// The ruler, if they took the field in person.
-    /// </summary>
+    /// <summary>The ruler, or an adult dynast appointed when the ruler stays home.</summary>
     /// <remarks>
     /// A chiefdom's leader is expected to fight and a republic's consul mostly is not, so the
     /// chance is drawn from government as well as from how martial the culture is. It is also the
     /// only way a ruler dies of anything but age or illness at a believable rate, which is what
-    /// makes a war able to end a dynasty.
+    /// makes a war able to end a dynasty. A ruler who stays home no longer leaves a blank command
+    /// slot: courts entrust campaigns to adult dynasts, giving cadets and heirs a military life the
+    /// chronicle can follow and a battlefield on which they can die.
     /// </remarks>
     private static EntityId Commander(
         WorldState world, Civilization civilization, int year, IRng rng)
@@ -474,9 +477,25 @@ public static class Warfare
             _ => 0.25,
         };
 
-        return rng.Chance(chance * DetMath.Lerp(0.6, 1.3, culture.Values.Aggression))
-            ? ruler.Id
-            : EntityId.None;
+        if (rng.Chance(chance * DetMath.Lerp(0.6, 1.3, culture.Values.Aggression)))
+        {
+            return ruler.Id;
+        }
+
+        IRng officers = rng.Fork("officer", civilization.Id.ToDiscriminator());
+        if (!officers.Chance(OfficerTakesField)) return EntityId.None;
+
+        var candidates = new List<Figure>();
+        foreach (Figure kin in Succession.Kin(world, civilization))
+        {
+            if (!kin.IsAlive || kin.Id == ruler.Id) continue;
+            if (kin.CivilizationId != civilization.Id) continue;
+            if (kin.AgeIn(year) < Succession.MajorityAge) continue;
+
+            candidates.Add(kin);
+        }
+
+        return candidates.Count == 0 ? EntityId.None : officers.Pick(candidates).Id;
     }
 
     /// <summary>Kills a commander who did not come home. Succession runs later the same year.</summary>

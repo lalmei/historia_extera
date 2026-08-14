@@ -45,6 +45,17 @@ public sealed class DisasterSystem : IYearSystem
     /// <summary>Loss below which nothing is recorded — a bad storm is not a disaster.</summary>
     private const int NotableLoss = 8;
 
+    /// <summary>
+    /// Share of a disaster's population severity inherited as risk by each member of the court.
+    /// </summary>
+    /// <remarks>
+    /// Figures have a realm residence but not a continuously simulated street address. The court is
+    /// therefore exposed only when the capital itself is struck. At 0.22, an ordinary ten-percent
+    /// disaster gives each courtier about a two-percent risk: enough for a calamity to reach the
+    /// dynasty, far below turning every damaged capital into a mass extinction.
+    /// </remarks>
+    private const double CourtExposure = 0.22;
+
     public string Name => "disaster";
 
     public void Tick(WorldState world, int year)
@@ -163,7 +174,8 @@ public sealed class DisasterSystem : IYearSystem
         IRng rng)
     {
         int before = settlement.Population;
-        int lost = (int)(before * Severity(kind, rng));
+        double severity = Severity(kind, rng);
+        int lost = (int)(before * severity);
 
         if (lost > 0)
         {
@@ -183,7 +195,12 @@ public sealed class DisasterSystem : IYearSystem
             Treasures.LoseOne(world, settlement, year, Label(kind), rng);
         }
 
-        if (lost < NotableLoss && settlement.Tier < SettlementTier.Village) return;
+        List<Figure> courtDead = CourtCasualties(world, settlement, severity, year, rng);
+
+        if (lost < NotableLoss && settlement.Tier < SettlementTier.Village && courtDead.Count == 0)
+        {
+            return;
+        }
 
         var data = Chronicle.Data(("kind", Label(kind)));
         if (lost >= NotableLoss) data["lost"] = lost.ToString(CultureInfo.InvariantCulture);
@@ -194,7 +211,51 @@ public sealed class DisasterSystem : IYearSystem
             settlement.Id,
             obj: settlement.CivilizationId,
             location: region.Id,
+            extra: courtDead.Count == 0 ? null : courtDead.Select(figure => figure.Id).ToArray(),
             data: data);
+
+        // The cause precedes its named casualties in the append-only chronicle.
+        foreach (Figure figure in courtDead)
+        {
+            Houses.Die(world, figure, year, DeathCause.Disaster, Label(kind));
+        }
+    }
+
+    /// <summary>
+    /// Lets a calamity at the seat of government reach the named people the chronicle follows.
+    /// </summary>
+    /// <remarks>
+    /// Non-capital losses remain population losses. Treating every figure in a realm as present at
+    /// every village disaster would fabricate a precision the residence model does not have; the
+    /// capital is the one settlement at which the court can honestly be placed.
+    /// </remarks>
+    private static List<Figure> CourtCasualties(
+        WorldState world,
+        Settlement settlement,
+        double severity,
+        int year,
+        IRng rng)
+    {
+        Civilization owner = world.Civilizations[settlement.CivilizationId];
+        var dead = new List<Figure>();
+        if (owner.CapitalId != settlement.Id) return dead;
+
+        double mortality = DetMath.Clamp01(severity * CourtExposure);
+        IRng court = rng.Fork("court-casualties", settlement.Id.ToDiscriminator());
+
+        foreach (Figure figure in world.Figures)
+        {
+            if (!figure.IsAlive || figure.CivilizationId != owner.Id) continue;
+            if (figure.AgeIn(year) < 0) continue;
+
+            IRng fate = court.Fork("figure", figure.Id.ToDiscriminator());
+            if (fate.Chance(mortality))
+            {
+                dead.Add(figure);
+            }
+        }
+
+        return dead;
     }
 
     /// <summary>Fraction of a settlement's people one event of this kind carries off.</summary>

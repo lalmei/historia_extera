@@ -26,19 +26,21 @@ Order is part of the run's identity (hashed into the export). As built:
 8. `diplomacy`
 9. `war`
 10. `trade-routes`
-11. `figure-lifecycle`
-12. `succession`
-13. `houses`
-14. `artifacts`
+11. `figure-incidents`
+12. `figure-lifecycle`
+13. `succession`
+14. `houses`
+15. `artifacts`
 
 Causal chain: harvest → pestilence and the land taking their share → settlement change →
 character → pressure → borders → faiths across them → opinion of the neighbours by both
-→ the wars that follow → commerce responding to the resulting peace → deaths → thrones filled
-→ marriage / heirs against the line as it now stands → what the survivors made.
+→ the wars that follow → commerce responding to the resulting peace → exceptional incidents →
+biological mortality → thrones filled → marriage / heirs against the line as it now stands → what
+the survivors made.
 
 Diplomacy follows expansion so opinions are formed about the frontier that exists rather
 than last year's, and religion precedes diplomacy for the same reason. War precedes
-`figure-lifecycle` for the same reason deaths precede `succession`: a ruler killed at a
+`figure-incidents` and `figure-lifecycle` for the same reason deaths precede `succession`: a ruler killed at a
 siege must be dead before the throne is filled, or the realm spends a year vacant for no
 reason the chronicle can explain.
 

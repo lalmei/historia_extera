@@ -475,7 +475,7 @@ public static class Tomes
         {
             born += " " + Subject(figure) + " died in "
                     + death.ToString(CultureInfo.InvariantCulture) + ", of "
-                    + Houses.CauseLabel(figure.DeathCause) + ".";
+                    + (figure.DeathDetail ?? Houses.CauseLabel(figure.DeathCause)) + ".";
         }
 
         sections.Add(Section("Origins", born, origins));

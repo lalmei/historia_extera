@@ -458,6 +458,55 @@ fifth in the first year and a quarter before five, where pre-modern populations 
 is what makes an heir predeceasing their father happen at a believable rate. The adult rate
 sets reign length and through it the whole event volume of a chronicle.
 
+### Figure deaths: provenance before variety
+
+The first mortality model answered *when* figures died and barely answered *how*. Every
+living figure faced the age curve every year; a death below fifty-five was labelled illness
+and one above it old age. Plague used the same illness label, disasters touched anonymous
+population only, and battles could kill only the current ruler. On seed 42 that produced
+800 illness-or-age deaths out of 825, while assassination and accident existed as enum values
+with no path that could ever produce them. The output was internally consistent and much less
+varied than the world it described.
+
+**A cause now belongs to the system that caused the death.** Plague records `Plague`, a
+capital disaster records `Disaster`, a commander lost after a battle records `Battle`, and
+personal incidents happen before the biological mortality pass. The lifecycle does not roll a
+death and decorate some fraction of its results with colourful labels. That would change the
+story without changing the model; provenance makes the story a report of what actually ran.
+
+The categorical cause remains deliberately small and filterable. A separate optional detail
+carries the particular form when the originating system knows it — the named plague, wildfire,
+or a riding accident. This is why export schema 8 adds `deathDetail` rather than multiplying
+the enum into one value per plague name and disaster kind.
+
+**Exceptional deaths require exposure:**
+
+- Figures have a realm residence, not a continuously simulated street address. A disaster
+  therefore reaches them only when it strikes the capital, the one settlement where the court
+  can honestly be placed. Its population severity becomes a much smaller per-courtier risk, and
+  the disaster event links every named casualty so their page retains the event that killed them.
+- Political violence considers the ruler, a regent and the strongest adult resident claimant,
+  and only where a credible claimant exists. Aggressive and wartime courts are more dangerous.
+  Poisoning is likelier at restrained courts and direct assassination at aggressive ones, but
+  no culprit is named: there is no intrigue evidence model from which to choose one honestly.
+- Adult figures face a very small accident risk, scaled by the culture's martial and travelling
+  tendencies. Accident details are flavour attached to an event the system actually rolled.
+- When a ruler does not command in person, the court may appoint an adult resident dynast.
+  Commander fatality remains 14% for a defeated commander and 3% for a victor, so more figures
+  can acquire military lives without every engagement becoming a dynastic decapitation.
+
+The calibration target is not equal shares. Most people in a multi-century court record should
+still die of illness or age; battles, disasters and murder are memorable partly because they
+are exceptional. The test contract is that all supported causes are reachable across several
+standard seeds, exceptional deaths are visible but bounded, and ordinary mortality remains the
+majority.
+
+Measured across seeds 2, 7, 11, 42 and 99 at 300 years: **4,363 deaths, 92.7% illness or
+old age and 7.3% exceptional** — 82 in childbed, 70 by accident, 58 in battle, 37 by named
+plagues, 36 executions, 20 assassinations, 9 poisonings and 8 in disasters. Of 604 named
+battle commands, 216 went to figures who were not rulers at the time. Seed 42 itself records
+every supported cause and remains close to the aggregate at 7.9% exceptional deaths.
+
 ### Regnal numbers, and what M5 did to naming
 
 M3 accepted that names are not unique, reasoning about "a culture's few dozen settlements".
@@ -862,14 +911,14 @@ viewer reading it.
 
 ### As built
 
-Fourteen yearly systems, in order (the order is hashed): `population` → `plague` →
+Fifteen yearly systems, in order (the order is hashed): `population` → `plague` →
 `disaster` → `settlement-lifecycle` → `specialization` → `expansion` → `religion` →
-`diplomacy` → `war` → `trade-routes` → `figure-lifecycle` → `succession` → `houses` →
-`artifacts`. Reads as a causal chain: populations change against the harvest, pestilence and
-the land take their share, settlements acquire character, pressure moves borders and faiths,
-neighbours judge each other, wars are fought, commerce responds to the resulting peace, deaths
-empty thrones, succession fills them, houses continue, and what the survivors made is written
-down.
+`diplomacy` → `war` → `trade-routes` → `figure-incidents` → `figure-lifecycle` →
+`succession` → `houses` → `artifacts`. Reads as a causal chain: populations change against the
+harvest, pestilence and the land take their share, settlements acquire character, pressure moves
+borders and faiths, neighbours judge each other, wars are fought, commerce responds to the
+resulting peace, exceptional hazards and then biological mortality empty thrones, succession
+fills them, houses continue, and what the survivors made is written down.
 
 Diplomacy follows expansion so an opinion is formed about the frontier that exists rather
 than last year's, and war follows diplomacy so a war declared this spring is fought this
