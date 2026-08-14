@@ -78,6 +78,7 @@ export function WorldMap({ world }: { world: World }) {
   const [layer, setLayer] = useState<Layer>('biome');
   const [colouring, setColouring] = useState<Colouring>('realm');
   const [showRivers, setShowRivers] = useState(true);
+  const [showTradeRoutes, setShowTradeRoutes] = useState(true);
   const [showSettlements, setShowSettlements] = useState(true);
   const [showTerritory, setShowTerritory] = useState(true);
   const [year, setYear] = useState(endYear);
@@ -101,6 +102,23 @@ export function WorldMap({ world }: { world: World }) {
   const owners = useMemo(() => timeline.ownersAt(year), [timeline, year]);
   const realms = useMemo(() => buildRealms(grid, owners, order), [grid, owners, order]);
   const standing = useMemo(() => timeline.settlementsAt(year), [timeline, year]);
+
+  const tradeRoutes = useMemo(
+    () =>
+      data.tradeRoutes
+        .filter(
+          (route) =>
+            route.foundedYear <= year &&
+            (route.endedYear === undefined || route.endedYear >= year),
+        )
+        .map((route) => ({
+          route,
+          a: data.settlements.find((settlement) => settlement.id === route.settlementAId),
+          b: data.settlements.find((settlement) => settlement.id === route.settlementBId),
+        }))
+        .filter((entry) => entry.a !== undefined && entry.b !== undefined),
+    [data.tradeRoutes, data.settlements, year],
+  );
 
   const battles = useMemo(
     () =>
@@ -299,6 +317,7 @@ export function WorldMap({ world }: { world: World }) {
               {realms.length} {realms.length === 1 ? 'realm' : 'realms'} · {standing.length}{' '}
               settlements
             </Badge>
+            <Badge>{tradeRoutes.length} trade routes</Badge>
           </>
         }
       />
@@ -325,6 +344,7 @@ export function WorldMap({ world }: { world: World }) {
               <option value="faith">Dots: faith</option>
             </select>
             <Toggle label="Rivers" on={showRivers} onChange={setShowRivers} />
+            <Toggle label="Trade" on={showTradeRoutes} onChange={setShowTradeRoutes} />
             <Toggle label="Settlements" on={showSettlements} onChange={setShowSettlements} />
             <Toggle label="Territory" on={showTerritory} onChange={setShowTerritory} />
           </div>
@@ -386,6 +406,39 @@ export function WorldMap({ world }: { world: World }) {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
+              ))}
+
+            {/* Logical economic links, deliberately straight. Physical road and water paths
+                belong to the later transport-network layer; these lines show demand, not
+                geometry that the simulation has not calculated. Width is constant because the
+                export retains final/peak traffic, not a yearly series; using peak traffic here
+                would leak future knowledge into an earlier map year. */}
+            {showTradeRoutes &&
+              tradeRoutes.map(({ route, a, b }) => (
+                <line
+                  key={route.id}
+                  x1={toWorld(a!.x, 'x')}
+                  y1={toWorld(a!.z, 'z')}
+                  x2={toWorld(b!.x, 'x')}
+                  y2={toWorld(b!.z, 'z')}
+                  stroke={
+                    route.mode === 'River'
+                      ? 'rgb(82 126 168)'
+                      : route.mode === 'Coastal'
+                        ? 'rgb(72 142 150)'
+                        : 'rgb(188 132 68)'
+                  }
+                  strokeWidth={0.38}
+                  strokeDasharray={route.mode === 'Overland' ? '1.2 0.7' : undefined}
+                  strokeLinecap="round"
+                  strokeOpacity={0.72}
+                  className="pointer-events-none"
+                >
+                  <title>
+                    {world.nameOf(route.id)} · logical {route.mode.toLowerCase()} connection;
+                    physical path not yet modelled
+                  </title>
+                </line>
               ))}
 
             {showSettlements &&
@@ -475,6 +528,14 @@ export function WorldMap({ world }: { world: World }) {
             setPlaying(!playing);
           }}
         />
+
+        {showTradeRoutes && (
+          <p className="mx-auto mt-2 max-w-3xl text-xs text-[var(--ink-faint)]">
+            Trade overlay: dashed amber is overland demand, blue uses river access, and teal uses
+            the coast. These are logical connections between markets; physical roads and paths are
+            not modelled yet.
+          </p>
+        )}
 
         <Legend
           world={world}

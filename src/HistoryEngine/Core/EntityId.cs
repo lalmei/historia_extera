@@ -36,6 +36,8 @@ public readonly record struct EntityId(EntityKind Kind, int Index) : IComparable
 
     public static EntityId Region(int i) => new(EntityKind.Region, i);
 
+    public static EntityId TradeRoute(int i) => new(EntityKind.TradeRoute, i);
+
     public override string ToString() =>
         IsNone ? "none" : Kind.Prefix() + ":" + Index.ToString(CultureInfo.InvariantCulture);
 

@@ -7,7 +7,7 @@
  * stops moving.
  */
 
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 
 /** `"civ:3"`, `"fig:1204"` — readable, greppable, and directly usable as a route. */
 export type EntityId = string;
@@ -22,7 +22,8 @@ export type EntityKind =
   | 'bat'
   | 'reg'
   | 'art'
-  | 'rel';
+  | 'rel'
+  | 'rte';
 
 export interface WorldExport {
   schemaVersion: number;
@@ -33,6 +34,7 @@ export interface WorldExport {
   civilizations: Civilization[];
   dynasties: Dynasty[];
   settlements: Settlement[];
+  tradeRoutes: TradeRoute[];
   figures: Figure[];
   wars: War[];
   battles: Battle[];
@@ -522,6 +524,26 @@ export interface Settlement {
   convertedYear?: number;
 }
 
+/** The transport corridor a logical route is most likely to use. It is not path geometry. */
+export type TradeRouteMode = 'Overland' | 'River' | 'Coastal';
+
+export type TradeRouteStatus = 'Active' | 'Prosperous' | 'Declining' | 'Closed';
+
+/** A durable commercial link; later roads can realize its overland path. */
+export interface TradeRoute {
+  id: EntityId;
+  settlementAId: EntityId;
+  settlementBId: EntityId;
+  mode: TradeRouteMode;
+  status: TradeRouteStatus;
+  foundedYear: number;
+  endedYear?: number;
+  /** Current traffic in [0, 1]. Closed routes have zero current traffic. */
+  traffic: number;
+  /** Highest traffic sustained during the route's life. */
+  peakTraffic: number;
+}
+
 export type DeathCause =
   | 'Unknown'
   | 'OldAge'
@@ -613,7 +635,8 @@ export type AnyEntity =
   | War
   | Battle
   | Religion
-  | Artifact;
+  | Artifact
+  | TradeRoute;
 
 export function kindOf(id: EntityId): EntityKind {
   return id.slice(0, id.indexOf(':')) as EntityKind;
@@ -630,4 +653,5 @@ export const KIND_LABELS: Record<string, string> = {
   reg: 'Region',
   art: 'Artifact',
   rel: 'Religion',
+  rte: 'Trade route',
 };

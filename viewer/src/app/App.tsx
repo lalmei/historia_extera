@@ -12,6 +12,7 @@ import {
   type Region,
   type Religion,
   type Settlement,
+  type TradeRoute,
   type War,
 } from './types';
 import {
@@ -24,6 +25,7 @@ import {
   RegionPage,
   ReligionPage,
   SettlementPage,
+  TradeRoutePage,
   WarPage,
 } from './views/EntityPages';
 import {
@@ -36,6 +38,7 @@ import {
   RegionList,
   ReligionList,
   SettlementList,
+  TradeRouteList,
   Timeline,
   WarList,
 } from './views/Lists';
@@ -65,6 +68,7 @@ const NAV = [
   { path: '/civ', label: 'Civilizations' },
   { path: '/war', label: 'Wars' },
   { path: '/set', label: 'Settlements' },
+  { path: '/rte', label: 'Trade' },
   { path: '/dyn', label: 'Houses' },
   { path: '/fig', label: 'Figures' },
   { path: '/rel', label: 'Faiths' },
@@ -121,6 +125,8 @@ function renderRoute(world: World, path: string) {
       return <WarList world={world} />;
     case 'set':
       return <SettlementList world={world} />;
+    case 'rte':
+      return <TradeRouteList world={world} />;
     case 'dyn':
       return <DynastyList world={world} />;
     case 'fig':
@@ -147,6 +153,8 @@ function renderRoute(world: World, path: string) {
       return <CivilizationPage world={world} civ={entity as Civilization} />;
     case 'set':
       return <SettlementPage world={world} settlement={entity as Settlement} />;
+    case 'rte':
+      return <TradeRoutePage world={world} route={entity as TradeRoute} />;
     case 'dyn':
       return <DynastyPage world={world} house={entity as Dynasty} />;
     case 'fig':

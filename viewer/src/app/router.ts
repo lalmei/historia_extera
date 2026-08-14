@@ -13,8 +13,8 @@ import { useEffect, useState } from 'react';
  *   #/                  overview
  *   #/map               map
  *   #/timeline          timeline
- *   #/civ  #/set  #/fig  #/reg  #/cul     entity lists
- *   #/civ:3  #/fig:1204                   entity pages (the export's own ids)
+ *   #/civ  #/set  #/rte  #/fig  #/reg     entity lists
+ *   #/civ:3  #/rte:12  #/fig:1204         entity pages (the export's own ids)
  */
 export interface Route {
   path: string;

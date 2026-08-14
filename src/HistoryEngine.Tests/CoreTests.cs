@@ -13,6 +13,7 @@ public sealed class EntityIdTests
     [InlineData(EntityKind.Figure, 1204, "fig:1204")]
     [InlineData(EntityKind.Settlement, 0, "set:0")]
     [InlineData(EntityKind.Region, 99, "reg:99")]
+    [InlineData(EntityKind.TradeRoute, 12, "rte:12")]
     public void FormatsAndParses(EntityKind kind, int index, string expected)
     {
         var id = new EntityId(kind, index);

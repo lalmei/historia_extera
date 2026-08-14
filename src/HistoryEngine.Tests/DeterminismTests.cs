@@ -55,6 +55,7 @@ public sealed class DeterminismTests
         simulator.Advance(split, 150);
 
         Assert.Equal(continuous.World.Settlements.Count, split.Settlements.Count);
+        Assert.Equal(continuous.World.TradeRoutes.Count, split.TradeRoutes.Count);
         Assert.Equal(continuous.World.Figures.Count, split.Figures.Count);
         Assert.Equal(continuous.World.Chronicle.Count, split.Chronicle.Count);
 

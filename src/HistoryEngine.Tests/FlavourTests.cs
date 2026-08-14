@@ -599,6 +599,8 @@ public sealed class FlavourTests
             && world.Artifacts[id].CreatedYear <= year,
         EntityKind.Religion => world.Religions.Contains(id)
             && world.Religions[id].FoundedYear <= year,
+        EntityKind.TradeRoute => world.TradeRoutes.Contains(id)
+            && world.TradeRoutes[id].FoundedYear <= year,
         _ => false,
     };
 }

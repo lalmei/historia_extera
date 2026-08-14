@@ -31,6 +31,7 @@ public sealed record WorldExport(
     IReadOnlyList<ExportCivilization> Civilizations,
     IReadOnlyList<ExportDynasty> Dynasties,
     IReadOnlyList<ExportSettlement> Settlements,
+    IReadOnlyList<ExportTradeRoute> TradeRoutes,
     IReadOnlyList<ExportFigure> Figures,
     IReadOnlyList<ExportWar> Wars,
     IReadOnlyList<ExportBattle> Battles,
@@ -48,9 +49,10 @@ public sealed record WorldExport(
     /// Version 2 added dynasties and the family links on a figure, and replaced the figure's
     /// two-element parent list with named mother and father. Version 3 added wars and battles,
     /// and the relations, alliances and truces on a civilization. Version 5 added the particular
-    /// relic and the two faiths named by the new religious causes of war.
+    /// relic and the two faiths named by the new religious causes of war. Version 6 added
+    /// persistent trade routes.
     /// </remarks>
-    public const int CurrentSchemaVersion = 5;
+    public const int CurrentSchemaVersion = 6;
 }
 
 public sealed record ExportMeta(
@@ -310,6 +312,21 @@ public sealed record ExportSettlement(
     bool IsFortified,
     EntityId? ReligionId,
     int? ConvertedYear);
+
+/// <summary>
+/// One durable commercial connection. It carries topology and economic history, not a physical
+/// path; a later road network can realize an overland route without changing this contract.
+/// </summary>
+public sealed record ExportTradeRoute(
+    EntityId Id,
+    EntityId SettlementAId,
+    EntityId SettlementBId,
+    TradeRouteMode Mode,
+    TradeRouteStatus Status,
+    int FoundedYear,
+    int? EndedYear,
+    double Traffic,
+    double PeakTraffic);
 
 /// <summary>
 /// A faith, and the settlements that follow it.

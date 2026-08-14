@@ -25,15 +25,16 @@ Order is part of the run's identity (hashed into the export). As built:
 7. `religion`
 8. `diplomacy`
 9. `war`
-10. `figure-lifecycle`
-11. `succession`
-12. `houses`
-13. `artifacts`
+10. `trade-routes`
+11. `figure-lifecycle`
+12. `succession`
+13. `houses`
+14. `artifacts`
 
 Causal chain: harvest → pestilence and the land taking their share → settlement change →
 character → pressure → borders → faiths across them → opinion of the neighbours by both
-→ the wars that follow → deaths → thrones filled → marriage / heirs against the line as
-it now stands → what the survivors made.
+→ the wars that follow → commerce responding to the resulting peace → deaths → thrones filled
+→ marriage / heirs against the line as it now stands → what the survivors made.
 
 Diplomacy follows expansion so opinions are formed about the frontier that exists rather
 than last year's, and religion precedes diplomacy for the same reason. War precedes
@@ -45,6 +46,22 @@ Plague and disaster follow `population` rather than preceding it, so a year's gr
 applied before its mortality — the other order lets a town regrow inside the tick that
 emptied it. They precede the lifecycle so a settlement gutted this year is judged this
 year, which is what lets a plague finish a place.
+
+## Trade routes and future roads
+
+`TradeRoute` is a persistent, undirected connection between two settlements. It records its
+founding and closure, preferred transport (`Overland`, `River`, or `Coastal`), current traffic,
+peak traffic, and economic status. Closed routes remain entities, so reopening the same pair
+later creates new history rather than rewriting the old route.
+
+The route is **topology, not geometry**. River and coastal modes say both endpoints have that
+access; an overland route records demand between its endpoints. A later road network can attach a
+physical path to the route, prioritize construction by peak traffic, and preserve the route's
+identity across rerouting or road upgrades.
+
+Tome circulation and plague spread consume active routes. This keeps the engine's different
+notions of ordinary travel on one shared network instead of letting each system invent a fresh
+distance heuristic.
 
 ## Terrain: `ITerrainSampler` and `TerrainAtlas`
 

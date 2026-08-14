@@ -23,6 +23,7 @@ public enum EntityKind
     // numbering stays stable when they land.
     Artifact = 9,
     Religion = 10,
+    TradeRoute = 11,
 }
 
 public static class EntityKindExtensions
@@ -31,7 +32,7 @@ public static class EntityKindExtensions
     // every viewer URL, so they are effectively public API.
     private static readonly string[] Prefixes =
     {
-        "none", "cul", "civ", "set", "fig", "dyn", "war", "bat", "reg", "art", "rel",
+        "none", "cul", "civ", "set", "fig", "dyn", "war", "bat", "reg", "art", "rel", "rte",
     };
 
     public static string Prefix(this EntityKind kind)
