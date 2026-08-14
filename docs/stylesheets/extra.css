@@ -1,0 +1,46 @@
+:root {
+  --md-primary-fg-color: #455a64;
+  --md-accent-fg-color: #c79100;
+}
+
+.md-typeset h1,
+.md-typeset h2,
+.md-typeset h3 {
+  letter-spacing: 0;
+}
+
+.historia-feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0.75rem;
+  margin: 1.5rem 0 2rem;
+}
+
+.historia-feature-grid a {
+  display: grid;
+  gap: 0.35rem;
+  justify-items: center;
+  padding: 0.9rem 0.75rem;
+  color: var(--md-default-fg-color);
+  text-align: center;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.5rem;
+  text-decoration: none;
+  transition:
+    border-color 125ms,
+    transform 125ms;
+}
+
+.historia-feature-grid a:hover {
+  border-color: var(--md-accent-fg-color);
+  transform: translateY(-0.1rem);
+}
+
+.historia-feature-grid span {
+  font-weight: 600;
+}
+
+.historia-feature-grid small {
+  color: var(--md-default-fg-color--light);
+  font-size: 0.8rem;
+}

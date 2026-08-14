@@ -4,7 +4,7 @@
     {
       "name": "viewer",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--prefix", "viewer", "--", "--port", "4321"],
+      "runtimeArgs": ["run", "dev", "--prefix", "viewer"],
       "port": 4321
     }
   ]
