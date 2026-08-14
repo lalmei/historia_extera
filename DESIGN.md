@@ -660,6 +660,32 @@ run to tens of megabytes — and cross-linking is the product.
 Map rendering is canvas (terrain raster via `ImageData`) plus SVG overlays (rivers,
 territory, settlements), deliberately ignorant of what produced the terrain.
 
+### Running a seed from the viewer, in development only
+
+The loop the viewer was missing is the short one — pick a seed, look at it, pick another —
+and it needs a process spawn, which a static bundle with no server behind it cannot do.
+
+An Astro API route is the obvious shape and was rejected: a non-prerendered route makes the
+build want an adapter, which is precisely the coupling the static shell exists to avoid.
+The generator is a **Vite dev middleware** instead (`viewer/dev/world-generator.mjs`), and
+the UI calling it is gated on `import.meta.env.DEV`, which Vite replaces with a literal at
+build time. So the feature is not hidden in a production build, it is **absent** from it,
+and the built viewer still opens straight off disk.
+
+The endpoint takes three numbers — seed, years, civilizations — bounded, and handed to
+`spawn` with no shell between them. `--size` and `--raster` are deliberately not exposed
+and stay at the CLI's defaults, so a world generated in the page is the same file the same
+seed gives through `make generate`. Runs are serialised, because concurrent `dotnet run`
+invocations contend over one `obj/`; a poll every 600ms carries the CLI's own summary back,
+which is what actually answers "was that seed worth looking at"; and cancelling signals the
+process group rather than the launcher, which is the difference between stopping a
+simulation and orphaning it.
+
+Serving the result took one more piece. Vite lists `public/` once at startup, so a world
+written after that is a 404 — which was already true of `make generate OUT=…` into a
+running dev server, and had always been fixed by restarting it. The same middleware serves
+`public/worlds/` per request, so both routes work now.
+
 ### Territory over time: replayed, not snapshotted
 
 The export ships **final** state — a region's last owner, a settlement's last tier. A map

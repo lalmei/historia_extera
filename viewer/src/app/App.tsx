@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import { hashParams, href, useRoute } from './router';
+import { PageTitle } from './components/common';
+import { CAN_GENERATE } from './generate';
+import { hashParams, href, navigate, useRoute } from './router';
 import { loadWorld, type World } from './store';
 import {
   kindOf,
@@ -47,6 +49,7 @@ import {
   Timeline,
   WarList,
 } from './views/Lists';
+import { NewWorld } from './views/NewWorld';
 import { WorldMap } from './views/WorldMap';
 
 /** Where the CLI writes by default. */
@@ -105,24 +108,65 @@ export default function App() {
     window.scrollTo({ top: 0 });
   }, [route.path]);
 
-  if (error) return <LoadFailure message={error} />;
+  // A freshly generated world replaces the one on screen without a reload: the app is
+  // already holding a parsed chronicle, and reloading would drop it only to fetch the
+  // same file again. The address bar is updated so a later reload comes back here.
+  const adopt = (next: World, url: string) => {
+    remember(url);
+    setError(null);
+    setWorld(next);
+    navigate('/');
+  };
+
+  if (error) return <LoadFailure message={error} onLoaded={adopt} />;
   if (!world) return <Loading />;
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
       <Header world={world} activePath={route.path} />
-      <main className="mt-6">{renderRoute(world, route.path)}</main>
+      <main className="mt-6">{renderRoute(world, route.path, adopt)}</main>
       <Footer world={world} />
     </div>
   );
 }
 
-function renderRoute(world: World, path: string) {
+/**
+ * Points `?world=` at what is being shown.
+ *
+ * Before the `#`, which is the form that survives navigation and the one
+ * `selectedWorldUrl` prefers — so a deep link copied out of a generated world reopens
+ * that world rather than whatever `world.json` happens to hold.
+ */
+function remember(url: string) {
+  const here = new URL(window.location.href);
+  const params = new URLSearchParams(here.search);
+  params.set('world', url);
+
+  // Slashes are legal in a query string, and `?world=worlds/world-s7.json` is the form
+  // the docs give and the one somebody can read back off the address bar.
+  here.search = params.toString().replace(/%2F/g, '/');
+
+  window.history.replaceState(null, '', here);
+}
+
+function renderRoute(world: World, path: string, onLoaded: (next: World, url: string) => void) {
   const target = path.replace(/^\//, '');
 
   switch (target) {
     case '':
       return <Overview world={world} />;
+    case 'new':
+      if (!CAN_GENERATE) break;
+      return (
+        <div>
+          <PageTitle
+            eyebrow="Generator"
+            title="New world"
+            meta={<span className="text-[var(--ink-faint)]">Development only</span>}
+          />
+          <NewWorld onLoaded={onLoaded} />
+        </div>
+      );
     case 'map':
       return <WorldMap world={world} />;
     case 'timeline':
@@ -202,9 +246,23 @@ function Header({ world, activePath }: { world: World; activePath: string }) {
           Historia Extera
           <span className="ml-2 text-sm font-normal text-[var(--ink-faint)]">Legends</span>
         </a>
-        <div className="text-xs tabular-nums text-[var(--ink-faint)]">
-          seed {meta.seed} · {meta.eventCount.toLocaleString()} events · years {meta.startYear}–
-          {meta.endYear}
+        <div className="flex items-center gap-3 text-xs tabular-nums text-[var(--ink-faint)]">
+          <span>
+            seed {meta.seed} · {meta.eventCount.toLocaleString()} events · years {meta.startYear}–
+            {meta.endYear}
+          </span>
+
+          {/* Next to the seed rather than in the nav: the nav lists views of this world, and
+              this makes a different one. Compiled out of a built viewer with the endpoint. */}
+          {CAN_GENERATE && (
+            <a
+              href={href('/new')}
+              title="Run another seed"
+              className="rounded border border-[var(--rule)] px-2 py-0.5 transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
+            >
+              New world
+            </a>
+          )}
         </div>
       </div>
 
@@ -260,19 +318,40 @@ function Loading() {
   );
 }
 
-function LoadFailure({ message }: { message: string }) {
+function LoadFailure({
+  message,
+  onLoaded,
+}: {
+  message: string;
+  onLoaded: (next: World, url: string) => void;
+}) {
   return (
     <div className="mx-auto max-w-2xl px-4 py-16">
       <h1 className="font-serif text-2xl">No world to show</h1>
       <pre className="mt-4 overflow-x-auto rounded border border-[var(--rule)] bg-[var(--panel)] p-4 text-sm whitespace-pre-wrap">
         {message}
       </pre>
-      <p className="mt-4 text-sm text-[var(--ink-soft)]">
-        Generate one from the repository root, then reload:
-      </p>
-      <pre className="mt-2 overflow-x-auto rounded border border-[var(--rule)] bg-[var(--panel)] p-3 text-sm">
-        dotnet run --project src/HistoryEngine.Cli -- --seed 42
-      </pre>
+
+      {/* The empty-viewer case is the one the generator most obviously answers: worlds are
+          gitignored, so a fresh checkout lands here, and under the dev server it can now
+          simulate its way out without a terminal. */}
+      {CAN_GENERATE ? (
+        <>
+          <p className="mt-4 text-sm text-[var(--ink-soft)]">Simulate one now:</p>
+          <div className="mt-2">
+            <NewWorld onLoaded={onLoaded} />
+          </div>
+        </>
+      ) : (
+        <>
+          <p className="mt-4 text-sm text-[var(--ink-soft)]">
+            Generate one from the repository root, then reload:
+          </p>
+          <pre className="mt-2 overflow-x-auto rounded border border-[var(--rule)] bg-[var(--panel)] p-3 text-sm">
+            dotnet run --project src/HistoryEngine.Cli -- --seed 42
+          </pre>
+        </>
+      )}
     </div>
   );
 }
