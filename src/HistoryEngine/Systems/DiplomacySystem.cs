@@ -89,6 +89,26 @@ public sealed class DiplomacySystem : IYearSystem
     /// </remarks>
     private const double TradeBonus = 0.38;
 
+    /// <summary>
+    /// Warmth between two realms of one faith, and coldness between two of different ones.
+    /// </summary>
+    /// <remarks>
+    /// <para>Deliberately smaller than <see cref="SharedCultureBonus"/>. Faith is the one M8 term
+    /// that changes what M6 does rather than adding beside it, and a large coefficient would have
+    /// rewritten every war in every world — the milestone is meant to add flavour to a working
+    /// model of conquest, not to replace its causes. At this weight a shared faith softens a
+    /// frontier without preventing a war that geography and temper have already made likely, and
+    /// a religious divide is a thumb on the scale rather than a cause of war in itself.</para>
+    ///
+    /// <para>Both directions are scaled by the holder's own piety, so a devout realm cares who its
+    /// neighbour prays to and a worldly one barely notices — the same asymmetry that makes border
+    /// friction produce an aggressor without anything nominating one.</para>
+    /// </remarks>
+    private const double SharedFaithBonus = 0.16;
+
+    /// <summary>Coldness between realms of different faiths, at full piety.</summary>
+    private const double FaithDivideMalus = 0.20;
+
     /// <summary>Coldness from being neighbours at all, before either side's temper is counted.</summary>
     private const double BorderFriction = 0.18;
 
@@ -204,6 +224,18 @@ public sealed class DiplomacySystem : IYearSystem
         // values it more when that neighbour also trades.
         Culture theirs = world.CultureOf(other);
         standing += TradeBonus * mine.Values.Mercantile * (0.4 + (0.6 * theirs.Values.Mercantile));
+
+        // Faith, weighted by how much this realm's people care about it. Two realms that have not
+        // yet taken a faith are not thereby brethren, so both terms need two faiths to exist.
+        EntityId ourFaith = world.FaithOf(civilization);
+        EntityId theirFaith = world.FaithOf(other);
+
+        if (!ourFaith.IsNone && !theirFaith.IsNone)
+        {
+            standing += ourFaith == theirFaith
+                ? SharedFaithBonus * (0.4 + (0.6 * mine.Values.Piety))
+                : -FaithDivideMalus * mine.Values.Piety;
+        }
 
         standing += CommonEnemyBonus * CommonEnemies(world, civilization, other);
 
