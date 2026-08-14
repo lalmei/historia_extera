@@ -84,6 +84,7 @@ public static class Narration
         Set(EventKind.RegionClaimed, "{object} extended its reach into {subject}.");
         Set(EventKind.RegionCeded,
             "{subject} was ceded to {object}[, and with it {location}].");
+        Set(EventKind.RegionReleased, "{subject} passed out of the reach of {object}.");
 
         Set(EventKind.AllianceFormed, "{subject} and {object} swore an alliance.");
         Set(EventKind.AllianceBroken,
