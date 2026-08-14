@@ -13,6 +13,7 @@ import { useEffect, useState } from 'react';
  *   #/                  overview
  *   #/map               map
  *   #/timeline          timeline
+ *   #/plague  #/disaster                   event-derived histories
  *   #/civ  #/set  #/rte  #/fig  #/reg     entity lists
  *   #/civ:3  #/rte:12  #/fig:1204         entity pages (the export's own ids)
  */

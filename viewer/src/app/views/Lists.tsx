@@ -18,8 +18,10 @@ import {
   type Civilization,
   type Culture,
   type Dynasty,
+  type EntityId,
   type Figure,
   type HolySite,
+  type HistoryEvent,
   type Region,
   type Religion,
 } from '../types';
@@ -187,6 +189,300 @@ export function CivilizationList({ world }: { world: World }) {
 /** The distinct values present, in first-seen order. */
 function distinct<T>(values: T[]): T[] {
   return [...new Set(values)];
+}
+
+/**
+ * One completed or still-burning outbreak, reconstructed from the event contract.
+ *
+ * Plagues deliberately stop being engine entities when they burn out. Their name and origin are
+ * repeated on the begin/end pair instead, so this view keeps that boundary and does not invent
+ * viewer-only ids that could be mistaken for export entities.
+ */
+interface PlagueHistory {
+  name: string;
+  originId?: EntityId;
+  civilizationId?: EntityId;
+  regionId?: EntityId;
+  beganYear: number;
+  endedYear?: number;
+  reached: number;
+  dead: number;
+}
+
+const PLAGUE_KINDS = new Set(['PlagueBegan', 'PlagueSpread', 'PlagueEnded']);
+
+function eventNumber(event: HistoryEvent, key: string): number {
+  const value = Number(event.data?.[key]);
+  return Number.isFinite(value) ? value : 0;
+}
+
+function plagueHistories(events: HistoryEvent[]): PlagueHistory[] {
+  const histories: PlagueHistory[] = [];
+  const active = new Map<string, PlagueHistory[]>();
+
+  for (const event of events) {
+    const name = event.data?.name;
+    if (!name) continue;
+
+    const key = `${name}\u0000${event.subject ?? ''}`;
+
+    if (event.kind === 'PlagueBegan') {
+      const history: PlagueHistory = {
+        name,
+        originId: event.subject,
+        civilizationId: event.object,
+        regionId: event.location,
+        beganYear: event.year,
+        reached: 0,
+        dead: 0,
+      };
+
+      histories.push(history);
+      const queue = active.get(key) ?? [];
+      queue.push(history);
+      active.set(key, queue);
+    } else if (event.kind === 'PlagueEnded') {
+      const queue = active.get(key);
+      const history = queue?.shift();
+      if (!history) continue;
+
+      history.endedYear = event.year;
+      history.reached = eventNumber(event, 'reached');
+      history.dead = eventNumber(event, 'dead');
+      if (queue?.length === 0) active.delete(key);
+    }
+  }
+
+  return histories;
+}
+
+export function PlagueList({ world }: { world: World }) {
+  const events = world.export.events.filter((event) => PLAGUE_KINDS.has(event.kind));
+  const histories = plagueHistories(events);
+  const dead = histories.reduce((sum, plague) => sum + plague.dead, 0);
+  const afflicted = new Set(
+    events
+      .filter((event) => event.kind !== 'PlagueEnded' && event.subject)
+      .map((event) => event.subject as EntityId),
+  );
+  const widest = histories.reduce((largest, plague) => Math.max(largest, plague.reached), 0);
+
+  const columns: Column<PlagueHistory>[] = [
+    {
+      key: 'name',
+      header: 'Plague',
+      cell: (plague) => plague.name,
+      sort: (plague) => plague.name,
+    },
+    {
+      key: 'origin',
+      header: 'Began in',
+      cell: (plague) => <EntityLink world={world} id={plague.originId} />,
+      sort: (plague) => (plague.originId ? world.nameOf(plague.originId) : ''),
+    },
+    {
+      key: 'realm',
+      header: 'Realm',
+      cell: (plague) => <EntityLink world={world} id={plague.civilizationId} />,
+      sort: (plague) =>
+        plague.civilizationId ? world.nameOf(plague.civilizationId) : '',
+    },
+    {
+      key: 'span',
+      header: 'Span',
+      cell: (plague) => yearRange(plague.beganYear, plague.endedYear),
+      sort: (plague) => plague.beganYear,
+    },
+    {
+      key: 'reached',
+      header: 'Reached',
+      cell: (plague) => (plague.endedYear === undefined ? '—' : plague.reached),
+      sort: (plague) => plague.reached,
+      align: 'right',
+    },
+    {
+      key: 'dead',
+      header: 'Dead',
+      cell: (plague) =>
+        plague.endedYear === undefined ? '—' : plague.dead.toLocaleString(),
+      sort: (plague) => plague.dead,
+      align: 'right',
+    },
+  ];
+
+  const realmIds = distinct(
+    histories
+      .map((plague) => plague.civilizationId)
+      .filter((id): id is EntityId => id !== undefined),
+  );
+  const facets: Facet<PlagueHistory>[] = [
+    {
+      key: 'status',
+      label: 'Status',
+      options: [
+        { value: 'ended', label: 'Burned out', match: (plague) => plague.endedYear !== undefined },
+        { value: 'active', label: 'Still burning', match: (plague) => plague.endedYear === undefined },
+      ],
+    },
+    {
+      key: 'realm',
+      label: 'Origin realm',
+      options: realmIds.map((id) => ({
+        value: id,
+        label: world.nameOf(id),
+        match: (plague) => plague.civilizationId === id,
+      })),
+    },
+  ];
+
+  return (
+    <div className="space-y-5">
+      <PageTitle eyebrow="Calamities" title="Plagues" />
+
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <Stat label="Outbreaks" value={histories.length} />
+        <Stat label="Dead" value={dead.toLocaleString()} hint="Reported when each plague ended" />
+        <Stat label="Places afflicted" value={afflicted.size} hint="Distinct settlements" />
+        <Stat label="Widest reach" value={widest} hint="Recorded settlement bouts in one outbreak" />
+      </div>
+
+      <Panel title="Outbreaks">
+        <DataTable
+          rows={histories}
+          columns={columns}
+          facets={facets}
+          searchText={(plague) =>
+            [
+              plague.name,
+              plague.originId ? world.nameOf(plague.originId) : '',
+              plague.civilizationId ? world.nameOf(plague.civilizationId) : '',
+              plague.regionId ? world.nameOf(plague.regionId) : '',
+            ].join(' ')
+          }
+          placeholder="Search plagues and origins…"
+          initialSort={{ key: 'span' }}
+          emptyMessage="No plague was recorded in this world."
+        />
+      </Panel>
+
+      <Panel title="Plague chronicle">
+        <EventList world={world} events={events} emptyMessage="No plague was recorded." />
+      </Panel>
+    </div>
+  );
+}
+
+export function DisasterList({ world }: { world: World }) {
+  const events = world.export.events.filter((event) => event.kind === 'DisasterStruck');
+  const dead = events.reduce((sum, event) => sum + eventNumber(event, 'lost'), 0);
+  const struck = new Set(events.flatMap((event) => (event.subject ? [event.subject] : [])));
+  const worst = events.reduce<HistoryEvent | undefined>(
+    (largest, event) =>
+      !largest || eventNumber(event, 'lost') > eventNumber(largest, 'lost') ? event : largest,
+    undefined,
+  );
+
+  const columns: Column<HistoryEvent>[] = [
+    {
+      key: 'year',
+      header: 'Year',
+      cell: (event) => event.year,
+      sort: (event) => event.year,
+      align: 'right',
+    },
+    {
+      key: 'kind',
+      header: 'Disaster',
+      cell: (event) => event.data?.kind ?? 'calamity',
+      sort: (event) => event.data?.kind ?? '',
+    },
+    {
+      key: 'settlement',
+      header: 'Settlement',
+      cell: (event) => <EntityLink world={world} id={event.subject} />,
+      sort: (event) => (event.subject ? world.nameOf(event.subject) : ''),
+    },
+    {
+      key: 'realm',
+      header: 'Realm',
+      cell: (event) => <EntityLink world={world} id={event.object} />,
+      sort: (event) => (event.object ? world.nameOf(event.object) : ''),
+    },
+    {
+      key: 'region',
+      header: 'Region',
+      cell: (event) => <EntityLink world={world} id={event.location} />,
+      sort: (event) => (event.location ? world.nameOf(event.location) : ''),
+    },
+    {
+      key: 'dead',
+      header: 'Dead',
+      cell: (event) => eventNumber(event, 'lost').toLocaleString(),
+      sort: (event) => eventNumber(event, 'lost'),
+      align: 'right',
+    },
+  ];
+
+  const kinds = distinct(events.map((event) => event.data?.kind ?? 'calamity'));
+  const realmIds = distinct(
+    events.map((event) => event.object).filter((id): id is EntityId => id !== undefined),
+  );
+  const facets: Facet<HistoryEvent>[] = [
+    {
+      key: 'kind',
+      label: 'Disaster',
+      options: kinds.map((kind) => ({
+        value: kind,
+        label: kind,
+        match: (event) => (event.data?.kind ?? 'calamity') === kind,
+      })),
+    },
+    {
+      key: 'realm',
+      label: 'Realm',
+      options: realmIds.map((id) => ({
+        value: id,
+        label: world.nameOf(id),
+        match: (event) => event.object === id,
+      })),
+    },
+  ];
+
+  return (
+    <div className="space-y-5">
+      <PageTitle eyebrow="Calamities" title="Disasters" />
+
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <Stat label="Disasters" value={events.length} />
+        <Stat label="Dead" value={dead.toLocaleString()} />
+        <Stat label="Places struck" value={struck.size} hint="Distinct settlements" />
+        <Stat
+          label="Worst toll"
+          value={worst ? eventNumber(worst, 'lost').toLocaleString() : '—'}
+          hint={worst?.subject ? world.nameOf(worst.subject) : undefined}
+        />
+      </div>
+
+      <Panel title="Recorded disasters">
+        <DataTable
+          rows={events}
+          columns={columns}
+          facets={facets}
+          searchText={(event) =>
+            [
+              event.data?.kind ?? '',
+              event.subject ? world.nameOf(event.subject) : '',
+              event.object ? world.nameOf(event.object) : '',
+              event.location ? world.nameOf(event.location) : '',
+            ].join(' ')
+          }
+          placeholder="Search disasters and places…"
+          initialSort={{ key: 'year', descending: true }}
+          emptyMessage="No disaster was recorded in this world."
+        />
+      </Panel>
+    </div>
+  );
 }
 
 export function ReligionList({ world }: { world: World }) {
@@ -942,6 +1238,16 @@ export function Overview({ world }: { world: World }) {
           label="Artifacts"
           value={world.export.artifacts.length}
           hint={`${world.export.artifacts.filter((a) => a.lostYear === undefined).length} still held`}
+        />
+        <Stat
+          label="Plagues"
+          value={indices.eventCountsByKind.PlagueBegan ?? 0}
+          hint="Outbreaks recorded"
+        />
+        <Stat
+          label="Disasters"
+          value={indices.eventCountsByKind.DisasterStruck ?? 0}
+          hint="Calamities recorded"
         />
       </div>
 

@@ -50,6 +50,12 @@ Via Make: `make build` (also builds the .NET solution), `make preview`.
 Hash-based routing, one page per entity, and every reference is a link — realm → house
 → ruler → war → battle → city → trade route → region → faith → holy site → artifact.
 
+**Plagues** and **disasters** have dedicated history indexes alongside the faith and artifact
+indexes. Religion and artifacts are durable exported entities, so their names open full entity
+pages. A plague ceases to be an engine entity when it burns out and a disaster is a single event;
+their indexes therefore reconstruct outbreak summaries and disaster rows from the chronicle
+without inventing viewer-only ids. Every exported place, realm and region remains a link.
+
 The **map** is a terrain canvas with vector overlays, drawn for a selected year rather
 than only as the world ended. The slider plays: borders move, towns appear and grow,
 battles mark the year they were fought, and the dots can be coloured by realm or by
