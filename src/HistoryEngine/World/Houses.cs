@@ -207,7 +207,7 @@ public static class Houses
     {
         figure.DeathYear = year;
         figure.DeathCause = cause;
-        figure.EndCurrentTitle(year);
+        figure.EndAllTitles(year);
 
         if (world.Figures.Contains(figure.SpouseId))
         {

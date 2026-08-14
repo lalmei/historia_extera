@@ -53,13 +53,20 @@ export function Panel({
   children: React.ReactNode;
   actions?: React.ReactNode;
 }) {
+  // The header appears for either a title or controls. Requiring a title to show `actions` is
+  // how the map's whole control strip — layer, overlays, what the dots mean — stayed invisible
+  // from the milestone that added it: the props were passed, the component silently dropped them.
   return (
     <section className="rounded-lg border border-[var(--rule)] bg-[var(--panel)]">
-      {title && (
-        <header className="flex items-baseline justify-between gap-4 border-b border-[var(--rule)] px-4 py-2.5">
-          <h2 className="font-serif text-sm font-semibold tracking-wide uppercase text-[var(--ink-soft)]">
-            {title}
-          </h2>
+      {(title || actions) && (
+        <header className="flex flex-wrap items-baseline justify-between gap-4 border-b border-[var(--rule)] px-4 py-2.5">
+          {title ? (
+            <h2 className="font-serif text-sm font-semibold tracking-wide uppercase text-[var(--ink-soft)]">
+              {title}
+            </h2>
+          ) : (
+            <span />
+          )}
           {actions}
         </header>
       )}

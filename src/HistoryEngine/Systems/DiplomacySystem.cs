@@ -369,6 +369,14 @@ public sealed class DiplomacySystem : IYearSystem
             if (Diplomacy.AreAllied(civilization, other)) continue;
             if (Diplomacy.TruceHolds(civilization, other, year)) continue;
 
+            // A realm already fighting is not available to be fought. The engine's model is one
+            // war at a time per realm — the alternative is a realm on three fronts with one levy
+            // divided between them, and every peace negotiated against a score that belongs to a
+            // different war. Only the declaring side was checked before this, so a realm that had
+            // been called into an ally's war could still be declared on the following year, which
+            // is exactly how seed 99 ended with Vladane in two.
+            if (AlreadyFighting(world, other)) continue;
+
             double relation = Diplomacy.Relation(civilization, other);
             if (relation > Diplomacy.HostilityThreshold) continue;
 
