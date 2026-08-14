@@ -43,7 +43,7 @@ export const DEFAULT_PARAMS: RunParams = {
   seed: 42,
   years: 300,
   civs: 8,
-  size: 256,
+  size: 4096,
   eastWestPeriodic: false,
 };
 
