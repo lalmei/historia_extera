@@ -1,0 +1,130 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/release-drafter/release-drafter/main/schema.json
+
+name-template: 'v$RESOLVED_VERSION'
+tag-template: 'v$RESOLVED_VERSION'
+change-template: '- $TITLE (#$NUMBER) $AUTHORS'
+change-title-escapes: '\<*_&'
+sort-by: merged_at
+sort-direction: ascending
+category-template: '### $TITLE'
+template: |
+  ## What's Changed in v$RESOLVED_VERSION
+
+  $CHANGES
+
+categories:
+  - type: pre-exclude
+    when:
+      labels:
+        - skip-changelog
+        - duplicate
+        - invalid
+  - title: '✨ Features'
+    exclusive: true
+    when:
+      - labels:
+          - enhancement
+          - feature
+      - conventional:
+          types: [feat]
+  - title: '🐛 Bug Fixes'
+    exclusive: true
+    when:
+      - labels:
+          - bug
+      - conventional:
+          types: [fix]
+  - title: '💄 Visual'
+    exclusive: true
+    when:
+      - labels:
+          - style
+      - conventional:
+          types: [style]
+  - title: '⚡️ Performance'
+    exclusive: true
+    when:
+      - labels:
+          - performance
+      - conventional:
+          types: [perf]
+  - title: '♻️ Refactors'
+    exclusive: true
+    when:
+      - labels:
+          - refactor
+      - conventional:
+          types: [refactor]
+  - title: '📝 Documentation'
+    exclusive: true
+    when:
+      - labels:
+          - documentation
+      - conventional:
+          types: [docs]
+  - title: '✅ Tests'
+    exclusive: true
+    when:
+      - labels:
+          - test
+      - conventional:
+          types: [test]
+  - title: '🔧 Maintenance'
+    exclusive: true
+    when:
+      - labels:
+          - chore
+          - ci
+      - conventional:
+          types: [chore, ci, build]
+  - title: '🧩 Other'
+autolabeler:
+  - label: enhancement
+    title:
+      - '/^\s*✨/'
+      - '/^\s*🔭/'
+      - '/^\s*🎉/'
+      - '/^\s*feat(\(|:)/i'
+  - label: bug
+    title:
+      - '/^\s*🐛/'
+      - '/^\s*🚑/'
+      - '/^\s*(fix|bug)(\(|:)/i'
+  - label: style
+    title:
+      - '/^\s*💄/'
+      - '/^\s*style(\(|:)/i'
+  - label: performance
+    title:
+      - '/^\s*⚡️/'
+      - '/^\s*perf(\(|:)/i'
+  - label: refactor
+    title:
+      - '/^\s*♻️/'
+      - '/^\s*refactor(\(|:)/i'
+  - label: documentation
+    title:
+      - '/^\s*📝/'
+      - '/^\s*📖/'
+      - '/^\s*📚/'
+      - '/^\s*docs(\(|:)/i'
+  - label: test
+    title:
+      - '/^\s*✅/'
+      - '/^\s*test(\(|:)/i'
+  - label: ci
+    title:
+      - '/^\s*👷/'
+      - '/^\s*💚/'
+      - '/^\s*ci(\(|:)/i'
+  - label: chore
+    title:
+      - '/^\s*🔧/'
+      - '/^\s*🧹/'
+      - '/^\s*🚀/'
+      - '/^\s*⬆️/'
+      - '/^\s*chore(\(|:)/i'
+  - label: skip-changelog
+    title:
+      - '/^\s*🔖/'
+      - '/^\s*release(\(|:)/i'
