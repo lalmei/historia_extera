@@ -59,7 +59,8 @@ public sealed class TerrainAtlas
     public TerrainAtlas(
         ITerrainSampler sampler,
         int stride = DefaultStride,
-        int hydrologyStride = DefaultHydrologyStride)
+        int hydrologyStride = DefaultHydrologyStride,
+        bool eastWestPeriodic = false)
     {
         if (stride <= 0 || (stride & (stride - 1)) != 0)
         {
@@ -73,9 +74,19 @@ public sealed class TerrainAtlas
                 nameof(hydrologyStride), hydrologyStride, "Hydrology stride must be positive.");
         }
 
+        if (eastWestPeriodic
+            && (sampler.Bounds.Width % stride != 0
+                || sampler.Bounds.Width % hydrologyStride != 0))
+        {
+            throw new ArgumentException(
+                "A periodic terrain width must align with both lattice strides.",
+                nameof(sampler));
+        }
+
         _sampler = sampler;
         Stride = stride;
         HydrologyStride = hydrologyStride;
+        EastWestPeriodic = eastWestPeriodic;
 
         // The lattice spans the bounds inclusively at both edges, so interpolation
         // never needs to extrapolate.
@@ -133,6 +144,9 @@ public sealed class TerrainAtlas
     /// </remarks>
     public int HydrologyStride { get; }
 
+    /// <summary>Whether coordinates and neighbours wrap across the east/west seam.</summary>
+    public bool EastWestPeriodic { get; }
+
     /// <summary>
     /// Batch-samples a full-world grid at <paramref name="stride"/> and memoises every point.
     /// </summary>
@@ -143,7 +157,7 @@ public sealed class TerrainAtlas
     /// </remarks>
     public TerrainSample[] SampleGrid(int stride, out int columns, out int rows)
     {
-        columns = ((Bounds.Width + stride - 1) / stride) + 1;
+        columns = ((Bounds.Width + stride - 1) / stride) + (EastWestPeriodic ? 0 : 1);
         rows = ((Bounds.Height + stride - 1) / stride) + 1;
 
         var points = new Point2[columns * rows];
@@ -151,8 +165,8 @@ public sealed class TerrainAtlas
         {
             for (int i = 0; i < columns; i++)
             {
-                points[(j * columns) + i] =
-                    Bounds.Clamp(Bounds.MinX + (i * stride), Bounds.MinZ + (j * stride));
+                points[(j * columns) + i] = Normalize(
+                    Bounds.MinX + (i * stride), Bounds.MinZ + (j * stride));
             }
         }
 
@@ -202,8 +216,8 @@ public sealed class TerrainAtlas
         {
             for (int i = 0; i < LatticeWidth; i++)
             {
-                // Clamp so the inclusive far edge stays inside the sampler's bounds.
-                Point2 p = Bounds.Clamp(
+                // Normalize so the inclusive far edge clamps or wraps back to the seam.
+                Point2 p = Normalize(
                     Bounds.MinX + (i * Stride),
                     Bounds.MinZ + (j * Stride));
                 points[(j * LatticeWidth) + i] = p;
@@ -242,8 +256,10 @@ public sealed class TerrainAtlas
     {
         EnsurePrimed();
 
-        double fx = (x - Bounds.MinX) / (double)Stride;
-        double fz = (z - Bounds.MinZ) / (double)Stride;
+        Point2 at = Normalize(x, z);
+
+        double fx = (at.X - Bounds.MinX) / (double)Stride;
+        double fz = (at.Z - Bounds.MinZ) / (double)Stride;
 
         int i0 = (int)Math.Floor(fx);
         int j0 = (int)Math.Floor(fz);
@@ -296,7 +312,7 @@ public sealed class TerrainAtlas
     /// </remarks>
     public TerrainSample SampleExact(int x, int z)
     {
-        Point2 p = Bounds.Clamp(x, z);
+        Point2 p = Normalize(x, z);
         long key = PackKey(p.X, p.Z);
 
         if (_exact.TryGetValue(key, out TerrainSample cached))
@@ -332,7 +348,7 @@ public sealed class TerrainAtlas
         {
             for (int x = area.MinX; x < area.MaxX; x += stride)
             {
-                Point2 p = Bounds.Clamp(x, z);
+                Point2 p = Normalize(x, z);
                 if (!_exact.ContainsKey(PackKey(p.X, p.Z)))
                 {
                     points.Add(p);
@@ -373,7 +389,7 @@ public sealed class TerrainAtlas
         {
             for (int x = area.MinX; x < area.MaxX; x += stride)
             {
-                Point2 p = Bounds.Clamp(x, z);
+                Point2 p = Normalize(x, z);
                 yield return new KeyValuePair<Point2, TerrainSample>(p, _exact[PackKey(p.X, p.Z)]);
             }
         }
@@ -387,4 +403,6 @@ public sealed class TerrainAtlas
     }
 
     private static long PackKey(int x, int z) => ((long)(uint)x << 32) | (uint)z;
+
+    private Point2 Normalize(int x, int z) => Bounds.Normalize(x, z, EastWestPeriodic);
 }

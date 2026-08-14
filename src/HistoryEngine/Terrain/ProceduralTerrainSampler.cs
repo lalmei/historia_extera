@@ -56,6 +56,7 @@ public sealed record TerrainSettings
 public sealed class ProceduralTerrainSampler : ITerrainSampler
 {
     private readonly TerrainSettings _settings;
+    private readonly bool _eastWestPeriodic;
 
     private readonly ulong _continentSeed;
     private readonly ulong _ridgeSeed;
@@ -65,10 +66,15 @@ public sealed class ProceduralTerrainSampler : ITerrainSampler
     private readonly ulong _aridSeed;
     private readonly ulong _lakeSeed;
 
-    public ProceduralTerrainSampler(ulong seed, TerrainBounds bounds, TerrainSettings? settings = null)
+    public ProceduralTerrainSampler(
+        ulong seed,
+        TerrainBounds bounds,
+        TerrainSettings? settings = null,
+        bool eastWestPeriodic = false)
     {
         Bounds = bounds;
         _settings = settings ?? new TerrainSettings();
+        _eastWestPeriodic = eastWestPeriodic;
 
         // One derived seed per field, so changing how one field is generated cannot
         // shift any other.
@@ -124,11 +130,12 @@ public sealed class ProceduralTerrainSampler : ITerrainSampler
 
     private double HeightAt(int x, int z)
     {
-        double nx = x / _settings.ContinentScale;
+        double nx = NoiseX(x, _settings.ContinentScale);
         double nz = z / _settings.ContinentScale;
 
         // Positive is land, negative is sea.
-        double continent = ValueNoise.Fbm(_continentSeed, nx, nz, octaves: 6);
+        double continent = Fbm(
+            _continentSeed, nx, nz, _settings.ContinentScale, octaves: 6);
 
         if (continent < 0.0)
         {
@@ -136,10 +143,11 @@ public sealed class ProceduralTerrainSampler : ITerrainSampler
             return continent * _settings.OceanDepth;
         }
 
-        double ridge = ValueNoise.Ridged(
+        double ridge = Ridged(
             _ridgeSeed,
-            x / _settings.RidgeScale,
+            NoiseX(x, _settings.RidgeScale),
             z / _settings.RidgeScale,
+            _settings.RidgeScale,
             octaves: 5);
 
         // Ridges build only well inland, so coastlines stay walkable instead of
@@ -161,10 +169,11 @@ public sealed class ProceduralTerrainSampler : ITerrainSampler
         double banded = DetMath.Lerp(
             _settings.EquatorTemperature, _settings.PolarTemperature, fromEquator);
 
-        double variance = ValueNoise.Fbm(
+        double variance = Fbm(
             _tempSeed,
-            x / _settings.TemperatureVarianceScale,
+            NoiseX(x, _settings.TemperatureVarianceScale),
             z / _settings.TemperatureVarianceScale,
+            _settings.TemperatureVarianceScale,
             octaves: 3) * 3.5;
 
         double lapse = height > 0.0 ? height * _settings.LapseRate : 0.0;
@@ -191,16 +200,19 @@ public sealed class ProceduralTerrainSampler : ITerrainSampler
     {
         if (height < 0.0) return 1.0;
 
-        double regional = ValueNoise.Fbm(
+        double regional = Fbm(
             _rainSeed,
-            x / _settings.RainfallScale,
+            NoiseX(x, _settings.RainfallScale),
             z / _settings.RainfallScale,
+            _settings.RainfallScale,
             octaves: 4);
 
-        double belt = ValueNoise.Fbm(
+        double beltScale = _settings.RainfallScale * 3.5;
+        double belt = Fbm(
             _aridSeed,
-            x / (_settings.RainfallScale * 3.5),
-            z / (_settings.RainfallScale * 3.5),
+            NoiseX(x, beltScale),
+            z / beltScale,
+            beltScale,
             octaves: 2);
 
         double wetness = DetMath.Clamp01(0.46 + (regional * 0.42) + (belt * 0.30));
@@ -213,10 +225,11 @@ public sealed class ProceduralTerrainSampler : ITerrainSampler
 
     private double GeologyAt(int x, int z)
     {
-        double field = ValueNoise.Ridged(
+        double field = Ridged(
             _geologySeed,
-            x / _settings.GeologyScale,
+            NoiseX(x, _settings.GeologyScale),
             z / _settings.GeologyScale,
+            _settings.GeologyScale,
             octaves: 3);
 
         return DetMath.Clamp01(field);
@@ -228,10 +241,29 @@ public sealed class ProceduralTerrainSampler : ITerrainSampler
 
         // Scattered inland basins. A real basin test needs the height lattice, which
         // this sampler deliberately does not have — Hydrology does that work later.
-        double basin = ValueNoise.Fbm(
-            _lakeSeed, x / _settings.LakeScale, z / _settings.LakeScale, octaves: 2);
+        double basin = Fbm(
+            _lakeSeed,
+            NoiseX(x, _settings.LakeScale),
+            z / _settings.LakeScale,
+            _settings.LakeScale,
+            octaves: 2);
 
         bool lowland = height < 420.0;
         return lowland && basin > 0.62 ? WaterKind.Lake : WaterKind.None;
     }
+
+    private double NoiseX(int x, double scale) =>
+        _eastWestPeriodic ? (x - Bounds.MinX) / scale : x / scale;
+
+    private double Fbm(
+        ulong seed, double x, double z, double scale, int octaves) =>
+        _eastWestPeriodic
+            ? ValueNoise.FbmPeriodicX(seed, x, z, Bounds.Width / scale, octaves)
+            : ValueNoise.Fbm(seed, x, z, octaves);
+
+    private double Ridged(
+        ulong seed, double x, double z, double scale, int octaves) =>
+        _eastWestPeriodic
+            ? ValueNoise.RidgedPeriodicX(seed, x, z, Bounds.Width / scale, octaves)
+            : ValueNoise.Ridged(seed, x, z, octaves);
 }

@@ -43,6 +43,7 @@ public sealed class Hydrology
     private readonly int _height;
     private readonly int _stride;
     private readonly TerrainBounds _bounds;
+    private readonly bool _eastWestPeriodic;
 
     private readonly int[] _downstream;
     private readonly double[] _accumulation;
@@ -55,6 +56,7 @@ public sealed class Hydrology
         int height,
         int stride,
         TerrainBounds bounds,
+        bool eastWestPeriodic,
         int[] downstream,
         double[] accumulation,
         bool[] isRiver,
@@ -65,6 +67,7 @@ public sealed class Hydrology
         _height = height;
         _stride = stride;
         _bounds = bounds;
+        _eastWestPeriodic = eastWestPeriodic;
         _downstream = downstream;
         _accumulation = accumulation;
         _isRiver = isRiver;
@@ -96,10 +99,11 @@ public sealed class Hydrology
             submerged[i] = grid[i].Height < 0f;
         }
 
-        int[] downstream = ComputeFlowDirections(heights, w, h, stride);
+        int[] downstream = ComputeFlowDirections(
+            heights, w, h, stride, atlas.EastWestPeriodic);
         double[] accumulation = ComputeAccumulation(heights, downstream, n);
         bool[] isRiver = ClassifyRivers(accumulation, submerged, n);
-        bool[] isCoast = ClassifyCoast(submerged, w, h);
+        bool[] isCoast = ClassifyCoast(submerged, w, h, atlas.EastWestPeriodic);
 
         double max = 0.0;
         for (int i = 0; i < n; i++)
@@ -108,11 +112,21 @@ public sealed class Hydrology
         }
 
         return new Hydrology(
-            w, h, stride, atlas.Bounds, downstream, accumulation, isRiver, isCoast, max);
+            w,
+            h,
+            stride,
+            atlas.Bounds,
+            atlas.EastWestPeriodic,
+            downstream,
+            accumulation,
+            isRiver,
+            isCoast,
+            max);
     }
 
     /// <summary>Steepest-descent neighbour for each cell, or -1 where the cell is a sink.</summary>
-    private static int[] ComputeFlowDirections(double[] heights, int w, int h, int stride)
+    private static int[] ComputeFlowDirections(
+        double[] heights, int w, int h, int stride, bool eastWestPeriodic)
     {
         var downstream = new int[w * h];
 
@@ -137,9 +151,18 @@ public sealed class Hydrology
                     int ni = i + OffsetX[d];
                     int nj = j + OffsetZ[d];
 
-                    if (ni < 0 || ni >= w || nj < 0 || nj >= h) continue;
+                    if (nj < 0 || nj >= h) continue;
+                    if (eastWestPeriodic)
+                    {
+                        ni = WrapIndex(ni, w);
+                    }
+                    else if (ni < 0 || ni >= w)
+                    {
+                        continue;
+                    }
 
                     int nIdx = (nj * w) + ni;
+                    if (nIdx == idx) continue;
                     double drop = own - heights[nIdx];
                     if (drop <= 0.0) continue;
 
@@ -219,7 +242,8 @@ public sealed class Hydrology
         return isRiver;
     }
 
-    private static bool[] ClassifyCoast(bool[] submerged, int w, int h)
+    private static bool[] ClassifyCoast(
+        bool[] submerged, int w, int h, bool eastWestPeriodic)
     {
         var isCoast = new bool[w * h];
 
@@ -235,7 +259,15 @@ public sealed class Hydrology
                     int ni = i + OffsetX[d];
                     int nj = j + OffsetZ[d];
 
-                    if (ni < 0 || ni >= w || nj < 0 || nj >= h) continue;
+                    if (nj < 0 || nj >= h) continue;
+                    if (eastWestPeriodic)
+                    {
+                        ni = WrapIndex(ni, w);
+                    }
+                    else if (ni < 0 || ni >= w)
+                    {
+                        continue;
+                    }
 
                     if (submerged[(nj * w) + ni])
                     {
@@ -251,7 +283,9 @@ public sealed class Hydrology
 
     private int IndexOfWorld(int x, int z)
     {
-        int i = Math.Clamp((x - _bounds.MinX + (_stride / 2)) / _stride, 0, _width - 1);
+        int normalizedX = _eastWestPeriodic ? _bounds.WrapX(x) : x;
+        int i = Math.Clamp(
+            (normalizedX - _bounds.MinX + (_stride / 2)) / _stride, 0, _width - 1);
         int j = Math.Clamp((z - _bounds.MinZ + (_stride / 2)) / _stride, 0, _height - 1);
         return (j * _width) + i;
     }
@@ -268,10 +302,10 @@ public sealed class Hydrology
 
     /// <summary>River flag per lattice node, row-major. For raster export.</summary>
     public bool RiverAtNode(int i, int j) =>
-        _isRiver[(Math.Clamp(j, 0, _height - 1) * _width) + Math.Clamp(i, 0, _width - 1)];
+        _isRiver[(Math.Clamp(j, 0, _height - 1) * _width) + NormalizeColumn(i)];
 
     public bool CoastAtNode(int i, int j) =>
-        _isCoast[(Math.Clamp(j, 0, _height - 1) * _width) + Math.Clamp(i, 0, _width - 1)];
+        _isCoast[(Math.Clamp(j, 0, _height - 1) * _width) + NormalizeColumn(i)];
 
     /// <summary>One reach of a river: where it runs from, where it runs to, and how much it carries.</summary>
     public readonly record struct RiverSegment(
@@ -301,10 +335,26 @@ public sealed class Hydrology
                 int di = downstream % _width;
                 int dj = downstream / _width;
 
+                int fromX = _bounds.MinX + (i * _stride);
+                int toX = _bounds.MinX + (di * _stride);
+                if (_eastWestPeriodic && Math.Abs(di - i) > 1)
+                {
+                    // A wrapped reach is short on the cylinder but would be drawn across the
+                    // whole flat map. Draw the copy that meets the appropriate seam instead.
+                    if (di < i)
+                    {
+                        toX = _bounds.MaxX;
+                    }
+                    else
+                    {
+                        fromX = _bounds.MaxX;
+                    }
+                }
+
                 yield return new RiverSegment(
-                    FromX: _bounds.MinX + (i * _stride),
+                    FromX: fromX,
                     FromZ: _bounds.MinZ + (j * _stride),
-                    ToX: _bounds.MinX + (di * _stride),
+                    ToX: toX,
                     ToZ: _bounds.MinZ + (dj * _stride),
                     Strength: _maxAccumulation <= 0.0 ? 0.0 : _accumulation[index] / _maxAccumulation);
             }
@@ -324,5 +374,14 @@ public sealed class Hydrology
 
             return count;
         }
+    }
+
+    private int NormalizeColumn(int i) =>
+        _eastWestPeriodic ? WrapIndex(i, _width) : Math.Clamp(i, 0, _width - 1);
+
+    private static int WrapIndex(int i, int width)
+    {
+        int wrapped = i % width;
+        return wrapped < 0 ? wrapped + width : wrapped;
     }
 }

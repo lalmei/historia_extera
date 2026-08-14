@@ -29,6 +29,15 @@ public sealed record WorldConfig
     /// <summary>Side length of the square world, in world units.</summary>
     public int WorldSize { get; init; } = 4096;
 
+    /// <summary>
+    /// Whether the east and west edges meet, making the world cylindrical.
+    /// </summary>
+    /// <remarks>
+    /// North and south remain bounded. This affects terrain, drainage, region adjacency and
+    /// every simulation distance, so it is part of the deterministic configuration.
+    /// </remarks>
+    public bool EastWestPeriodic { get; init; }
+
     /// <summary>Side length of one region, in world units.</summary>
     public int RegionSize { get; init; } = 128;
 
@@ -104,6 +113,7 @@ public sealed record WorldConfig
             Append(nameof(Years), Years);
             Append(nameof(StartYear), StartYear);
             Append(nameof(WorldSize), WorldSize);
+            if (EastWestPeriodic) Append(nameof(EastWestPeriodic), EastWestPeriodic);
             Append(nameof(RegionSize), RegionSize);
             Append(nameof(TerrainStride), TerrainStride);
             Append(nameof(HydrologyStride), HydrologyStride);
@@ -140,9 +150,10 @@ public sealed record WorldConfig
     /// </summary>
     /// <remarks>
     /// A ceiling rather than a count: <see cref="TerrainSource"/> contributes only when a
-    /// foreign terrain backend is in play.
+    /// foreign terrain backend is in play, and <see cref="EastWestPeriodic"/> only when enabled,
+    /// preserving hashes from bounded worlds generated before either option existed.
     /// </remarks>
-    public const int HashedFieldCount = 20;
+    public const int HashedFieldCount = 21;
 
     public void Validate()
     {
@@ -162,6 +173,16 @@ public sealed record WorldConfig
         if (HydrologyStride <= 0)
         {
             throw new InvalidOperationException("HydrologyStride must be positive.");
+        }
+
+        if (EastWestPeriodic
+            && (WorldSize % RegionSize != 0
+                || WorldSize % TerrainStride != 0
+                || WorldSize % HydrologyStride != 0))
+        {
+            throw new InvalidOperationException(
+                "A periodic world size must be divisible by RegionSize, TerrainStride, " +
+                "and HydrologyStride so the east/west seam aligns on every grid.");
         }
 
         if (InitialCivilizations < 0)

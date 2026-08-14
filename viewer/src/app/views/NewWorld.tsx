@@ -9,7 +9,6 @@ import {
   readRun,
   startRun,
   type Run,
-  type RunParams,
 } from '../generate';
 import { Panel } from '../components/common';
 
@@ -28,10 +27,12 @@ import { Panel } from '../components/common';
  * Development only — the endpoint behind it does not exist in a built viewer.
  */
 export function NewWorld() {
-  const [form, setForm] = useState<Record<keyof RunParams, string>>({
+  const [form, setForm] = useState({
     seed: String(DEFAULT_PARAMS.seed),
     years: String(DEFAULT_PARAMS.years),
     civs: String(DEFAULT_PARAMS.civs),
+    size: String(DEFAULT_PARAMS.size),
+    eastWestPeriodic: DEFAULT_PARAMS.eastWestPeriodic,
   });
 
   const [run, setRun] = useState<Run | null>(null);
@@ -84,6 +85,8 @@ export function NewWorld() {
           seed: Number(form.seed),
           years: Number(form.years),
           civs: Number(form.civs),
+          size: Number(form.size),
+          eastWestPeriodic: form.eastWestPeriodic,
         }),
       );
     } catch (cause) {
@@ -133,6 +136,16 @@ export function NewWorld() {
         />
 
         <NumberField
+          label="World size"
+          value={form.size}
+          bounds={BOUNDS.size}
+          step={256}
+          width="w-28"
+          disabled={busy}
+          onChange={(size) => setForm({ ...form, size })}
+        />
+
+        <NumberField
           label="Civilizations"
           value={form.civs}
           bounds={BOUNDS.civs}
@@ -140,6 +153,18 @@ export function NewWorld() {
           disabled={busy}
           onChange={(civs) => setForm({ ...form, civs })}
         />
+
+        <label className="mb-0.5 flex items-center gap-2 rounded border border-[var(--rule)] px-2.5 py-1.5 text-sm text-[var(--ink-soft)]">
+          <input
+            type="checkbox"
+            checked={form.eastWestPeriodic}
+            disabled={busy}
+            onChange={(event) =>
+              setForm({ ...form, eastWestPeriodic: event.target.checked })
+            }
+          />
+          Join east/west edges
+        </label>
 
         <button
           type="submit"
@@ -152,7 +177,8 @@ export function NewWorld() {
 
       <p className="mt-3 text-xs text-[var(--ink-faint)]">
         A seed worth keeping is worth writing down: the same settings always give the same
-        history. Each run lands in{' '}
+        history. A periodic world wraps terrain, rivers, travel, and expansion across its east and
+        west edges. Each run lands in{' '}
         <code className="rounded bg-[var(--page)] px-1 py-0.5">viewer/public/worlds/</code> and can
         be reopened later with <code className="rounded bg-[var(--page)] px-1 py-0.5">?world=</code>.
       </p>
@@ -181,7 +207,9 @@ function Progress({
 
   const status =
     run.status === 'running'
-      ? `Simulating ${run.params.years} years, seed ${run.params.seed} — ${seconds}s`
+      ? `Simulating ${run.params.years} years on a ${run.params.size}×${run.params.size}${
+          run.params.eastWestPeriodic ? ' periodic' : ''
+        } world, seed ${run.params.seed} — ${seconds}s`
       : run.status === 'done'
         ? opening
           ? `Done in ${seconds}s — opening ${megabytes(run.bytes)}…`
@@ -227,6 +255,7 @@ function NumberField({
   label,
   value,
   bounds,
+  step = 1,
   width,
   disabled,
   onChange,
@@ -234,6 +263,7 @@ function NumberField({
   label: string;
   value: string;
   bounds: { min: number; max: number };
+  step?: number;
   width: string;
   disabled: boolean;
   onChange: (value: string) => void;
@@ -248,7 +278,7 @@ function NumberField({
         required
         min={bounds.min}
         max={bounds.max}
-        step={1}
+        step={step}
         value={value}
         disabled={disabled}
         onChange={(event) => onChange(event.target.value)}

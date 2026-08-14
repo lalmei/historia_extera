@@ -213,7 +213,7 @@ public sealed class TradeRouteSystem : IYearSystem
     {
         if (!a.IsActive || !b.IsActive || Capacity(a) == 0 || Capacity(b) == 0) return 0.0;
 
-        double distance = DetMath.Distance(a.X, a.Z, b.X, b.Z);
+        double distance = world.Distance(a.X, a.Z, b.X, b.Z);
         if (distance > MaximumDistance) return 0.0;
 
         Civilization realmA = world.Civilizations[a.CivilizationId];

@@ -50,7 +50,7 @@ public static class RegionGrid
             }
         }
 
-        LinkNeighbours(regions, columns, rows);
+        LinkNeighbours(regions, columns, rows, atlas.EastWestPeriodic);
         return regions;
     }
 
@@ -133,7 +133,8 @@ public static class RegionGrid
     }
 
     /// <summary>Four-way adjacency, in a fixed order so expansion walks the grid reproducibly.</summary>
-    private static void LinkNeighbours(List<Region> regions, int columns, int rows)
+    private static void LinkNeighbours(
+        List<Region> regions, int columns, int rows, bool eastWestPeriodic)
     {
         for (int row = 0; row < rows; row++)
         {
@@ -141,11 +142,36 @@ public static class RegionGrid
             {
                 Region region = regions[(row * columns) + column];
 
-                if (row > 0) region.AdjacentRegions.Add(regions[((row - 1) * columns) + column].Id);
-                if (column > 0) region.AdjacentRegions.Add(regions[(row * columns) + column - 1].Id);
-                if (column < columns - 1) region.AdjacentRegions.Add(regions[(row * columns) + column + 1].Id);
-                if (row < rows - 1) region.AdjacentRegions.Add(regions[((row + 1) * columns) + column].Id);
+                if (row > 0) AddNeighbour(region, regions[((row - 1) * columns) + column]);
+
+                if (column > 0)
+                {
+                    AddNeighbour(region, regions[(row * columns) + column - 1]);
+                }
+                else if (eastWestPeriodic && columns > 1)
+                {
+                    AddNeighbour(region, regions[(row * columns) + columns - 1]);
+                }
+
+                if (column < columns - 1)
+                {
+                    AddNeighbour(region, regions[(row * columns) + column + 1]);
+                }
+                else if (eastWestPeriodic && columns > 1)
+                {
+                    AddNeighbour(region, regions[row * columns]);
+                }
+
+                if (row < rows - 1) AddNeighbour(region, regions[((row + 1) * columns) + column]);
             }
+        }
+    }
+
+    private static void AddNeighbour(Region region, Region neighbour)
+    {
+        if (region.Id != neighbour.Id && !region.AdjacentRegions.Contains(neighbour.Id))
+        {
+            region.AdjacentRegions.Add(neighbour.Id);
         }
     }
 }

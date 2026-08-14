@@ -47,7 +47,7 @@ public sealed class WorldState
         HolySites = new EntityTable<HolySite>(EntityKind.HolySite);
 
         Chronicle = new Chronicle();
-        Harvest = new HarvestModel(config.Seed);
+        Harvest = new HarvestModel(config);
         Outbreaks = new List<Outbreak>();
         Year = config.StartYear;
     }
@@ -130,6 +130,14 @@ public sealed class WorldState
     public int StartYear => Config.StartYear;
 
     public int EndYear => Config.StartYear + Config.Years - 1;
+
+    /// <summary>Distance respecting this world's east/west boundary condition.</summary>
+    public double Distance(double x1, double z1, double x2, double z2) =>
+        Config.Bounds.Distance(x1, z1, x2, z2, Config.EastWestPeriodic);
+
+    /// <summary>Squared distance respecting this world's east/west boundary condition.</summary>
+    public double DistanceSquared(double x1, double z1, double x2, double z2) =>
+        Config.Bounds.DistanceSquared(x1, z1, x2, z2, Config.EastWestPeriodic);
 
     /// <summary>The culture of a given civilization.</summary>
     public Culture CultureOf(Civilization civilization) => Cultures[civilization.CultureId];

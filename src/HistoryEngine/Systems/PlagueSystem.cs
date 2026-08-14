@@ -186,7 +186,7 @@ public sealed class PlagueSystem : IYearSystem
                 if (!candidate.IsActive || candidate.Id == sourceId) continue;
                 if (IsInfected(outbreak, candidate.Id)) continue;
 
-                double distance = DetMath.Distance(source.X, source.Z, candidate.X, candidate.Z);
+                double distance = world.Distance(source.X, source.Z, candidate.X, candidate.Z);
                 TradeRoute? route = TradeRoutes.Between(world, source.Id, candidate.Id);
                 if (distance > SpreadRange && route is null) continue;
 

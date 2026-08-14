@@ -76,6 +76,20 @@ internal static class ValueNoise
         return normalisation > 0.0 ? sum / normalisation : 0.0;
     }
 
+    /// <summary>Fractal noise whose X axis repeats after <paramref name="periodX"/>.</summary>
+    public static double FbmPeriodicX(
+        ulong seed,
+        double x,
+        double z,
+        double periodX,
+        int octaves,
+        double lacunarity = 2.0,
+        double gain = 0.5) =>
+        BlendPeriodicX(
+            x,
+            periodX,
+            sampleX => Fbm(seed, sampleX, z, octaves, lacunarity, gain));
+
     /// <summary>
     /// Ridged multifractal in [0, 1], for mountain chains.
     /// </summary>
@@ -106,5 +120,34 @@ internal static class ValueNoise
         }
 
         return normalisation > 0.0 ? DetMath.Clamp01(sum / normalisation) : 0.0;
+    }
+
+    /// <summary>Ridged fractal noise whose X axis repeats after <paramref name="periodX"/>.</summary>
+    public static double RidgedPeriodicX(
+        ulong seed,
+        double x,
+        double z,
+        double periodX,
+        int octaves,
+        double lacunarity = 2.0,
+        double gain = 0.5) =>
+        BlendPeriodicX(
+            x,
+            periodX,
+            sampleX => Ridged(seed, sampleX, z, octaves, lacunarity, gain));
+
+    /// <summary>
+    /// Cross-fades a field with a copy one period to its west. Smootherstep pins the blend's
+    /// first two derivatives at both ends, so the repeated seam has no value or slope kink.
+    /// </summary>
+    private static double BlendPeriodicX(double x, double periodX, Func<double, double> sample)
+    {
+        if (periodX <= 0.0) return sample(x);
+
+        double wrapped = x % periodX;
+        if (wrapped < 0.0) wrapped += periodX;
+
+        double blend = DetMath.SmootherStep(wrapped / periodX);
+        return DetMath.Lerp(sample(wrapped), sample(wrapped - periodX), blend);
     }
 }

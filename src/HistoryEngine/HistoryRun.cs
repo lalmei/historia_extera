@@ -65,7 +65,8 @@ public sealed class HistoryRun
     {
         config.Validate();
 
-        inner ??= new ProceduralTerrainSampler(config.Seed, config.Bounds, config.Terrain);
+        inner ??= new ProceduralTerrainSampler(
+            config.Seed, config.Bounds, config.Terrain, config.EastWestPeriodic);
         var counter = new CountingTerrainSampler(inner);
 
         var stopwatch = Stopwatch.StartNew();
