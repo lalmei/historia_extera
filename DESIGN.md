@@ -705,15 +705,14 @@ viewer reading it.
 
 ### As built
 
-Nine yearly systems, in order (the order is hashed): `population` →
-`settlement-lifecycle` → `specialization` → `expansion` → `diplomacy` → `war` →
-`figure-lifecycle` → `succession` → `houses`. Reads as a causal chain: populations change
-against the harvest, that changes what settlements are, a settlement that has outgrown a
-hamlet acquires a character, pressure drives expansion, expansion moves borders,
-neighbours judge each other across the borders as they now stand, the wars that follow are
-fought, people die — of age, of illness and of wounds alike — thrones emptied by those
-deaths are filled, and the houses go on, marrying and bearing children against the line as
-it now stands.
+Fourteen yearly systems, in order (the order is hashed): `population` → `plague` →
+`disaster` → `settlement-lifecycle` → `specialization` → `expansion` → `religion` →
+`diplomacy` → `war` → `trade-routes` → `figure-lifecycle` → `succession` → `houses` →
+`artifacts`. Reads as a causal chain: populations change against the harvest, pestilence and
+the land take their share, settlements acquire character, pressure moves borders and faiths,
+neighbours judge each other, wars are fought, commerce responds to the resulting peace, deaths
+empty thrones, succession fills them, houses continue, and what the survivors made is written
+down.
 
 Diplomacy follows expansion so an opinion is formed about the frontier that exists rather
 than last year's, and war follows diplomacy so a war declared this spring is fought this
@@ -966,8 +965,8 @@ ceiling is fixed when it is written: tradition, mercantile culture, religious su
 city and capital scriptoria, and trade, craft or shrine specializations make duplication more
 likely. Some manuscripts remain unique, most reproducible ones allow one or two additional
 settlement copies, and a hard ceiling of four preserves scarcity. The ceiling is only potential;
-an actual copy takes a later yearly roll and an active route within a realm, along the tome's
-faith, or through a nearby trade centre. Each copy records its destination and the settlement
+an actual copy takes a later yearly roll and passage within a realm, along the tome's faith, or
+over a persistent trade route. Each copy records its destination and the settlement
 whose exemplar it used, so distribution can branch gradually without giving every copy the full
 provenance and fame of a singular treasure.
 
@@ -1069,6 +1068,37 @@ been driven through the route end to end by a person — the round trip proves t
 the contract, not that Azgaar's export ranges are what its documentation says. Both are
 Phase 2 work rather than spike work, and site selection growing teeth on real terrain
 (M10) is the natural place for them.
+
+### Trade routes: topology before roads
+
+**Commerce now has an identity of its own.** A route is an undirected pair of settlements with
+a founding year, optional closure year, present and peak traffic, economic status, and a preferred
+overland, river, or coastal corridor. It is not recomputed into existence whenever a system wants
+to move something. Closed routes remain in the world, and a later reopening is a new entity, so a
+chronicle can distinguish an old road's memory from the trade that returned a century later.
+
+**The graph is deliberately sparse.** Every five years the engine scores viable settlement pairs
+by distance, size, specialization, mercantile culture, political standing, and water access, then
+fills a small capacity per endpoint from strongest to weakest. Villages can sustain one link,
+towns three, and cities five. The bound is both an economic claim and a presentation constraint:
+a route network should reveal hubs and corridors rather than collapse into a complete graph.
+
+**Decline is slower than interruption.** Abandonment and war close a route immediately. Ordinary
+weakness has to persist for eight years, so one failed harvest does not erase an established
+connection. Prosperity and decline are recorded as transitions rather than annual events; the
+entity keeps the continuous traffic measure while the chronicle keeps only the changes worth
+reading.
+
+**This is the input to roads, not a substitute for them.** The viewer draws straight endpoint
+links and labels them as logical connections. No route stores a polyline or claims a pass, ford,
+bridge, or paved segment. A future road network can pathfind the overland routes, choose which
+traffic merits construction, share road segments among several routes, and reroute physical
+infrastructure without changing the commercial relationship it serves.
+
+Tome circulation now uses active routes instead of inventing a nearby trade centre at the point
+of copying, and plague spread gets the same shared traffic network. That is the first payoff of
+making routes state: two systems that mean “ordinary travellers moved between these places” now
+mean the same thing.
 
 ---
 

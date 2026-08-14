@@ -19,6 +19,7 @@ import {
   figures,
   regionOf,
   settlementOf,
+  tradeRoutesOf,
   treasuresOf,
   warOf,
   type World,
@@ -45,6 +46,7 @@ import {
   type Relation,
   type Religion,
   type Settlement,
+  type TradeRoute,
   type War,
 } from '../types';
 
@@ -177,6 +179,7 @@ export function CivilizationPage({ world, civ }: { world: World; civ: Civilizati
 export function SettlementPage({ world, settlement }: { world: World; settlement: Settlement }) {
   const region = regionOf(world, settlement.regionId);
   const treasures = treasuresOf(world, settlement.id);
+  const routes = tradeRoutesOf(world, settlement.id);
 
   return (
     <div className="space-y-5">
@@ -273,10 +276,159 @@ export function SettlementPage({ world, settlement }: { world: World; settlement
         </Panel>
       )}
 
+      {routes.length > 0 && (
+        <Panel title={`Trade routes (${routes.length})`}>
+          <TradeRouteTable world={world} routes={routes} />
+        </Panel>
+      )}
+
       <Panel title="Chronicle">
         <EventList world={world} events={world.eventsFor(settlement.id)} />
       </Panel>
     </div>
+  );
+}
+
+export function TradeRoutePage({ world, route }: { world: World; route: TradeRoute }) {
+  const a = settlementOf(world, route.settlementAId);
+  const b = settlementOf(world, route.settlementBId);
+
+  return (
+    <div className="space-y-5">
+      <PageTitle
+        eyebrow={`${route.mode} trade route`}
+        title={`${a?.name ?? route.settlementAId}–${b?.name ?? route.settlementBId}`}
+        meta={
+          <>
+            <Badge tone={route.status === 'Prosperous' ? 'accent' : 'muted'}>
+              {route.status}
+            </Badge>
+            <span className="text-[var(--ink-faint)]">
+              {yearRange(route.foundedYear, route.endedYear)}
+            </span>
+          </>
+        }
+      />
+
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <Stat label="Current traffic" value={`${Math.round(route.traffic * 100)}%`} />
+        <Stat label="Peak traffic" value={`${Math.round(route.peakTraffic * 100)}%`} />
+        <Stat label="Opened" value={route.foundedYear} />
+        <Stat
+          label="Duration"
+          value={`${(route.endedYear ?? world.export.meta.endYear) - route.foundedYear + 1} years`}
+        />
+      </div>
+
+      <Panel title="Connection">
+        <dl>
+          <Field label="Endpoints">
+            <EntityLink world={world} id={route.settlementAId} />
+            <span className="mx-2 text-[var(--ink-faint)]">↔</span>
+            <EntityLink world={world} id={route.settlementBId} />
+          </Field>
+          <Field label="Transport">{route.mode}</Field>
+          <Field label="Physical path">
+            <span className="text-[var(--ink-faint)]">
+              Not yet modelled — this route is the demand a future road network can serve
+            </span>
+          </Field>
+        </dl>
+      </Panel>
+
+      <Panel title="Chronicle">
+        <EventList world={world} events={world.eventsFor(route.id)} />
+      </Panel>
+    </div>
+  );
+}
+
+export function TradeRouteTable({ world, routes }: { world: World; routes: TradeRoute[] }) {
+  const columns: Column<TradeRoute>[] = [
+    {
+      key: 'route',
+      header: 'Route',
+      cell: (route) => <EntityLink world={world} id={route.id} />,
+      sort: (route) => world.nameOf(route.id),
+    },
+    {
+      key: 'endpoints',
+      header: 'Endpoints',
+      cell: (route) => (
+        <span>
+          <EntityLink world={world} id={route.settlementAId} />
+          <span className="mx-1 text-[var(--ink-faint)]">↔</span>
+          <EntityLink world={world} id={route.settlementBId} />
+        </span>
+      ),
+      sort: (route) => world.nameOf(route.settlementAId),
+    },
+    {
+      key: 'mode',
+      header: 'Transport',
+      cell: (route) => route.mode,
+      sort: (route) => route.mode,
+    },
+    {
+      key: 'traffic',
+      header: 'Traffic',
+      cell: (route) => `${Math.round(route.traffic * 100)}%`,
+      sort: (route) => route.traffic,
+      align: 'right',
+    },
+    {
+      key: 'peak',
+      header: 'Peak',
+      cell: (route) => `${Math.round(route.peakTraffic * 100)}%`,
+      sort: (route) => route.peakTraffic,
+      align: 'right',
+    },
+    {
+      key: 'span',
+      header: 'Span',
+      cell: (route) => (
+        <span className={route.endedYear !== undefined ? 'text-[var(--ink-faint)]' : ''}>
+          {yearRange(route.foundedYear, route.endedYear)}
+        </span>
+      ),
+      sort: (route) => route.foundedYear,
+    },
+  ];
+
+  const facets: Facet<TradeRoute>[] = [
+    {
+      key: 'status',
+      label: 'Status',
+      options: [
+        { value: 'open', label: 'Open', match: (route) => route.endedYear === undefined },
+        { value: 'closed', label: 'Closed', match: (route) => route.endedYear !== undefined },
+        { value: 'prosperous', label: 'Prosperous', match: (route) => route.status === 'Prosperous' },
+        { value: 'declining', label: 'Declining', match: (route) => route.status === 'Declining' },
+      ],
+    },
+    {
+      key: 'mode',
+      label: 'Transport',
+      options: ['Overland', 'River', 'Coastal'].map((mode) => ({
+        value: mode,
+        label: mode,
+        match: (route: TradeRoute) => route.mode === mode,
+      })),
+    },
+  ];
+
+  return (
+    <DataTable
+      rows={routes}
+      columns={columns}
+      facets={facets}
+      searchText={(route) =>
+        `${world.nameOf(route.settlementAId)} ${world.nameOf(route.settlementBId)} ${route.mode}`
+      }
+      placeholder="Search trade routes…"
+      initialSort={{ key: 'traffic', descending: true }}
+      emptyMessage="No trade route was established here."
+    />
   );
 }
 

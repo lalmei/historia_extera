@@ -61,6 +61,7 @@ public static class WorldExporter
             Civilizations: BuildCivilizations(world),
             Dynasties: BuildDynasties(world),
             Settlements: BuildSettlements(world),
+            TradeRoutes: BuildTradeRoutes(world),
             Figures: BuildFigures(world),
             Wars: BuildWars(world),
             Battles: BuildBattles(world),
@@ -395,6 +396,27 @@ public static class WorldExporter
                 IsFortified: settlement.IsFortified,
                 ReligionId: OrNull(settlement.ReligionId),
                 ConvertedYear: settlement.ConvertedYear));
+        }
+
+        return list;
+    }
+
+    private static List<ExportTradeRoute> BuildTradeRoutes(WorldState world)
+    {
+        var list = new List<ExportTradeRoute>(world.TradeRoutes.Count);
+
+        foreach (TradeRoute route in world.TradeRoutes)
+        {
+            list.Add(new ExportTradeRoute(
+                Id: route.Id,
+                SettlementAId: route.SettlementAId,
+                SettlementBId: route.SettlementBId,
+                Mode: route.Mode,
+                Status: route.Status,
+                FoundedYear: route.FoundedYear,
+                EndedYear: route.EndedYear,
+                Traffic: route.Traffic,
+                PeakTraffic: route.PeakTraffic));
         }
 
         return list;

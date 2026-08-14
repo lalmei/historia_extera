@@ -130,6 +130,14 @@ public static class Narration
         Set(EventKind.DisasterStruck,
             "{subject} was struck by {data:kind}[, losing {data:lost} people].");
 
+        Set(EventKind.TradeRouteOpened,
+            "Trade opened between {object} and {location}[, {data:mode}], establishing the {subject}.");
+        Set(EventKind.TradeRouteFlourished,
+            "The {subject} flourished[ with traffic at {data:traffic}].");
+        Set(EventKind.TradeRouteDeclined,
+            "The {subject} began to decline[ as traffic fell to {data:traffic}].");
+        Set(EventKind.TradeRouteClosed, "The {subject} closed[, {data:cause}].");
+
         Set(EventKind.Unknown, "Something happened.");
 
         return map;

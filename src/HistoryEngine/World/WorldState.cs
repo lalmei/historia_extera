@@ -43,6 +43,7 @@ public sealed class WorldState
         Regions = new EntityTable<Region>(EntityKind.Region);
         Religions = new EntityTable<Religion>(EntityKind.Religion);
         Artifacts = new EntityTable<Artifact>(EntityKind.Artifact);
+        TradeRoutes = new EntityTable<TradeRoute>(EntityKind.TradeRoute);
 
         Chronicle = new Chronicle();
         Harvest = new HarvestModel(config.Seed);
@@ -106,6 +107,9 @@ public sealed class WorldState
     /// <summary>Every made thing the chronicle follows, held or lost.</summary>
     public EntityTable<Artifact> Artifacts { get; }
 
+    /// <summary>Every commercial connection ever established, including closed routes.</summary>
+    public EntityTable<TradeRoute> TradeRoutes { get; }
+
     /// <summary>
     /// Epidemics currently running.
     /// </summary>
@@ -160,6 +164,8 @@ public sealed class WorldState
         // Artifact names are composed at creation — "the Crown of Aigionanvos" — so that two
         // references to the same object are worded identically, as with wars and battles.
         EntityKind.Artifact when Artifacts.Contains(id) => Artifacts[id].Name,
+        EntityKind.TradeRoute when TradeRoutes.Contains(id) =>
+            $"{NameOf(TradeRoutes[id].SettlementAId)}–{NameOf(TradeRoutes[id].SettlementBId)} route",
         _ => id.ToString(),
     };
 
@@ -181,6 +187,15 @@ public sealed class WorldState
         foreach (War war in Wars)
         {
             if (war.IsActive) yield return war;
+        }
+    }
+
+    /// <summary>Trade routes still carrying traffic, in founding order.</summary>
+    public IEnumerable<TradeRoute> ActiveTradeRoutes()
+    {
+        foreach (TradeRoute route in TradeRoutes)
+        {
+            if (route.IsActive) yield return route;
         }
     }
 

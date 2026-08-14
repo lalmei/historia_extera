@@ -187,11 +187,22 @@ public sealed class PlagueSystem : IYearSystem
                 if (IsInfected(outbreak, candidate.Id)) continue;
 
                 double distance = DetMath.Distance(source.X, source.Z, candidate.X, candidate.Z);
-                if (distance > SpreadRange) continue;
+                TradeRoute? route = TradeRoutes.Between(world, source.Id, candidate.Id);
+                if (distance > SpreadRange && route is null) continue;
 
                 double nearness = 1.0 - DetMath.InverseLerp(0.0, SpreadRange, distance);
                 double wary = 1.0 / (1.0 + (outbreak.Reached * QuarantineDecay));
-                double chance = outbreak.Virulence * nearness * nearness * Traffic(candidate) * wary;
+                double connection = nearness * nearness;
+
+                // An established route can carry infection beyond an ordinary local jump. The
+                // route is still only topology — no road geometry is assumed — but its measured
+                // traffic is a better account of travellers than distance alone.
+                if (route is not null)
+                {
+                    connection = Math.Max(connection, 0.15 + (route.Traffic * 0.50));
+                }
+
+                double chance = outbreak.Virulence * connection * Traffic(candidate) * wary;
 
                 if (!rng.Chance(DetMath.Clamp01(chance))) continue;
 

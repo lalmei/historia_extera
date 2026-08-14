@@ -165,6 +165,12 @@ internal static class Program
             else standingHouses++;
         }
 
+        int activeRoutes = 0;
+        foreach (TradeRoute route in world.TradeRoutes)
+        {
+            if (route.IsActive) activeRoutes++;
+        }
+
         ExportSampleStats sampling = export.Meta.TerrainSampling;
 
         Console.WriteLine();
@@ -189,6 +195,7 @@ internal static class Program
         Console.WriteLine($"  events         {world.Chronicle.Count:N0}");
         Console.WriteLine($"  civilizations  {activeCivs} standing, {fallenCivs} fallen");
         Console.WriteLine($"  settlements    {activeSettlements} active ({cities} cities), {abandoned} abandoned");
+        Console.WriteLine($"  trade routes   {activeRoutes} active, {world.TradeRoutes.Count} recorded");
         Console.WriteLine($"  figures        {world.Figures.Count} recorded, {living} living");
         Console.WriteLine($"  houses         {standingHouses} standing, {extinctHouses} died out");
         Console.WriteLine($"  regions        {world.Regions.Count}");

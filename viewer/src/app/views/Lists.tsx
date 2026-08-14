@@ -22,7 +22,38 @@ import {
   type Region,
   type Religion,
 } from '../types';
-import { ArtifactTable, BattleTable, SettlementTable, WarTable, warsOf } from './EntityPages';
+import {
+  ArtifactTable,
+  BattleTable,
+  SettlementTable,
+  TradeRouteTable,
+  WarTable,
+  warsOf,
+} from './EntityPages';
+
+export function TradeRouteList({ world }: { world: World }) {
+  const { tradeRoutes } = world.export;
+  const active = tradeRoutes.filter((route) => route.endedYear === undefined);
+  const prosperous = active.filter((route) => route.status === 'Prosperous');
+  const overland = active.filter((route) => route.mode === 'Overland');
+
+  return (
+    <div className="space-y-5">
+      <PageTitle eyebrow="Index" title="Trade routes" />
+
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <Stat label="Active" value={active.length} />
+        <Stat label="Recorded" value={tradeRoutes.length} />
+        <Stat label="Prosperous" value={prosperous.length} />
+        <Stat label="Overland" value={overland.length} hint="Candidates for future roads" />
+      </div>
+
+      <Panel title="Routes">
+        <TradeRouteTable world={world} routes={tradeRoutes} />
+      </Panel>
+    </div>
+  );
+}
 
 /**
  * Every war ever fought, and every engagement in them.
@@ -815,8 +846,17 @@ export function Timeline({ world }: { world: World }) {
 }
 
 export function Overview({ world }: { world: World }) {
-  const { meta, civilizations, dynasties, settlements, figures, events, indices, wars } =
-    world.export;
+  const {
+    meta,
+    civilizations,
+    dynasties,
+    settlements,
+    tradeRoutes,
+    figures,
+    events,
+    indices,
+    wars,
+  } = world.export;
 
   const standing = civilizations.filter((civ) => civ.endedYear === undefined);
   const inhabited = settlements.filter((s) => s.abandonedYear === undefined);
@@ -860,6 +900,11 @@ export function Overview({ world }: { world: World }) {
           label="Wars"
           value={wars.length}
           hint={`${world.export.battles.length} battles fought`}
+        />
+        <Stat
+          label="Trade routes"
+          value={tradeRoutes.filter((route) => route.endedYear === undefined).length}
+          hint={`${tradeRoutes.length} recorded across history`}
         />
         <Stat
           label="Faiths"

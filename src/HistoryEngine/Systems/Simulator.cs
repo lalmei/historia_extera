@@ -26,7 +26,7 @@ public sealed class Simulator
         _systems = systems ?? DefaultSystems();
 
     /// <summary>
-    /// The system order as of Milestone 8.
+    /// The system order as of the persistent trade-route model.
     /// </summary>
     /// <remarks>
     /// <para>Reads as a causal chain within each year: populations change against the harvest,
@@ -34,9 +34,9 @@ public sealed class Simulator
     /// settlements are, a settlement that has outgrown a hamlet acquires a character, pressure
     /// drives expansion, expansion moves borders, faiths travel across the borders as they now
     /// stand, neighbours judge each other by both, the wars that follow from that are fought,
-    /// people die — of age, of illness, of plague and of wounds alike — thrones left empty by
-    /// those deaths are filled, the houses go on, and what the year's survivors made is written
-    /// down.</para>
+    /// trade links respond to the resulting peace or war, people die — of age, of illness, of
+    /// plague and of wounds alike — thrones left empty by those deaths are filled, the houses go
+    /// on, and what the year's survivors made is written down.</para>
     ///
     /// <para>Plague and disaster follow population rather than preceding it, so a year's growth
     /// is applied to a settlement before the year's mortality takes from it — the other order
@@ -61,8 +61,13 @@ public sealed class Simulator
     /// exists rather than last year's, and war follows diplomacy so a war declared this spring is
     /// fought this summer instead of waiting a year for anything to happen.</para>
     ///
-    /// <para>The final three are the tightest coupling in the list, and war now leans on the same
-    /// property. Deaths must precede succession or a realm spends a year without a ruler for no
+    /// <para>Trade routes follow war so a corridor opens or closes against the peace that actually
+    /// survives the year's campaigning, and artifacts run later so books can use that route in the
+    /// year it is established.</para>
+    ///
+    /// <para>The figure-lifecycle, succession and household sequence is the tightest coupling in
+    /// the list, and war leans on the same property. Deaths must precede succession or a realm
+    /// spends a year without a ruler for no
     /// reason the chronicle can explain — which is as true of a king killed at a siege as of one
     /// who died in bed — and succession must precede the houses or a new king's brothers are still
     /// ranked as heirs on the day he is crowned, and marry accordingly.</para>
@@ -78,6 +83,7 @@ public sealed class Simulator
         new ReligionSystem(),
         new DiplomacySystem(),
         new WarSystem(),
+        new TradeRouteSystem(),
         new FigureLifecycleSystem(),
         new SuccessionSystem(),
         new HouseholdSystem(),

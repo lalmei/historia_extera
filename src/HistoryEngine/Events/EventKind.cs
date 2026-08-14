@@ -86,4 +86,10 @@ public enum EventKind
 
     // ---- Disasters (660) ----
     DisasterStruck = 660,
+
+    // ---- Trade routes (680) ----
+    TradeRouteOpened = 680,
+    TradeRouteFlourished = 681,
+    TradeRouteDeclined = 682,
+    TradeRouteClosed = 683,
 }

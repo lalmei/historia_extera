@@ -16,6 +16,7 @@ import {
   type Religion,
   type Artifact,
   type Settlement,
+  type TradeRoute,
   type War,
   type WorldExport,
 } from './types';
@@ -89,6 +90,7 @@ export function buildWorld(data: WorldExport): World {
     data.civilizations,
     data.dynasties,
     data.settlements,
+    data.tradeRoutes,
     data.figures,
     data.wars,
     data.battles,
@@ -107,6 +109,16 @@ export function buildWorld(data: WorldExport): World {
   const nameOf = (id: EntityId): string => {
     const entity = byId.get(id);
     if (entity && 'name' in entity) return entity.name;
+
+    if (entity && kindOf(id) === 'rte') {
+      const route = entity as TradeRoute;
+      const a = byId.get(route.settlementAId);
+      const b = byId.get(route.settlementBId);
+      const nameA = a && 'name' in a ? a.name : route.settlementAId;
+      const nameB = b && 'name' in b ? b.name : route.settlementBId;
+      return `${nameA}–${nameB} route`;
+    }
+
     // Unresolvable ids render as the id itself. A chronicle that throws is harder
     // to debug than one with an odd label in it.
     return id;
@@ -167,6 +179,17 @@ export function civOf(world: World, id: EntityId | undefined): Civilization | un
 
 export function settlementOf(world: World, id: EntityId | undefined): Settlement | undefined {
   return id && kindOf(id) === 'set' ? (world.byId.get(id) as Settlement) : undefined;
+}
+
+export function tradeRouteOf(world: World, id: EntityId | undefined): TradeRoute | undefined {
+  return id && kindOf(id) === 'rte' ? (world.byId.get(id) as TradeRoute) : undefined;
+}
+
+/** Every historical route touching one settlement, in founding order. */
+export function tradeRoutesOf(world: World, settlementId: EntityId): TradeRoute[] {
+  return world.export.tradeRoutes.filter(
+    (route) => route.settlementAId === settlementId || route.settlementBId === settlementId,
+  );
 }
 
 export function figureOf(world: World, id: EntityId | undefined): Figure | undefined {

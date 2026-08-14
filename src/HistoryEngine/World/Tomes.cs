@@ -240,14 +240,13 @@ public static class Tomes
                     && source.ReligionId == contents.SubjectId
                     && destination.ReligionId == contents.SubjectId
                     && distance <= Diplomacy.ContactRange * 1.5;
-                bool tradeRoute = (IsBookHub(source) || IsBookHub(destination))
-                    && distance <= Diplomacy.ContactRange;
+                TradeRoute? tradeRoute = TradeRoutes.Between(world, source.Id, destination.Id);
 
-                if (!sameRealm && !faithRoute && !tradeRoute) continue;
+                if (!sameRealm && !faithRoute && tradeRoute is null) continue;
 
                 double score = (sameRealm ? 4.0 : 0.0)
                     + (faithRoute ? 3.0 : 0.0)
-                    + (tradeRoute ? 2.0 : 0.0)
+                    + (tradeRoute is not null ? 1.0 + tradeRoute.Traffic : 0.0)
                     + (destination.Tier == SettlementTier.City ? 0.7 : 0.0)
                     + (destination.IsCapital ? 0.4 : 0.0)
                     + (IsBookHub(destination) ? 0.5 : 0.0)

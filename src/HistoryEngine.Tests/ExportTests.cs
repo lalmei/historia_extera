@@ -123,6 +123,7 @@ public sealed class ExportTests
             EntityKind.Figure => export.Figures.Count,
             EntityKind.Dynasty => export.Dynasties.Count,
             EntityKind.Region => export.Regions.Count,
+            EntityKind.TradeRoute => export.TradeRoutes.Count,
             _ => -1,
         };
 
