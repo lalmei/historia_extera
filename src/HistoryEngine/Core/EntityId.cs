@@ -38,6 +38,8 @@ public readonly record struct EntityId(EntityKind Kind, int Index) : IComparable
 
     public static EntityId TradeRoute(int i) => new(EntityKind.TradeRoute, i);
 
+    public static EntityId HolySite(int i) => new(EntityKind.HolySite, i);
+
     public override string ToString() =>
         IsNone ? "none" : Kind.Prefix() + ":" + Index.ToString(CultureInfo.InvariantCulture);
 

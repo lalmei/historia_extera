@@ -19,12 +19,14 @@ import {
   type Culture,
   type Dynasty,
   type Figure,
+  type HolySite,
   type Region,
   type Religion,
 } from '../types';
 import {
   ArtifactTable,
   BattleTable,
+  HolySiteTable,
   SettlementTable,
   TradeRouteTable,
   WarTable,
@@ -298,6 +300,31 @@ export function ReligionList({ world }: { world: World }) {
           initialSort={{ key: 'peak', descending: true }}
           emptyMessage="No faith was ever preached in this world."
         />
+      </Panel>
+    </div>
+  );
+}
+
+export function HolySiteList({ world }: { world: World }) {
+  const { holySites } = world.export;
+  const independent = holySites.filter((site) => site.settlementId === undefined);
+
+  return (
+    <div className="space-y-5">
+      <PageTitle eyebrow="Index" title="Holy sites" />
+
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <Stat label="Holy sites" value={holySites.length} hint="Ever established" />
+        <Stat label="Independent" value={independent.length} hint="Outside settlements" />
+        <Stat label="In settlements" value={holySites.length - independent.length} />
+        <Stat
+          label="Faiths represented"
+          value={new Set(holySites.map((site: HolySite) => site.religionId)).size}
+        />
+      </div>
+
+      <Panel>
+        <HolySiteTable world={world} sites={holySites} />
       </Panel>
     </div>
   );

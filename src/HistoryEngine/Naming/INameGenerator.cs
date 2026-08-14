@@ -64,6 +64,9 @@ public interface INameGenerator
     /// </remarks>
     string ForReligion(EntityId id, Culture culture);
 
+    /// <summary>The proper place-name used in a holy site's composed title.</summary>
+    string ForHolySite(EntityId id, Culture culture);
+
     /// <summary>
     /// A geographic name.
     /// </summary>
@@ -99,6 +102,8 @@ public sealed class PlaceholderNameGenerator : INameGenerator
     public string ForDynasty(EntityId id, Culture culture) => Label("House", id);
 
     public string ForReligion(EntityId id, Culture culture) => Label("Faith", id);
+
+    public string ForHolySite(EntityId id, Culture culture) => Label("Holy Site", id);
 
     public string ForRegion(EntityId id, Biome biome) =>
         biome.ToString() + " " + id.Index.ToString(CultureInfo.InvariantCulture);

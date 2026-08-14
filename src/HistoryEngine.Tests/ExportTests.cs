@@ -124,6 +124,11 @@ public sealed class ExportTests
             EntityKind.Dynasty => export.Dynasties.Count,
             EntityKind.Region => export.Regions.Count,
             EntityKind.TradeRoute => export.TradeRoutes.Count,
+            EntityKind.Religion => export.Religions.Count,
+            EntityKind.Artifact => export.Artifacts.Count,
+            EntityKind.War => export.Wars.Count,
+            EntityKind.Battle => export.Battles.Count,
+            EntityKind.HolySite => export.HolySites.Count,
             _ => -1,
         };
 

@@ -195,6 +195,7 @@ internal static class Program
         Console.WriteLine($"  events         {world.Chronicle.Count:N0}");
         Console.WriteLine($"  civilizations  {activeCivs} standing, {fallenCivs} fallen");
         Console.WriteLine($"  settlements    {activeSettlements} active ({cities} cities), {abandoned} abandoned");
+        Console.WriteLine($"  holy sites     {world.HolySites.Count} recorded");
         Console.WriteLine($"  trade routes   {activeRoutes} active, {world.TradeRoutes.Count} recorded");
         Console.WriteLine($"  figures        {world.Figures.Count} recorded, {living} living");
         Console.WriteLine($"  houses         {standingHouses} standing, {extinctHouses} died out");

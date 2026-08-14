@@ -129,6 +129,16 @@ public sealed class MarkovNameGenerator : INameGenerator
         });
 
     /// <summary>
+    /// The place-name in "Temple of Kireth" or "Monastery of Bergajarvi".
+    /// </summary>
+    public string ForHolySite(EntityId id, Culture culture) =>
+        Memoise(id, () =>
+        {
+            NamingLanguage language = LanguageOf(culture);
+            return language.Place(StreamFor(language.Seed, "holy-site", id));
+        });
+
+    /// <summary>
     /// The stream one name is drawn from: language seed, purpose, and entity id.
     /// </summary>
     /// <remarks>

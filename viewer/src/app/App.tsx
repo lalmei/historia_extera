@@ -9,6 +9,7 @@ import {
   type Culture,
   type Dynasty,
   type Figure,
+  type HolySite,
   type Region,
   type Religion,
   type Settlement,
@@ -22,6 +23,7 @@ import {
   CulturePage,
   DynastyPage,
   FigurePage,
+  HolySitePage,
   RegionPage,
   ReligionPage,
   SettlementPage,
@@ -34,6 +36,7 @@ import {
   CultureList,
   DynastyList,
   FigureList,
+  HolySiteList,
   Overview,
   RegionList,
   ReligionList,
@@ -72,6 +75,7 @@ const NAV = [
   { path: '/dyn', label: 'Houses' },
   { path: '/fig', label: 'Figures' },
   { path: '/rel', label: 'Faiths' },
+  { path: '/hol', label: 'Holy sites' },
   { path: '/art', label: 'Artifacts' },
   { path: '/cul', label: 'Cultures' },
   { path: '/reg', label: 'Regions' },
@@ -133,6 +137,8 @@ function renderRoute(world: World, path: string) {
       return <FigureList world={world} />;
     case 'rel':
       return <ReligionList world={world} />;
+    case 'hol':
+      return <HolySiteList world={world} />;
     case 'art':
       return <ArtifactList world={world} />;
     case 'cul':
@@ -169,6 +175,8 @@ function renderRoute(world: World, path: string) {
       return <BattlePage world={world} battle={entity as Battle} />;
     case 'rel':
       return <ReligionPage world={world} religion={entity as Religion} />;
+    case 'hol':
+      return <HolySitePage world={world} site={entity as HolySite} />;
     case 'art':
       return <ArtifactPage world={world} artifact={entity as Artifact} />;
     default:

@@ -28,6 +28,7 @@ import {
   ARTIFACT_LABELS,
   CAUSE_LABELS,
   DEATH_LABELS,
+  HOLY_SITE_LABELS,
   KIND_LABELS,
   OUTCOME_LABELS,
   SPECIALIZATION_LABELS,
@@ -42,6 +43,7 @@ import {
   type Dynasty,
   type EntityId,
   type Figure,
+  type HolySite,
   type Region,
   type Relation,
   type Religion,
@@ -180,6 +182,7 @@ export function SettlementPage({ world, settlement }: { world: World; settlement
   const region = regionOf(world, settlement.regionId);
   const treasures = treasuresOf(world, settlement.id);
   const routes = tradeRoutesOf(world, settlement.id);
+  const holySites = world.export.holySites.filter((site) => site.settlementId === settlement.id);
 
   return (
     <div className="space-y-5">
@@ -279,6 +282,12 @@ export function SettlementPage({ world, settlement }: { world: World; settlement
       {routes.length > 0 && (
         <Panel title={`Trade routes (${routes.length})`}>
           <TradeRouteTable world={world} routes={routes} />
+        </Panel>
+      )}
+
+      {holySites.length > 0 && (
+        <Panel title={`Holy sites (${holySites.length})`}>
+          <HolySiteTable world={world} sites={holySites} />
         </Panel>
       )}
 
@@ -765,6 +774,7 @@ function MemberTable({ world, members }: { world: World; members: Figure[] }) {
 
 export function RegionPage({ world, region }: { world: World; region: Region }) {
   const settlements = world.export.settlements.filter((s) => s.regionId === region.id);
+  const holySites = world.export.holySites.filter((site) => site.regionId === region.id);
 
   return (
     <div className="space-y-5">
@@ -807,6 +817,12 @@ export function RegionPage({ world, region }: { world: World; region: Region }) 
       {settlements.length > 0 && (
         <Panel title="Settlements">
           <SettlementTable world={world} settlements={settlements} />
+        </Panel>
+      )}
+
+      {holySites.length > 0 && (
+        <Panel title="Holy sites">
+          <HolySiteTable world={world} sites={holySites} />
         </Panel>
       )}
 
@@ -950,6 +966,7 @@ export function ReligionPage({ world, religion }: { world: World; religion: Reli
 
   const offshoots = world.export.religions.filter((r) => r.parentId === religion.id);
   const relics = world.export.artifacts.filter((a) => a.religionId === religion.id);
+  const holySites = world.export.holySites.filter((site) => site.religionId === religion.id);
 
   return (
     <div className="space-y-5">
@@ -1017,6 +1034,12 @@ export function ReligionPage({ world, religion }: { world: World; religion: Reli
         </Panel>
       )}
 
+      {holySites.length > 0 && (
+        <Panel title={`Holy sites (${holySites.length})`}>
+          <HolySiteTable world={world} sites={holySites} />
+        </Panel>
+      )}
+
       {following.length > 0 && (
         <Panel title={`Settlements (${following.length})`}>
           <SettlementTable world={world} settlements={following} />
@@ -1025,6 +1048,54 @@ export function ReligionPage({ world, religion }: { world: World; religion: Reli
 
       <Panel title="Chronicle">
         <EventList world={world} events={world.eventsFor(religion.id)} />
+      </Panel>
+    </div>
+  );
+}
+
+/** A temple, church or sanctuary, including independent locations beyond settlement walls. */
+export function HolySitePage({ world, site }: { world: World; site: HolySite }) {
+  return (
+    <div className="space-y-5">
+      <PageTitle
+        eyebrow={`Holy site · ${HOLY_SITE_LABELS[site.kind]}`}
+        title={site.name}
+        meta={
+          <Badge tone={site.settlementId ? 'accent' : 'muted'}>
+            {site.settlementId ? 'Within a settlement' : 'Independent location'}
+          </Badge>
+        }
+      />
+
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <Stat label="Kind" value={HOLY_SITE_LABELS[site.kind]} />
+        <Stat label="Founded" value={site.foundedYear} />
+        <Stat label="Position" value={`${site.x}, ${site.z}`} />
+        <Stat label="Setting" value={site.settlementId ? 'Settlement' : 'Open country'} />
+      </div>
+
+      <Panel title="Details">
+        <dl>
+          <Field label="Faith">
+            <EntityLink world={world} id={site.religionId} />
+          </Field>
+          <Field label="Region">
+            <EntityLink world={world} id={site.regionId} />
+          </Field>
+          <Field label="Location">
+            {site.settlementId ? (
+              <EntityLink world={world} id={site.settlementId} />
+            ) : (
+              <span className="text-[var(--ink-faint)]">
+                A distinct site outside any settlement
+              </span>
+            )}
+          </Field>
+        </dl>
+      </Panel>
+
+      <Panel title="Chronicle">
+        <EventList world={world} events={world.eventsFor(site.id)} />
       </Panel>
     </div>
   );
@@ -1490,6 +1561,84 @@ function ValueBars({ culture }: { culture: Culture }) {
         </div>
       ))}
     </dl>
+  );
+}
+
+export function HolySiteTable({ world, sites }: { world: World; sites: HolySite[] }) {
+  const columns: Column<HolySite>[] = [
+    {
+      key: 'name',
+      header: 'Name',
+      cell: (site) => <EntityLink world={world} id={site.id} />,
+      sort: (site) => site.name,
+    },
+    {
+      key: 'kind',
+      header: 'Kind',
+      cell: (site) => HOLY_SITE_LABELS[site.kind],
+      sort: (site) => site.kind,
+    },
+    {
+      key: 'faith',
+      header: 'Faith',
+      cell: (site) => <EntityLink world={world} id={site.religionId} />,
+      sort: (site) => world.nameOf(site.religionId),
+    },
+    {
+      key: 'location',
+      header: 'Location',
+      cell: (site) =>
+        site.settlementId ? (
+          <EntityLink world={world} id={site.settlementId} />
+        ) : (
+          <span>
+            <EntityLink world={world} id={site.regionId} />
+            <Badge tone="muted">independent</Badge>
+          </span>
+        ),
+      sort: (site) => world.nameOf(site.settlementId ?? site.regionId),
+    },
+    {
+      key: 'founded',
+      header: 'Founded',
+      cell: (site) => site.foundedYear,
+      sort: (site) => site.foundedYear,
+      align: 'right',
+    },
+  ];
+
+  const facets: Facet<HolySite>[] = [
+    {
+      key: 'setting',
+      label: 'Setting',
+      options: [
+        { value: 'settlement', label: 'Within settlements', match: (site) => site.settlementId !== undefined },
+        { value: 'independent', label: 'Independent sites', match: (site) => site.settlementId === undefined },
+      ],
+    },
+    {
+      key: 'kind',
+      label: 'Kind',
+      options: present(sites.map((site) => site.kind)).map((kind) => ({
+        value: kind,
+        label: HOLY_SITE_LABELS[kind],
+        match: (site: HolySite) => site.kind === kind,
+      })),
+    },
+  ];
+
+  return (
+    <DataTable
+      rows={sites}
+      columns={columns}
+      facets={facets}
+      searchText={(site) =>
+        `${site.name} ${site.kind} ${world.nameOf(site.religionId)} ${world.nameOf(site.settlementId ?? site.regionId)}`
+      }
+      placeholder="Search holy sites…"
+      initialSort={{ key: 'founded', descending: false }}
+      emptyMessage="No holy site was established here."
+    />
   );
 }
 

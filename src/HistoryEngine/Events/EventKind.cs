@@ -71,6 +71,7 @@ public enum EventKind
     ReligionSchism = 602,
     ReligionFaded = 603,
     StateFaithChanged = 604,
+    HolySiteFounded = 605,
 
     // ---- Artifacts (620) ----
     ArtifactCreated = 620,

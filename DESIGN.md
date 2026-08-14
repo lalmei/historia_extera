@@ -901,6 +901,15 @@ somewhere to start. A realm's own faith is derived — whatever its capital foll
 which means a realm can change religion having converted nobody, by losing the capital it
 had. Six such changes on seed 42.
 
+**Faith now leaves architecture and geography behind.** Every new faith establishes a holy
+site, and established congregations sometimes raise another as they convert. A temple, church or
+shrine inside a town shares its settlement coordinate; a monastery or sanctuary beyond the walls
+is a first-class location with its own exact coordinate in the surrounding region. The distinction
+matters because an independent pilgrimage site is not a settlement — it has no invented population
+or owner — while both kinds remain on the map after the faith fades or the nearest town empties.
+Remote sites reuse the exact terrain grid refined when their nearby settlement was founded, so
+religious geography does not introduce a per-year terrain-sampling cost.
+
 **Plagues had to be bounded, and finding out how was the milestone's real work.** The
 first cut spread along distance and traffic with no other term, and produced five
 pandemics in three centuries that each reached *every inhabited settlement in the world*:
