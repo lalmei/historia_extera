@@ -36,6 +36,7 @@ public sealed record WorldExport(
     IReadOnlyList<ExportWar> Wars,
     IReadOnlyList<ExportBattle> Battles,
     IReadOnlyList<ExportReligion> Religions,
+    IReadOnlyList<ExportHolySite> HolySites,
     IReadOnlyList<ExportArtifact> Artifacts,
     IReadOnlyList<ExportEvent> Events,
     ExportIndices Indices,
@@ -50,9 +51,9 @@ public sealed record WorldExport(
     /// two-element parent list with named mother and father. Version 3 added wars and battles,
     /// and the relations, alliances and truces on a civilization. Version 5 added the particular
     /// relic and the two faiths named by the new religious causes of war. Version 6 added
-    /// persistent trade routes.
+    /// persistent trade routes. Version 7 added holy sites as independent map entities.
     /// </remarks>
-    public const int CurrentSchemaVersion = 6;
+    public const int CurrentSchemaVersion = 7;
 }
 
 public sealed record ExportMeta(
@@ -349,6 +350,21 @@ public sealed record ExportReligion(
     double Fervour,
     int PeakSettlements,
     IReadOnlyList<EntityId> SettlementIds);
+
+/// <summary>
+/// A house of worship or sacred place. <see cref="SettlementId"/> is present when it stands
+/// within a settlement; otherwise its own coordinate is the location.
+/// </summary>
+public sealed record ExportHolySite(
+    EntityId Id,
+    string Name,
+    HolySiteKind Kind,
+    EntityId ReligionId,
+    EntityId RegionId,
+    EntityId? SettlementId,
+    int X,
+    int Z,
+    int FoundedYear);
 
 /// <summary>
 /// A made thing, and everywhere it has been.

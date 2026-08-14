@@ -7,7 +7,7 @@
  * stops moving.
  */
 
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
 
 /** `"civ:3"`, `"fig:1204"` — readable, greppable, and directly usable as a route. */
 export type EntityId = string;
@@ -23,7 +23,8 @@ export type EntityKind =
   | 'reg'
   | 'art'
   | 'rel'
-  | 'rte';
+  | 'rte'
+  | 'hol';
 
 export interface WorldExport {
   schemaVersion: number;
@@ -39,6 +40,7 @@ export interface WorldExport {
   wars: War[];
   battles: Battle[];
   religions: Religion[];
+  holySites: HolySite[];
   artifacts: Artifact[];
   events: HistoryEvent[];
   indices: ExportIndices;
@@ -368,6 +370,30 @@ export interface Religion {
   settlementIds: EntityId[];
 }
 
+export type HolySiteKind = 'Shrine' | 'Temple' | 'Church' | 'Monastery' | 'Sanctuary';
+
+export const HOLY_SITE_LABELS: Record<HolySiteKind, string> = {
+  Shrine: 'Shrine',
+  Temple: 'Temple',
+  Church: 'Church',
+  Monastery: 'Monastery',
+  Sanctuary: 'Sanctuary',
+};
+
+/** A place of worship, either within a settlement or at an independent map coordinate. */
+export interface HolySite {
+  id: EntityId;
+  name: string;
+  kind: HolySiteKind;
+  religionId: EntityId;
+  regionId: EntityId;
+  /** Present only when the site stands inside this settlement. */
+  settlementId?: EntityId;
+  x: number;
+  z: number;
+  foundedYear: number;
+}
+
 export type ArtifactKind = 'Regalia' | 'Weapon' | 'Relic' | 'Tome' | 'Idol' | 'Jewel';
 
 export const ARTIFACT_LABELS: Record<ArtifactKind, string> = {
@@ -635,6 +661,7 @@ export type AnyEntity =
   | War
   | Battle
   | Religion
+  | HolySite
   | Artifact
   | TradeRoute;
 
@@ -654,4 +681,5 @@ export const KIND_LABELS: Record<string, string> = {
   art: 'Artifact',
   rel: 'Religion',
   rte: 'Trade route',
+  hol: 'Holy site',
 };

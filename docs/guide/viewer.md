@@ -48,7 +48,7 @@ Via Make: `make build` (also builds the .NET solution), `make preview`.
 ## What it shows
 
 Hash-based routing, one page per entity, and every reference is a link — realm → house
-→ ruler → war → battle → city → trade route → region → faith → artifact.
+→ ruler → war → battle → city → trade route → region → faith → holy site → artifact.
 
 The **map** is a terrain canvas with vector overlays, drawn for a selected year rather
 than only as the world ended. The slider plays: borders move, towns appear and grow,
@@ -57,6 +57,9 @@ faith, which are two political maps of the same world and disagree in the intere
 places. Territory is one shape per realm with an outline only where it meets somebody
 else. Trade routes are a separate time-aware overlay: their straight lines show logical
 connections and are not presented as physical roads.
+Independent holy sites appear as diamond markers and can be toggled separately; houses of worship
+inside settlements are listed on their settlement and faith pages to avoid hiding the settlement
+marker at the same coordinate.
 
 Changing political state before the final year is **replayed from the chronicle** — the export
 carries only final ownership, and `TerritoryTests` in the engine is what guarantees the replay
@@ -68,7 +71,7 @@ their own, so narrowing to cities tells you how many are known for mining.
 
 ## Schema
 
-The viewer pins the export's `schemaVersion` (**6**) and refuses a file it does not
+The viewer pins the export's `schemaVersion` (**7**) and refuses a file it does not
 understand rather than misrendering it. Regenerate the world with the matching engine if
 it complains.
 

@@ -191,6 +191,48 @@ public sealed class FlavourTests
     }
 
     /// <summary>
+    /// Faith leaves places on the map: ordinary houses of worship inside settlements and rarer
+    /// sanctuaries with coordinates of their own.
+    /// </summary>
+    [Fact]
+    public void HolySitesCanStandWithinSettlementsOrOnTheirOwn()
+    {
+        HistoryRun run = HistoryRun.Execute(TestWorlds.Standard());
+        WorldState world = run.World;
+
+        Assert.NotEmpty(world.HolySites);
+        Assert.Contains(world.HolySites, site => site.IsWithinSettlement);
+        Assert.Contains(world.HolySites, site => !site.IsWithinSettlement);
+
+        foreach (Religion faith in world.Religions)
+        {
+            Assert.Contains(world.HolySites, site => site.ReligionId == faith.Id);
+        }
+
+        foreach (HolySite site in world.HolySites)
+        {
+            Assert.True(world.Religions.Contains(site.ReligionId));
+            Assert.True(world.Regions.Contains(site.RegionId));
+
+            Region region = world.Regions[site.RegionId];
+            Assert.True(
+                region.Bounds.Contains(site.X, site.Z),
+                $"{site.Name} stands at {site.X}, {site.Z}, outside {region.Id}.");
+
+            if (site.IsWithinSettlement)
+            {
+                Settlement settlement = world.Settlements[site.SettlementId];
+                Assert.Equal(settlement.RegionId, site.RegionId);
+                Assert.Equal((settlement.X, settlement.Z), (site.X, site.Z));
+            }
+        }
+
+        Assert.Equal(
+            world.HolySites.Count,
+            Of(run, EventKind.HolySiteFounded).Count);
+    }
+
+    /// <summary>
     /// An artifact is where its provenance says it is.
     /// </summary>
     /// <remarks>
@@ -601,6 +643,8 @@ public sealed class FlavourTests
             && world.Religions[id].FoundedYear <= year,
         EntityKind.TradeRoute => world.TradeRoutes.Contains(id)
             && world.TradeRoutes[id].FoundedYear <= year,
+        EntityKind.HolySite => world.HolySites.Contains(id)
+            && world.HolySites[id].FoundedYear <= year,
         _ => false,
     };
 }

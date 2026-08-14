@@ -47,6 +47,19 @@ applied before its mortality — the other order lets a town regrow inside the t
 emptied it. They precede the lifecycle so a settlement gutted this year is judged this
 year, which is what lets a plague finish a place.
 
+## Holy sites
+
+`HolySite` represents temples, churches, shrines, monasteries and sanctuaries raised by a
+congregation. A site within a settlement carries that settlement id and shares its coordinate. An
+independent site carries no settlement id and has a permanent coordinate of its own within the
+region. In either case it points to the faith for which it was founded and remains in the entity
+table if that faith is forgotten.
+
+The religion system creates one site with every faith and may create more when settlements adopt
+it. Independent locations are selected from the exact four-per-axis terrain refinement already
+used to site the settlement, keeping terrain work tied to founding decisions rather than yearly
+ticks.
+
 ## Trade routes and future roads
 
 `TradeRoute` is a persistent, undirected connection between two settlements. It records its

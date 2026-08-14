@@ -10,6 +10,7 @@ import {
   type Biome,
   type Civilization,
   type EntityId,
+  type HolySite,
   type Region,
 } from '../types';
 
@@ -66,6 +67,7 @@ const BIOME_COLOURS: Record<Biome, [number, number, number]> = {
 
 type Hover =
   | { kind: 'settlement'; standing: Standing }
+  | { kind: 'holy-site'; site: HolySite }
   | { kind: 'region'; region: Region; owner?: EntityId };
 
 export function WorldMap({ world }: { world: World }) {
@@ -80,6 +82,7 @@ export function WorldMap({ world }: { world: World }) {
   const [showRivers, setShowRivers] = useState(true);
   const [showTradeRoutes, setShowTradeRoutes] = useState(true);
   const [showSettlements, setShowSettlements] = useState(true);
+  const [showHolySites, setShowHolySites] = useState(true);
   const [showTerritory, setShowTerritory] = useState(true);
   const [year, setYear] = useState(endYear);
   const [playing, setPlaying] = useState(false);
@@ -102,6 +105,10 @@ export function WorldMap({ world }: { world: World }) {
   const owners = useMemo(() => timeline.ownersAt(year), [timeline, year]);
   const realms = useMemo(() => buildRealms(grid, owners, order), [grid, owners, order]);
   const standing = useMemo(() => timeline.settlementsAt(year), [timeline, year]);
+  const independentHolySites = useMemo(
+    () => data.holySites.filter((site) => !site.settlementId && site.foundedYear <= year),
+    [data.holySites, year],
+  );
 
   const tradeRoutes = useMemo(
     () =>
@@ -262,6 +269,26 @@ export function WorldMap({ world }: { world: World }) {
     const x = ((event.clientX - box.left) / box.width) * 100;
     const y = ((event.clientY - box.top) / box.height) * 100;
 
+    if (showHolySites) {
+      let nearest: HolySite | null = null;
+      let best = 1.5 * 1.5;
+
+      for (const site of independentHolySites) {
+        const dx = toWorld(site.x, 'x') - x;
+        const dy = toWorld(site.z, 'z') - y;
+        const distance = dx * dx + dy * dy;
+        if (distance < best) {
+          best = distance;
+          nearest = site;
+        }
+      }
+
+      if (nearest) {
+        setHovered({ kind: 'holy-site', site: nearest });
+        return;
+      }
+    }
+
     if (showSettlements) {
       let nearest: Standing | null = null;
       let best = 1.6 * 1.6;
@@ -294,6 +321,11 @@ export function WorldMap({ world }: { world: World }) {
       return;
     }
 
+    if (hovered.kind === 'holy-site') {
+      navigate(`/${hovered.site.id}`);
+      return;
+    }
+
     // Clicking bare ground focuses whoever holds it, and clicking the sea clears the focus —
     // which is the gesture people try first and otherwise does nothing at all.
     setFocus(hovered.owner && hovered.owner !== focus ? hovered.owner : null);
@@ -318,6 +350,7 @@ export function WorldMap({ world }: { world: World }) {
               settlements
             </Badge>
             <Badge>{tradeRoutes.length} trade routes</Badge>
+            <Badge>{independentHolySites.length} independent holy sites</Badge>
           </>
         }
       />
@@ -346,6 +379,7 @@ export function WorldMap({ world }: { world: World }) {
             <Toggle label="Rivers" on={showRivers} onChange={setShowRivers} />
             <Toggle label="Trade" on={showTradeRoutes} onChange={setShowTradeRoutes} />
             <Toggle label="Settlements" on={showSettlements} onChange={setShowSettlements} />
+            <Toggle label="Holy sites" on={showHolySites} onChange={setShowHolySites} />
             <Toggle label="Territory" on={showTerritory} onChange={setShowTerritory} />
           </div>
         }
@@ -462,6 +496,27 @@ export function WorldMap({ world }: { world: World }) {
                 />
               ))}
 
+            {showHolySites &&
+              independentHolySites.map((site) => {
+                const x = toWorld(site.x, 'x');
+                const y = toWorld(site.z, 'z');
+                return (
+                  <rect
+                    key={site.id}
+                    x={x - 0.48}
+                    y={y - 0.48}
+                    width={0.96}
+                    height={0.96}
+                    rx={0.1}
+                    fill={faithColours.get(site.religionId) ?? 'rgb(238 204 112)'}
+                    stroke="rgba(12,12,12,0.85)"
+                    strokeWidth={0.18}
+                    transform={`rotate(45 ${x} ${y})`}
+                    className="pointer-events-none"
+                  />
+                );
+              })}
+
             {/* Battles fought this year. Only ever a handful, and they are the reason to
                 scrub to a particular year at all. */}
             {battles.map((battle) => (
@@ -495,6 +550,13 @@ export function WorldMap({ world }: { world: World }) {
                     {hovered.standing.tier} · {world.nameOf(hovered.standing.civilizationId)}
                     {hovered.standing.religionId &&
                       ` · ${world.nameOf(hovered.standing.religionId)}`}
+                  </div>
+                </>
+              ) : hovered.kind === 'holy-site' ? (
+                <>
+                  <div className="font-serif text-sm">{hovered.site.name}</div>
+                  <div className="text-[var(--ink-faint)]">
+                    {hovered.site.kind} · {world.nameOf(hovered.site.religionId)} · independent site
                   </div>
                 </>
               ) : (

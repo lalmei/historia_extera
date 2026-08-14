@@ -44,6 +44,7 @@ public sealed class WorldState
         Religions = new EntityTable<Religion>(EntityKind.Religion);
         Artifacts = new EntityTable<Artifact>(EntityKind.Artifact);
         TradeRoutes = new EntityTable<TradeRoute>(EntityKind.TradeRoute);
+        HolySites = new EntityTable<HolySite>(EntityKind.HolySite);
 
         Chronicle = new Chronicle();
         Harvest = new HarvestModel(config.Seed);
@@ -110,6 +111,9 @@ public sealed class WorldState
     /// <summary>Every commercial connection ever established, including closed routes.</summary>
     public EntityTable<TradeRoute> TradeRoutes { get; }
 
+    /// <summary>Every house of worship and independent sacred place ever established.</summary>
+    public EntityTable<HolySite> HolySites { get; }
+
     /// <summary>
     /// Epidemics currently running.
     /// </summary>
@@ -166,6 +170,7 @@ public sealed class WorldState
         EntityKind.Artifact when Artifacts.Contains(id) => Artifacts[id].Name,
         EntityKind.TradeRoute when TradeRoutes.Contains(id) =>
             $"{NameOf(TradeRoutes[id].SettlementAId)}–{NameOf(TradeRoutes[id].SettlementBId)} route",
+        EntityKind.HolySite when HolySites.Contains(id) => HolySites[id].Name,
         _ => id.ToString(),
     };
 

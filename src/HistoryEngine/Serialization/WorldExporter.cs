@@ -66,6 +66,7 @@ public static class WorldExporter
             Wars: BuildWars(world),
             Battles: BuildBattles(world),
             Religions: BuildReligions(world),
+            HolySites: BuildHolySites(world),
             Artifacts: BuildArtifacts(world),
             Events: events,
             Indices: BuildIndices(world, events),
@@ -440,6 +441,27 @@ public static class WorldExporter
                 Fervour: religion.Fervour,
                 PeakSettlements: religion.PeakSettlements,
                 SettlementIds: religion.SettlementIds.ToArray()));
+        }
+
+        return list;
+    }
+
+    private static List<ExportHolySite> BuildHolySites(WorldState world)
+    {
+        var list = new List<ExportHolySite>(world.HolySites.Count);
+
+        foreach (HolySite site in world.HolySites)
+        {
+            list.Add(new ExportHolySite(
+                Id: site.Id,
+                Name: site.Name,
+                Kind: site.Kind,
+                ReligionId: site.ReligionId,
+                RegionId: site.RegionId,
+                SettlementId: OrNull(site.SettlementId),
+                X: site.X,
+                Z: site.Z,
+                FoundedYear: site.FoundedYear));
         }
 
         return list;

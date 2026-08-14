@@ -12,6 +12,7 @@ import {
   type EntityId,
   type Figure,
   type HistoryEvent,
+  type HolySite,
   type Region,
   type Religion,
   type Artifact,
@@ -95,6 +96,7 @@ export function buildWorld(data: WorldExport): World {
     data.wars,
     data.battles,
     data.religions,
+    data.holySites,
     data.artifacts,
   ] as AnyEntity[][]) {
     for (const entity of collection) byId.set(entity.id, entity);
@@ -226,6 +228,10 @@ export function battlesOf(world: World, war: War): Battle[] {
 
 export function religionOf(world: World, id: EntityId | undefined): Religion | undefined {
   return id && kindOf(id) === 'rel' ? (world.byId.get(id) as Religion) : undefined;
+}
+
+export function holySiteOf(world: World, id: EntityId | undefined): HolySite | undefined {
+  return id && kindOf(id) === 'hol' ? (world.byId.get(id) as HolySite) : undefined;
 }
 
 export function artifactOf(world: World, id: EntityId | undefined): Artifact | undefined {

@@ -109,6 +109,8 @@ public static class Narration
             "The {subject} passed out of memory[, {data:years} after it was first preached].");
         Set(EventKind.StateFaithChanged,
             "{subject} took the {object} for its own[, under {data:ruler}].");
+        Set(EventKind.HolySiteFounded,
+            "{subject} was established for the {object}[ at {location}].");
 
         Set(EventKind.ArtifactCreated,
             "{subject}, {data:kind}, was made[ at {location}][ for {object}].");

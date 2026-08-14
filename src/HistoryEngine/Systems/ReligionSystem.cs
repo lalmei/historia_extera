@@ -1,6 +1,7 @@
 using HistoryEngine.Core;
 using HistoryEngine.Entities;
 using HistoryEngine.Events;
+using HistoryEngine.Terrain;
 using HistoryEngine.World;
 
 namespace HistoryEngine.Systems;
@@ -128,7 +129,7 @@ public sealed class ReligionSystem : IYearSystem
 
                 if (!rng.Chance(DetMath.Clamp01(chance))) continue;
 
-                Adopt(world, settlement, faith, year);
+                Adopt(world, settlement, faith, culture, year, founding: false);
             }
         }
     }
@@ -213,7 +214,13 @@ public sealed class ReligionSystem : IYearSystem
         }
     }
 
-    private static void Adopt(WorldState world, Settlement settlement, Religion faith, int year)
+    private static void Adopt(
+        WorldState world,
+        Settlement settlement,
+        Religion faith,
+        Culture culture,
+        int year,
+        bool founding)
     {
         if (!settlement.ReligionId.IsNone && world.Religions.Contains(settlement.ReligionId))
         {
@@ -230,6 +237,8 @@ public sealed class ReligionSystem : IYearSystem
             settlement.Id,
             obj: faith.Id,
             location: settlement.CivilizationId);
+
+        EstablishHolySite(world, settlement, faith, culture, year, required: founding);
     }
 
     // -----------------------------------------------------------------------
@@ -265,7 +274,7 @@ public sealed class ReligionSystem : IYearSystem
                     obj: founderId,
                     location: settlement.Id);
 
-                Adopt(world, settlement, faith, year);
+                Adopt(world, settlement, faith, culture, year, founding: true);
             }
         }
     }
@@ -309,9 +318,142 @@ public sealed class ReligionSystem : IYearSystem
                 obj: parent.Id,
                 location: settlement.Id);
 
-            Adopt(world, settlement, splinter, year);
+            Adopt(world, settlement, splinter, culture, year, founding: true);
         }
     }
+
+    // -----------------------------------------------------------------------
+    // Sacred places
+    // -----------------------------------------------------------------------
+
+    /// <summary>
+    /// Gives every new faith a birthplace and lets established congregations raise additional
+    /// houses of worship without making one inevitable in every hamlet.
+    /// </summary>
+    private static void EstablishHolySite(
+        WorldState world,
+        Settlement settlement,
+        Religion faith,
+        Culture culture,
+        int year,
+        bool required)
+    {
+        ulong pair = Hash.Combine(
+            (ulong)settlement.Id.ToDiscriminator(),
+            (ulong)faith.Id.ToDiscriminator());
+        IRng own = world.Root.Fork("religion.holy-site", unchecked((long)pair));
+
+        double chance = settlement.Tier switch
+        {
+            SettlementTier.City => 0.72,
+            SettlementTier.Town => 0.52,
+            SettlementTier.Village => 0.32,
+            _ => 0.08,
+        };
+        chance *= 0.55 + culture.Values.Piety;
+
+        if (!required && !own.Chance(DetMath.Clamp01(chance))) return;
+
+        HolySiteKind kind = ChooseHolySiteKind(settlement, own);
+        bool independent = settlement.Specialization == SettlementSpecialization.Shrine
+                           || own.Chance(0.20 + (culture.Values.Piety * 0.22));
+        Point2 position = new(settlement.X, settlement.Z);
+        if (independent)
+        {
+            position = ChooseIndependentSite(world, settlement);
+            independent = position != new Point2(settlement.X, settlement.Z);
+        }
+
+        EntityId id = world.HolySites.NextId;
+        string name = $"{HolySiteKindLabel(kind)} of {world.Names.ForHolySite(id, culture)}";
+
+        var site = new HolySite(
+            id,
+            name,
+            kind,
+            faith.Id,
+            settlement.RegionId,
+            independent ? EntityId.None : settlement.Id,
+            position.X,
+            position.Z,
+            year);
+
+        world.HolySites.Add(site);
+        world.Chronicle.Record(
+            year,
+            EventKind.HolySiteFounded,
+            site.Id,
+            obj: faith.Id,
+            location: site.IsWithinSettlement ? settlement.Id : settlement.RegionId);
+    }
+
+    private static HolySiteKind ChooseHolySiteKind(Settlement settlement, IRng rng)
+    {
+        // A settlement already known for pilgrimage builds the thing its character promises.
+        if (settlement.Specialization == SettlementSpecialization.Shrine)
+        {
+            return HolySiteKind.Shrine;
+        }
+
+        return rng.NextInt(5) switch
+        {
+            0 => HolySiteKind.Shrine,
+            1 => HolySiteKind.Temple,
+            2 => HolySiteKind.Church,
+            3 => HolySiteKind.Monastery,
+            _ => HolySiteKind.Sanctuary,
+        };
+    }
+
+    /// <summary>
+    /// Picks an already-refined land point away from the settlement. Every settlement's region
+    /// was evaluated on this same four-per-axis grid when the settlement was founded, so this
+    /// normally costs no new samples while still giving the permanent location exact terrain.
+    /// </summary>
+    private static Point2 ChooseIndependentSite(WorldState world, Settlement settlement)
+    {
+        Region region = world.Regions[settlement.RegionId];
+        int stride = Math.Max(8, region.Bounds.Width / 4);
+        double minimumDistanceSquared = stride * stride * 0.75;
+
+        Point2 best = new(settlement.X, settlement.Z);
+        double bestScore = double.NegativeInfinity;
+
+        foreach (KeyValuePair<Point2, TerrainSample> candidate
+                 in world.Terrain.RefinedPoints(region.Bounds, stride))
+        {
+            TerrainSample sample = candidate.Value;
+            if (sample.IsSubmerged || sample.Water != WaterKind.None) continue;
+
+            double distanceSquared = DetMath.DistanceSquared(
+                settlement.X, settlement.Z, candidate.Key.X, candidate.Key.Z);
+            if (distanceSquared < minimumDistanceSquared) continue;
+
+            // Sacred places favour visible high ground, but remain close enough to the people
+            // who raised them to be reached as pilgrimage rather than expedition.
+            double distance = DetMath.Sqrt(distanceSquared);
+            double height = DetMath.InverseLerp(0.0, 1800.0, sample.Height);
+            double proximity = DetMath.InverseLerp(region.Bounds.Width * 1.2, stride, distance);
+            double score = (height * 0.6) + (proximity * 0.4);
+
+            if (score > bestScore)
+            {
+                bestScore = score;
+                best = candidate.Key;
+            }
+        }
+
+        return best;
+    }
+
+    private static string HolySiteKindLabel(HolySiteKind kind) => kind switch
+    {
+        HolySiteKind.Shrine => "Shrine",
+        HolySiteKind.Temple => "Temple",
+        HolySiteKind.Church => "Church",
+        HolySiteKind.Monastery => "Monastery",
+        _ => "Sanctuary",
+    };
 
     private static Religion Establish(
         WorldState world,

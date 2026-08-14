@@ -14,6 +14,7 @@ public sealed class EntityIdTests
     [InlineData(EntityKind.Settlement, 0, "set:0")]
     [InlineData(EntityKind.Region, 99, "reg:99")]
     [InlineData(EntityKind.TradeRoute, 12, "rte:12")]
+    [InlineData(EntityKind.HolySite, 4, "hol:4")]
     public void FormatsAndParses(EntityKind kind, int index, string expected)
     {
         var id = new EntityId(kind, index);
