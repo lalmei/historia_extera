@@ -52,7 +52,7 @@ const PARAMS = {
   seed: { fallback: 42, min: 0, max: Number.MAX_SAFE_INTEGER },
   years: { fallback: 300, min: 1, max: 5000 },
   civs: { fallback: 8, min: 1, max: 64 },
-  size: { fallback: 256, min: 256, max: 8192 },
+  size: { fallback: 4096, min: 256, max: 8192 },
 };
 
 /** Lines of CLI output kept per run. Enough for the summary, bounded against a runaway build log. */
