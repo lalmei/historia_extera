@@ -1534,6 +1534,18 @@ export function WarPage({ world, war }: { world: World; war: War }) {
           <Field label="Declared on">
             <EntityLink world={world} id={war.defenderId} />
           </Field>
+          {war.claimedRelicId && (
+            <Field label="Relic sought">
+              <EntityLink world={world} id={war.claimedRelicId} />
+            </Field>
+          )}
+          {war.aggressorReligionId && war.defenderReligionId && (
+            <Field label="Faiths">
+              <EntityLink world={world} id={war.aggressorReligionId} />
+              {' against '}
+              <EntityLink world={world} id={war.defenderReligionId} />
+            </Field>
+          )}
           {war.attackers.length > 1 && (
             <Field label="Attacking">
               <Coalition world={world} ids={war.attackers} />

@@ -123,6 +123,27 @@ public static class Treasures
         }
     }
 
+    /// <summary>Yields the particular relic named in a victorious realm's terms of peace.</summary>
+    public static void Claim(
+        WorldState world, Artifact artifact, Civilization taker, War war, int year)
+    {
+        if (!artifact.IsExtant || artifact.Kind != ArtifactKind.Relic) return;
+        if (taker.CapitalId.IsNone || !world.Settlements.Contains(taker.CapitalId)) return;
+
+        Settlement seat = world.Settlements[taker.CapitalId];
+        if (!seat.IsActive) return;
+
+        artifact.MoveTo(seat.Id, year, "claimed in peace");
+
+        world.Chronicle.Record(
+            year,
+            EventKind.ArtifactClaimed,
+            artifact.Id,
+            obj: taker.Id,
+            location: seat.Id,
+            extra: new[] { war.Id });
+    }
+
     /// <summary>Loses everything a settlement was holding — for a place nobody lives in any more.</summary>
     public static void LoseAll(WorldState world, Settlement settlement, int year, string cause)
     {

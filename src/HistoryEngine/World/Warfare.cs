@@ -110,6 +110,9 @@ public static class Warfare
         Civilization aggressor,
         Civilization defender,
         CasusBelli cause,
+        EntityId claimedRelicId,
+        EntityId aggressorReligionId,
+        EntityId defenderReligionId,
         IReadOnlyList<Region> frontier,
         int year)
     {
@@ -117,10 +120,13 @@ public static class Warfare
 
         var war = new War(
             id,
-            NameWar(world, aggressor, defender, cause, frontier),
+            NameWar(world, aggressor, defender, cause, claimedRelicId, frontier),
             aggressor.Id,
             defender.Id,
             cause,
+            claimedRelicId,
+            aggressorReligionId,
+            defenderReligionId,
             year);
 
         world.Wars.Add(war);
@@ -131,7 +137,8 @@ public static class Warfare
             aggressor.Id,
             obj: defender.Id,
             location: war.Id,
-            data: Chronicle.Data(("cause", CauseLabel(cause))));
+            extra: CauseReferences(claimedRelicId, aggressorReligionId, defenderReligionId),
+            data: Chronicle.Data(("cause", DeclarationCause(world, war))));
 
         return war;
     }
@@ -609,6 +616,13 @@ public static class Warfare
             int spoils = 1 + (int)((Math.Abs(war.Score) - DecisiveScore) / ScorePerExtraRegion);
             spoils = Math.Min(spoils, MaxCededRegions);
 
+            // The aggressor named an object rather than a province. If it prevails, the relic is
+            // the ordinary term of peace; a defender that turns the war around still takes land.
+            if (outcome == WarOutcome.AggressorVictory && war.Cause == CasusBelli.RelicClaim)
+            {
+                spoils = 0;
+            }
+
             foreach (EntityId loserId in losers)
             {
                 Civilization loser = world.Civilizations[loserId];
@@ -621,6 +635,19 @@ public static class Warfare
                 {
                     Realms.Cede(world, region, loser, taker, year, war);
                 }
+            }
+
+            if (outcome == WarOutcome.AggressorVictory
+                && war.Cause == CasusBelli.RelicClaim
+                && !war.ClaimedRelicId.IsNone
+                && world.Artifacts.Contains(war.ClaimedRelicId))
+            {
+                Treasures.Claim(
+                    world,
+                    world.Artifacts[war.ClaimedRelicId],
+                    world.Civilizations[war.AggressorId],
+                    war,
+                    year);
             }
         }
 
@@ -825,11 +852,19 @@ public static class Warfare
         Civilization aggressor,
         Civilization defender,
         CasusBelli cause,
+        EntityId claimedRelicId,
         IReadOnlyList<Region> frontier)
     {
         string subject;
 
-        if (cause == CasusBelli.DynasticClaim && world.Dynasties.Contains(aggressor.RulingDynastyId))
+        if (cause == CasusBelli.RelicClaim
+            && !claimedRelicId.IsNone
+            && world.Artifacts.Contains(claimedRelicId))
+        {
+            subject = world.NameOf(claimedRelicId);
+        }
+        else if (cause == CasusBelli.DynasticClaim
+                 && world.Dynasties.Contains(aggressor.RulingDynastyId))
         {
             subject = "the " + world.Dynasties[aggressor.RulingDynastyId].Name + " Succession";
         }
@@ -934,8 +969,34 @@ public static class Warfare
         CasusBelli.Conquest => "in naked conquest",
         CasusBelli.DynasticClaim => "pressing a claim through marriage",
         CasusBelli.Revanche => "to retake what had been lost",
+        CasusBelli.RelicClaim => "to seize a sacred relic",
+        CasusBelli.ReligiousWar => "in a war of faith",
         _ => "for reasons the record does not give",
     };
+
+    private static string DeclarationCause(WorldState world, War war)
+    {
+        if (war.Cause == CasusBelli.RelicClaim
+            && !war.ClaimedRelicId.IsNone
+            && world.Artifacts.Contains(war.ClaimedRelicId))
+        {
+            return "to claim " + world.NameOf(war.ClaimedRelicId);
+        }
+
+        return CauseLabel(war.Cause);
+    }
+
+    private static EntityId[]? CauseReferences(
+        EntityId claimedRelicId, EntityId aggressorReligionId, EntityId defenderReligionId)
+    {
+        var references = new List<EntityId>(3);
+
+        if (!claimedRelicId.IsNone) references.Add(claimedRelicId);
+        if (!aggressorReligionId.IsNone) references.Add(aggressorReligionId);
+        if (!defenderReligionId.IsNone) references.Add(defenderReligionId);
+
+        return references.Count == 0 ? null : references.ToArray();
+    }
 
     public static string OutcomeLabel(WarOutcome outcome) => outcome switch
     {
