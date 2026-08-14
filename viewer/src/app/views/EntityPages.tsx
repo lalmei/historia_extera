@@ -27,10 +27,13 @@ import {
   ARTIFACT_LABELS,
   CAUSE_LABELS,
   DEATH_LABELS,
+  KIND_LABELS,
   OUTCOME_LABELS,
   SPECIALIZATION_LABELS,
   SUCCESSION_LABELS,
   TIER_ORDER,
+  TOME_CONTENT_LABELS,
+  kindOf,
   type Artifact,
   type Battle,
   type Civilization,
@@ -932,6 +935,19 @@ function FollowingChart({ world, religion }: { world: World; religion: Religion 
  * and every one of them is a link.
  */
 export function ArtifactPage({ world, artifact }: { world: World; artifact: Artifact }) {
+  const copies = artifact.tomeContents?.copies ?? [];
+  const sections = artifact.tomeContents?.sections ?? [];
+  const subjectMarker = artifact.name.indexOf(' of ');
+  const briefSubject =
+    subjectMarker >= 0
+      ? artifact.name.slice(subjectMarker + 4)
+      : world.nameOf(artifact.originSettlementId);
+  const briefSubjectId =
+    artifact.tomeContents?.subjectId ?? uniqueEntityNamed(world, briefSubject);
+  const briefSubjectRole = briefSubjectId
+    ? (KIND_LABELS[kindOf(briefSubjectId)] ?? 'Entity').toLowerCase()
+    : 'named subject';
+
   return (
     <div className="space-y-5">
       <PageTitle
@@ -964,12 +980,93 @@ export function ArtifactPage({ world, artifact }: { world: World; artifact: Arti
               <EntityLink world={world} id={artifact.religionId} />
             </Field>
           )}
+          {artifact.tomeContents && (
+            <>
+              <Field label="Contents">
+                {TOME_CONTENT_LABELS[artifact.tomeContents.kind] ?? artifact.tomeContents.kind}
+              </Field>
+              <Field label="Subject">
+                <EntityLink world={world} id={artifact.tomeContents.subjectId} />
+              </Field>
+              {artifact.tomeContents.contextId && (
+                <Field label="Campaign">
+                  <EntityLink world={world} id={artifact.tomeContents.contextId} />
+                </Field>
+              )}
+              <Field label="Circulation">
+                {(artifact.tomeContents.copyLimit ?? 0) === 0
+                  ? 'Unique manuscript'
+                  : copies.length === 0
+                    ? 'Not yet copied'
+                    : `${copies.length} additional settlement ${copies.length === 1 ? 'copy' : 'copies'}`}
+              </Field>
+            </>
+          )}
           <Field label="Changed hands">
             {artifact.provenance.length - 1}{' '}
             {artifact.provenance.length === 2 ? 'time' : 'times'}
           </Field>
         </dl>
       </Panel>
+
+      {artifact.kind === 'Tome' && (
+        <Panel title="Contents">
+          {sections.length > 0 ? (
+            <div className="space-y-5">
+              {sections.map((section, index) => (
+                <article key={`${section.heading}-${index}`}>
+                  <h3 className="font-serif text-base font-semibold">{section.heading}</h3>
+                  <p className="mt-1 text-sm leading-relaxed text-[var(--ink-soft)]">
+                    {section.text}
+                  </p>
+                  {section.references.length > 0 && (
+                    <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-xs text-[var(--ink-faint)]">
+                      <span className="font-medium tracking-wide uppercase">Mentions</span>
+                      {section.references.map((id) => (
+                        <EntityLink key={id} world={world} id={id} />
+                      ))}
+                    </div>
+                  )}
+                </article>
+              ))}
+            </div>
+          ) : artifact.tomeContents ? (
+            <p className="text-sm leading-relaxed text-[var(--ink-soft)]">
+              A brief written account concerning the {briefSubjectRole}{' '}
+              <EntityLink world={world} id={artifact.tomeContents.subjectId} />.
+            </p>
+          ) : (
+            <p className="text-sm leading-relaxed text-[var(--ink-soft)]">
+              A brief written account concerning the {briefSubjectRole}{' '}
+              {briefSubjectId ? (
+                <>
+                  <EntityLink world={world} id={briefSubjectId} />.
+                </>
+              ) : (
+                <>{briefSubject}.</>
+              )}
+            </p>
+          )}
+        </Panel>
+      )}
+
+      {copies.length > 0 && (
+        <Panel title="Circulation">
+          <ol className="space-y-1.5 text-sm">
+            {copies.map((copy, index) => (
+              <li key={`${copy.year}-${copy.settlementId}-${index}`} className="flex items-baseline gap-3">
+                <span className="w-14 shrink-0 text-right tabular-nums text-[var(--ink-faint)]">
+                  {copy.year}
+                </span>
+                <span>
+                  Copied at <EntityLink world={world} id={copy.settlementId} /> from the exemplar at{' '}
+                  <EntityLink world={world} id={copy.sourceSettlementId} />
+                </span>
+              </li>
+            ))}
+          </ol>
+        </Panel>
+      )}
 
       <Panel title="Provenance">
         <ol className="space-y-1.5 text-sm">
@@ -996,6 +1093,19 @@ export function ArtifactPage({ world, artifact }: { world: World; artifact: Arti
       </Panel>
     </div>
   );
+}
+
+/** Resolve a legacy book's name-derived subject only when the name is unambiguous. */
+function uniqueEntityNamed(world: World, name: string): EntityId | undefined {
+  let found: EntityId | undefined;
+
+  for (const id of world.byId.keys()) {
+    if (world.nameOf(id) !== name) continue;
+    if (found !== undefined) return undefined;
+    found = id;
+  }
+
+  return found;
 }
 
 export function ArtifactTable({ world, artifacts }: { world: World; artifacts: Artifact[] }) {
@@ -1072,7 +1182,11 @@ export function ArtifactTable({ world, artifacts }: { world: World; artifacts: A
       rows={artifacts}
       columns={columns}
       facets={facets}
-      searchText={(a) => `${a.name} ${a.kind}`}
+      searchText={(a) =>
+        `${a.name} ${a.kind} ${a.tomeContents?.kind ?? ''} ${
+          a.tomeContents?.sections.map((s) => s.text).join(' ') ?? ''
+        }`
+      }
       placeholder="Search artifacts…"
       initialSort={{ key: 'made' }}
       emptyMessage="Nothing was made here worth remembering."

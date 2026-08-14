@@ -115,6 +115,8 @@ public static class Narration
         Set(EventKind.ArtifactTaken,
             "{subject} was carried off[ to {location}][ by {object}].");
         Set(EventKind.ArtifactLost, "{subject} was lost[ at {location}][, {data:cause}].");
+        Set(EventKind.ArtifactCopied,
+            "A copy of {subject} was made[ at {location}][ from the exemplar at {object}].");
 
         Set(EventKind.PlagueBegan,
             "The {data:name} broke out in {subject}[, carrying off {data:lost} people].");

@@ -1,3 +1,4 @@
+using System.Globalization;
 using HistoryEngine.Core;
 using HistoryEngine.Entities;
 using HistoryEngine.Events;
@@ -29,6 +30,7 @@ public sealed class FlavourTests
         Assert.NotEmpty(Of(run, EventKind.DisasterStruck));
         Assert.NotEmpty(Of(run, EventKind.ReligionFounded));
         Assert.NotEmpty(Of(run, EventKind.ArtifactCreated));
+        Assert.NotEmpty(Of(run, EventKind.ArtifactCopied));
 
         // Spread is the part worth having. A faith nobody adopts and a plague that never leaves
         // the town it started in are both indistinguishable from the system not existing.
@@ -233,6 +235,280 @@ public sealed class FlavourTests
     }
 
     /// <summary>
+    /// Every written artifact contains only people, places and events that existed when it was made.
+    /// </summary>
+    [Fact]
+    public void TomesContainGroundedContemporaryAccounts()
+    {
+        HistoryRun run = HistoryRun.Execute(TestWorlds.Standard());
+        var tomes = new List<Artifact>();
+
+        foreach (Artifact artifact in run.World.Artifacts)
+        {
+            if (artifact.Kind == ArtifactKind.Tome) tomes.Add(artifact);
+        }
+
+        Assert.NotEmpty(tomes);
+
+        int copiesMade = 0;
+
+        foreach (Artifact artifact in tomes)
+        {
+            TomeContents contents = Assert.IsType<TomeContents>(artifact.TomeContents);
+            Assert.NotEmpty(contents.Sections);
+            Assert.InRange(contents.CopyLimit, 0, 4);
+            Assert.True(contents.Copies.Count <= contents.CopyLimit);
+            Assert.False(contents.SubjectId.IsNone);
+            Assert.True(ExistedBy(run.World, contents.SubjectId, artifact.CreatedYear));
+
+            EntityKind expectedSubject = contents.Kind switch
+            {
+                TomeContentKind.Biography or TomeContentKind.Campaign => EntityKind.Figure,
+                TomeContentKind.ReligiousRite or TomeContentKind.ReligiousTeaching =>
+                    EntityKind.Religion,
+                TomeContentKind.ArtifactHistory => EntityKind.Artifact,
+                _ => EntityKind.Settlement,
+            };
+
+            Assert.Equal(expectedSubject, contents.SubjectId.Kind);
+
+            if (contents.Kind == TomeContentKind.Campaign)
+            {
+                Assert.Equal(EntityKind.War, contents.ContextId.Kind);
+
+                War war = run.World.Wars[contents.ContextId];
+                Assert.Contains(
+                    war.BattleIds,
+                    id => run.World.Battles[id].Year <= artifact.CreatedYear
+                          && (run.World.Battles[id].AttackerCommanderId == contents.SubjectId
+                              || run.World.Battles[id].DefenderCommanderId == contents.SubjectId));
+            }
+            else
+            {
+                Assert.True(contents.ContextId.IsNone);
+            }
+
+            foreach (TomeSection section in contents.Sections)
+            {
+                Assert.False(string.IsNullOrWhiteSpace(section.Heading));
+                Assert.False(string.IsNullOrWhiteSpace(section.Text));
+
+                foreach (EntityId reference in section.References)
+                {
+                    Assert.True(
+                        ExistedBy(run.World, reference, artifact.CreatedYear),
+                        $"{artifact.Name} written in {artifact.CreatedYear} cites future or missing {reference}.");
+                }
+            }
+
+            var destinations = new HashSet<EntityId>();
+            int previousCopyYear = artifact.CreatedYear;
+            foreach (TomeCopy copy in contents.Copies)
+            {
+                copiesMade++;
+                Assert.True(copy.Year > artifact.CreatedYear);
+                Assert.True(copy.Year >= previousCopyYear);
+                Assert.True(destinations.Add(copy.SettlementId));
+                Assert.NotEqual(copy.SourceSettlementId, copy.SettlementId);
+                Assert.True(SettlementWasActive(run.World, copy.SourceSettlementId, copy.Year));
+                Assert.True(SettlementWasActive(run.World, copy.SettlementId, copy.Year));
+
+                bool sourceHadExemplar = OriginalWasHeldAt(
+                    artifact, copy.SourceSettlementId, copy.Year);
+                foreach (TomeCopy earlier in contents.Copies)
+                {
+                    if (earlier.Year >= copy.Year) break;
+                    if (earlier.SettlementId == copy.SourceSettlementId) sourceHadExemplar = true;
+                }
+
+                Assert.True(
+                    sourceHadExemplar,
+                    $"{artifact.Name} was copied from {copy.SourceSettlementId} in {copy.Year}, " +
+                    "but no exemplar had reached that settlement.");
+                Assert.Contains(
+                    run.World.Chronicle.Events,
+                    entry => entry.Kind == EventKind.ArtifactCopied
+                        && entry.Year == copy.Year
+                        && entry.Subject == artifact.Id
+                        && entry.Object == copy.SourceSettlementId
+                        && entry.Location == copy.SettlementId);
+
+                previousCopyYear = copy.Year;
+            }
+        }
+
+        Assert.Equal(copiesMade, Of(run, EventKind.ArtifactCopied).Count);
+    }
+
+    /// <summary>
+    /// Copying is common enough to form a network, but bounded enough that manuscripts stay scarce.
+    /// </summary>
+    [Fact]
+    public void TomeCirculationIsCommonButBounded()
+    {
+        int tomes = 0;
+        int eligible = 0;
+        int distributed = 0;
+        int copies = 0;
+
+        for (ulong seed = 1; seed <= 8; seed++)
+        {
+            WorldState world = HistoryRun.Execute(TestWorlds.Standard(seed)).World;
+
+            foreach (Artifact artifact in world.Artifacts)
+            {
+                if (artifact.TomeContents is not TomeContents contents) continue;
+
+                tomes++;
+                if (contents.CopyLimit > 0) eligible++;
+                if (contents.Copies.Count > 0) distributed++;
+                copies += contents.Copies.Count;
+                Assert.InRange(contents.Copies.Count, 0, 4);
+            }
+        }
+
+        Assert.True(tomes >= 12, $"Only {tomes} tomes were made; the sample cannot calibrate circulation.");
+        Assert.InRange((double)eligible / tomes, 0.60, 0.90);
+        Assert.InRange((double)distributed / tomes, 0.50, 0.85);
+        Assert.InRange((double)copies / tomes, 0.75, 2.00);
+    }
+
+    /// <summary>
+    /// An artifact history explains the object's purpose and freezes its whereabouts at writing.
+    /// </summary>
+    [Fact]
+    public void ArtifactHistoryTomesDescribeMakingAndLastRecord()
+    {
+        WorldState world = HistoryRun.Execute(TestWorlds.Standard()).World;
+        Settlement authoring = world.Settlements.First(
+            settlement => settlement.IsActive && settlement.Tier >= SettlementTier.Town);
+        Settlement destination = world.Settlements.First(
+            settlement => settlement.IsActive && settlement.Id != authoring.Id);
+        Civilization civilization = world.Civilizations[authoring.CivilizationId];
+
+        int made = Math.Min(world.EndYear - 2, Math.Max(authoring.FoundedYear, world.EndYear - 20));
+
+        var extant = new Artifact(
+            world.Artifacts.NextId,
+            "the Blade of the Test Chronicle",
+            ArtifactKind.Weapon,
+            authoring.Id,
+            made);
+        extant.MoveTo(destination.Id, world.EndYear - 1, "given in tribute");
+        world.Artifacts.Add(extant);
+
+        var lost = new Artifact(
+            world.Artifacts.NextId,
+            "the Crown of the Test Chronicle",
+            ArtifactKind.Regalia,
+            authoring.Id,
+            made);
+        lost.MoveTo(destination.Id, world.EndYear - 5, "carried for safekeeping");
+        lost.Lose(world.EndYear - 1, "in a fire");
+        world.Artifacts.Add(lost);
+
+        TomeContents? extantAccount = null;
+        TomeContents? lostAccount = null;
+        TomeContents? beforeLossAccount = null;
+
+        for (int i = 0; i < 4096 && (extantAccount is null || lostAccount is null); i++)
+        {
+            TomeContents candidate = Tomes.Compose(
+                world,
+                authoring,
+                civilization,
+                new EntityId(EntityKind.Artifact, 10_000 + i),
+                world.EndYear);
+
+            if (candidate.Kind != TomeContentKind.ArtifactHistory) continue;
+            if (candidate.SubjectId == extant.Id) extantAccount = candidate;
+            if (candidate.SubjectId == lost.Id) lostAccount = candidate;
+        }
+
+        for (int i = 0; i < 4096 && beforeLossAccount is null; i++)
+        {
+            TomeContents candidate = Tomes.Compose(
+                world,
+                authoring,
+                civilization,
+                new EntityId(EntityKind.Artifact, 20_000 + i),
+                world.EndYear - 2);
+
+            if (candidate.Kind == TomeContentKind.ArtifactHistory
+                && candidate.SubjectId == lost.Id)
+            {
+                beforeLossAccount = candidate;
+            }
+        }
+
+        TomeContents extantHistory = Assert.IsType<TomeContents>(extantAccount);
+        TomeContents lostHistory = Assert.IsType<TomeContents>(lostAccount);
+        TomeContents beforeLossHistory = Assert.IsType<TomeContents>(beforeLossAccount);
+
+        TomeSection making = Assert.Single(
+            extantHistory.Sections, section => section.Heading == "Making");
+        Assert.Contains(made.ToString(CultureInfo.InvariantCulture), making.Text);
+        Assert.Contains(authoring.Name, making.Text);
+        Assert.Contains("war and defence", making.Text);
+
+        TomeSection extantLast = Assert.Single(
+            extantHistory.Sections, section => section.Heading == "Last record");
+        Assert.Contains(destination.Name, extantLast.Text);
+        Assert.Contains("last recorded", extantLast.Text);
+
+        TomeSection lostLast = Assert.Single(
+            lostHistory.Sections, section => section.Heading == "Last record");
+        Assert.Contains("had been lost", lostLast.Text);
+        Assert.Contains(destination.Name, lostLast.Text);
+        Assert.Contains((world.EndYear - 1).ToString(CultureInfo.InvariantCulture), lostLast.Text);
+        Assert.Contains("in a fire", lostLast.Text);
+
+        TomeSection beforeLossLast = Assert.Single(
+            beforeLossHistory.Sections, section => section.Heading == "Last record");
+        Assert.Contains(destination.Name, beforeLossLast.Text);
+        Assert.DoesNotContain("lost", beforeLossLast.Text, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>The focused campaign form is reachable and records actual command.</summary>
+    [Fact]
+    public void CampaignTomesCanDescribeAFiguresServiceInWar()
+    {
+        WorldState world = HistoryRun.Execute(TestWorlds.Standard()).World;
+        TomeContents? account = null;
+
+        foreach (Settlement settlement in world.Settlements)
+        {
+            if (!settlement.IsActive || settlement.Tier < SettlementTier.Town) continue;
+
+            Civilization civilization = world.Civilizations[settlement.CivilizationId];
+            for (int i = 0; i < 128; i++)
+            {
+                TomeContents candidate = Tomes.Compose(
+                    world,
+                    settlement,
+                    civilization,
+                    new EntityId(EntityKind.Artifact, i),
+                    world.EndYear);
+
+                if (candidate.Kind != TomeContentKind.Campaign) continue;
+                account = candidate;
+                break;
+            }
+
+            if (account is not null) break;
+        }
+
+        TomeContents campaign = Assert.IsType<TomeContents>(account);
+        War war = world.Wars[campaign.ContextId];
+
+        Assert.Contains(
+            war.BattleIds,
+            id => world.Battles[id].AttackerCommanderId == campaign.SubjectId
+                  || world.Battles[id].DefenderCommanderId == campaign.SubjectId);
+        Assert.Contains(campaign.Sections, section => section.Heading == "Recorded engagements");
+    }
+
+    /// <summary>
     /// The flavour systems cost no terrain samples.
     /// </summary>
     /// <remarks>
@@ -285,4 +561,44 @@ public sealed class FlavourTests
 
         return found;
     }
+
+    private static bool OriginalWasHeldAt(Artifact artifact, EntityId settlementId, int year)
+    {
+        EntityId holder = EntityId.None;
+        foreach (ArtifactHolding holding in artifact.Provenance)
+        {
+            if (holding.Year > year) break;
+            holder = holding.SettlementId;
+        }
+
+        return holder == settlementId;
+    }
+
+    private static bool SettlementWasActive(WorldState world, EntityId id, int year)
+    {
+        if (!world.Settlements.Contains(id)) return false;
+
+        Settlement settlement = world.Settlements[id];
+        return settlement.FoundedYear <= year
+            && (settlement.AbandonedYear is null || settlement.AbandonedYear > year);
+    }
+
+    private static bool ExistedBy(WorldState world, EntityId id, int year) => id.Kind switch
+    {
+        EntityKind.Culture => world.Cultures.Contains(id),
+        EntityKind.Civilization => world.Civilizations.Contains(id)
+            && world.Civilizations[id].FoundedYear <= year,
+        EntityKind.Settlement => world.Settlements.Contains(id)
+            && world.Settlements[id].FoundedYear <= year,
+        EntityKind.Figure => world.Figures.Contains(id) && world.Figures[id].BirthYear <= year,
+        EntityKind.Dynasty => world.Dynasties.Contains(id) && world.Dynasties[id].FoundedYear <= year,
+        EntityKind.War => world.Wars.Contains(id) && world.Wars[id].StartYear <= year,
+        EntityKind.Battle => world.Battles.Contains(id) && world.Battles[id].Year <= year,
+        EntityKind.Region => world.Regions.Contains(id),
+        EntityKind.Artifact => world.Artifacts.Contains(id)
+            && world.Artifacts[id].CreatedYear <= year,
+        EntityKind.Religion => world.Religions.Contains(id)
+            && world.Religions[id].FoundedYear <= year,
+        _ => false,
+    };
 }

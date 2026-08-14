@@ -344,10 +344,32 @@ public sealed record ExportArtifact(
     EntityId? CreatorId,
     EntityId OriginSettlementId,
     EntityId? ReligionId,
+    ExportTomeContents? TomeContents,
     int CreatedYear,
     EntityId? HolderId,
     int? LostYear,
     IReadOnlyList<ExportProvenance> Provenance);
+
+/// <summary>The subject and passages fixed inside a written artifact when it was made.</summary>
+public sealed record ExportTomeContents(
+    TomeContentKind Kind,
+    EntityId SubjectId,
+    EntityId? ContextId,
+    int CopyLimit,
+    IReadOnlyList<ExportTomeCopy> Copies,
+    IReadOnlyList<ExportTomeSection> Sections);
+
+/// <summary>One settlement copy made from a work already available elsewhere.</summary>
+public sealed record ExportTomeCopy(
+    int Year,
+    EntityId SettlementId,
+    EntityId SourceSettlementId);
+
+/// <summary>One passage and the entity links it makes available to a reader.</summary>
+public sealed record ExportTomeSection(
+    string Heading,
+    string Text,
+    IReadOnlyList<EntityId> References);
 
 /// <summary>Where an artifact was, from a given year, and how it got there.</summary>
 public sealed record ExportProvenance(int Year, EntityId? SettlementId, string How);

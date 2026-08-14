@@ -5,14 +5,13 @@ using HistoryEngine.World;
 namespace HistoryEngine.Systems;
 
 /// <summary>
-/// The making of things worth writing down.
+/// The making of things worth writing down, and the circulation of written works.
 /// </summary>
 /// <remarks>
-/// <para><b>This system only makes them.</b> Everything that happens to an artifact afterwards is
-/// written by whatever is already happening: an army sacks the town holding it, a settlement is
-/// abandoned with it inside, a mountain buries it. Those live in <see cref="Treasures"/> and are
-/// called from the systems that cause them, because "the Crown of Aigionanvos was carried off"
-/// is a fact about a war, not about a yearly artifact tick.</para>
+/// <para><b>Objects move with events; books spread with time.</b> Looting, abandonment and loss
+/// still belong to the systems that cause them. Copying is different: it is slow ordinary work,
+/// so this yearly tick lets an existing exemplar travel through realm, faith and trade networks.
+/// A copy remains attached to the original work rather than becoming another famous artifact.</para>
 ///
 /// <para><b>What a place makes is what a place is.</b> A shrine produces relics, a craft town
 /// produces work in gold and ink, a mining town produces weapons, and a capital with a king on
@@ -69,6 +68,8 @@ public sealed class ArtifactSystem : IYearSystem
                 Treasures.Create(world, settlement, kind, creator, faith, year);
             }
         }
+
+        Tomes.Distribute(world, year);
     }
 
     /// <summary>How much a settlement's character and culture incline it to make things.</summary>

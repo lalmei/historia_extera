@@ -34,11 +34,18 @@ public static class Treasures
     {
         EntityId id = world.Artifacts.NextId;
 
+        TomeContents? contents = kind == ArtifactKind.Tome
+            ? Tomes.Compose(world, settlement, world.Civilizations[settlement.CivilizationId], id, year)
+            : null;
+
         // Named for its maker when it has one and for the place otherwise, which is how the two
-        // kinds of famous object actually get their names.
-        string qualifier = creatorId.IsNone || !world.Figures.Contains(creatorId)
-            ? settlement.Name
-            : world.Figures[creatorId].Name;
+        // kinds of famous object actually get their names. A written work is named for its
+        // subject, so a Codex of a ruler is recognisable before its page is opened.
+        string qualifier = contents is not null
+            ? world.NameOf(contents.SubjectId)
+            : creatorId.IsNone || !world.Figures.Contains(creatorId)
+                ? settlement.Name
+                : world.Figures[creatorId].Name;
 
         var artifact = new Artifact(
             id,
@@ -49,6 +56,7 @@ public static class Treasures
         {
             CreatorId = creatorId,
             ReligionId = religionId,
+            TomeContents = contents,
         };
 
         world.Artifacts.Add(artifact);
