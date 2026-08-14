@@ -34,8 +34,28 @@ export function useRoute(): Route {
 }
 
 function currentPath(): string {
-  const raw = window.location.hash.replace(/^#/, '');
-  return raw.length === 0 ? '/' : raw;
+  const raw = hashRaw();
+  const query = raw.indexOf('?');
+  const path = query === -1 ? raw : raw.slice(0, query);
+  return path.length === 0 ? '/' : path;
+}
+
+/**
+ * Parameters carried inside the hash.
+ *
+ * The canonical place for a parameter is before the `#`, where it survives
+ * navigation. But a deep link is copied as `…/#/civ:3`, and appending `?world=…`
+ * to *that* puts the query in the hash instead — a natural enough mistake that
+ * reading it there costs less than the confusion of ignoring it.
+ */
+export function hashParams(): URLSearchParams {
+  const raw = hashRaw();
+  const query = raw.indexOf('?');
+  return new URLSearchParams(query === -1 ? '' : raw.slice(query + 1));
+}
+
+function hashRaw(): string {
+  return window.location.hash.replace(/^#/, '');
 }
 
 export function href(path: string): string {
