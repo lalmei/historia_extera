@@ -66,7 +66,7 @@ their own, so narrowing to cities tells you how many are known for mining.
 
 ## Schema
 
-The viewer pins the export's `schemaVersion` (**4**) and refuses a file it does not
+The viewer pins the export's `schemaVersion` (**5**) and refuses a file it does not
 understand rather than misrendering it. Regenerate the world with the matching engine if
 it complains.
 

@@ -98,7 +98,8 @@ public sealed class DiplomacySystem : IYearSystem
     /// rewritten every war in every world — the milestone is meant to add flavour to a working
     /// model of conquest, not to replace its causes. At this weight a shared faith softens a
     /// frontier without preventing a war that geography and temper have already made likely, and
-    /// a religious divide is a thumb on the scale rather than a cause of war in itself.</para>
+    /// a religious divide is a thumb on the scale rather than a cause by itself. Only a devout
+    /// realm carrying a fervent faith can later name that divide as a religious war.</para>
     ///
     /// <para>Both directions are scaled by the holder's own piety, so a devout realm cares who its
     /// neighbour prays to and a worldly one barely notices — the same asymmetry that makes border
@@ -129,6 +130,15 @@ public sealed class DiplomacySystem : IYearSystem
 
     /// <summary>How much larger an aggressor must be before it will start a war of pure conquest.</summary>
     private const double ConquestStrengthRatio = 1.8;
+
+    /// <summary>Minimum piety before a realm covets a neighbour's sacred object enough to fight.</summary>
+    private const double RelicClaimPiety = 0.50;
+
+    /// <summary>Minimum piety before a difference of faith can become the stated cause of war.</summary>
+    private const double ReligiousWarPiety = 0.50;
+
+    /// <summary>Minimum outward pressure in the aggressor's faith for a religious war.</summary>
+    private const double ReligiousWarFervour = 0.55;
 
     /// <summary>
     /// People a realm needs behind it before it will declare a war at all.
@@ -390,7 +400,7 @@ public sealed class DiplomacySystem : IYearSystem
         Culture culture = world.CultureOf(civilization);
 
         Civilization? target = null;
-        CasusBelli cause = CasusBelli.Unknown;
+        WarCause cause = WarCause.Unknown;
         double bestChance = 0.0;
 
         foreach (KeyValuePair<EntityId, double> neighbour in neighbours)
@@ -430,7 +440,16 @@ public sealed class DiplomacySystem : IYearSystem
         List<Region> front = Diplomacy.Frontline(world, civilization, target);
         if (front.Count == 0) return;
 
-        War war = Warfare.Declare(world, civilization, target, cause, front, year);
+        War war = Warfare.Declare(
+            world,
+            civilization,
+            target,
+            cause.Kind,
+            cause.ClaimedRelicId,
+            cause.AggressorReligionId,
+            cause.DefenderReligionId,
+            front,
+            year);
         CallAllies(world, war, civilization, target, year, rng);
     }
 
@@ -449,26 +468,93 @@ public sealed class DiplomacySystem : IYearSystem
     /// </summary>
     /// <remarks>
     /// Order matters and is not arbitrary. Land actually lost is the claim a chronicle finds most
-    /// convincing, a marriage into the other house is the next, and a realm with neither and a
-    /// decisive advantage in strength simply takes what it wants. A border dispute is what is
-    /// left when none of the three applies, which is most of the time.
+    /// convincing. A concrete sacred object comes next, before an inherited claim through
+    /// marriage. A religious divide only becomes the grievance when the aggressor is both devout
+    /// and carried by a fervent faith; otherwise strength can still make the war naked conquest.
+    /// A border dispute is what is left when none of the stronger claims applies.
     /// </remarks>
-    private static CasusBelli CauseAgainst(
+    private static WarCause CauseAgainst(
         WorldState world, Civilization civilization, Civilization other)
     {
-        if (Diplomacy.LostTo(world, civilization, other).Count > 0) return CasusBelli.Revanche;
+        if (Diplomacy.LostTo(world, civilization, other).Count > 0)
+        {
+            return new WarCause(CasusBelli.Revanche);
+        }
+
+        Culture culture = world.CultureOf(civilization);
+        EntityId ourFaith = world.FaithOf(civilization);
+        EntityId theirFaith = world.FaithOf(other);
+
+        if (!ourFaith.IsNone && culture.Values.Piety >= RelicClaimPiety)
+        {
+            EntityId relicId = RelicHeldBy(world, other, ourFaith);
+            if (!relicId.IsNone)
+            {
+                return new WarCause(CasusBelli.RelicClaim, ClaimedRelicId: relicId);
+            }
+        }
 
         if (Diplomacy.MarriedIntoTheHouseOf(world, civilization, other))
         {
-            return CasusBelli.DynasticClaim;
+            return new WarCause(CasusBelli.DynasticClaim);
+        }
+
+        if (!ourFaith.IsNone
+            && !theirFaith.IsNone
+            && ourFaith != theirFaith
+            && world.Religions.Contains(ourFaith)
+            && world.Religions.Contains(theirFaith)
+            && culture.Values.Piety >= ReligiousWarPiety
+            && world.Religions[ourFaith].Fervour >= ReligiousWarFervour)
+        {
+            return new WarCause(
+                CasusBelli.ReligiousWar,
+                AggressorReligionId: ourFaith,
+                DefenderReligionId: theirFaith);
         }
 
         int mine = Diplomacy.Levy(world, civilization);
         int theirs = Diplomacy.Levy(world, other);
 
-        if (theirs > 0 && mine >= theirs * ConquestStrengthRatio) return CasusBelli.Conquest;
+        if (theirs > 0 && mine >= theirs * ConquestStrengthRatio)
+        {
+            return new WarCause(CasusBelli.Conquest);
+        }
 
-        return CasusBelli.BorderDispute;
+        return new WarCause(CasusBelli.BorderDispute);
+    }
+
+    /// <summary>
+    /// A particular relic in the defender's keeping, preferring one sacred to the aggressor's
+    /// own faith and otherwise taking the oldest surviving relic as the object of the claim.
+    /// </summary>
+    private static EntityId RelicHeldBy(
+        WorldState world, Civilization defender, EntityId aggressorReligionId)
+    {
+        EntityId firstForeignRelic = EntityId.None;
+
+        foreach (Artifact artifact in world.Artifacts)
+        {
+            if (!artifact.IsExtant || artifact.Kind != ArtifactKind.Relic) continue;
+            if (artifact.HolderId.IsNone || !world.Settlements.Contains(artifact.HolderId)) continue;
+
+            Settlement holder = world.Settlements[artifact.HolderId];
+            if (!holder.IsActive || holder.CivilizationId != defender.Id) continue;
+
+            if (artifact.ReligionId == aggressorReligionId) return artifact.Id;
+            if (firstForeignRelic.IsNone) firstForeignRelic = artifact.Id;
+        }
+
+        return firstForeignRelic;
+    }
+
+    private readonly record struct WarCause(
+        CasusBelli Kind,
+        EntityId ClaimedRelicId = default,
+        EntityId AggressorReligionId = default,
+        EntityId DefenderReligionId = default)
+    {
+        public static WarCause Unknown => new(CasusBelli.Unknown);
     }
 
     /// <summary>

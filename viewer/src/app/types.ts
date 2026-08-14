@@ -7,7 +7,7 @@
  * stops moving.
  */
 
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 /** `"civ:3"`, `"fig:1204"` — readable, greppable, and directly usable as a route. */
 export type EntityId = string;
@@ -257,7 +257,9 @@ export type CasusBelli =
   | 'BorderDispute'
   | 'Conquest'
   | 'DynasticClaim'
-  | 'Revanche';
+  | 'Revanche'
+  | 'RelicClaim'
+  | 'ReligiousWar';
 
 export const CAUSE_LABELS: Record<CasusBelli, string> = {
   Unknown: 'No stated cause',
@@ -265,6 +267,8 @@ export const CAUSE_LABELS: Record<CasusBelli, string> = {
   Conquest: 'Conquest',
   DynasticClaim: 'Dynastic claim',
   Revanche: 'Revanche',
+  RelicClaim: 'Relic claim',
+  ReligiousWar: 'Religious war',
 };
 
 export type WarOutcome =
@@ -291,6 +295,11 @@ export interface War {
   id: EntityId;
   name: string;
   cause: CasusBelli;
+  /** The particular sacred object sought in a relic claim. */
+  claimedRelicId?: EntityId;
+  /** The two state faiths when a religious war was declared. */
+  aggressorReligionId?: EntityId;
+  defenderReligionId?: EntityId;
   outcome: WarOutcome;
   startYear: number;
   endYear?: number;

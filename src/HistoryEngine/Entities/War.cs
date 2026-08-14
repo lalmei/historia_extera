@@ -8,9 +8,9 @@ namespace HistoryEngine.Entities;
 /// <remarks>
 /// Not decoration. Each one is reached by a different route and produces a different war: a
 /// border dispute needs a shared frontier, a dynastic claim needs a marriage between the two
-/// ruling houses, and a revanche needs territory lost in a previous war. They also settle
-/// differently — a war of conquest takes land, a war over a claim more often ends in a
-/// white peace once the point is made.
+/// ruling houses, a revanche needs territory lost in a previous war, and a relic claim names
+/// the sacred object the aggressor means to take. They also settle differently: a successful
+/// relic claim yields its object instead of an ordinary province.
 /// </remarks>
 public enum CasusBelli
 {
@@ -27,6 +27,12 @@ public enum CasusBelli
 
     /// <summary>Retaking land ceded in an earlier war.</summary>
     Revanche = 4,
+
+    /// <summary>Taking a particular sacred relic held by the other realm.</summary>
+    RelicClaim = 5,
+
+    /// <summary>A devout realm carrying a fervent faith against a realm of another faith.</summary>
+    ReligiousWar = 6,
 }
 
 /// <summary>How a war ended. <see cref="Ongoing"/> while it is still being fought.</summary>
@@ -62,6 +68,9 @@ public sealed class War
         EntityId aggressorId,
         EntityId defenderId,
         CasusBelli cause,
+        EntityId claimedRelicId,
+        EntityId aggressorReligionId,
+        EntityId defenderReligionId,
         int startYear)
     {
         Id = id;
@@ -69,6 +78,9 @@ public sealed class War
         AggressorId = aggressorId;
         DefenderId = defenderId;
         Cause = cause;
+        ClaimedRelicId = claimedRelicId.IsNone ? EntityId.None : claimedRelicId;
+        AggressorReligionId = aggressorReligionId.IsNone ? EntityId.None : aggressorReligionId;
+        DefenderReligionId = defenderReligionId.IsNone ? EntityId.None : defenderReligionId;
         StartYear = startYear;
         Attackers = new List<EntityId> { aggressorId };
         Defenders = new List<EntityId> { defenderId };
@@ -88,6 +100,15 @@ public sealed class War
     public EntityId DefenderId { get; }
 
     public CasusBelli Cause { get; }
+
+    /// <summary>The particular object sought in a <see cref="CasusBelli.RelicClaim"/>.</summary>
+    public EntityId ClaimedRelicId { get; }
+
+    /// <summary>The aggressor's faith when a <see cref="CasusBelli.ReligiousWar"/> began.</summary>
+    public EntityId AggressorReligionId { get; }
+
+    /// <summary>The defender's faith when a <see cref="CasusBelli.ReligiousWar"/> began.</summary>
+    public EntityId DefenderReligionId { get; }
 
     public int StartYear { get; }
 

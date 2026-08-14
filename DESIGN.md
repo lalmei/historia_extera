@@ -556,8 +556,9 @@ engine and viewer: no shared code, no server, no schema negotiation.
   the viewer wants its own, themed light and dark, with height/biome/rivers as
   composable layers. The height range ships alongside so metres are recoverable.
 - **`schemaVersion`** is checked by the viewer, which refuses politely rather than
-  misrendering a file it does not understand. **v3** added wars, battles, and the
-  relations, alliances and truces on a civilization; v2 added dynasties and family links.
+  misrendering a file it does not understand. **v5** records the particular relic and the
+  two faiths behind religious causes of war; v3 added wars, battles, and the relations,
+  alliances and truces on a civilization; v2 added dynasties and family links.
 - Enums serialise as **strings** — numeric values would silently change meaning the
   first time someone inserted a value mid-enum.
 - **Relations are a list of pairs, not an object keyed by id.** Everything else in the
@@ -923,9 +924,10 @@ directly: no settlement is ever struck by a disaster its terrain cannot produce.
 was measured rather than assumed.** Running eight seeds with the coefficient zeroed and
 again at its chosen weight: **16.9 wars and 64.5 battles without it, 20.4 and 78.1 with**
 — about a fifth more war, with settlements, cities and figures unchanged to within noise.
-That is a thumb on the scale rather than a new cause of war, which is what a flavour
-milestone should be allowed to do, and it is one constant to revisit if it proves too
-much.
+M8 deliberately stopped there. The later war-cause pass kept that pressure and added two
+narrow grievances on top: a devout realm can name one relic in a neighbour's treasury, or
+a sufficiently fervent faith can make a war against another faith explicitly religious.
+Difference alone is still only a thumb on the diplomatic scale.
 
 **Two pre-existing bugs surfaced, both found by plague deaths reaching code that had never
 seen a death.** A figure holding two offices at once — a regency and a throne — had only

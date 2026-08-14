@@ -55,9 +55,10 @@ public sealed class WarTests
     /// <remarks>
     /// Each casus belli comes from a different corner of the simulation — a dynastic claim needs a
     /// living marriage between two ruling houses, a revanche needs territory lost in an earlier
-    /// war — so one of them silently never firing is the likeliest way this milestone rots. The
-    /// same goes for a pact that is never called: an alliance nobody answers is a number in the
-    /// export rather than a thing that happens.
+    /// war, a relic claim needs a particular object in the other treasury, and a religious war
+    /// needs two faiths plus piety and fervour — so one of them silently never firing is the
+    /// likeliest way this system rots. The same goes for a pact that is never called: an alliance
+    /// nobody answers is a number in the export rather than a thing that happens.
     /// </remarks>
     [Fact]
     public void EveryGrievanceAndTheCallToArmsAllOccur()
@@ -74,6 +75,7 @@ public sealed class WarTests
             {
                 causes[war.Cause] = causes.TryGetValue(war.Cause, out int n) ? n + 1 : 1;
                 joined += war.Attackers.Count + war.Defenders.Count - 2;
+                ValidateReligiousGrievance(world, war);
             }
 
             foreach (HistoryEvent entry in world.Chronicle.Events)
@@ -86,6 +88,7 @@ public sealed class WarTests
         {
             CasusBelli.BorderDispute, CasusBelli.Conquest,
             CasusBelli.DynasticClaim, CasusBelli.Revanche,
+            CasusBelli.RelicClaim, CasusBelli.ReligiousWar,
         })
         {
             Assert.True(
@@ -96,6 +99,67 @@ public sealed class WarTests
         Assert.False(causes.ContainsKey(CasusBelli.Unknown), "A war was declared for no stated reason.");
         Assert.True(alliances > 0, "No alliance was ever sworn.");
         Assert.True(joined > 0, "No ally ever answered a call to arms.");
+    }
+
+    /// <summary>Religious grievances must preserve the concrete thing or faiths fought over.</summary>
+    private static void ValidateReligiousGrievance(WorldState world, War war)
+    {
+        if (war.Cause == CasusBelli.RelicClaim)
+        {
+            Assert.True(world.Artifacts.Contains(war.ClaimedRelicId));
+
+            Artifact relic = world.Artifacts[war.ClaimedRelicId];
+            Assert.Equal(ArtifactKind.Relic, relic.Kind);
+            Assert.True(relic.CreatedYear <= war.StartYear);
+            Assert.Equal(EntityId.None, war.AggressorReligionId);
+            Assert.Equal(EntityId.None, war.DefenderReligionId);
+
+            HistoryEvent declaration = DeclarationOf(world, war);
+            Assert.Contains(war.ClaimedRelicId, declaration.Extra ?? Array.Empty<EntityId>());
+            Assert.Contains(relic.Name, declaration.DataValue("cause"));
+
+            if (war.Outcome == WarOutcome.AggressorVictory && war.EndYear is int ended)
+            {
+                // The relic is the term of peace, not an unrelated strip of frontier.
+                Assert.Empty(war.CededRegionIds);
+
+                if (relic.LostYear is not int lost || lost > ended)
+                {
+                    Assert.Contains(
+                        relic.Provenance,
+                        holding => holding.Year == ended && holding.How == "claimed in peace");
+                }
+            }
+
+            return;
+        }
+
+        Assert.Equal(EntityId.None, war.ClaimedRelicId);
+
+        if (war.Cause != CasusBelli.ReligiousWar)
+        {
+            Assert.Equal(EntityId.None, war.AggressorReligionId);
+            Assert.Equal(EntityId.None, war.DefenderReligionId);
+            return;
+        }
+
+        Assert.True(world.Religions.Contains(war.AggressorReligionId));
+        Assert.True(world.Religions.Contains(war.DefenderReligionId));
+        Assert.NotEqual(war.AggressorReligionId, war.DefenderReligionId);
+
+        HistoryEvent holyWarDeclaration = DeclarationOf(world, war);
+        Assert.Contains(war.AggressorReligionId, holyWarDeclaration.Extra ?? Array.Empty<EntityId>());
+        Assert.Contains(war.DefenderReligionId, holyWarDeclaration.Extra ?? Array.Empty<EntityId>());
+    }
+
+    private static HistoryEvent DeclarationOf(WorldState world, War war)
+    {
+        foreach (HistoryEvent entry in world.Chronicle.Events)
+        {
+            if (entry.Kind == EventKind.WarDeclared && entry.Location == war.Id) return entry;
+        }
+
+        throw new InvalidOperationException($"{war.Name} has no declaration event.");
     }
 
     /// <summary>A battle is fought by two realms, at a place, and one of them wins it.</summary>

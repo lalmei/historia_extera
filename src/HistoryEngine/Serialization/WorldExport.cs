@@ -47,9 +47,10 @@ public sealed record WorldExport(
     /// <remarks>
     /// Version 2 added dynasties and the family links on a figure, and replaced the figure's
     /// two-element parent list with named mother and father. Version 3 added wars and battles,
-    /// and the relations, alliances and truces on a civilization.
+    /// and the relations, alliances and truces on a civilization. Version 5 added the particular
+    /// relic and the two faiths named by the new religious causes of war.
     /// </remarks>
-    public const int CurrentSchemaVersion = 4;
+    public const int CurrentSchemaVersion = 5;
 }
 
 public sealed record ExportMeta(
@@ -228,6 +229,9 @@ public sealed record ExportWar(
     EntityId Id,
     string Name,
     CasusBelli Cause,
+    EntityId? ClaimedRelicId,
+    EntityId? AggressorReligionId,
+    EntityId? DefenderReligionId,
     WarOutcome Outcome,
     int StartYear,
     int? EndYear,
