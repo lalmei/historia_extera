@@ -75,17 +75,27 @@ public static class WorldExporter
         ?? throw new InvalidOperationException("World export deserialised to null.");
 
     /// <summary>
-    /// SHA-256 of the canonical serialisation.
+    /// SHA-256 of the canonical serialisation, excluding the engine's own version.
     /// </summary>
     /// <remarks>
-    /// The value the golden determinism test pins. Because the export carries no timestamp and
-    /// every collection in it has a defined order, identical inputs must produce an identical
+    /// <para>The value the golden determinism test pins. Because the export carries no timestamp
+    /// and every collection in it has a defined order, identical inputs must produce an identical
     /// digest — and any accidental nondeterminism anywhere in the engine surfaces here rather
-    /// than as a subtly different history nobody notices.
+    /// than as a subtly different history nobody notices.</para>
+    ///
+    /// <para><b><see cref="EngineVersion"/> is deliberately excluded.</b> The digest answers one
+    /// question — did the history for this seed change? — and a release number is not part of a
+    /// history. Leaving it in meant every version bump failed the golden test and had to be
+    /// answered by regenerating the golden, which is exactly the reflex the test exists to
+    /// prevent: regenerate often enough for reasons that are fine and you will regenerate the one
+    /// time it was not. The version still travels in the export, where a viewer can read which
+    /// engine wrote a world file.</para>
     /// </remarks>
     public static string Fingerprint(WorldExport export)
     {
-        byte[] bytes = Encoding.UTF8.GetBytes(ToJson(export));
+        WorldExport world = export with { Meta = export.Meta with { EngineVersion = string.Empty } };
+
+        byte[] bytes = Encoding.UTF8.GetBytes(ToJson(world));
         return Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
     }
 
