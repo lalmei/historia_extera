@@ -4,10 +4,11 @@ A Dwarf Fortress-style world history generator for Vintage Story, plus a Legends
 viewer. This file is the running decision log: what was chosen, and why, so that a
 decision can be revisited on its merits rather than rediscovered.
 
-**Status:** Milestones 0–7 complete. Real naming languages, a settlement lifecycle that
+**Status:** Milestones 0–8 complete. Real naming languages, a settlement lifecycle that
 runs its full course rather than only ever growing, rulers who inherit from a family
 tree instead of appearing from nowhere, realms that fall to conquest as well as to the
-weather, and a map that can be scrubbed to any year of the run to watch them do it.
+weather, faiths and pestilence that cross the borders those realms draw, and a map that
+can be scrubbed to any year of the run to watch all of it happen.
 
 ---
 
@@ -651,8 +652,8 @@ viewer reading it.
 | M5 | Figures: dynasties, succession, marriages | done |
 | M6 | Diplomacy & war: named battles, territory transfer | done |
 | M7 | Viewer depth: territory rendering, richer filters | done |
-| M8 | Flavour: religions, artifacts, plagues, disasters | next |
-| M9 | Phase 2 spike: raster-backed `ITerrainSampler` | |
+| M8 | Flavour: religions, artifacts, plagues, disasters | done |
+| M9 | Phase 2 spike: raster-backed `ITerrainSampler` | next |
 
 ### As built
 
@@ -676,18 +677,19 @@ ranked as heirs on the day he is crowned, and marry accordingly.
 
 Measured on seed 42, 300 years, 8 civilizations, 4096-unit world:
 
-| | M1 | M4 | M5 | M6 | M7 |
-|---|---|---|---|---|---|
-| Wall clock | ~65 ms | ~67 ms | ~215 ms | ~250 ms | ~233 ms |
-| Events | 359 | 950 | 3,299 | 3,216 | 3,225 |
-| Settlements | 96 | 96 (15 cities), 1 abandoned | 96 (15 cities), 1 abandoned | 91 (15 cities), 1 abandoned | 91 (15 cities), 1 abandoned |
-| Figures | 81 | 81 | 1,072 | 1,033 | 1,033 |
-| Houses | — | — | 16 (8 standing, 8 died out) | 15 (6 standing, 9 died out) | 15 (6 standing, 9 died out) |
-| Wars / battles | — | — | — | 10 / 38 | 10 / 38 |
-| Civilizations fallen | 0 | 0 | 0 | 2 | 2 |
-| Simulation samples | 6,050 | 6,050 | 6,050 | 5,990 | 5,990 |
-| Export size | 0.73 MB | 0.73 MB | 1.36 MB | 1.36 MB | 1.36 MB |
-| Tests | 100 | 100 | 114 | 129 | 134 |
+| | M1 | M4 | M5 | M6 | M7 | M8 |
+|---|---|---|---|---|---|---|
+| Wall clock | ~65 ms | ~67 ms | ~215 ms | ~250 ms | ~233 ms | ~240 ms |
+| Events | 359 | 950 | 3,299 | 3,216 | 3,225 | 3,083 |
+| Settlements | 96 | 96 (15 cities), 1 abandoned | 96 (15 cities), 1 abandoned | 91 (15 cities), 1 abandoned | 91 (15 cities), 1 abandoned | 75 (13 cities), 1 abandoned |
+| Figures | 81 | 81 | 1,072 | 1,033 | 1,033 | 919 |
+| Houses | — | — | 16 (8 standing, 8 died out) | 15 (6 standing, 9 died out) | 15 (6 standing, 9 died out) | 15 (4 standing, 11 died out) |
+| Wars / battles | — | — | — | 10 / 38 | 10 / 38 | 10 / 40 |
+| Faiths / artifacts | — | — | — | — | — | 13 / 27 |
+| Civilizations fallen | 0 | 0 | 0 | 2 | 2 | 3 |
+| Simulation samples | 6,050 | 6,050 | 6,050 | 5,990 | 5,990 | 5,798 |
+| Export size | 0.73 MB | 0.73 MB | 1.36 MB | 1.36 MB | 1.36 MB | 1.31 MB |
+| Tests | 100 | 100 | 114 | 129 | 134 | 145 |
 
 **Terrain sampling went down.** Two systems that both reason about geography added nothing
 to the budget — every question they ask is answered from region statistics derived once at
@@ -829,6 +831,73 @@ are known for mining rather than repeating that there are ninety settlements. It
 the comparative questions the tables were already sorted for: which wars moved a border
 (5 of 10), which houses ruled more than one realm, which figures married in rather than
 being born to a house.
+
+### M8: flavour, and what it cost
+
+Four systems — plague, disaster, religion, artifacts — and one order change. The year now
+reads: population → **plague** → **disaster** → lifecycle → specialization → expansion →
+**religion** → diplomacy → war → figure-lifecycle → succession → houses → **artifacts**.
+Plague and disaster follow growth so a year's mortality applies to a settlement that has
+already grown, and precede the lifecycle so a town gutted this year is judged this year.
+Religion sits between expansion and diplomacy for the reason diplomacy sits after
+expansion: an opinion should be formed about the frontier *and the faith* that exist now.
+
+**Faith is held by settlements, not realms.** A state religion would have been one field
+and a decree, with nothing happening between decrees. Per settlement, a faith crosses a
+border before it crosses a throne, a realm can be religiously divided, and a schism has
+somewhere to start. A realm's own faith is derived — whatever its capital follows —
+which means a realm can change religion having converted nobody, by losing the capital it
+had. Six such changes on seed 42.
+
+**Plagues had to be bounded, and finding out how was the milestone's real work.** The
+first cut spread along distance and traffic with no other term, and produced five
+pandemics in three centuries that each reached *every inhabited settlement in the world*:
+eighteen abandonments against M7's one, five cities left of fifteen. The flavour milestone
+had become the dominant force in the model. What was missing is that people react — a
+plague two towns away closes gates and turns travellers back — so the spread chance now
+decays against how far the outbreak has already got. One line, and it is the difference
+between a regional catastrophe and a world-ending one. Across eight seeds a world now sees
+**5 plagues per 300 years, each reaching about three settlements and killing 12,300 people
+between them**.
+
+**Every disaster is drawn from the ground it struck**: floods need a river, storms a coast,
+eruptions violent geology and height, wildfire a dry warm biome with something to burn. So
+the map explains the chronicle — the mining town in the mountains is shaken and the coastal
+trading city is wrecked by storms — and it costs nothing, because every trait consulted is
+a region statistic derived once at world creation. `FlavourTests` asserts the property
+directly: no settlement is ever struck by a disaster its terrain cannot produce.
+
+**The one term that changes M6 rather than adding beside it is faith in diplomacy, and it
+was measured rather than assumed.** Running eight seeds with the coefficient zeroed and
+again at its chosen weight: **16.9 wars and 64.5 battles without it, 20.4 and 78.1 with**
+— about a fifth more war, with settlements, cities and figures unchanged to within noise.
+That is a thumb on the scale rather than a new cause of war, which is what a flavour
+milestone should be allowed to do, and it is one constant to revisit if it proves too
+much.
+
+**Two pre-existing bugs surfaced, both found by plague deaths reaching code that had never
+seen a death.** A figure holding two offices at once — a regency and a throne — had only
+the most recent closed when they died, leaving a regent recorded as governing three
+centuries after their death; deaths now close every open title. And a realm could be
+declared upon while already fighting, because the declaring side checked whether *it* was
+at war and never whether its target was: on seed 99, Vladane was called into an ally's war
+in 296 and declared upon in 297. Both were reachable before M8 and neither occurred in any
+tested seed, which is the argument for adding systems that push on the ones already there.
+
+**Seed 42 is a harsh draw and the table above says so.** Six plagues killed 22,670 people
+there against a mean of 12,300, which is why it ends with 75 settlements and 13 cities
+where the eight-seed mean is 100 and 27. Abandonment stayed rare as designed — 0.1 per run
+across seeds, one on seed 42, unchanged from M4 through M7.
+
+**Looting is the most evocative thing here and the rarest**: 0.9 artifacts carried off per
+world. It needs a sack of a settlement that happens to hold one, and with 24 objects spread
+across a hundred settlements the overlap is thin. It is left alone rather than tuned up,
+because the objects are meant to be famous and a world where everything portable changes
+hands every generation makes them inventory. Seed 42's single instance is exactly the page
+the model was built for: Reykholmasalmi held two relics, made in 71 and 96, and when the
+place was sacked in 142 one was carried off to Aigionanvos and the other did not survive
+the night. Both facts are on both objects' pages, and neither needed an event kind of its
+own — a sack already knew how to happen.
 
 ---
 
