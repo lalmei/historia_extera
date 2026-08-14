@@ -172,7 +172,11 @@ public sealed class Figure
         }
     }
 
-    /// <summary>Closes any open title holding as of <paramref name="year"/>.</summary>
+    /// <summary>Closes the most recently granted open title as of <paramref name="year"/>.</summary>
+    /// <remarks>
+    /// For laying down one office while keeping another — a term expiring, a regency ending. Use
+    /// <see cref="EndAllTitles"/> when the holder is what ended.
+    /// </remarks>
     public void EndCurrentTitle(int year)
     {
         for (int i = Titles.Count - 1; i >= 0; i--)
@@ -182,6 +186,24 @@ public sealed class Figure
                 Titles[i] = Titles[i] with { ToYear = year };
                 return;
             }
+        }
+    }
+
+    /// <summary>
+    /// Closes every open title as of <paramref name="year"/>.
+    /// </summary>
+    /// <remarks>
+    /// A figure can hold two offices at once — a regency for one realm and a throne of their own —
+    /// and death ends both. Closing only the most recent left the older one open for ever, which
+    /// surfaced as a regent still recorded as governing three centuries after they died. It took
+    /// M8's plague to find: before it, the deaths that reached a double office-holder were rare
+    /// enough not to occur in any tested seed.
+    /// </remarks>
+    public void EndAllTitles(int year)
+    {
+        for (int i = 0; i < Titles.Count; i++)
+        {
+            if (Titles[i].ToYear is null) Titles[i] = Titles[i] with { ToYear = year };
         }
     }
 
