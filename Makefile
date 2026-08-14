@@ -54,11 +54,20 @@ help:
 generate legends:
 	dotnet run --project $(CLI_PROJECT) -- $(CLI_FLAGS)
 
+# Written through a temp file so a failed run leaves the committed golden intact.
+# The chmod is not cosmetic: mktemp creates 0600, and mv would carry that onto a
+# file the repository tracks as 0644.
 fingerprint:
-	dotnet run --project $(CLI_PROJECT) -- \
-		--seed 42 --years 300 --civs 8 --size 4096 --raster 64 --fingerprint \
-		> $(GOLDEN)
-	@echo "wrote $(GOLDEN)"
+	@set -eu; \
+		tmp="$$(mktemp "$(GOLDEN).tmp.XXXXXX")"; \
+		trap 'rm -f "$$tmp"' 0 1 2 3 15; \
+		dotnet run --project $(CLI_PROJECT) -- \
+			--seed 42 --years 300 --civs 8 --size 4096 --raster 64 --fingerprint \
+			> "$$tmp"; \
+		chmod 644 "$$tmp"; \
+		mv "$$tmp" "$(GOLDEN)"; \
+		trap - 0 1 2 3 15; \
+		echo "wrote $(GOLDEN)"
 
 test:
 	dotnet test
