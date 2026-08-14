@@ -16,7 +16,12 @@ viewer/dist/
 viewer/.astro/
 .DS_Store
 
+# Docs (ProperDocs / uv)
+.venv/
+site/
+
 # Test artifacts
 TestResults/
 *.trx
 viewer/public/worlds/
+.claude/

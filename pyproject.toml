@@ -1,0 +1,16 @@
+[project]
+name = "historia-extera"
+version = "0.1.0"
+description = "Historia Extera — procedural world history generator and Legends viewer."
+requires-python = ">=3.11"
+dependencies = []
+
+[dependency-groups]
+docs = [
+    "mkdocs-materialx==10.2.0",
+    "properdocs==1.6.7",
+]
+
+[tool.uv]
+default-groups = ["docs"]
+package = false

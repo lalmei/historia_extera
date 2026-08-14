@@ -1,0 +1,65 @@
+site_name: Historia Extera
+site_description: Procedural world history generator and Legends-mode viewer for Vintage Story.
+docs_dir: docs
+site_dir: site
+exclude_docs: |
+  README.md
+
+theme:
+  name: materialx
+  language: en
+  features:
+    - navigation.sections
+    - navigation.tabs
+    - navigation.top
+    - search.highlight
+    - search.suggest
+    - toc.follow
+    - content.code.copy
+  palette:
+    - scheme: default
+      primary: blue grey
+      accent: amber
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - scheme: slate
+      primary: blue grey
+      accent: amber
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+
+extra_css:
+  - stylesheets/extra.css
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - md_in_html
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+
+nav:
+  - Home: index.md
+  - Guide:
+      - Getting started: guide/getting-started.md
+      - CLI: guide/cli.md
+      - Viewer: guide/viewer.md
+      - Makefile: guide/makefile.md
+  - Developer:
+      - Overview: dev/index.md
+      - Architecture: dev/architecture.md
+      - Determinism: dev/determinism.md
+      - Testing: dev/testing.md
