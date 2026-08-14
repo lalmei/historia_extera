@@ -24,18 +24,27 @@ Legends-mode **viewer**. Same seed and config always produce the same history.
 
 ## Status
 
-Milestones 0–8 are complete: real naming languages, a settlement lifecycle that can
+Milestones 0–9 are complete: real naming languages, a settlement lifecycle that can
 decline and abandon, dynastic succession, diplomacy and war — named battles, sackings,
 territory changing hands at the peace table, and realms conquered out of existence — a
-map that replays to any year of the run, and faiths, plagues, disasters and treasures
-that cross the borders the wars draw. Terrain is still Phase 1 (noise-based placeholder)
-behind `ITerrainSampler`.
+map that replays to any year of the run, faiths, plagues, disasters and treasures
+that cross the borders the wars draw, and terrain that can come from somewhere else.
+
+M9 built the first backend behind `ITerrainSampler` that the interface was not written
+alongside. Worlds are still noise by default; pointing `--terrain` at a set of heightmap
+and climate rasters runs the same simulation over a map from Azgaar's Fantasy Map
+Generator, a GIS export, or a heightmap someone painted. Only `height` is required, and
+the fields no raster supplied are modelled rather than claimed — so a world built on a
+bare heightmap reports which of its measurements were measured.
 
 | Phase | Terrain backing | State |
 |---|---|---|
-| 1 | Noise-based placeholder | **current** |
-| 2 | Open-source 2D terrain generator | designed for, not built |
+| 1 | Noise-based placeholder | **default** |
+| 2 | Open-source 2D terrain generator | **available** via raster interchange |
 | 3 | Vintage Story worldgen | designed for, not built |
+
+See [the CLI guide](guide/cli.md) for the raster route and `DESIGN.md` for what M9 proved
+about the terrain boundary.
 
 ## Quick start
 

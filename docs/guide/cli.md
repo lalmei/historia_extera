@@ -62,8 +62,14 @@ measured. The summary prints the split:
   backend        raster:3b3b1cc1b7a4b603
   extent         4096 x 4096
   measured       Height
-  modelled       Temperature, Rainfall, GeologicActivity, ForestDensity, ShrubDensity, Lakes
+  modelled       Temperature, Rainfall, GeologicActivity, ForestDensity, ShrubDensity
 ```
+
+Lakes appear in neither line for a bare heightmap, and that is deliberate. A depression in
+a heightmap is not a lake — whether water stands in it depends on drainage and climate the
+raster never carried — so the backend reports ocean below sea level and nothing above it
+rather than inventing inland water. A field that is neither measured nor modelled is not
+listed as either.
 
 `min` and `max` say what the darkest and brightest values mean in the field's own units;
 a PGM carries no units of its own. `seaLevel` is the normalised value that is the

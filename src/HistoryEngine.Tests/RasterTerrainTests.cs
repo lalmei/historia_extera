@@ -512,7 +512,155 @@ public sealed class RasterTerrainTests
         Assert.Equal(First(), First());
     }
 
+    /// <summary>
+    /// A partial source bakes a partial set: modelled fields do not become measured ones.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="BakingPreservesTheDeclaredCapabilities"/> bakes the procedural sampler, which
+    /// declares every field, so it cannot see the difference between writing what was measured
+    /// and writing whatever the sampler answered. A sampler answers every field either way — the
+    /// absent ones modelled from elevation and latitude — so serialising all of them turns the
+    /// model into a measurement and the reloaded set declares capabilities its source never had.
+    /// </remarks>
+    [Fact]
+    public void BakingAPartialSamplerDoesNotInventCapabilities()
+    {
+        var source = new PartialSampler(
+            new ProceduralTerrainSampler(11, TerrainBounds.Square(256)),
+            TerrainCapabilities.Height);
+
+        using var fixture = RasterFixture.Empty(nameof(BakingAPartialSamplerDoesNotInventCapabilities));
+        TerrainRasterBake.Write(source, fixture.Directory, resolution: 64);
+
+        Assert.Equal(TerrainCapabilities.Height, fixture.Load().Capabilities);
+        Assert.False(File.Exists(Path.Combine(fixture.Directory, "temperature.pgm")));
+        Assert.False(File.Exists(Path.Combine(fixture.Directory, "water.pgm")));
+    }
+
+    /// <summary>A source measuring some fields bakes exactly those, and no others.</summary>
+    [Fact]
+    public void BakingCarriesEverySourceCapabilityAndNoMore()
+    {
+        const TerrainCapabilities declared =
+            TerrainCapabilities.Height | TerrainCapabilities.Temperature | TerrainCapabilities.Lakes;
+
+        var source = new PartialSampler(
+            new ProceduralTerrainSampler(11, TerrainBounds.Square(256)), declared);
+
+        using var fixture = RasterFixture.Empty(nameof(BakingCarriesEverySourceCapabilityAndNoMore));
+        TerrainRasterBake.Write(source, fixture.Directory, resolution: 64);
+
+        Assert.Equal(declared, fixture.Load().Capabilities);
+        Assert.True(File.Exists(Path.Combine(fixture.Directory, "temperature.pgm")));
+        Assert.False(File.Exists(Path.Combine(fixture.Directory, "rainfall.pgm")));
+    }
+
+    /// <summary>
+    /// Bounds the format cannot express are refused rather than quietly remapped.
+    /// </summary>
+    /// <remarks>
+    /// The manifest carries one <c>worldSize</c> and the loader rebuilds a square at the origin,
+    /// so a rectangular or offset sampler used to come back with its Z extent rescaled and its
+    /// origin discarded — terrain that is subtly the wrong shape in the wrong place, which
+    /// nothing downstream can detect.
+    /// </remarks>
+    [Theory]
+    [InlineData(0, 0, 512, 256)]
+    [InlineData(0, 0, 256, 512)]
+    [InlineData(64, 0, 256, 256)]
+    [InlineData(0, -128, 256, 256)]
+    public void BakingRefusesBoundsTheFormatCannotCarry(int minX, int minZ, int width, int height)
+    {
+        var source = new PartialSampler(
+            new ProceduralTerrainSampler(11, new TerrainBounds(minX, minZ, width, height)),
+            TerrainCapabilities.Standard);
+
+        using var fixture = RasterFixture.Empty(nameof(BakingRefusesBoundsTheFormatCannotCarry));
+
+        ArgumentException error = Assert.Throws<ArgumentException>(
+            () => TerrainRasterBake.Write(source, fixture.Directory, resolution: 64));
+
+        Assert.Contains("square world at the origin", error.Message);
+        Assert.False(File.Exists(Path.Combine(fixture.Directory, "terrain.json")));
+    }
+
+    /// <summary>
+    /// The summary lists a field as modelled only when something actually models it.
+    /// </summary>
+    /// <remarks>
+    /// The CLI used to subtract measured capabilities from <see cref="TerrainCapabilities.Standard"/>,
+    /// which includes lakes — so a height-only world reported lakes as modelled while the raster
+    /// backend was reporting <see cref="WaterKind.None"/> above sea level and synthesising
+    /// nothing. A heightmap cannot tell you whether water stands in a depression.
+    /// </remarks>
+    [Fact]
+    public void AHeightOnlyWorldModelsClimateButNeverLakes()
+    {
+        TerrainCapabilities modelled = TerrainFields.ModelledFor(TerrainCapabilities.Height);
+
+        Assert.Equal(TerrainFields.Modelled, modelled);
+        Assert.False(modelled.HasFlag(TerrainCapabilities.Lakes));
+        Assert.True(modelled.HasFlag(TerrainCapabilities.Temperature));
+        Assert.True(modelled.HasFlag(TerrainCapabilities.ShrubDensity));
+
+        // A backend that measures everything models nothing, and the summary line is skipped.
+        Assert.Equal(
+            TerrainCapabilities.None, TerrainFields.ModelledFor(TerrainCapabilities.Standard));
+    }
+
+    /// <summary>
+    /// Nothing above sea level is inland water when no layer supplied any — the claim
+    /// <see cref="TerrainFields.Modelled"/> rests on.
+    /// </summary>
+    [Fact]
+    public void AHeightOnlySetReportsNoLakesAnywhere()
+    {
+        using RasterFixture fixture = BakedFixture(
+            nameof(AHeightOnlySetReportsNoLakesAnywhere), seed: 11, size: 512, resolution: 128);
+
+        var source = new PartialSampler(
+            new ProceduralTerrainSampler(11, TerrainBounds.Square(512)), TerrainCapabilities.Height);
+
+        using var bare = RasterFixture.Empty(nameof(AHeightOnlySetReportsNoLakesAnywhere) + "-bare");
+        TerrainRasterBake.Write(source, bare.Directory, resolution: 128);
+
+        RasterTerrainSampler sampler = bare.Load();
+
+        for (int z = 0; z < 512; z += 16)
+        {
+            for (int x = 0; x < 512; x += 16)
+            {
+                Assert.NotEqual(WaterKind.Lake, sampler.Sample(x, z).Water);
+            }
+        }
+    }
+
     // ─── Fixtures ─────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Wraps a sampler and declares less than it measures.
+    /// </summary>
+    /// <remarks>
+    /// The project has exactly one honestly-partial backend — a bare raster set — and it cannot
+    /// be the source of a bake test, because producing one is what the test is checking. This
+    /// stands in for the third-party sampler the capability flags were written for.
+    /// </remarks>
+    private sealed class PartialSampler : ITerrainSampler
+    {
+        private readonly ITerrainSampler _inner;
+
+        public PartialSampler(ITerrainSampler inner, TerrainCapabilities capabilities)
+        {
+            _inner = inner;
+            Capabilities = capabilities;
+        }
+
+        public TerrainBounds Bounds => _inner.Bounds;
+
+        public TerrainCapabilities Capabilities { get; }
+
+        public TerrainSample Sample(int x, int z) => _inner.Sample(x, z);
+    }
 
     private static RasterFixture BakedFixture(
         string name, ulong seed, int size = 512, int resolution = 128)

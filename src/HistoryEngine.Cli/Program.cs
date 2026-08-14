@@ -175,8 +175,9 @@ internal static class Program
 
         // The fields no backend measured are modelled from elevation and latitude. Printing
         // them is the point of the capability flags: a world built on a bare heightmap should
-        // say so rather than present six fields as if they were all observed.
-        TerrainCapabilities modelled = TerrainCapabilities.Standard & ~world.Terrain.Capabilities;
+        // say so rather than present six fields as if they were all observed. It has to be the
+        // modelled set rather than Standard, or the summary claims lakes nobody synthesises.
+        TerrainCapabilities modelled = TerrainFields.ModelledFor(world.Terrain.Capabilities);
         if (modelled != TerrainCapabilities.None)
         {
             Console.WriteLine($"  modelled       {Fields(modelled)}");
