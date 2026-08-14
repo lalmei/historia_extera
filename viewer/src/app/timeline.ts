@@ -41,6 +41,12 @@ export interface Timeline {
   /** Settlements standing in `year`, at the tier and under the realm they had then. */
   settlementsAt: (year: number) => Standing[];
 
+  /** What one settlement followed in `year`, if anything. */
+  faithAt: (settlementId: EntityId, year: number) => EntityId | undefined;
+
+  /** How many settlements followed one faith in `year`. */
+  followingAt: (religionId: EntityId, year: number) => number;
+
   /** Realms founded and not yet ended in `year`. */
   realmsAt: (year: number) => Civilization[];
 
@@ -76,6 +82,8 @@ export interface Standing {
   /** Whoever held the ground that year — not necessarily who holds it at the end. */
   civilizationId: EntityId;
   isCapital: boolean;
+  /** What the place followed that year, if anything. */
+  religionId?: EntityId;
 }
 
 /** One "from this year onwards" entry. `value` of null means nobody. */
@@ -91,6 +99,7 @@ export function buildTimeline(data: WorldExport): Timeline {
   const tiers = new Map<EntityId, Span<SettlementTier>[]>();
   const seats = new Map<EntityId, Span<EntityId>[]>();
   const reigns = new Map<EntityId, Span<EntityId>[]>();
+  const faiths = new Map<EntityId, Span<EntityId>[]>();
 
   const append = <T>(spans: Map<EntityId, Span<T>[]>, key: EntityId, span: Span<T>) => {
     const existing = spans.get(key);
@@ -129,6 +138,14 @@ export function buildTimeline(data: WorldExport): Timeline {
       case 'RulerCrowned':
         if (event.object && event.subject) {
           append(reigns, event.object, { from: event.year, value: event.subject });
+        }
+        break;
+
+      // Faith moves settlement by settlement, so it replays exactly like ownership does — and
+      // for the same reason: the export carries only what each place believed at the end.
+      case 'ReligionAdopted':
+        if (event.subject && event.object) {
+          append(faiths, event.subject, { from: event.year, value: event.object });
         }
         break;
 
@@ -212,6 +229,7 @@ export function buildTimeline(data: WorldExport): Timeline {
         tier: byYear(tiers.get(settlement.id), year)?.value ?? settlement.tier,
         civilizationId,
         isCapital: byYear(seats.get(civilizationId), year)?.value === settlement.id,
+        religionId: byYear(faiths.get(settlement.id), year)?.value ?? undefined,
       });
     }
 
@@ -274,6 +292,18 @@ export function buildTimeline(data: WorldExport): Timeline {
       return held;
     },
     settlementsAt,
+    faithAt: (settlementId, year) => byYear(faiths.get(settlementId), year)?.value ?? undefined,
+    followingAt: (religionId, year) => {
+      let following = 0;
+
+      for (const settlement of data.settlements) {
+        if (settlement.foundedYear > year) continue;
+        if (settlement.abandonedYear !== undefined && settlement.abandonedYear <= year) continue;
+        if (byYear(faiths.get(settlement.id), year)?.value === religionId) following++;
+      }
+
+      return following;
+    },
     realmsAt,
     extentAt: (civId, year) => extents.get(civId)?.[year - meta.startYear] ?? 0,
     extentOf: (civId) => extents.get(civId) ?? new Array<number>(years).fill(0),

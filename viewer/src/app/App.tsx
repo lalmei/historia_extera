@@ -3,32 +3,38 @@ import { href, useRoute } from './router';
 import { loadWorld, type World } from './store';
 import {
   kindOf,
+  type Artifact,
   type Battle,
   type Civilization,
   type Culture,
   type Dynasty,
   type Figure,
   type Region,
+  type Religion,
   type Settlement,
   type War,
 } from './types';
 import {
+  ArtifactPage,
   BattlePage,
   CivilizationPage,
   CulturePage,
   DynastyPage,
   FigurePage,
   RegionPage,
+  ReligionPage,
   SettlementPage,
   WarPage,
 } from './views/EntityPages';
 import {
+  ArtifactList,
   CivilizationList,
   CultureList,
   DynastyList,
   FigureList,
   Overview,
   RegionList,
+  ReligionList,
   SettlementList,
   Timeline,
   WarList,
@@ -47,6 +53,8 @@ const NAV = [
   { path: '/set', label: 'Settlements' },
   { path: '/dyn', label: 'Houses' },
   { path: '/fig', label: 'Figures' },
+  { path: '/rel', label: 'Faiths' },
+  { path: '/art', label: 'Artifacts' },
   { path: '/cul', label: 'Cultures' },
   { path: '/reg', label: 'Regions' },
 ];
@@ -103,6 +111,10 @@ function renderRoute(world: World, path: string) {
       return <DynastyList world={world} />;
     case 'fig':
       return <FigureList world={world} />;
+    case 'rel':
+      return <ReligionList world={world} />;
+    case 'art':
+      return <ArtifactList world={world} />;
     case 'cul':
       return <CultureList world={world} />;
     case 'reg':
@@ -133,6 +145,10 @@ function renderRoute(world: World, path: string) {
       return <WarPage world={world} war={entity as War} />;
     case 'bat':
       return <BattlePage world={world} battle={entity as Battle} />;
+    case 'rel':
+      return <ReligionPage world={world} religion={entity as Religion} />;
+    case 'art':
+      return <ArtifactPage world={world} artifact={entity as Artifact} />;
     default:
       return <NotFound id={target} />;
   }
