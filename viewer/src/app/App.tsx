@@ -34,10 +34,12 @@ import {
   ArtifactList,
   CivilizationList,
   CultureList,
+  DisasterList,
   DynastyList,
   FigureList,
   HolySiteList,
   Overview,
+  PlagueList,
   RegionList,
   ReligionList,
   SettlementList,
@@ -77,6 +79,8 @@ const NAV = [
   { path: '/rel', label: 'Faiths' },
   { path: '/hol', label: 'Holy sites' },
   { path: '/art', label: 'Artifacts' },
+  { path: '/plague', label: 'Plagues' },
+  { path: '/disaster', label: 'Disasters' },
   { path: '/cul', label: 'Cultures' },
   { path: '/reg', label: 'Regions' },
 ];
@@ -141,6 +145,10 @@ function renderRoute(world: World, path: string) {
       return <HolySiteList world={world} />;
     case 'art':
       return <ArtifactList world={world} />;
+    case 'plague':
+      return <PlagueList world={world} />;
+    case 'disaster':
+      return <DisasterList world={world} />;
     case 'cul':
       return <CultureList world={world} />;
     case 'reg':
