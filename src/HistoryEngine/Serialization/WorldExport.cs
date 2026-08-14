@@ -49,9 +49,10 @@ public sealed record WorldExport(
     /// <remarks>
     /// Version 2 added dynasties and the family links on a figure, and replaced the figure's
     /// two-element parent list with named mother and father. Version 3 added wars and battles,
-    /// and the relations, alliances and truces on a civilization. Version 5 added the particular
-    /// relic and the two faiths named by the new religious causes of war. Version 6 added
-    /// persistent trade routes. Version 7 added holy sites as independent map entities.
+    /// and the relations, alliances and truces on a civilization. Version 5 added the contents and
+    /// circulation of a tome, and the particular relic and two faiths named by the new religious
+    /// causes of war. Version 6 added persistent trade routes. Version 7 added holy sites as
+    /// independent map entities.
     /// </remarks>
     public const int CurrentSchemaVersion = 7;
 }

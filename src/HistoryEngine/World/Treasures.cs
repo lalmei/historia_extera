@@ -128,6 +128,17 @@ public static class Treasures
         WorldState world, Artifact artifact, Civilization taker, War war, int year)
     {
         if (!artifact.IsExtant || artifact.Kind != ArtifactKind.Relic) return;
+
+        // Nothing is handed over that the victor already holds. An army that took the relic when
+        // it sacked the town keeps it; without this the same object arrives twice — "taken as
+        // plunder" in the year of the sack and "claimed in peace" at the settlement, which reads
+        // as two changes of hands and inflates every count drawn from the provenance.
+        if (!world.Settlements.Contains(artifact.HolderId)
+            || world.Settlements[artifact.HolderId].CivilizationId == taker.Id)
+        {
+            return;
+        }
+
         if (taker.CapitalId.IsNone || !world.Settlements.Contains(taker.CapitalId)) return;
 
         Settlement seat = world.Settlements[taker.CapitalId];

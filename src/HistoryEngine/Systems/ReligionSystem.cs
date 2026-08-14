@@ -364,6 +364,8 @@ public sealed class ReligionSystem : IYearSystem
             independent = position != new Point2(settlement.X, settlement.Z);
         }
 
+        if (AlreadyConsecrated(world, faith.Id, position)) return;
+
         EntityId id = world.HolySites.NextId;
         string name = $"{HolySiteKindLabel(kind)} of {world.Names.ForHolySite(id, culture)}";
 
@@ -385,6 +387,30 @@ public sealed class ReligionSystem : IYearSystem
             site.Id,
             obj: faith.Id,
             location: site.IsWithinSettlement ? settlement.Id : settlement.RegionId);
+    }
+
+    /// <summary>
+    /// Whether this faith already keeps a sacred place on this exact ground.
+    /// </summary>
+    /// <remarks>
+    /// A congregation can lose a settlement to another faith and win it back generations later,
+    /// and both the enclosed and the independent location are pure functions of the settlement —
+    /// the same town, the same hill. Without this check the returning faith raises a second house
+    /// of worship on top of the first: same faith, same coordinate, and usually the same kind,
+    /// because the founding draws are keyed to the settlement and the faith rather than to the
+    /// year. What actually happens is that the returning congregation reuses what it built.
+    /// </remarks>
+    private static bool AlreadyConsecrated(WorldState world, EntityId religionId, Point2 position)
+    {
+        foreach (HolySite site in world.HolySites)
+        {
+            if (site.ReligionId == religionId && site.X == position.X && site.Z == position.Z)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static HolySiteKind ChooseHolySiteKind(Settlement settlement, IRng rng)

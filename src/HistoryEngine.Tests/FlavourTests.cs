@@ -21,6 +21,9 @@ namespace HistoryEngine.Tests;
 /// </remarks>
 public sealed class FlavourTests
 {
+    /// <summary>Seeds sampled where the question needs more history than one world provides.</summary>
+    private static readonly ulong[] Seeds = { 2, 7, 11, 42, 99 };
+
     [Fact]
     public void EveryFlavourSystemFiresInAStandardRun()
     {
@@ -233,29 +236,84 @@ public sealed class FlavourTests
     }
 
     /// <summary>
+    /// One faith, one sacred place per spot.
+    /// </summary>
+    /// <remarks>
+    /// <para>A settlement can lose its faith to a neighbour's and win it back generations later,
+    /// and the founding draws are keyed to the settlement and the faith rather than to the year.
+    /// Both possible locations — the settlement's own coordinate, and the independent site chosen
+    /// by a deterministic search over the same refined terrain — are pure functions of the
+    /// settlement. So the second founding rebuilt the first: same faith, same coordinate, and in
+    /// 53 of 55 observed cases the same kind, one temple standing inside another.</para>
+    ///
+    /// <para>Seeded across a spread because a settlement has to lose and regain a faith for this
+    /// to arise at all; seed 42 alone never does it, while 7 and 99 both do.</para>
+    /// </remarks>
+    [Fact]
+    public void NoFaithConsecratesTheSameGroundTwice()
+    {
+        foreach (ulong seed in Seeds)
+        {
+            WorldState world = HistoryRun.Execute(TestWorlds.Standard(seed)).World;
+            var consecrated = new HashSet<(EntityId Faith, int X, int Z)>();
+
+            foreach (HolySite site in world.HolySites)
+            {
+                Assert.True(
+                    consecrated.Add((site.ReligionId, site.X, site.Z)),
+                    $"On seed {seed}, {site.Name} stands at {site.X}, {site.Z} — ground the "
+                    + $"{world.NameOf(site.ReligionId)} had already consecrated.");
+            }
+        }
+    }
+
+    /// <summary>
     /// An artifact is where its provenance says it is.
     /// </summary>
     /// <remarks>
-    /// Provenance is append-only and the holder is a field, so the two can drift — and the paths
-    /// that move an artifact are spread across a war, a settlement abandonment and a volcano.
-    /// This is the assertion that keeps them honest.
+    /// <para>Provenance is append-only and the holder is a field, so the two can drift — and the
+    /// paths that move an artifact are spread across a war, a settlement abandonment and a
+    /// volcano. This is the assertion that keeps them honest.</para>
+    ///
+    /// <para>Seeded across a spread rather than run on one world, because the rarest of those
+    /// paths is the one most likely to be wrong: a relic conceded at a peace had already been
+    /// carried off when its town was sacked, which no seed-42 war happens to do.</para>
     /// </remarks>
     [Fact]
     public void ArtifactProvenanceMatchesWhereTheyAre()
     {
-        HistoryRun run = HistoryRun.Execute(TestWorlds.Standard());
+        foreach (ulong seed in Seeds)
+        {
+            HistoryRun run = HistoryRun.Execute(TestWorlds.Standard(seed));
 
-        Assert.NotEmpty(run.World.Artifacts);
+            Assert.NotEmpty(run.World.Artifacts);
+            AssertProvenanceIsHonest(run.World);
+        }
+    }
 
-        foreach (Artifact artifact in run.World.Artifacts)
+    private static void AssertProvenanceIsHonest(WorldState world)
+    {
+        foreach (Artifact artifact in world.Artifacts)
         {
             Assert.NotEmpty(artifact.Provenance);
 
             int previous = int.MinValue;
+            EntityId previousPlace = EntityId.None;
+
             foreach (ArtifactHolding holding in artifact.Provenance)
             {
                 Assert.True(holding.Year >= previous, $"{artifact.Id} moved backwards in time.");
+
+                // Every entry is a change of hands, so an object cannot arrive where it already
+                // was. A no-op entry reads as a second journey the object never made, and every
+                // count drawn from the provenance is wrong by one.
+                Assert.False(
+                    !holding.SettlementId.IsNone && holding.SettlementId == previousPlace,
+                    $"{artifact.Id} arrived at {holding.SettlementId} in {holding.Year}, "
+                    + $"where it already was — \"{holding.How}\".");
+
                 previous = holding.Year;
+                previousPlace = holding.SettlementId;
             }
 
             ArtifactHolding last = artifact.Provenance[artifact.Provenance.Count - 1];
@@ -265,7 +323,7 @@ public sealed class FlavourTests
             {
                 Assert.False(artifact.HolderId.IsNone);
                 Assert.True(
-                    run.World.Settlements[artifact.HolderId].IsActive,
+                    world.Settlements[artifact.HolderId].IsActive,
                     $"{artifact.Id} is held by a settlement nobody lives in.");
             }
             else
