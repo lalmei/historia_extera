@@ -31,9 +31,13 @@ The same page lists every JSON export already in `viewer/public/worlds/`, newest
 It reads the schema number from each file header and enables **Open** only when it matches
 the viewer's current schema; older exports remain visible so it is clear which worlds need
 to be regenerated. **Move to trash** asks for confirmation, then moves the export into
-`viewer/public/worlds/.trash/`; the page shows the exact recovery path after it disappears
-from the list. **Delete permanently** has a separate irreversible confirmation and removes
-the file without making a recovery copy.
+`build/world-trash/`; the page shows the exact recovery path after it disappears from the
+list. **Delete permanently** has a separate irreversible confirmation and removes the file
+without making a recovery copy.
+
+The recovery folder sits outside `public/` on purpose: Astro copies `public/` into `dist/`
+wholesale, so a trash folder kept beside the worlds would ship every deleted world in the
+built site.
 
 **Development only.** An Astro integration (`viewer/dev/world-generator.mjs`) injects the
 page and its Vite middleware only for `astro dev`. The page lives outside `src/pages/`, so
