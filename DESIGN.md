@@ -209,7 +209,9 @@ round trip is tested and how a reference set is produced for comparison.
 
 ### Site selection: a score that describes the site, not the region
 
-> **Planned** for M10. The measurements below are of the world before it landed.
+> **Built** as M10. The measurements below are of the world before it landed; *M10: the ground
+> decides* in the milestones records what the build produced and the five places it disagreed
+> with this design.
 
 `SiteSelection.Best` refines an 8×8 grid of candidates inside a 128-unit region and ranks them
 on fertility, a river flag, a coast flag and a height penalty. Measured over eight seeds and
@@ -1924,9 +1926,10 @@ clock is a different project that this one should not pre-empt.
 | M7 | Viewer depth: territory rendering, richer filters | done |
 | M8 | Flavour: religions, artifacts, plagues, disasters | done |
 | M9 | Phase 2 spike: raster-backed `ITerrainSampler` | done |
-| M10 | Phase 2 proper: site selection with teeth on real terrain | next |
+| M10 | Phase 2 proper: site selection with teeth on real terrain | **done** |
 | M11 | Offices: appointments, governors, founding parties | **done** |
 | M12 | Rulers who react: dispositions, realm fortunes, trait-aware elections | **done** |
+| M13 | Sub-year time: seasons, dated events, scheduled episodes | planned |
 
 M12 landed first. `Disposition` is the record both milestones read, so building it once — rather
 than landing `Centralism` alone with M11 and folding it in a milestone later — was the cheaper
@@ -2323,6 +2326,99 @@ the contract, not that Azgaar's export ranges are what its documentation says. B
 Phase 2 work rather than spike work, and site selection growing teeth on real terrain
 (M10) is the natural place for them.
 
+M10 did the first and **not** the second: the cost model is still asserted against a hypothetical
+sample, and no external generator has yet been driven through the route end to end by a person.
+That remains the one piece of Phase 2 nobody has actually done, and it needs an export to hand
+rather than a design decision.
+
+### M10: the ground decides
+
+The score `SiteSelection` used could not describe a site. Across eight seeds its fertility and
+height terms spread **0.071** over the 64 candidates of one decision while its river and coast
+booleans spread **0.184** — so the choice was made by one flag, quantised to a grid four times
+coarser than the choice itself, and a quarter of decisions had no water variation at all to go on.
+Nothing asked whether the ground could be built on, so **19.6%** of settlements stood on a grade
+steeper than 1-in-2 and the worst stood on 2:1.
+
+**What it produced.** Water became a distance and shelter a weight; confluences, river mouths and
+passes became worth something; slope became a quadratic penalty; and region habitability stopped
+treating a river through the middle the same as a headwater at the corner.
+
+| | before | after |
+|---|---|---|
+| settlements on a grade steeper than 1-in-2 | 19.6% | **5.6%** |
+| p90 grade under a settlement | 0.779 | **0.437** |
+| worst site in eight worlds | 2.081 | 2.038 |
+| settlements / cities | 542 / 189 | 555 / 213 |
+| terrain samples per run | 5,798 | 8,969 |
+
+Every site now records what it was chosen for, and the rare characters are the ones that make
+cities: **64% of harbours, 60% of open-coast sites and 47% of river mouths reach city size, against
+34% of unremarkable ground**. That is the milestone's real result — not that towns moved, but that
+where a town is now explains how large it got.
+
+#### Where the build disagreed
+
+**A col is not a mountain.** Passes were specified as saddles that are themselves high and steep.
+Both conditions are backwards: measured over eight seeds a saddle's median height is 58–344 m
+against a 520 m base land height, and its grade is consistently *lower* than the land around it —
+which is exactly why anyone crosses there. Under the original gates seed 42 found 87 saddles and
+called none of them a pass. What has to be formidable is the barrier either side, not the gap.
+
+**A shore is half-enclosed by definition.** Harbour shelter, counted over the eight touching cells,
+put every shore in every world between 0.38 and 0.83 with the bulk within a few hundredths of a
+half — because what it actually measures is "this water is beside a shoreline", which is as true of
+a headland as of a bay. It needed a three-cell radius and stretching over the range a shore really
+occupies. The same trap `Fertility` fell into in M4, in a different costume.
+
+**A linear slope penalty cannot work.** Two linear versions moved the median site grade by
+hundredths and left the worst site on 2.8, because a linear response has to choose between ignoring
+cliffs and punishing hillsides. Squaring it separates the two: ordinary slope costs almost nothing
+and unbuildable ground costs more than any other term returns.
+
+**Defensibility was tried four ways and cut.** It was one of the four ingredients this milestone
+was named for, and at the resolution a siting decision can see, prominence and steepness are not
+merely correlated — they are the same measurement, so rewarding one is rewarding the other:
+
+| | on 1-in-2 ground | median grade | sites called a spur |
+|---|---|---|---|
+| no defensibility term | **8.4%** | 0.231 | — |
+| rise above the touching ring | 12.8% | 0.262 | 0 |
+| rise above the ring beyond it | 14.8% | 0.283 | 16 |
+| the same, gated on buildable ground | 13.1% | 0.283 | 7 |
+
+The best case bought a label on 3% of settlements for six points of exactly the defect the milestone
+existed to remove. Held to the bar the design set — a term that does not earn its place is cut
+rather than kept for flavour — it went. Defensibility as a property of *ground* is what failed;
+walls and garrisons remain open to whatever eventually reads `IsFortified`.
+
+**The sample budget moved, and the design said it must not.** It rose 55%, from 5,798 to 8,969 per
+run against a 12,000 ceiling. The cause was not the new measures — those are all derived from grids
+already paid for, exactly as planned — but expansion's refinement, which was 4×4 where a capital's
+is 8×8, on the reasoning that a colony is a smaller bet. At 32-unit spacing the ground a settlement
+stands on is not visible: colonies were sited on a grade steeper than 1-in-2 21.1% of the time
+against a capital's 10.9%. **Nine in ten settlements in a finished history are colonies**, so this
+was never a cheap decision made rarely — it was the decision, made at half the resolution of the one
+nobody minded paying for. The bet is smaller; the ground is the same ground.
+
+#### Four tests failed that M10 had not broken
+
+Worth recording, because three of them were passing by luck and one was wrong.
+
+- `DispositionTests` asserts that realms are governed both more and less aggressively than their
+  cultures. Divergence is not symmetric — downward is common, upward rare — so at five seeds it was
+  asserting a rare event appeared in a sample of about 25 surviving realms. New histories, no
+  upward case. Widened to ten seeds; thresholds untouched.
+- `DynastyTests` needed a world containing an agnatic realm, and seed 42 stopped producing one. Now
+  checked over five worlds, which also tests the invariant harder.
+- Two sample-budget comparisons carried tolerances in *samples* that were calibrated when a founding
+  cost 16 of them. Restated in foundings.
+- `WarTests` compared who won a relic against **who owns the holding town at the end of the run**,
+  so it quietly asserted that no relic-winner ever subsequently lost the town. Not a property of the
+  relic system, and not true. It now replays region ownership from the chronicle to the year the
+  peace was signed — the same discipline the engine already applies to territory, and to the relic
+  one line above.
+
 ### Trade routes: topology before roads
 
 **Commerce now has an identity of its own.** A route is an undirected pair of settlements with
@@ -2384,9 +2480,14 @@ is modelled from elevation and latitude when absent, and left out of the declara
 which is what makes "almost any generator" true rather than aspirational, since almost
 none of them export six fields.
 
-Phase 2 is also where site selection should grow teeth — river confluences, harbour
-quality, mountain passes, defensibility from real slope. All of it belongs in
-`SiteSelection`, which is one function precisely so this can happen in one place.
+~~Phase 2 is also where site selection should grow teeth — river confluences, harbour
+quality, mountain passes, defensibility from real slope.~~ Done in M10, three of the four:
+confluences, harbour quality and passes all landed, and defensibility was cut on measurement
+rather than deferred — see *M10: the ground decides*. It did belong in `SiteSelection`, and being
+one function is what made it a single change rather than four.
+
+What is left of Phase 2 is the piece that needs a file rather than a decision: driving a real
+external generator through the raster route end to end.
 
 ## Notes for Phase 3
 
