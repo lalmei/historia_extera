@@ -650,8 +650,17 @@ public sealed class FlavourTests
         // Not equal: the flavour systems change how many settlements get founded, and founding is
         // what costs samples. What must not happen is the four new systems sampling per entity
         // per year, which would put this into the tens of thousands.
+        //
+        // The allowance is stated as a number of foundings rather than a number of samples,
+        // because it is foundings that the flavour systems actually move. It was a flat 200 until
+        // M10 gave expansion the same 8x8 refinement a capital gets, which multiplied the cost of
+        // a single founding by four and would have made this fail on a change that altered nothing
+        // it is watching for.
+        const int SamplesPerFounding = 64;
+        const int FoundingsOfSlack = 20;
+
         Assert.True(
-            withFlavour <= without + 200,
+            withFlavour <= without + (SamplesPerFounding * FoundingsOfSlack),
             $"A run with the flavour systems spent {withFlavour:N0} samples against {without:N0} " +
             "without them. Disasters must read region statistics, never the terrain.");
     }

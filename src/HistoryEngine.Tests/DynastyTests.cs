@@ -206,24 +206,31 @@ public sealed class DynastyTests
     [Fact]
     public void AgnaticRealmsAreNeverRuledByAWoman()
     {
-        HistoryRun run = HistoryRun.Execute(TestWorlds.Standard());
-        WorldState world = run.World;
-
+        // Over several worlds rather than one. Whether any realm happens to roll agnatic
+        // succession is a property of the seed, so a single world can leave this asserting
+        // nothing — and did, once M10 changed every history and seed 42 came up with none.
+        // Checking more worlds is also a strictly stronger test of the invariant itself.
         int checkedRulers = 0;
 
-        foreach (Civilization civilization in world.Civilizations)
+        foreach (ulong seed in new ulong[] { 42, 2, 7, 11, 99 })
         {
-            if (world.CultureOf(civilization).Succession != SuccessionLaw.Agnatic) continue;
+            WorldState world = HistoryRun.Execute(TestWorlds.Standard(seed)).World;
 
-            foreach (EntityId id in civilization.RulerIds)
+            foreach (Civilization civilization in world.Civilizations)
             {
-                Figure ruler = world.Figures[id];
+                if (world.CultureOf(civilization).Succession != SuccessionLaw.Agnatic) continue;
 
-                Assert.True(
-                    ruler.Sex == Sex.Male,
-                    $"{ruler.Name} held {civilization.Name}, which inherits in the male line only.");
+                foreach (EntityId id in civilization.RulerIds)
+                {
+                    Figure ruler = world.Figures[id];
 
-                checkedRulers++;
+                    Assert.True(
+                        ruler.Sex == Sex.Male,
+                        $"{ruler.Name} held {civilization.Name} in seed {seed}, which inherits "
+                        + "in the male line only.");
+
+                    checkedRulers++;
+                }
             }
         }
 
