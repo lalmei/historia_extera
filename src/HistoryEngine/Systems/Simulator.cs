@@ -1,4 +1,5 @@
 using HistoryEngine.Core;
+using HistoryEngine.Entities;
 using HistoryEngine.World;
 
 namespace HistoryEngine.Systems;
@@ -160,7 +161,92 @@ public sealed class Simulator
             _systems[i].Tick(world, year);
         }
 
+        Observe(world, year);
+
         // Leave the clock on the next year to simulate, so Run and Advance can resume.
         world.Year = year + 1;
     }
+
+    /// <summary>
+    /// Samples the measures that move, once a year, after every system has run.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Deliberately not a seventeenth system.</b> <see cref="SystemOrder"/> is folded
+    /// into the run's identity because every entry in it changes the history that comes out. An
+    /// observer that reads state, draws no random numbers and writes nothing back changes none of
+    /// it, and declaring it there would make two runs with identical histories claim different
+    /// identities — which is the opposite of what that hash is for.</para>
+    ///
+    /// <para><b>After the systems, so a reading is the year as it ended</b> — the same instant the
+    /// export's final-year fields are taken from, which is what makes the last point of every
+    /// series agree with the snapshot printed beside it. A realm's effective values are settled at
+    /// the top of the year and unchanged since, so reading them here is still reading the values
+    /// the year was actually governed by.</para>
+    /// </remarks>
+    private static void Observe(WorldState world, int year)
+    {
+        foreach (Civilization civilization in world.ActiveCivilizations())
+        {
+            SeriesLog series = world.Series;
+            EntityId id = civilization.Id;
+
+            series.Record(id, Measures.Population, year, civilization.Population);
+
+            RealmFortunes fortunes = civilization.Fortunes;
+            series.Record(id, Measures.Weariness, year, fortunes.Weariness);
+            series.Record(id, Measures.Calamity, year, fortunes.Calamity);
+            series.Record(id, Measures.Triumph, year, fortunes.Triumph);
+            series.Record(id, Measures.Grievance, year, fortunes.Grievance);
+
+            CultureValues values = civilization.EffectiveValues;
+            series.Record(id, Measures.Aggression, year, values.Aggression);
+            series.Record(id, Measures.Expansionism, year, values.Expansionism);
+            series.Record(id, Measures.Piety, year, values.Piety);
+            series.Record(id, Measures.Tradition, year, values.Tradition);
+            series.Record(id, Measures.Mercantile, year, values.Mercantile);
+            series.Record(id, Measures.Learning, year, values.Learning);
+        }
+
+        for (int i = 0; i < world.Settlements.Count; i++)
+        {
+            Settlement settlement = world.Settlements[i];
+            if (!settlement.IsActive) continue;
+
+            world.Series.Record(
+                settlement.Id, Measures.Population, year, settlement.Population);
+        }
+
+        foreach (TradeRoute route in world.ActiveTradeRoutes())
+        {
+            world.Series.Record(route.Id, Measures.Traffic, year, route.Traffic);
+        }
+    }
+}
+
+/// <summary>
+/// The measures the run samples, and how each one should be read.
+/// </summary>
+/// <remarks>
+/// A measure belongs here when it moves during a run. Anything fixed at worldgen — a culture's
+/// values, a person's disposition, a faith's fervour — is already a field in the export, and a
+/// flat line drawn across three centuries tells a reader less than the number does.
+/// </remarks>
+public static class Measures
+{
+    public static readonly Measure Population = new("population", "", MeasureUnit.Count);
+
+    public static readonly Measure Traffic = new("traffic", "", MeasureUnit.Fraction);
+
+    public static readonly Measure Weariness = new("weariness", "fortunes", MeasureUnit.Fraction);
+    public static readonly Measure Calamity = new("calamity", "fortunes", MeasureUnit.Fraction);
+    public static readonly Measure Triumph = new("triumph", "fortunes", MeasureUnit.Fraction);
+    public static readonly Measure Grievance = new("grievance", "fortunes", MeasureUnit.Fraction);
+
+    public static readonly Measure Aggression = new("aggression", "values", MeasureUnit.Fraction);
+    public static readonly Measure Expansionism =
+        new("expansionism", "values", MeasureUnit.Fraction);
+    public static readonly Measure Piety = new("piety", "values", MeasureUnit.Fraction);
+    public static readonly Measure Tradition = new("tradition", "values", MeasureUnit.Fraction);
+    public static readonly Measure Mercantile = new("mercantile", "values", MeasureUnit.Fraction);
+    public static readonly Measure Learning = new("learning", "values", MeasureUnit.Fraction);
 }

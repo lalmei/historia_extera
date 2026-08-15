@@ -49,6 +49,7 @@ public sealed class WorldState
         Chronicle = new Chronicle();
         Harvest = new HarvestModel(config);
         Outbreaks = new List<Outbreak>();
+        Series = new SeriesLog();
         Year = config.StartYear;
     }
 
@@ -66,6 +67,16 @@ public sealed class WorldState
     public INameGenerator Names { get; }
 
     public Chronicle Chronicle { get; }
+
+    /// <summary>
+    /// The measures that move, sampled once a year.
+    /// </summary>
+    /// <remarks>
+    /// The chronicle records what happened; this records what it left the world looking like. The
+    /// two answer different questions — "why is this realm exhausted" is in the events, and "how
+    /// exhausted, in which decade" is here — and neither is recoverable from the other.
+    /// </remarks>
+    public SeriesLog Series { get; }
 
     /// <summary>
     /// How each year went, per region.
