@@ -57,9 +57,11 @@ public sealed record WorldExport(
     /// cause of death. Version 9 added the reign-aware layer: a culture's Learning dial, every
     /// figure's own disposition, and the fortunes and effective values a realm is governed by.
     /// Version 10 added the yearly series: every measure that moves, sampled once a year, so the
-    /// viewer can plot what the snapshot fields can only report the end of.
+    /// viewer can plot what the snapshot fields can only report the end of. Version 11 tells the
+    /// viewer whether the world's east and west edges are the same meridian, which it cannot infer
+    /// and draws wrong without.
     /// </remarks>
-    public const int CurrentSchemaVersion = 10;
+    public const int CurrentSchemaVersion = 11;
 }
 
 public sealed record ExportMeta(
@@ -91,6 +93,16 @@ public sealed record ExportSampleStats(
     double EstimatedGameSecondsSimulation,
     double EstimatedGameSecondsRaster);
 
+/// <param name="EastWestPeriodic">
+/// Whether the east and west edges are the same meridian.
+/// </param>
+/// <remarks>
+/// <para><see cref="EastWestPeriodic"/> is carried because a viewer cannot infer it and draws the
+/// world wrong without it. The simulation already measures distance the short way round, so a
+/// trade route between a town at the western edge and one at the eastern edge is a neighbourly
+/// link — and a map that has not been told the world wraps draws it as a line clean across the
+/// continent, which is the one reading that is certainly false.</para>
+/// </remarks>
 public sealed record ExportWorld(
     int MinX,
     int MinZ,
@@ -98,6 +110,7 @@ public sealed record ExportWorld(
     int Height,
     int RegionSize,
     int TerrainStride,
+    bool EastWestPeriodic,
     string Capabilities,
     ExportRaster Raster,
     IReadOnlyList<ExportRiver> Rivers);

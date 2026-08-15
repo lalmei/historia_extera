@@ -141,6 +141,26 @@ public sealed class ExportTests
     /// <summary>Dials are exported to three decimals; the snapshot fields are not.</summary>
     private static double Round(double value) => Math.Round(value, 3);
 
+    /// <summary>
+    /// A periodic world must say so in its export.
+    /// </summary>
+    /// <remarks>
+    /// Nothing downstream can infer it, and everything drawn from coordinates is wrong without
+    /// it: a link between a town on the western edge and one on the eastern edge is short in the
+    /// simulation and a line clean across the map in anything that has not been told the seam
+    /// joins.
+    /// </remarks>
+    [Fact]
+    public void TheExportSaysWhetherTheWorldWraps()
+    {
+        WorldConfig bounded = TestWorlds.Small();
+
+        Assert.False(HistoryRun.Execute(bounded).ToExport().World.EastWestPeriodic);
+        Assert.True(
+            HistoryRun.Execute(bounded with { EastWestPeriodic = true })
+                .ToExport().World.EastWestPeriodic);
+    }
+
     [Fact]
     public void IndicesAndReferencesResolve()
     {
