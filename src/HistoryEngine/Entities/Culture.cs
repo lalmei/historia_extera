@@ -62,6 +62,61 @@ public sealed record CultureValues(
         DetMath.Lerp(Mercantile, other.Mercantile, t),
         DetMath.Lerp(Learning, other.Learning, t));
 
+    /// <summary>
+    /// These values as a realm's recent past leaves them.
+    /// </summary>
+    /// <remarks>
+    /// <para>The third layer, applied after a ruler has been blended in: what a people is, what
+    /// this one wants, and then what has lately happened to them all.</para>
+    ///
+    /// <para>Pulls are expressed as fractions of the distance to 0 or to 1 rather than as sums, so
+    /// no shift can leave the range and none of them needs clamping. It also gives the right
+    /// shape: a realm that is already barely warlike has little aggression left for a defeat to
+    /// take, where an additive term would drive it through the floor and be clipped.</para>
+    ///
+    /// <para>Only four of the six move. Tradition and Learning are what a people is rather than
+    /// how it feels this decade — a plague does not make anyone less attached to their ancestral
+    /// sites, and a lost battle does not make them less literate.</para>
+    /// </remarks>
+    public CultureValues ShiftedBy(RealmFortunes fortunes) => new(
+        // A beaten realm turns defensive; an aggrieved one turns vengeful; a winning one presses.
+        Aggression: Toward1(
+            Toward0(Aggression, WearinessDampsAggression * fortunes.Weariness),
+            (GrievanceSpursAggression * fortunes.Grievance)
+            + (TriumphSpursAggression * fortunes.Triumph)),
+
+        // Nobody founds colonies in a plague year, and success is its own argument for more.
+        Expansionism: Toward1(
+            Toward0(Expansionism, CalamityDampsExpansion * fortunes.Calamity),
+            TriumphSpursExpansion * fortunes.Triumph),
+
+        // Catastrophe drives people to the temple. This is the first consequence a disaster in
+        // this engine has ever had beyond the people it killed.
+        Piety: Toward1(Piety, CalamityDrivesPiety * fortunes.Calamity),
+
+        Tradition: Tradition,
+
+        // A realm too spent to fight goes back to trading with the neighbours it was fighting.
+        Mercantile: Toward1(Mercantile, WearinessDrivesTrade * fortunes.Weariness),
+
+        Learning: Learning);
+
+    private const double WearinessDampsAggression = 0.35;
+    private const double GrievanceSpursAggression = 0.30;
+    private const double TriumphSpursAggression = 0.12;
+    private const double CalamityDampsExpansion = 0.45;
+    private const double TriumphSpursExpansion = 0.20;
+    private const double CalamityDrivesPiety = 0.35;
+    private const double WearinessDrivesTrade = 0.20;
+
+    /// <summary>Moves a dial the given fraction of its remaining distance to zero.</summary>
+    private static double Toward0(double value, double amount) =>
+        value * (1.0 - DetMath.Clamp01(amount));
+
+    /// <summary>Moves a dial the given fraction of its remaining distance to one.</summary>
+    private static double Toward1(double value, double amount) =>
+        value + ((1.0 - value) * DetMath.Clamp01(amount));
+
     /// <summary>Mean absolute distance across the dials, in [0, 1].</summary>
     /// <remarks>
     /// Backs both the electorate's affinity for a candidate and the divergence between a reign

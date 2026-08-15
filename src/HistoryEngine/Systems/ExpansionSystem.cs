@@ -53,7 +53,12 @@ public sealed class ExpansionSystem : IYearSystem
             double pressure = DetMath.Clamp01(
                 civilization.Population / (settlementCount * PressureReference));
 
-            double chance = BaseChance * (0.25 + culture.Values.Expansionism) * pressure;
+            // Founding a colony is a decision of state, so it is the realm's effective
+            // expansionism rather than its culture's: a plague year suppresses it, a run of
+            // victories encourages it, and an unambitious king declines to do it at all.
+            double chance = BaseChance
+                * (0.25 + world.ValuesFor(civilization).Expansionism)
+                * pressure;
             if (!rng.Chance(chance)) continue;
 
             Region? target = FindFrontierRegion(world, civilization);

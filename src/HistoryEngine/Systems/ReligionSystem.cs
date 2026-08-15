@@ -343,6 +343,14 @@ public sealed class ReligionSystem : IYearSystem
             (ulong)faith.Id.ToDiscriminator());
         IRng own = world.Root.Fork("religion.holy-site", unchecked((long)pair));
 
+        // Raising a house of worship is a thing somebody pays for, so it takes the realm's
+        // effective piety rather than the people's — a devout ruler builds where his predecessor
+        // did not, and a realm lately visited by plague builds more than it used to. Conversion
+        // itself stays cultural: a congregation is a settlement, not a court.
+        CultureValues values = world.Civilizations.Contains(settlement.CivilizationId)
+            ? world.ValuesFor(world.Civilizations[settlement.CivilizationId])
+            : culture.Values;
+
         double chance = settlement.Tier switch
         {
             SettlementTier.City => 0.72,
@@ -350,13 +358,13 @@ public sealed class ReligionSystem : IYearSystem
             SettlementTier.Village => 0.32,
             _ => 0.08,
         };
-        chance *= 0.55 + culture.Values.Piety;
+        chance *= 0.55 + values.Piety;
 
         if (!required && !own.Chance(DetMath.Clamp01(chance))) return;
 
         HolySiteKind kind = ChooseHolySiteKind(settlement, own);
         bool independent = settlement.Specialization == SettlementSpecialization.Shrine
-                           || own.Chance(0.20 + (culture.Values.Piety * 0.22));
+                           || own.Chance(0.20 + (values.Piety * 0.22));
         Point2 position = new(settlement.X, settlement.Z);
         if (independent)
         {

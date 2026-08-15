@@ -190,7 +190,12 @@ public sealed class FlavourTests
         // Ending is reachable, which is what stops the world only ever accumulating faiths. It is
         // deliberately checked on a known fading seed rather than requiring every standard world
         // to lose a faith: a history where every faith happens to survive is legitimate.
-        HistoryRun fadingRun = HistoryRun.Execute(TestWorlds.Standard(seed: 11));
+        //
+        // Seed 8 rather than seed 11, which used to lose exactly one faith and stopped when the
+        // reign-aware layer perturbed it. A seed chosen for having a single qualifying event is a
+        // seed that will go stale on the next calibration change; this one loses nine of sixteen,
+        // so it is testing that the mechanism works rather than that one history is unchanged.
+        HistoryRun fadingRun = HistoryRun.Execute(TestWorlds.Standard(seed: 8));
         Assert.Contains(fadingRun.World.Religions, faith => !faith.IsActive);
     }
 

@@ -127,7 +127,7 @@ public sealed class SettlementLifecycleSystem : IYearSystem
 
                 survivingSettlements++;
                 ApplyTierChange(world, settlement, year);
-                MaybeFortify(world, settlement, culture, year, rng);
+                MaybeFortify(world, settlement, civilization, year, rng);
             }
 
             if (survivingSettlements == 0)
@@ -198,11 +198,14 @@ public sealed class SettlementLifecycleSystem : IYearSystem
     }
 
     private static void MaybeFortify(
-        WorldState world, Settlement settlement, Culture culture, int year, IRng rng)
+        WorldState world, Settlement settlement, Civilization civilization, int year, IRng rng)
     {
         if (settlement.IsFortified || settlement.Tier < SettlementTier.Town) return;
 
-        double chance = FortificationChance * (0.4 + culture.Values.Aggression);
+        // Walls are public works, which makes them the crown's decision rather than the people's
+        // temperament: a realm that has lately been sacked builds them, and a peaceable king of a
+        // martial people does not.
+        double chance = FortificationChance * (0.4 + world.ValuesFor(civilization).Aggression);
         if (!rng.Chance(chance)) return;
 
         settlement.IsFortified = true;
