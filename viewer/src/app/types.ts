@@ -201,6 +201,19 @@ export interface Culture {
 }
 
 /**
+ * How a realm's recent past sat on it at the end of the run.
+ *
+ * Weariness and grievance are separate on purpose and pull opposite ways: being beaten
+ * exhausts a realm, being humiliated angers it. Grievance also fades far more slowly.
+ */
+export interface Fortunes {
+  weariness: number;
+  calamity: number;
+  triumph: number;
+  grievance: number;
+}
+
+/**
  * One person's own inclinations, on the same dials their culture has.
  *
  * Present on every figure, not only those who governed — the brother who would have been a
@@ -247,6 +260,8 @@ export interface Civilization {
   rulerSinceYear: number;
   population: number;
   peakPopulation: number;
+  /** What the realm had lately been through, as of the last simulated year. */
+  fortunes: Fortunes;
   rulerIds: EntityId[];
   settlementIds: EntityId[];
   territoryRegionIds: EntityId[];

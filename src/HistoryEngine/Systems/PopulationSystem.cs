@@ -235,6 +235,10 @@ public sealed class PopulationSystem : IYearSystem
         int lost = before - settlement.Population;
         if (lost <= 0 || lost < before * NotableLossFraction) return;
 
+        // Only a famine the chronicle thought worth recording reaches the realm's fortunes. A
+        // mediocre harvest that nobody wrote down is not something a court remembers a decade on.
+        Realms.Suffered(world, settlement, lost);
+
         world.Chronicle.Record(
             year,
             EventKind.SettlementFamine,
