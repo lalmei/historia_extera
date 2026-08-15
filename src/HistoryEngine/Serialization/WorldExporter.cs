@@ -431,7 +431,8 @@ public static class WorldExporter
                 IsCapital: settlement.IsCapital,
                 IsFortified: settlement.IsFortified,
                 ReligionId: OrNull(settlement.ReligionId),
-                ConvertedYear: settlement.ConvertedYear));
+                ConvertedYear: settlement.ConvertedYear,
+                Site: settlement.Site));
         }
 
         return list;

@@ -34,6 +34,7 @@ import {
   HOLY_SITE_LABELS,
   KIND_LABELS,
   OUTCOME_LABELS,
+  SITE_LABELS,
   SPECIALIZATION_LABELS,
   SUCCESSION_LABELS,
   TIER_ORDER,
@@ -274,6 +275,15 @@ export function SettlementPage({ world, settlement }: { world: World; settlement
                   </span>
                 )}
               </>
+            )}
+          </Field>
+          <Field label="Built here for">
+            {settlement.site === 'Plain' ? (
+              <span className="text-[var(--ink-faint)]">
+                Its soil — nothing else marks the spot
+              </span>
+            ) : (
+              SITE_LABELS[settlement.site]
             )}
           </Field>
           <Field label="Civilization">

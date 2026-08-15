@@ -7,7 +7,7 @@
  * stops moving.
  */
 
-export const SCHEMA_VERSION = 11;
+export const SCHEMA_VERSION = 12;
 
 /** `"civ:3"`, `"fig:1204"` — readable, greppable, and directly usable as a route. */
 export type EntityId = string;
@@ -610,6 +610,32 @@ export const SPECIALIZATION_LABELS: Record<SettlementSpecialization, string> = {
   Shrine: 'Pilgrimage',
 };
 
+/**
+ * What a settlement's ground was chosen for.
+ *
+ * Recorded at founding and never revised: it is a fact about a decision, not about the present.
+ * A harbour whose bay silted up over three centuries of chronicle was still founded for the
+ * harbour, and that is what explains where it is.
+ */
+export type SiteCharacter =
+  | 'Plain'
+  | 'Riverside'
+  | 'Confluence'
+  | 'Estuary'
+  | 'Harbour'
+  | 'Coastal'
+  | 'Pass';
+
+export const SITE_LABELS: Record<SiteCharacter, string> = {
+  Plain: 'Open ground',
+  Riverside: 'On the river',
+  Confluence: 'At the meeting of two rivers',
+  Estuary: 'Where the river meets the sea',
+  Harbour: 'On sheltered water',
+  Coastal: 'On the coast',
+  Pass: 'Astride the pass',
+};
+
 export interface Settlement {
   id: EntityId;
   name: string;
@@ -632,6 +658,8 @@ export interface Settlement {
   /** The faith followed here, or absent while the place keeps its own counsel. */
   religionId?: EntityId;
   convertedYear?: number;
+  /** What the ground was chosen for. */
+  site: SiteCharacter;
 }
 
 /** The transport corridor a logical route is most likely to use. It is not path geometry. */

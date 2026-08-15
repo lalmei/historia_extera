@@ -59,9 +59,11 @@ public sealed record WorldExport(
     /// Version 10 added the yearly series: every measure that moves, sampled once a year, so the
     /// viewer can plot what the snapshot fields can only report the end of. Version 11 tells the
     /// viewer whether the world's east and west edges are the same meridian, which it cannot infer
-    /// and draws wrong without.
+    /// and draws wrong without. Version 12 records what each settlement's ground was chosen for —
+    /// a confluence, a river mouth, a sheltered harbour, a pass — which the viewer can only
+    /// otherwise guess at by reading coordinates against the map.
     /// </remarks>
-    public const int CurrentSchemaVersion = 11;
+    public const int CurrentSchemaVersion = 12;
 }
 
 public sealed record ExportMeta(
@@ -364,7 +366,8 @@ public sealed record ExportSettlement(
     bool IsCapital,
     bool IsFortified,
     EntityId? ReligionId,
-    int? ConvertedYear);
+    int? ConvertedYear,
+    SiteCharacter Site);
 
 /// <summary>
 /// One durable commercial connection. It carries topology and economic history, not a physical
