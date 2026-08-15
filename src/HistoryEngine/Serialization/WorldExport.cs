@@ -39,6 +39,7 @@ public sealed record WorldExport(
     IReadOnlyList<ExportHolySite> HolySites,
     IReadOnlyList<ExportArtifact> Artifacts,
     IReadOnlyList<ExportEvent> Events,
+    IReadOnlyList<ExportSeries> Series,
     ExportIndices Indices,
     IReadOnlyDictionary<string, string> Narration)
 {
@@ -55,8 +56,10 @@ public sealed record WorldExport(
     /// independent map entities. Version 8 added the exact detail behind a figure's categorical
     /// cause of death. Version 9 added the reign-aware layer: a culture's Learning dial, every
     /// figure's own disposition, and the fortunes and effective values a realm is governed by.
+    /// Version 10 added the yearly series: every measure that moves, sampled once a year, so the
+    /// viewer can plot what the snapshot fields can only report the end of.
     /// </remarks>
-    public const int CurrentSchemaVersion = 9;
+    public const int CurrentSchemaVersion = 10;
 }
 
 public sealed record ExportMeta(
@@ -520,6 +523,34 @@ public sealed record ExportEvent(
     EntityId? Location,
     IReadOnlyList<EntityId>? Extra,
     IReadOnlyDictionary<string, string>? Data);
+
+/// <summary>
+/// One measure of one entity, sampled once a year.
+/// </summary>
+/// <remarks>
+/// <para>The snapshot fields elsewhere in this file report where a run ended: a realm's
+/// population, its weariness, the values it was last governed by. None of them can say whether
+/// it got there by growing steadily or by being halved twice and clawing its way back, and that
+/// is usually the interesting half. These carry the whole shape.</para>
+///
+/// <para><b>Self-describing, so a viewer can plot one it has never heard of.</b>
+/// <see cref="Group"/> collects measures that belong on one chart and <see cref="Unit"/> says
+/// whether the axis is a headcount or a [0, 1] dial — the same contract the narration templates
+/// have with event kinds, and it buys the same thing: a measure added in a later milestone draws
+/// itself with no viewer change.</para>
+///
+/// <para><b>Values are rounded to three decimals</b> — a thousandth of a dial nobody can see,
+/// against roughly two thirds of the bytes these would otherwise cost. Rounding is deterministic,
+/// so the golden-hash test is unaffected.</para>
+/// </remarks>
+/// <param name="FromYear">The year <paramref name="Values"/> begins. One entry per year from there.</param>
+public sealed record ExportSeries(
+    EntityId Entity,
+    string Metric,
+    string Group,
+    string Unit,
+    int FromYear,
+    IReadOnlyList<double> Values);
 
 /// <summary>
 /// Denormalised lookups, computed once by the engine.

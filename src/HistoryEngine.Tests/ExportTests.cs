@@ -79,6 +79,68 @@ public sealed class ExportTests
     }
 
     /// <summary>Every index entry must resolve, and every referenced entity must exist.</summary>
+    /// <summary>
+    /// Every series must end where the snapshot field beside it does.
+    /// </summary>
+    /// <remarks>
+    /// <para>The export reports a realm's last year twice — once as a field and once as the final
+    /// point of its series — and a reader is entitled to the same number in both places. The two
+    /// are written by different code at different moments: the observer samples after the systems
+    /// have run, the exporter reads the entity once the run is over. This is the assertion that
+    /// keeps those two moments the same moment.</para>
+    ///
+    /// <para>Entities that stopped being sampled are skipped, not excused: a realm that fell in
+    /// year 200 has no reading for 201 by design, and asserting against its final field would be
+    /// asserting the wrong year rather than testing anything.</para>
+    /// </remarks>
+    [Fact]
+    public void SeriesEndWhereTheSnapshotsDo()
+    {
+        WorldExport export = HistoryRun.Execute(TestWorlds.Small()).ToExport();
+
+        var last = new Dictionary<(EntityId, string), double>();
+        foreach (ExportSeries series in export.Series)
+        {
+            Assert.NotEmpty(series.Values);
+            Assert.InRange(
+                series.FromYear + series.Values.Count - 1,
+                export.Meta.StartYear,
+                export.Meta.EndYear);
+
+            last[(series.Entity, series.Metric)] = series.Values[^1];
+        }
+
+        Assert.NotEmpty(last);
+
+        foreach (ExportCivilization civ in export.Civilizations)
+        {
+            if (civ.EndedYear is not null) continue;
+
+            Assert.Equal(civ.Population, last[(civ.Id, "population")]);
+            Assert.Equal(Round(civ.Fortunes.Weariness), last[(civ.Id, "weariness")]);
+            Assert.Equal(Round(civ.Fortunes.Grievance), last[(civ.Id, "grievance")]);
+            Assert.Equal(Round(civ.EffectiveValues.Aggression), last[(civ.Id, "aggression")]);
+            Assert.Equal(Round(civ.EffectiveValues.Learning), last[(civ.Id, "learning")]);
+        }
+
+        foreach (ExportSettlement settlement in export.Settlements)
+        {
+            if (settlement.AbandonedYear is not null) continue;
+
+            Assert.Equal(settlement.Population, last[(settlement.Id, "population")]);
+        }
+
+        foreach (ExportTradeRoute route in export.TradeRoutes)
+        {
+            if (route.EndedYear is not null) continue;
+
+            Assert.Equal(Round(route.Traffic), last[(route.Id, "traffic")]);
+        }
+    }
+
+    /// <summary>Dials are exported to three decimals; the snapshot fields are not.</summary>
+    private static double Round(double value) => Math.Round(value, 3);
+
     [Fact]
     public void IndicesAndReferencesResolve()
     {

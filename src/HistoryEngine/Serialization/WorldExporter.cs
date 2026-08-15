@@ -69,6 +69,7 @@ public static class WorldExporter
             HolySites: BuildHolySites(world),
             Artifacts: BuildArtifacts(world),
             Events: events,
+            Series: BuildSeries(world),
             Indices: BuildIndices(world, events),
             Narration: ToDictionary(Narration.Templates));
     }
@@ -692,6 +693,41 @@ public static class WorldExporter
         }
 
         return new ExportIndices(entityIndex, yearIndex, countsByKind);
+    }
+
+    /// <summary>
+    /// The yearly series, as the run sampled them.
+    /// </summary>
+    /// <remarks>
+    /// Counts are exported whole and dials to three decimals. The rounding is what keeps this
+    /// affordable: a realm's eleven tracks across three centuries are a few kilobytes at three
+    /// decimals and roughly three times that at full double precision, for a difference no chart
+    /// can draw and no reader can see.
+    /// </remarks>
+    private static IReadOnlyList<ExportSeries> BuildSeries(WorldState world)
+    {
+        var series = new List<ExportSeries>(world.Series.All.Count);
+
+        foreach (SeriesLog.Series track in world.Series.All)
+        {
+            int decimals = track.Measure.Unit == MeasureUnit.Count ? 0 : 3;
+
+            var values = new double[track.Values.Count];
+            for (int i = 0; i < values.Length; i++)
+            {
+                values[i] = Math.Round(track.Values[i], decimals);
+            }
+
+            series.Add(new ExportSeries(
+                Entity: track.Entity,
+                Metric: track.Measure.Name,
+                Group: track.Measure.Group,
+                Unit: track.Measure.Unit.ToString(),
+                FromYear: track.FromYear,
+                Values: values));
+        }
+
+        return series;
     }
 
     private static EntityId? OrNull(EntityId id) => id.IsNone ? null : id;
