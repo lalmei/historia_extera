@@ -48,8 +48,23 @@ public sealed class ExpansionSystem : IYearSystem
     /// <summary>A party smaller than this is not worth sending, and would not survive.</summary>
     private const int MinimumParty = 25;
 
-    /// <summary>Candidate sites per axis. Coarser than a capital's — a colony is a smaller bet.</summary>
-    private const int SitesPerAxis = 4;
+    /// <summary>
+    /// Candidate sites per axis. The same as a capital's, which it did not used to be.
+    /// </summary>
+    /// <remarks>
+    /// This was 4 on the reasoning that a colony is a smaller bet than a capital and deserves a
+    /// cheaper decision. M10 measured what that bought: at four sites per axis a 128-unit region is
+    /// refined every 32 units, and the ground a settlement stands on simply is not visible at that
+    /// spacing. Colonies were sited on a grade steeper than 1-in-2 21.1% of the time against a
+    /// capital's 10.9%, and the worst site in eight worlds stood on a 2.9 grade — a cliff. At the
+    /// same spacing as a capital the colony figure falls to 13.0% and the worst site in eight
+    /// worlds to 1.2.
+    ///
+    /// <para>The bet is smaller; the ground is the same ground. Nine in ten settlements in a
+    /// finished history are colonies, so this was never a cheap decision made rarely — it was the
+    /// decision, made at half the resolution of the one nobody minded paying for.</para>
+    /// </remarks>
+    private const int SitesPerAxis = 8;
 
     public string Name => "expansion";
 
@@ -147,7 +162,7 @@ public sealed class ExpansionSystem : IYearSystem
         world.Chronicle.Record(
             year, EventKind.RegionClaimed, target.Id, obj: civilization.Id);
 
-        Point2 site = SiteSelection.Best(world, target, SitesPerAxis);
+        SiteChoice site = SiteSelection.Best(world, target, SitesPerAxis);
 
         // Settlers come out of somewhere. Conjuring them made expansion free, so a realm could
         // seed a continent without ever feeling it; taking them from the nearest town means a
