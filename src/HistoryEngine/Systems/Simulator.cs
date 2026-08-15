@@ -93,6 +93,7 @@ public sealed class Simulator
         new FigureLifecycleSystem(),
         new SuccessionSystem(),
         new HouseholdSystem(),
+        new OfficeSystem(),
         new ArtifactSystem(),
     };
 

@@ -229,6 +229,22 @@ public sealed class Figure
     /// <summary>Where this figure was born, if known.</summary>
     public EntityId BirthSettlementId { get; set; } = EntityId.None;
 
+    /// <summary>
+    /// Where this figure actually lives, or <see cref="EntityId.None"/> for "wherever the court is".
+    /// </summary>
+    /// <remarks>
+    /// <para>Figures have a realm residence and, since offices, sometimes a finer one. That repairs
+    /// a compromise recorded with the mortality model: a disaster could reach a figure only when it
+    /// struck the capital, because the capital was the one settlement a court could honestly be
+    /// placed in. A governor can honestly be placed in the town they govern, and so dies in its
+    /// sack, its plague and its earthquake.</para>
+    ///
+    /// <para><b>An office never changes <see cref="CivilizationId"/>.</b> A posting moves someone
+    /// within their realm, never between realms — see <c>HouseholdSystem.WhoMoves</c> for what
+    /// happened the last time a figure was moved across a border carelessly.</para>
+    /// </remarks>
+    public EntityId ResidenceSettlementId { get; set; } = EntityId.None;
+
     public int AgeIn(int year) => year - BirthYear;
 
     public int? AgeAtDeath => DeathYear is null ? null : DeathYear.Value - BirthYear;

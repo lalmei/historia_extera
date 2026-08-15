@@ -78,6 +78,11 @@ public static class Narration
         Set(EventKind.SuccessionDisputed,
             "{subject} prevailed over {object} in a disputed succession[ in {location}].");
 
+        Set(EventKind.OfficeGranted,
+            "{subject} was made {data:office}[ of {object}][ at {location}][, {data:claim}].");
+        Set(EventKind.OfficeRevoked,
+            "{subject} was stripped of the office of {data:office}[ of {object}][, {data:cause}].");
+
         Set(EventKind.DynastyFounded, "The {subject} rose[ under {object}][ in {location}].");
         Set(EventKind.DynastyEnded, "The {subject} died out[ after {data:years}].");
         Set(EventKind.DynastyAscended, "The {subject} took the throne of {object}.");

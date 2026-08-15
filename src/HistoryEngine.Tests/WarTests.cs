@@ -101,6 +101,28 @@ public sealed class WarTests
         Assert.True(joined > 0, "No ally ever answered a call to arms.");
     }
 
+    /// <summary>
+    /// Where an object was as of a given year, from its provenance.
+    /// </summary>
+    /// <remarks>
+    /// Provenance is append-only and in order, so the last entry at or before the year is where
+    /// the object then was. Asking the object's current holder instead answers a different
+    /// question, and one no assertion about a peace treaty wants: everything that happened to it
+    /// in the intervening centuries.
+    /// </remarks>
+    private static EntityId HeldAfter(Artifact artifact, int year)
+    {
+        EntityId held = EntityId.None;
+
+        foreach (ArtifactHolding moment in artifact.Provenance)
+        {
+            if (moment.Year > year) break;
+            held = moment.SettlementId;
+        }
+
+        return held;
+    }
+
     /// <summary>Religious grievances must preserve the concrete thing or faiths fought over.</summary>
     private static void ValidateReligiousGrievance(WorldState world, War war)
     {
@@ -125,13 +147,17 @@ public sealed class WarTests
 
                 if (relic.LostYear is not int lost || lost > ended)
                 {
-                    // The war got what it was declared for. How the object travelled is the
-                    // army's business: a relic carried off when its town was sacked is already
-                    // home, and is not handed over a second time at the peace.
-                    Assert.True(world.Settlements.Contains(relic.HolderId));
-                    Assert.Equal(
-                        war.AggressorId,
-                        world.Settlements[relic.HolderId].CivilizationId);
+                    // The war got what it was declared for — asserted against where the relic was
+                    // when the peace was signed, not against where it is at the end of the run.
+                    // A relic won in 249 and lost in 290 satisfies the claim and then stops having
+                    // a holder at all; checking the end state called that a failed war.
+                    EntityId held = HeldAfter(relic, ended);
+
+                    Assert.True(
+                        world.Settlements.Contains(held),
+                        $"{relic.Name} was claimed by {ended} and held by nothing.");
+
+                    Assert.Equal(war.AggressorId, world.Settlements[held].CivilizationId);
                 }
             }
 
