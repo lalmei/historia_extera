@@ -938,6 +938,50 @@ to the volume, as expected. But the marshal did **not** collapse the variance of
 capping a standing marshal at three fields in four left non-rulers a wide spread of commands,
 because a realm fights on more than one frontier and a marshal cannot be at both.
 
+#### What a review of it found
+
+Six things, and the pattern in them is worth more than any of them individually: **every one was
+invisible to a green test suite**, and three were invisible because a test asserted something
+adjacent to what it claimed.
+
+- **A governor was never reached by anything.** The exposure a residence exists to create was
+  wired to disasters alone, which fire roughly once in three worlds on a governed town — across
+  five seeds no governor had ever died of one. The test said otherwise because it counted deaths
+  by "disaster *or plague*", and plague is modelled at the realm level and had been reaching
+  governors since long before offices existed. It passed on a mechanism it was not testing.
+  Sacking, which the design named first and which had been left out entirely, is the right
+  exposure: a sack is aimed at a particular town by an army that has just carried it, so it
+  coincides with a governor far more often and reads better when it does.
+- **A fallen realm kept its officers.** `Realms.Fall` ended the ruler's office and nothing else,
+  and the release pass walks only standing realms — so a dead realm's marshal and governors held
+  their posts for the rest of the run. Exactly the shape of the regent who was recorded as
+  governing for three centuries after he died, and found the same way: an invariant test noticing
+  a figure holding an office of a realm they no longer lived in.
+- **Two sovereigns married to each other kept their own courts, and the consort office claimed one
+  of them anyway.** `Enthrone` makes a deliberate exception for a spouse who holds a throne of
+  their own; recognising them as a consort regardless gave one figure an office of a realm they
+  had never lived in, re-granted every year as the release pass threw it straight back. The
+  release pass was also scanning only each figure's *newest* open office, which is unambiguous
+  only while nobody can hold two — a property of the grant rules rather than of that loop.
+- **The consort's second hook was never built.** The design set an explicit bar — two consequences
+  or cut the office — and shipped one. A crowned consort's tie to their birth house now outweighs
+  a third cousin's marriage, which is what turns all-or-nothing dynastic warmth into something
+  that tracks whose marriage it actually was.
+- **Wartime never entered the fill decision**, though the design named it among the inputs.
+- **`ResidenceSettlementId` was never exported**, though the design said to export it.
+
+**And residence is now kept for everyone, not only for office-holders.** "At court" used to be
+inferred from the absence of an address, which answers the question exactly as long as nothing
+needs to know where an ordinary figure is. It follows a birth, a marriage, a crown and a posting;
+a recalled governor takes his household back with him. Reading it goes through
+`WorldState.ResidenceOf` rather than the field, because the stored value is allowed to go stale —
+a town can be abandoned or taken with people living in it, and making every system that moves a
+settlement chase its residents is the coupling the resolver exists to avoid.
+
+**What is still open, and known:** `FillMode.Customary` remains a value nothing produces. It needs
+the households of M14 below, because an office cannot run in a family until raised notables have
+one.
+
 ### Notable households: what an office raises out of the population
 
 > **Half built.** The careers are in; the families are designed and not built. `FillMode.Customary`
