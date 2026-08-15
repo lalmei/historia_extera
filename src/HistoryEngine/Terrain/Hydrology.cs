@@ -28,6 +28,14 @@ namespace HistoryEngine.Terrain;
 ///
 /// <para>Even so this locates river <em>valleys</em> rather than channels, which is the right scale
 /// for the questions history asks — which cities sit on a trade river, where an army must ford.</para>
+///
+/// <para><b>The grid answers more than "is there a river here".</b> Once the flow graph and the
+/// submerged mask exist, confluences, river mouths, sheltered water and the distance to either kind
+/// of water all fall out of them for no further sampling. That matters because the flags alone are
+/// quantised to a stride far coarser than a siting decision: sixteen candidates can share one cell
+/// and therefore one answer. The graded planes — <see cref="ShelterAt"/>,
+/// <see cref="RiverDistance"/>, <see cref="CoastDistance"/> — are read bilinearly and vary
+/// everywhere, which is what lets a score rank sites rather than blocks.</para>
 /// </remarks>
 public sealed class Hydrology
 {
@@ -49,6 +57,10 @@ public sealed class Hydrology
     private readonly double[] _accumulation;
     private readonly bool[] _isRiver;
     private readonly bool[] _isCoast;
+    private readonly bool[] _isConfluence;
+    private readonly double[] _shelter;
+    private readonly double[] _riverDistance;
+    private readonly double[] _coastDistance;
     private readonly double _maxAccumulation;
 
     private Hydrology(
@@ -61,6 +73,10 @@ public sealed class Hydrology
         double[] accumulation,
         bool[] isRiver,
         bool[] isCoast,
+        bool[] isConfluence,
+        double[] shelter,
+        double[] riverDistance,
+        double[] coastDistance,
         double maxAccumulation)
     {
         _width = width;
@@ -72,6 +88,10 @@ public sealed class Hydrology
         _accumulation = accumulation;
         _isRiver = isRiver;
         _isCoast = isCoast;
+        _isConfluence = isConfluence;
+        _shelter = shelter;
+        _riverDistance = riverDistance;
+        _coastDistance = coastDistance;
         _maxAccumulation = maxAccumulation;
     }
 
@@ -104,6 +124,13 @@ public sealed class Hydrology
         double[] accumulation = ComputeAccumulation(heights, downstream, n);
         bool[] isRiver = ClassifyRivers(accumulation, submerged, n);
         bool[] isCoast = ClassifyCoast(submerged, w, h, atlas.EastWestPeriodic);
+        bool[] isConfluence = ClassifyConfluences(isRiver, downstream, n);
+        double[] shelter = ComputeShelter(submerged, w, h, atlas.EastWestPeriodic);
+
+        double[] riverDistance = DistanceTo(
+            isRiver, w, h, stride, atlas.EastWestPeriodic);
+        double[] coastDistance = DistanceTo(
+            submerged, w, h, stride, atlas.EastWestPeriodic);
 
         double max = 0.0;
         for (int i = 0; i < n; i++)
@@ -121,6 +148,10 @@ public sealed class Hydrology
             accumulation,
             isRiver,
             isCoast,
+            isConfluence,
+            shelter,
+            riverDistance,
+            coastDistance,
             max);
     }
 
@@ -148,21 +179,8 @@ public sealed class Hydrology
 
                 for (int d = 0; d < 8; d++)
                 {
-                    int ni = i + OffsetX[d];
-                    int nj = j + OffsetZ[d];
+                    if (!TryNeighbour(i, j, d, w, h, eastWestPeriodic, out int nIdx)) continue;
 
-                    if (nj < 0 || nj >= h) continue;
-                    if (eastWestPeriodic)
-                    {
-                        ni = WrapIndex(ni, w);
-                    }
-                    else if (ni < 0 || ni >= w)
-                    {
-                        continue;
-                    }
-
-                    int nIdx = (nj * w) + ni;
-                    if (nIdx == idx) continue;
                     double drop = own - heights[nIdx];
                     if (drop <= 0.0) continue;
 
@@ -256,20 +274,9 @@ public sealed class Hydrology
 
                 for (int d = 0; d < 8; d++)
                 {
-                    int ni = i + OffsetX[d];
-                    int nj = j + OffsetZ[d];
+                    if (!TryNeighbour(i, j, d, w, h, eastWestPeriodic, out int nIdx)) continue;
 
-                    if (nj < 0 || nj >= h) continue;
-                    if (eastWestPeriodic)
-                    {
-                        ni = WrapIndex(ni, w);
-                    }
-                    else if (ni < 0 || ni >= w)
-                    {
-                        continue;
-                    }
-
-                    if (submerged[(nj * w) + ni])
+                    if (submerged[nIdx])
                     {
                         isCoast[idx] = true;
                         break;
@@ -279,6 +286,245 @@ public sealed class Hydrology
         }
 
         return isCoast;
+    }
+
+    /// <summary>River cells that two or more river cells drain into.</summary>
+    /// <remarks>
+    /// Counted off the flow graph rather than looked for geometrically, so a confluence is where
+    /// water actually meets rather than where two channels happen to pass near each other. Only
+    /// river tributaries count: every cell has upstream neighbours, but a river joined by two
+    /// hillsides is not Koblenz.
+    /// </remarks>
+    private static bool[] ClassifyConfluences(bool[] isRiver, int[] downstream, int n)
+    {
+        var tributaries = new int[n];
+
+        for (int i = 0; i < n; i++)
+        {
+            if (!isRiver[i]) continue;
+
+            int next = downstream[i];
+            if (next >= 0 && isRiver[next]) tributaries[next]++;
+        }
+
+        var isConfluence = new bool[n];
+        for (int i = 0; i < n; i++)
+        {
+            isConfluence[i] = isRiver[i] && tributaries[i] >= 2;
+        }
+
+        return isConfluence;
+    }
+
+    /// <summary>
+    /// How far around the water beside a shore cell is ringed by land, over
+    /// <see cref="ShelterRadius"/> cells.
+    /// </summary>
+    /// <remarks>
+    /// A radius rather than the immediate neighbours, and this is the whole difference between the
+    /// measure working and not. Enclosure counted over the eight touching cells puts every shore in
+    /// the world between a third and two thirds, because what it actually measures is "this water is
+    /// next to a shoreline" — which is true of a bay and an exposed headland alike. Shelter is a
+    /// question about the shape of a coast over a few kilometres, so it has to be asked over a few
+    /// kilometres.
+    /// </remarks>
+    private const int ShelterRadius = 3;
+
+    /// <summary>
+    /// The enclosure range a shore actually occupies, which is not [0, 1].
+    /// </summary>
+    /// <remarks>
+    /// Water touching a shore is about half ringed by land more or less by definition — that is
+    /// what makes it a shore — so the raw fraction lands between 0.38 and 0.83 across every seed
+    /// measured, with the bulk within a few hundredths of a half. Reported raw it discriminates
+    /// almost nothing, which is the same trap <c>Fertility</c> fell into when its ramps plateaued
+    /// at 1.0. Stretching the occupied range over [0, 1] is what turns a statistic that is
+    /// technically correct into one a score can rank sites by.
+    /// </remarks>
+    private const double OpenShore = 0.35;
+
+    private const double EnclosedShore = 0.80;
+
+    /// <summary>How sheltered the water beside each shore cell is, in [0, 1].</summary>
+    /// <remarks>
+    /// <para>Whether a place is worth landing at is a property of the water, not of the shore: a
+    /// headland and the bay behind it are both "coastal" and are not both harbours. So enclosure is
+    /// measured on each <em>water</em> cell — how much of the sea room around it is land — and a
+    /// shore cell takes the best enclosure among the water it touches.</para>
+    ///
+    /// <para>Open sea scores near nothing, a straight coast about a half, and an inlet or bay well
+    /// above that. Land with no water beside it scores zero, which is what makes this safe to add
+    /// unconditionally to an inland site's score.</para>
+    /// </remarks>
+    private static double[] ComputeShelter(
+        bool[] submerged, int w, int h, bool eastWestPeriodic)
+    {
+        int n = w * h;
+        var enclosure = new double[n];
+
+        for (int j = 0; j < h; j++)
+        {
+            for (int i = 0; i < w; i++)
+            {
+                int idx = (j * w) + i;
+                if (!submerged[idx]) continue;
+
+                int land = 0;
+                int considered = 0;
+
+                // A disc rather than a square window, so a coast running diagonally is not
+                // measured as more open than the same coast running north to south.
+                for (int dz = -ShelterRadius; dz <= ShelterRadius; dz++)
+                {
+                    int nj = j + dz;
+                    if (nj < 0 || nj >= h) continue;
+
+                    for (int dx = -ShelterRadius; dx <= ShelterRadius; dx++)
+                    {
+                        if ((dx * dx) + (dz * dz) > ShelterRadius * ShelterRadius) continue;
+
+                        int ni = i + dx;
+                        if (eastWestPeriodic)
+                        {
+                            ni = WrapIndex(ni, w);
+                        }
+                        else if (ni < 0 || ni >= w)
+                        {
+                            continue;
+                        }
+
+                        considered++;
+                        if (!submerged[(nj * w) + ni]) land++;
+                    }
+                }
+
+                enclosure[idx] = considered == 0 ? 0.0 : land / (double)considered;
+            }
+        }
+
+        var shelter = new double[n];
+
+        for (int j = 0; j < h; j++)
+        {
+            for (int i = 0; i < w; i++)
+            {
+                int idx = (j * w) + i;
+                if (submerged[idx]) continue;
+
+                double best = 0.0;
+                bool touchesWater = false;
+
+                for (int d = 0; d < 8; d++)
+                {
+                    if (!TryNeighbour(i, j, d, w, h, eastWestPeriodic, out int nIdx)) continue;
+                    if (!submerged[nIdx]) continue;
+
+                    touchesWater = true;
+                    if (enclosure[nIdx] > best) best = enclosure[nIdx];
+                }
+
+                shelter[idx] = touchesWater
+                    ? DetMath.InverseLerp(OpenShore, EnclosedShore, best)
+                    : 0.0;
+            }
+        }
+
+        return shelter;
+    }
+
+    /// <summary>Distance from every cell to the nearest cell of <paramref name="source"/>, in world units.</summary>
+    /// <remarks>
+    /// <para><b>Why a distance and not a flag.</b> The grid is far coarser than a siting decision —
+    /// sixteen candidates can share one cell — so a boolean answer cannot rank them and the whole
+    /// premium collapses onto whichever block happens to hold a river. A distance varies everywhere
+    /// and gives the score something to say between two points a stride apart.</para>
+    ///
+    /// <para><b>Integer 3-4 chamfer.</b> An orthogonal step costs 3 and a diagonal 4, so the
+    /// propagation carries no floating point at all and dividing by three at the end approximates
+    /// Euclidean distance to within about eight percent — far finer than the grid it is measured on,
+    /// and free of any question about reproducibility.</para>
+    ///
+    /// <para><b>Relaxed from a queue, not raster-scanned.</b> The textbook two-pass forward/backward
+    /// scan does not converge in one round across an east/west seam, because a cell's nearest source
+    /// can lie in the direction the pass has already left behind. A FIFO relaxation converges
+    /// wherever the seam is, for the same neighbourhood work, and sources enter in index order so
+    /// the result is reproducible.</para>
+    /// </remarks>
+    private static double[] DistanceTo(
+        bool[] source, int w, int h, int stride, bool eastWestPeriodic)
+    {
+        const int OrthogonalStep = 3;
+        const int DiagonalStep = 4;
+
+        int n = w * h;
+        var cost = new int[n];
+        var pending = new Queue<int>();
+
+        for (int i = 0; i < n; i++)
+        {
+            cost[i] = source[i] ? 0 : int.MaxValue;
+            if (source[i]) pending.Enqueue(i);
+        }
+
+        while (pending.Count > 0)
+        {
+            int idx = pending.Dequeue();
+            int i = idx % w;
+            int j = idx / w;
+
+            for (int d = 0; d < 8; d++)
+            {
+                if (!TryNeighbour(i, j, d, w, h, eastWestPeriodic, out int nIdx)) continue;
+
+                int step = (OffsetX[d] != 0 && OffsetZ[d] != 0) ? DiagonalStep : OrthogonalStep;
+                int relaxed = cost[idx] + step;
+
+                if (relaxed < cost[nIdx])
+                {
+                    cost[nIdx] = relaxed;
+                    pending.Enqueue(nIdx);
+                }
+            }
+        }
+
+        // A world with no source at all — no rivers, or no sea — leaves every cell unreached.
+        // Report a finite distance larger than the world rather than infinity, so a consumer can
+        // divide by it without special-casing a world that legitimately has no coast.
+        double unreached = (w + h) * (double)stride;
+
+        var distance = new double[n];
+        for (int i = 0; i < n; i++)
+        {
+            distance[i] = cost[i] == int.MaxValue
+                ? unreached
+                : cost[i] * stride / 3.0;
+        }
+
+        return distance;
+    }
+
+    /// <summary>The neighbour in direction <paramref name="d"/>, or false where the grid ends.</summary>
+    private static bool TryNeighbour(
+        int i, int j, int d, int w, int h, bool eastWestPeriodic, out int index)
+    {
+        index = -1;
+
+        int ni = i + OffsetX[d];
+        int nj = j + OffsetZ[d];
+
+        if (nj < 0 || nj >= h) return false;
+
+        if (eastWestPeriodic)
+        {
+            ni = WrapIndex(ni, w);
+        }
+        else if (ni < 0 || ni >= w)
+        {
+            return false;
+        }
+
+        index = (nj * w) + ni;
+        return index != (j * w) + i;
     }
 
     private int IndexOfWorld(int x, int z)
@@ -296,9 +542,77 @@ public sealed class Hydrology
     /// <summary>Whether this location is land adjacent to ocean.</summary>
     public bool IsCoast(int x, int z) => _isCoast[IndexOfWorld(x, z)];
 
+    /// <summary>Whether two or more rivers meet here.</summary>
+    public bool IsConfluence(int x, int z) => _isConfluence[IndexOfWorld(x, z)];
+
+    /// <summary>
+    /// Whether a river reaches the sea here.
+    /// </summary>
+    /// <remarks>
+    /// Not a stored plane: a river cell that is also a coast cell <em>is</em> a river mouth, since
+    /// both already mean "land" and the two conditions together mean the watercourse touches the
+    /// ocean. Deriving it keeps one definition rather than two that can drift apart.
+    /// </remarks>
+    public bool IsEstuary(int x, int z)
+    {
+        int index = IndexOfWorld(x, z);
+        return _isRiver[index] && _isCoast[index];
+    }
+
     /// <summary>Drainage at this location, normalised to [0, 1] against the world's largest.</summary>
     public double FlowAt(int x, int z) =>
         _maxAccumulation <= 0.0 ? 0.0 : _accumulation[IndexOfWorld(x, z)] / _maxAccumulation;
+
+    /// <summary>How sheltered the water beside this location is, in [0, 1]. Zero inland.</summary>
+    public double ShelterAt(int x, int z) => Interpolate(_shelter, x, z);
+
+    /// <summary>Distance to the nearest river, in world units.</summary>
+    public double RiverDistance(int x, int z) => Interpolate(_riverDistance, x, z);
+
+    /// <summary>Distance to the nearest open water, in world units.</summary>
+    public double CoastDistance(int x, int z) => Interpolate(_coastDistance, x, z);
+
+    /// <summary>
+    /// Bilinear read of a continuous plane, so it varies between grid cells rather than in blocks.
+    /// </summary>
+    /// <remarks>
+    /// The reason the graded measures exist at all: a siting decision compares candidates a
+    /// quarter of a stride apart, and a nearest-cell read would hand all sixteen of them the same
+    /// number. Only the continuous planes are read this way — a flag cannot be averaged, so
+    /// <see cref="IsRiver"/> and its kind stay nearest-cell and are combined with a distance
+    /// instead.
+    /// </remarks>
+    private double Interpolate(double[] field, int x, int z)
+    {
+        int normalizedX = _eastWestPeriodic ? _bounds.WrapX(x) : x;
+
+        double fx = (normalizedX - _bounds.MinX) / (double)_stride;
+        double fz = (z - _bounds.MinZ) / (double)_stride;
+
+        int i0 = (int)Math.Floor(fx);
+        int j0 = (int)Math.Floor(fz);
+
+        if (!_eastWestPeriodic)
+        {
+            if (i0 < 0) i0 = 0;
+            if (i0 > _width - 2) i0 = Math.Max(0, _width - 2);
+        }
+
+        if (j0 < 0) j0 = 0;
+        if (j0 > _height - 2) j0 = Math.Max(0, _height - 2);
+
+        double tx = DetMath.Clamp01(fx - i0);
+        double tz = DetMath.Clamp01(fz - j0);
+
+        int c0 = NormalizeColumn(i0);
+        int c1 = NormalizeColumn(i0 + 1);
+        int r0 = Math.Clamp(j0, 0, _height - 1);
+        int r1 = Math.Clamp(j0 + 1, 0, _height - 1);
+
+        double top = DetMath.Lerp(field[(r0 * _width) + c0], field[(r0 * _width) + c1], tx);
+        double bottom = DetMath.Lerp(field[(r1 * _width) + c0], field[(r1 * _width) + c1], tx);
+        return DetMath.Lerp(top, bottom, tz);
+    }
 
     /// <summary>River flag per lattice node, row-major. For raster export.</summary>
     public bool RiverAtNode(int i, int j) =>
