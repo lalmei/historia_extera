@@ -640,13 +640,13 @@ public static class Warfare
         var fallen = new List<Figure>();
         IRng storm = rng.Fork("sack-casualties", target.Id.ToDiscriminator());
 
+        // A capital's whole court is not in the streets when the walls come down. Everywhere else,
+        // the people a sack reaches are exactly the people who live there.
+        if (target.IsCapital) return fallen;
+
         foreach (Figure figure in world.Figures)
         {
-            if (!figure.IsAlive || figure.ResidenceSettlementId != target.Id) continue;
-
-            // A capital's whole court is not in the streets when the walls come down; the figures
-            // a sack reaches are the ones actually posted here.
-            if (target.IsCapital) continue;
+            if (!figure.IsAlive || world.ResidenceOf(figure) != target.Id) continue;
 
             IRng fate = storm.Fork("figure", figure.Id.ToDiscriminator());
             if (fate.Chance(SackedResidentFalls)) fallen.Add(figure);

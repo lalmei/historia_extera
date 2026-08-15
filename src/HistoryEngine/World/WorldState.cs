@@ -289,6 +289,44 @@ public sealed class WorldState
     /// </remarks>
     public EntityId FaithOf(Civilization civilization) => civilization.StateReligionId;
 
+    /// <summary>
+    /// Where a figure actually is: their recorded residence, or their realm's seat.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>A resolver rather than a stored answer, because the stored one goes stale in ways
+    /// no writer can be expected to chase.</b> A residence can be abandoned, taken in a war, or
+    /// outlive the realm that held it, and every system that moves a settlement between owners
+    /// would otherwise have to know about everyone living in it. Falling back to the capital
+    /// keeps the invariant that matters — a living figure is somewhere their own realm holds —
+    /// without spreading residence bookkeeping across the whole engine.</para>
+    ///
+    /// <para>The recorded field is therefore best-effort and this is the only thing worth reading.
+    /// Exposure — who a disaster or a sack can reach — goes through here, so a governor whose town
+    /// has just changed hands is at court rather than in a city that is no longer theirs.</para>
+    /// </remarks>
+    public EntityId ResidenceOf(Figure figure)
+    {
+        if (Settlements.Contains(figure.ResidenceSettlementId))
+        {
+            Settlement recorded = Settlements[figure.ResidenceSettlementId];
+            if (recorded.IsActive && recorded.CivilizationId == figure.CivilizationId)
+            {
+                return recorded.Id;
+            }
+        }
+
+        if (Civilizations.Contains(figure.CivilizationId))
+        {
+            Civilization realm = Civilizations[figure.CivilizationId];
+            if (Settlements.Contains(realm.CapitalId) && Settlements[realm.CapitalId].IsActive)
+            {
+                return realm.CapitalId;
+            }
+        }
+
+        return EntityId.None;
+    }
+
     /// <summary>Active settlements of one civilization, in id order.</summary>
     public IEnumerable<Settlement> ActiveSettlementsOf(Civilization civilization)
     {

@@ -318,6 +318,11 @@ public sealed class HouseholdSystem : ISystem
         Figure stays = mover.Id == figure.Id ? partner : figure;
         mover.CivilizationId = stays.CivilizationId;
 
+        // And they move to where their partner actually lives, not merely into their realm. A
+        // governor's spouse belongs in the town he governs; leaving them at the capital would put
+        // a household in two places and expose the two halves of it to different disasters.
+        mover.ResidenceSettlementId = world.ResidenceOf(stays);
+
         EntityId seat = world.Civilizations.Contains(stays.CivilizationId)
             ? world.Civilizations[stays.CivilizationId].CapitalId
             : EntityId.None;

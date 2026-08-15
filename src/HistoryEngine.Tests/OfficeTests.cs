@@ -107,6 +107,53 @@ public sealed class OfficeTests
         }
     }
 
+    /// <summary>
+    /// Everyone the chronicle follows is somewhere, and somewhere their own realm holds.
+    /// </summary>
+    /// <remarks>
+    /// <para>Residence used to be recorded only for office-holders, so "at court" was inferred
+    /// from the absence of an address — which answers the question only for as long as nothing
+    /// needs to know where an ordinary figure is. It now follows a birth, a marriage, a crown and
+    /// a posting.</para>
+    ///
+    /// <para>The assertion is on the resolved answer rather than the stored field, because the
+    /// stored one is allowed to go stale: a town can be abandoned or taken with people living in
+    /// it, and requiring every system that moves a settlement to chase its residents is exactly
+    /// the coupling <see cref="WorldState.ResidenceOf"/> exists to avoid.</para>
+    /// </remarks>
+    [Fact]
+    public void EveryLivingFigureLivesSomewhereTheirRealmHolds()
+    {
+        foreach (ulong seed in Seeds)
+        {
+            WorldState world = HistoryRun.Execute(TestWorlds.Standard(seed)).World;
+
+            int placed = 0;
+
+            foreach (Figure figure in world.Figures)
+            {
+                if (!figure.IsAlive) continue;
+                if (!world.Civilizations.Contains(figure.CivilizationId)) continue;
+                if (!world.Civilizations[figure.CivilizationId].IsActive) continue;
+
+                EntityId where = world.ResidenceOf(figure);
+
+                Assert.True(
+                    world.Settlements.Contains(where),
+                    $"{figure.Name} of a standing realm lives nowhere.");
+
+                Settlement home = world.Settlements[where];
+
+                Assert.True(home.IsActive, $"{figure.Name} lives in abandoned {home.Name}.");
+                Assert.Equal(figure.CivilizationId, home.CivilizationId);
+
+                placed++;
+            }
+
+            Assert.True(placed > 0, $"Seed {seed} had no living figure in a standing realm.");
+        }
+    }
+
     /// <summary>A governor lives in the town they govern, which is what exposes them to it.</summary>
     [Fact]
     public void GovernorsResideInTheirOwnSettlements()
