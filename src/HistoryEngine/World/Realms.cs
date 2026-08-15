@@ -22,6 +22,18 @@ namespace HistoryEngine.World;
 /// </remarks>
 public static class Realms
 {
+    /// <summary>Every office, so a realm's ending can release all of them in a fixed order.</summary>
+    private static readonly OfficeKind[] OfficeKinds =
+    {
+        OfficeKind.Ruler,
+        OfficeKind.Regent,
+        OfficeKind.Consort,
+        OfficeKind.Marshal,
+        OfficeKind.HighPriest,
+        OfficeKind.Governor,
+    };
+
+
     /// <summary>
     /// Moves a region, and anything standing in it, from one realm to another.
     /// </summary>
@@ -136,6 +148,28 @@ public static class Realms
             if (ruler.IsAlive) ruler.EndOffice(OfficeKind.Ruler, year);
             civilization.CurrentRulerId = EntityId.None;
         }
+
+        // And so does everyone who held an office under them. The office system releases seats
+        // only for realms that still stand, so without this a fallen realm's marshal and governors
+        // keep their posts for the rest of the run — the same silent, permanent shape as the regent
+        // who was recorded as governing for three centuries after he died, and found the same way:
+        // by an invariant test noticing a figure holding an office of a realm they no longer live
+        // in. Nothing narrates it; the realm's own ending already says what happened.
+        foreach (Figure figure in world.Figures)
+        {
+            if (!figure.IsAlive) continue;
+
+            foreach (OfficeKind kind in OfficeKinds)
+            {
+                OfficeHolding? held = figure.OpenOffice(kind);
+                if (held is not null && held.CivilizationId == civilization.Id)
+                {
+                    Offices.Lapse(world, figure, kind, year);
+                }
+            }
+        }
+
+        civilization.RegentId = EntityId.None;
 
         // Land outlives the realm that held it. Releasing it is what lets a neighbour expand into
         // the vacancy a generation later, which is the whole point of a realm having fallen.

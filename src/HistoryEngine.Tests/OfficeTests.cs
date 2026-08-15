@@ -226,11 +226,21 @@ public sealed class OfficeTests
 
             foreach (Figure figure in world.Figures)
             {
-                if (figure.DeathCause is not (DeathCause.Disaster or DeathCause.Plague)) continue;
                 if (figure.DeathYear is not int died) continue;
 
-                // Killed where they were posted rather than where the court is: the exposure the
-                // residence model exists to give, and impossible before offices.
+                // Killed where they were posted rather than where the court is. Plague is
+                // deliberately excluded even though governors die of it: it is modelled at the
+                // realm level and reached them before offices existed, so counting it here would
+                // let this assertion pass on a mechanism it is not testing — which is exactly
+                // what it did until a review noticed that no governor had ever died of the one
+                // cause the residence model is responsible for.
+                if (figure.DeathCause is not (DeathCause.Disaster or DeathCause.Battle)) continue;
+                if (figure.DeathDetail?.StartsWith("in the sack of ", StringComparison.Ordinal) != true
+                    && figure.DeathCause != DeathCause.Disaster)
+                {
+                    continue;
+                }
+
                 if (HeldAt(figure, OfficeKind.Governor, died)) governorsKilledByGeography++;
             }
 

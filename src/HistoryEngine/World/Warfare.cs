@@ -78,6 +78,14 @@ public static class Warfare
     /// </remarks>
     private const int WorthSacking = 250;
 
+    /// <summary>Odds a named figure posted in a sacked town does not survive it.</summary>
+    /// <remarks>
+    /// High, deliberately. A governor is not a bystander when the walls are carried — they are
+    /// whoever the storming party is looking for — and the whole point of giving an office a
+    /// street address was to make a posting somewhere dangerous mean something.
+    /// </remarks>
+    private const double SackedResidentFalls = 0.35;
+
     /// <summary>Odds a standing marshal takes a given field, rather than some other dynast.</summary>
     /// <remarks>
     /// Not one. A realm fights on more than one frontier and a marshal cannot be at both, and a
@@ -588,18 +596,72 @@ public static class Warfare
         owner.Fortunes.TownSacked();
         sacker.Fortunes.SackedATown();
 
+        List<Figure> fallen = ResidentCasualties(world, target, year, rng);
+
         world.Chronicle.Record(
             year,
             EventKind.SettlementSacked,
             target.Id,
             obj: sacker.Id,
             location: target.RegionId,
-            extra: new[] { war.Id, battle.Id, owner.Id },
+            extra: Sacked(war, battle, owner, fallen),
             data: Chronicle.Data(("lost", lost.ToString(CultureInfo.InvariantCulture))));
+
+        // The cause precedes its named casualties, as a disaster's does.
+        foreach (Figure figure in fallen)
+        {
+            Houses.Die(world, figure, year, DeathCause.Battle, "in the sack of " + target.Name);
+        }
 
         // What the place was keeping goes home with the army, or does not survive the night.
         // Recorded after the sack so the chronicle reads in the order it happened.
         Treasures.Loot(world, target, sacker, year, rng);
+    }
+
+    /// <summary>
+    /// Named people who were in the town when it fell.
+    /// </summary>
+    /// <remarks>
+    /// <para>The exposure a governorship exists to create, and the one the offices design named
+    /// first. A figure's residence is a realm for almost everybody, and the court can honestly be
+    /// placed only at the capital — but a governor lives in the town they govern, so a storming is
+    /// something that can actually reach them.</para>
+    ///
+    /// <para><b>Sacking rather than the earthquake this was first wired to.</b> Disaster exposure
+    /// is correct and fires about once in three worlds: calamities are rare, most fall on
+    /// settlements nobody governs, and the per-figure risk is a fraction of an already small
+    /// severity. A sack is aimed at a particular town by an army that has just carried it, which
+    /// makes it both far likelier to coincide with a governor and a far better thing for a
+    /// chronicle to record.</para>
+    /// </remarks>
+    private static List<Figure> ResidentCasualties(
+        WorldState world, Settlement target, int year, IRng rng)
+    {
+        var fallen = new List<Figure>();
+        IRng storm = rng.Fork("sack-casualties", target.Id.ToDiscriminator());
+
+        foreach (Figure figure in world.Figures)
+        {
+            if (!figure.IsAlive || figure.ResidenceSettlementId != target.Id) continue;
+
+            // A capital's whole court is not in the streets when the walls come down; the figures
+            // a sack reaches are the ones actually posted here.
+            if (target.IsCapital) continue;
+
+            IRng fate = storm.Fork("figure", figure.Id.ToDiscriminator());
+            if (fate.Chance(SackedResidentFalls)) fallen.Add(figure);
+        }
+
+        return fallen;
+    }
+
+    /// <summary>The war, the battle, the dispossessed realm, and anyone named who fell with it.</summary>
+    private static EntityId[] Sacked(
+        War war, Battle battle, Civilization owner, List<Figure> fallen)
+    {
+        var ids = new List<EntityId>(3 + fallen.Count) { war.Id, battle.Id, owner.Id };
+        foreach (Figure figure in fallen) ids.Add(figure.Id);
+        return ids.ToArray();
     }
 
     /// <summary>

@@ -276,6 +276,16 @@ public sealed class Figure
     /// </remarks>
     public FigureOrigin Origin { get; set; } = FigureOrigin.Unrecorded;
 
+    /// <summary>The year this figure was stripped of an office, if they ever were.</summary>
+    /// <remarks>
+    /// Kept on the figure rather than derived from the chronicle because the political-violence
+    /// model asks the question every year for every court, and walking the event log to answer it
+    /// would make a cheap check expensive. It is what makes <see cref="DeathCause.Execution"/>
+    /// reachable by somebody who was not a losing claimant: before offices, the only way to be
+    /// executed in this world was to lose a succession.
+    /// </remarks>
+    public int? DisgracedYear { get; set; }
+
     /// <summary>
     /// Where this figure actually lives, or <see cref="EntityId.None"/> for "wherever the court is".
     /// </summary>
