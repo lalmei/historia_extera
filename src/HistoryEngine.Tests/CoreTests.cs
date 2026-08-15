@@ -360,4 +360,47 @@ public sealed class ConfigTests
 
         Assert.Contains("periodic world size", error.Message, StringComparison.OrdinalIgnoreCase);
     }
+
+    /// <summary>
+    /// A world with nowhere to put the civilizations asked for used to run to completion and
+    /// export an empty chronicle, which is indistinguishable from a broken engine.
+    /// </summary>
+    [Fact]
+    public void ValidationRejectsWorldsTooSmallToSeatTheirCivilizations()
+    {
+        var config = new WorldConfig { WorldSize = 256, InitialCivilizations = 8 };
+
+        InvalidOperationException error =
+            Assert.Throws<InvalidOperationException>(() => config.Validate());
+
+        Assert.Contains("too few to seat", error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>An empty world is a legitimate request — the tests build several.</summary>
+    [Fact]
+    public void ValidationAllowsASmallWorldWithNoCivilizations()
+    {
+        new WorldConfig { WorldSize = 256, InitialCivilizations = 0 }.Validate();
+    }
+
+    [Fact]
+    public void TheAdvertisedMinimumWorldSizeIsTheOneValidationAccepts()
+    {
+        for (int civilizations = 1; civilizations <= 64; civilizations++)
+        {
+            int size = WorldConfig.MinimumWorldSize(civilizations, regionSize: 128);
+
+            new WorldConfig
+            {
+                WorldSize = size,
+                InitialCivilizations = civilizations,
+            }.Validate();
+
+            Assert.Throws<InvalidOperationException>(() => new WorldConfig
+            {
+                WorldSize = size - 128,
+                InitialCivilizations = civilizations,
+            }.Validate());
+        }
+    }
 }

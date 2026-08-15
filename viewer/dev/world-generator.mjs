@@ -50,6 +50,9 @@ const WORLD_DIR = ['viewer', 'public', 'worlds'];
  * to the engine's 256-unit terrain lattice so a periodic seam can close exactly. `--raster`
  * remains at the CLI's default.
  *
+ * The size floor is the smallest world that can seat a single civilization at all; the
+ * regions-per-civilization check in `readParams` is what holds a given civ count to a size.
+ *
  * The seed ceiling is JavaScript's, not the engine's: seeds are `ulong` in C#, but a
  * number past 2^53 would arrive here already rounded, and silently simulating a
  * different seed than the one typed is worse than refusing it.
@@ -58,8 +61,15 @@ const PARAMS = {
   seed: { fallback: 42, min: 0, max: Number.MAX_SAFE_INTEGER },
   years: { fallback: 300, min: 1, max: 5000 },
   civs: { fallback: 8, min: 1, max: 64 },
-  size: { fallback: 4096, min: 256, max: 8192 },
+  size: { fallback: 4096, min: 512, max: 8192 },
 };
+
+/**
+ * The engine's own siting floor, mirrored: `WorldConfig.RegionsPerCivilization` and the
+ * `RegionSize` the CLI is left at. Below this a world reports success and contains nothing.
+ */
+const REGION_SIZE = 128;
+const REGIONS_PER_CIV = 16;
 
 /** Lines of CLI output kept per run. Enough for the summary, bounded against a runaway build log. */
 const LOG_LINES = 200;
@@ -582,11 +592,24 @@ function readParams(body) {
 
   const given = /** @type {Record<string, unknown>} */ (body);
 
+  const civs = readNumber('civs', given.civs);
+  const size = readWorldSize(given.size);
+
+  // The engine rejects this too. Checking here as well means the form says so straight away
+  // instead of spawning a CLI that exits with the same complaint half a second later.
+  const regions = Math.floor(size / REGION_SIZE) ** 2;
+  if (regions < REGIONS_PER_CIV * civs) {
+    throw new Error(
+      `a ${size}-unit world holds ${regions} regions, too few to seat ${civs} ` +
+        `civilizations — raise the world size to at least ${minimumSize(civs)} or ask for fewer`,
+    );
+  }
+
   return {
     seed: readNumber('seed', given.seed),
     years: readNumber('years', given.years),
-    civs: readNumber('civs', given.civs),
-    size: readWorldSize(given.size),
+    civs,
+    size,
     eastWestPeriodic: readBoolean('eastWestPeriodic', given.eastWestPeriodic, false),
   };
 }
@@ -595,6 +618,19 @@ function readParams(body) {
 function readWorldSize(value) {
   const size = readNumber('size', value);
   if (size % 256 !== 0) throw new Error('size must be a multiple of 256');
+  return size;
+}
+
+/**
+ * Smallest world size that clears the engine's regions-per-civilization floor, rounded up to
+ * the 256-unit step the form uses.
+ *
+ * @param {number} civs
+ */
+function minimumSize(civs) {
+  const step = 256;
+  let size = PARAMS.size.min;
+  while (Math.floor(size / REGION_SIZE) ** 2 < REGIONS_PER_CIV * civs) size += step;
   return size;
 }
 

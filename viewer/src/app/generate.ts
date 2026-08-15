@@ -52,8 +52,22 @@ export const BOUNDS = {
   seed: { min: 0, max: Number.MAX_SAFE_INTEGER },
   years: { min: 1, max: 5000 },
   civs: { min: 1, max: 64 },
-  size: { min: 256, max: 8192 },
+  size: { min: 512, max: 8192 },
 } as const;
+
+/**
+ * The engine's siting floor, mirrored: a world below it seats fewer civilizations than asked
+ * for, and far below it seats none at all and still reports a successful run.
+ */
+const REGION_SIZE = 128;
+const REGIONS_PER_CIV = 16;
+
+/** Smallest world size on the form's 256-unit step that can seat this many civilizations. */
+export function minimumSizeFor(civs: number): number {
+  let size = BOUNDS.size.min;
+  while (Math.floor(size / REGION_SIZE) ** 2 < REGIONS_PER_CIV * civs) size += 256;
+  return size;
+}
 
 export async function startRun(params: RunParams): Promise<Run> {
   return request(RUNS, { method: 'POST', body: JSON.stringify(params) });
