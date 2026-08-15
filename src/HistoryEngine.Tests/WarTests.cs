@@ -29,6 +29,26 @@ public sealed class WarTests
     /// <summary>Seeds sampled where the question is about a rate rather than an invariant.</summary>
     private static readonly ulong[] Seeds = { 2, 7, 11, 42, 99 };
 
+    /// <summary>
+    /// A wider sample, for the question "can this still happen at all".
+    /// </summary>
+    /// <remarks>
+    /// <para>Rare-event coverage needs more simulated years than a rate does, and asking it over
+    /// five three-century worlds was asking for a false alarm. A relic claim needs a particular
+    /// object sitting in a particular treasury while two realms are already unfriendly, and it
+    /// arrives about once every three centuries across a whole world — so the old sample expected
+    /// roughly five of them and would have been unlucky to see none. It duly saw none the first
+    /// time an unrelated change to carrying capacity shifted which towns held what, while the same
+    /// build produced eighteen relic wars over five thousand-year runs. The mechanism was never
+    /// unreachable; the sample was too small to tell.</para>
+    ///
+    /// <para>Doubling the seeds rather than lengthening the runs keeps the worlds independent,
+    /// which is what makes a miss unlikely rather than merely rarer, and costs the same simulated
+    /// years either way.</para>
+    /// </remarks>
+    private static readonly ulong[] CoverageSeeds =
+        { 2, 7, 11, 42, 99, 1301, 5150, 8675309, 20260815, 4242 };
+
     [Fact]
     public void WarsAreDeclaredFoughtAndSettled()
     {
@@ -67,7 +87,7 @@ public sealed class WarTests
         int alliances = 0;
         int joined = 0;
 
-        foreach (ulong seed in Seeds)
+        foreach (ulong seed in CoverageSeeds)
         {
             WorldState world = HistoryRun.Execute(TestWorlds.Standard(seed)).World;
 

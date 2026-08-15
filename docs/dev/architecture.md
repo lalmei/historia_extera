@@ -101,9 +101,37 @@ access; an overland route records demand between its endpoints. A later road net
 physical path to the route, prioritize construction by peak traffic, and preserve the route's
 identity across rerouting or road upgrades.
 
-Tome circulation and plague spread consume active routes. This keeps the engine's different
-notions of ordinary travel on one shared network instead of letting each system invent a fresh
-distance heuristic.
+Tome circulation, plague spread and carrying capacity consume active routes. This keeps the
+engine's different notions of ordinary travel on one shared network instead of letting each system
+invent a fresh distance heuristic.
+
+## Carrying capacity
+
+How many people a settlement can support is the sum of three sourced terms, then modified:
+
+| Term | Source |
+|---|---|
+| Site | `Specializations.SiteCapacity` — the ore body, the fishery, the spring |
+| Land | Squared regional fertility × `FertilityWeight` × **hinterland share** |
+| Trade | Live route traffic × `Specializations.ImportReliance` |
+
+Then scaled by the harvest, distance from the seat of government, culture, capital status and
+walls.
+
+**The land is contested.** `Hinterland` gives each settlement its share of the ground within reach
+— its own pull over the total pull on that ground, where pull is the square root of population.
+That is preferential attachment held sublinear: a large place takes more of the fields between
+them without extinguishing its neighbour. It is the only mechanism in the model by which a
+settlement can be *kept* small rather than killed, and without it the tier ladder reported worlds
+in which three quarters of every settlement was a city.
+
+**Cities are made by connection, not by soil.** The land term alone tops out around a small town
+on the best ground in the world. Anything larger got there through trade, a capital's
+administration, or both — which is where cities historically came from, and what gives the size
+distribution a tail instead of a hump. A trading port with no live route to anywhere is a village.
+
+`SettlementHierarchyTests` asserts the resulting distribution across seeds, because the failure
+this replaced was a property of a whole world that every per-entity unit test passed through.
 
 ## Terrain: `ITerrainSampler` and `TerrainAtlas`
 

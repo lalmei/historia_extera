@@ -37,4 +37,25 @@ internal static class TestWorlds
         InitialCivilizations = 8,
         MapRasterResolution = 64,
     };
+
+    /// <summary>
+    /// A full millennium, for properties that only settle once the world has matured.
+    /// </summary>
+    /// <remarks>
+    /// The settlement hierarchy is the case this exists for. Three centuries is not long enough for
+    /// it: settlements founded late are still climbing toward their ceilings, so the size
+    /// distribution is dominated by how recently each place was founded rather than by what the
+    /// land and the roads will eventually support. The distributional failures this suite now
+    /// guards against were only visible at a thousand years.
+    /// </remarks>
+    public static WorldConfig Long(ulong seed = 42) => new()
+    {
+        Seed = seed,
+        Years = 1000,
+        WorldSize = 4096,
+        RegionSize = 128,
+        TerrainStride = 256,
+        InitialCivilizations = 8,
+        MapRasterResolution = 64,
+    };
 }
