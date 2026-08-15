@@ -102,7 +102,34 @@ public sealed class Settlement
 
     public bool IsActive => AbandonedYear is null;
 
-    public int Population { get; set; }
+    /// <summary>
+    /// How many people live here now.
+    /// </summary>
+    /// <remarks>
+    /// <para>Writing it maintains <see cref="PeakPopulation"/>, so the two cannot disagree. That is
+    /// structural rather than a rule each caller remembers, because a caller did forget: eight
+    /// systems change a population and seven of them only ever reduce it, so the one that raises it
+    /// outside the growth tick — <see cref="Systems.SettlementLifecycleSystem"/> settling refugees
+    /// from an abandoned neighbour — was the only place the invariant could break, and it broke
+    /// there. A town that took in refugees in the run's final year was exported holding more people
+    /// than it had ever held.</para>
+    ///
+    /// <para>It was self-correcting in every year but the last, which is what kept it hidden: the
+    /// next growth tick would notice and raise the peak. So it surfaced only as a nonsense pair of
+    /// numbers on the viewer's settlement page, and briefly as a peak too low for
+    /// <see cref="Systems.SettlementLifecycleSystem"/> to judge decline against.</para>
+    /// </remarks>
+    public int Population
+    {
+        get => _population;
+        set
+        {
+            _population = value;
+            if (value > PeakPopulation) PeakPopulation = value;
+        }
+    }
+
+    private int _population;
 
     /// <summary>Highest population ever reached. Survives decline, for the viewer's benefit.</summary>
     public int PeakPopulation { get; set; }

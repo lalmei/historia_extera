@@ -162,6 +162,37 @@ public sealed class SettlementHierarchyTests
             "ImportReliance is not being read.");
     }
 
+    /// <summary>
+    /// No settlement may hold more people than it has ever held.
+    /// </summary>
+    /// <remarks>
+    /// <para>Asserted at the end of a full run rather than against a constructed settlement,
+    /// because the way this broke needs a whole history to reach: refugees from an abandoned
+    /// neighbour are settled by <see cref="Systems.SettlementLifecycleSystem"/>, which runs after
+    /// the growth tick in the same year, so a receiver that crossed its own peak on arrivals stayed
+    /// wrong until the next year's growth noticed. In the run's final year there is no next year,
+    /// and the export carried the contradiction.</para>
+    ///
+    /// <para>Checked on abandoned settlements too: their last figures are what the viewer shows for
+    /// a ruin, and a ruin holding more than it ever held is the same nonsense.</para>
+    /// </remarks>
+    [Fact]
+    public void NoSettlementHoldsMoreThanItsPeak()
+    {
+        foreach (ulong seed in Seeds)
+        {
+            WorldState world = HistoryRun.Execute(TestWorlds.Long(seed)).World;
+
+            foreach (Settlement settlement in world.Settlements)
+            {
+                Assert.True(
+                    settlement.PeakPopulation >= settlement.Population,
+                    $"Seed {seed}: {settlement.Name} holds {settlement.Population} people against a " +
+                    $"recorded peak of {settlement.PeakPopulation}.");
+            }
+        }
+    }
+
     /// <summary>Sharing the land must lower capacity, never raise it.</summary>
     [Fact]
     public void ASmallerLandShareNeverMeansMoreCapacity()
