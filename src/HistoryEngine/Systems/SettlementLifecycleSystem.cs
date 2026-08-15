@@ -82,6 +82,29 @@ public sealed class SettlementLifecycleSystem : IYearSystem
     /// <summary>Yearly chance a town or city builds walls, scaled by its culture's aggression.</summary>
     private const double FortificationChance = 0.04;
 
+    /// <summary>
+    /// How far survivors will carry themselves to reach somewhere still standing.
+    /// </summary>
+    /// <remarks>
+    /// Further than a plague spreads by casual contact (950) and short of the reach of organised
+    /// trade (1600): the distance a family covers on foot with what it can carry.
+    /// </remarks>
+    private const double RefugeRange = 1200.0;
+
+    /// <summary>
+    /// Share of the survivors that arrives somewhere the world still counts.
+    /// </summary>
+    /// <remarks>
+    /// Not one, deliberately. The rest die on the road, scatter to steadings below the size this
+    /// engine models, or leave for somewhere it does not reach. A conservation law here would also
+    /// be a false precision, since the far larger loss — the slide from peak to the point of
+    /// abandonment — is unattributed capacity shrinkage that goes nowhere at all.
+    /// </remarks>
+    private const double ArrivingShare = 0.6;
+
+    /// <summary>How many settlements the survivors split between, nearest first.</summary>
+    private const int RefugeCount = 3;
+
     public string Name => "settlement-lifecycle";
 
     public void Tick(WorldState world, int year)
@@ -205,16 +228,28 @@ public sealed class SettlementLifecycleSystem : IYearSystem
             world.Civilizations[settlement.CivilizationId].TerritoryRegionIds.Remove(region.Id);
         }
 
+        Settlement? refuge = Disperse(world, settlement, out int resettled);
+
+        DetMap<string, string> data = Chronicle.Data(
+            ("years", (year - settlement.FoundedYear).ToString(CultureInfo.InvariantCulture)),
+            ("cause", cause),
+            ("peakPopulation", settlement.PeakPopulation.ToString(CultureInfo.InvariantCulture)));
+
+        // Both keys or neither: the narration template drops its segment if either is missing, and
+        // a settlement with nowhere in reach to go to genuinely has no refuge to name.
+        if (refuge is not null)
+        {
+            data["resettled"] = resettled.ToString(CultureInfo.InvariantCulture);
+            data["refuge"] = refuge.Name;
+        }
+
         world.Chronicle.Record(
             year,
             EventKind.SettlementAbandoned,
             settlement.Id,
             obj: settlement.CivilizationId,
             location: settlement.RegionId,
-            data: Chronicle.Data(
-                ("years", (year - settlement.FoundedYear).ToString(CultureInfo.InvariantCulture)),
-                ("cause", cause),
-                ("peakPopulation", settlement.PeakPopulation.ToString(CultureInfo.InvariantCulture))));
+            data: data);
 
         // The claim leaves with the people. Recorded rather than left implicit because a border
         // that recedes is a border change like any other, and the map replays these.
@@ -234,6 +269,104 @@ public sealed class SettlementLifecycleSystem : IYearSystem
         {
             world.Religions[settlement.ReligionId].Lose(settlement.Id);
         }
+    }
+
+    /// <summary>
+    /// Moves the survivors to the nearest settlements still standing, and names the principal one.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>The dying has already happened.</b> Population, plague, disaster and war take their
+    /// toll years before this point — that toll is why the place is at 45% of its peak and has been
+    /// depressed for decades. Whoever is still here at the end is a survivor, and survivors walk.
+    /// Leaving them on the dead settlement deleted them from the world a second time: measured over
+    /// a thousand years, that silently discarded between 4% and 25% of a world's living population,
+    /// including cities that still held six thousand people the year they were given up.</para>
+    ///
+    /// <para><b>Shares go by the size of the receiving place</b>, not by rank or distance alone. A
+    /// gravity model in miniature, and it is what stops a hamlet of fifty from absorbing a city and
+    /// becoming one overnight — it takes a proportionally tiny share and the large neighbour takes
+    /// the rest.</para>
+    ///
+    /// <para><b>Arrivals may exceed the receiver's carrying capacity, deliberately.</b> That is what
+    /// a refugee influx is, and the logistic decline sheds the excess over the following years —
+    /// which can push the receiver into its own depression and, occasionally, finish it too. A
+    /// regional collapse spreading to the places that took its people in is the correct behaviour,
+    /// not a bug to be capped away.</para>
+    ///
+    /// <para>Own realm first, and only a neighbouring realm's settlements when nothing of the
+    /// people's own is within reach. Note that the faith does not travel with them: whether the
+    /// arrivals convert their hosts is <see cref="ReligionSystem"/>'s question, and it already reads
+    /// the map this leaves behind.</para>
+    /// </remarks>
+    private static Settlement? Disperse(WorldState world, Settlement leaving, out int resettled)
+    {
+        resettled = 0;
+
+        if (leaving.Population <= 0) return null;
+
+        List<Settlement> refuges = Refuges(world, leaving);
+        if (refuges.Count == 0) return null;
+
+        int arriving = (int)(leaving.Population * ArrivingShare);
+        if (arriving <= 0) return null;
+
+        long capacity = 0;
+        foreach (Settlement refuge in refuges) capacity += refuge.Population;
+        if (capacity <= 0) return null;
+
+        for (int i = 0; i < refuges.Count; i++)
+        {
+            // The last share is the remainder, so integer division cannot lose or invent people.
+            int share = i == refuges.Count - 1
+                ? arriving - resettled
+                : (int)(arriving * (long)refuges[i].Population / capacity);
+
+            refuges[i].Population += share;
+            resettled += share;
+        }
+
+        return refuges[0];
+    }
+
+    /// <summary>
+    /// The settlements within reach that could take these people in, nearest first.
+    /// </summary>
+    /// <remarks>
+    /// Walked in entity-table order and sorted on distance with an id tiebreak, because
+    /// <see cref="List{T}.Sort"/> is unstable and two settlements equidistant from a third is not a
+    /// rare case on a grid. Distance goes through <see cref="WorldState.Distance"/>, so people take
+    /// the short way across the seam on a periodic world.
+    /// </remarks>
+    private static List<Settlement> Refuges(WorldState world, Settlement leaving)
+    {
+        var own = new List<Settlement>();
+        var neighbours = new List<Settlement>();
+
+        foreach (Settlement candidate in world.Settlements)
+        {
+            if (!candidate.IsActive || candidate.Id == leaving.Id) continue;
+
+            double distance = world.Distance(leaving.X, leaving.Z, candidate.X, candidate.Z);
+            if (distance > RefugeRange) continue;
+
+            if (candidate.CivilizationId == leaving.CivilizationId) own.Add(candidate);
+            else neighbours.Add(candidate);
+        }
+
+        List<Settlement> chosen = own.Count > 0 ? own : neighbours;
+
+        chosen.Sort((a, b) =>
+        {
+            double da = world.Distance(leaving.X, leaving.Z, a.X, a.Z);
+            double db = world.Distance(leaving.X, leaving.Z, b.X, b.Z);
+
+            int byDistance = da.CompareTo(db);
+            return byDistance != 0 ? byDistance : a.Id.CompareTo(b.Id);
+        });
+
+        if (chosen.Count > RefugeCount) chosen.RemoveRange(RefugeCount, chosen.Count - RefugeCount);
+
+        return chosen;
     }
 
 }
