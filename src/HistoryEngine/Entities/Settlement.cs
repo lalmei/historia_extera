@@ -145,5 +145,15 @@ public sealed class Settlement
     /// <summary>True while this settlement is its civilization's seat of government.</summary>
     public bool IsCapital { get; set; }
 
+    /// <summary>
+    /// What the ground it stands on was chosen for.
+    /// </summary>
+    /// <remarks>
+    /// Set once at founding and never revised, because it is a fact about a decision rather than
+    /// about the present: a harbour town whose bay silted up in the chronicle's telling was still
+    /// founded for the harbour, and that is what explains where it is.
+    /// </remarks>
+    public SiteCharacter Site { get; init; } = SiteCharacter.Plain;
+
     public override string ToString() => $"{Id} {Name} ({Tier}, pop {Population})";
 }

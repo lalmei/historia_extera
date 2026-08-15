@@ -572,6 +572,32 @@ public sealed class Hydrology
     /// <summary>Distance to the nearest open water, in world units.</summary>
     public double CoastDistance(int x, int z) => Interpolate(_coastDistance, x, z);
 
+    /// <summary>Distance within which water is on the doorstep, and beyond which it is a journey.</summary>
+    /// <remarks>
+    /// The grid resolves valleys rather than channels, so "on the river" cannot mean nearer than
+    /// about one cell. Full credit inside that, fading to nothing at the distance a settlement
+    /// would have to haul water rather than walk to it.
+    /// </remarks>
+    private const double WaterAtHand = 64.0;
+
+    private const double WaterTooFar = 384.0;
+
+    /// <summary>How much fresh water this spot has, in [0, 1].</summary>
+    /// <remarks>
+    /// Kept here rather than at each call site because two very different consumers need the same
+    /// answer — siting ranks candidates by it and region habitability sorts whole regions by it —
+    /// and two curves that were meant to agree and quietly drifted would be a bug nothing would
+    /// catch, since each would look reasonable alone.
+    /// </remarks>
+    public double RiverAccess(int x, int z) => Nearness(RiverDistance(x, z));
+
+    /// <summary>How much sea this spot has, in [0, 1], regardless of whether it is worth landing at.</summary>
+    public double SeaAccess(int x, int z) => Nearness(CoastDistance(x, z));
+
+    /// <summary>Water's worth at a distance, in [0, 1].</summary>
+    private static double Nearness(double distance) =>
+        DetMath.InverseLerp(WaterTooFar, WaterAtHand, distance);
+
     /// <summary>
     /// Bilinear read of a continuous plane, so it varies between grid cells rather than in blocks.
     /// </summary>

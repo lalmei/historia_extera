@@ -175,7 +175,7 @@ public static class WorldBuilder
         };
         world.Civilizations.Add(civilization);
 
-        Point2 site = SiteSelection.Best(world, homeland, SitesPerAxis);
+        SiteChoice site = SiteSelection.Best(world, homeland, SitesPerAxis);
         Settlement capital = FoundSettlement(
             world, civilization, culture, homeland, site, year, population: 120, rng);
 
@@ -208,7 +208,7 @@ public static class WorldBuilder
         Civilization civilization,
         Culture culture,
         Region region,
-        Point2 site,
+        SiteChoice site,
         int year,
         int population,
         IRng rng,
@@ -222,13 +222,14 @@ public static class WorldBuilder
             civilization.Id,
             region.Id,
             world.Names.ForSettlement(id, culture),
-            site.X,
-            site.Z,
+            site.At.X,
+            site.At.Z,
             year,
             population)
         {
             FoundedBy = civilization.Id,
             PeakPopulation = population,
+            Site = site.Character,
         };
 
         world.Settlements.Add(settlement);
