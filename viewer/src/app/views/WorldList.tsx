@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Badge, Panel } from '../components/common';
+import { generatorUrl, paramsFromFilename, DEFAULT_PARAMS, type RunParams } from '../generate';
 import { SCHEMA_VERSION } from '../types';
 import { deleteWorld, listWorlds, type SavedWorld } from '../worlds';
 
@@ -87,6 +88,7 @@ export function WorldList() {
             <thead className="text-[0.7rem] font-medium tracking-wide uppercase text-[var(--ink-faint)]">
               <tr>
                 <th className="border-b border-[var(--rule)] pb-2 font-medium">World</th>
+                <th className="border-b border-[var(--rule)] pb-2 font-medium">Settings</th>
                 <th className="border-b border-[var(--rule)] pb-2 font-medium">Modified</th>
                 <th className="border-b border-[var(--rule)] pb-2 text-right font-medium">Size</th>
                 <th className="border-b border-[var(--rule)] pb-2 pl-4 font-medium">Compatibility</th>
@@ -125,10 +127,22 @@ function WorldRow({
   onDelete: (mode: DeleteMode) => void;
 }) {
   const compatible = world.schemaVersion === SCHEMA_VERSION;
+  const params = worldParams(world);
 
   return (
     <tr className="border-b border-[var(--rule)] last:border-0">
       <td className="max-w-sm py-3 pr-4 font-mono text-xs break-all">{world.name}</td>
+      <td className="py-3 pr-4 text-xs text-[var(--ink-soft)]">
+        {params ? (
+          <span className="tabular-nums">
+            seed {params.seed} · {params.years}y · {params.civs} civs · {params.size}
+            {params.eastWestPeriodic ? ' · periodic' : ''}
+            {world.engineVersion ? ` · engine ${world.engineVersion}` : ''}
+          </span>
+        ) : (
+          <span className="text-[var(--ink-faint)]">—</span>
+        )}
+      </td>
       <td className="py-3 pr-4 whitespace-nowrap text-[var(--ink-soft)]">
         {formatDate(world.modifiedAt)}
       </td>
@@ -160,6 +174,23 @@ function WorldRow({
           ) : (
             <span className="text-xs text-[var(--ink-faint)]">Unavailable</span>
           )}
+          {params && (
+            <a
+              href={generatorUrl(params, world.name)}
+              title={
+                compatible
+                  ? 'Reuse these settings: change a parameter, continue for more years, or run them through the current engine'
+                  : 'Regenerate this world with the current engine, or continue it for more years'
+              }
+              className={
+                compatible
+                  ? 'rounded border border-[var(--rule)] px-2.5 py-1 text-xs text-[var(--ink-soft)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]'
+                  : 'rounded border border-[var(--accent)] bg-[var(--accent-soft)] px-2.5 py-1 text-xs font-medium text-[var(--accent)]'
+              }
+            >
+              {compatible ? 'Rerun…' : 'Regenerate…'}
+            </a>
+          )}
           <button
             type="button"
             disabled={deleteDisabled}
@@ -180,6 +211,23 @@ function WorldRow({
       </td>
     </tr>
   );
+}
+
+function worldParams(world: SavedWorld): RunParams | null {
+  if (world.params) return world.params;
+
+  const named = paramsFromFilename(world.name);
+  if (named?.seed === undefined || named.years === undefined || named.civs === undefined) {
+    return null;
+  }
+
+  return {
+    seed: named.seed,
+    years: named.years,
+    civs: named.civs,
+    size: named.size ?? DEFAULT_PARAMS.size,
+    eastWestPeriodic: named.eastWestPeriodic ?? false,
+  };
 }
 
 function viewerUrl(world: string): string {

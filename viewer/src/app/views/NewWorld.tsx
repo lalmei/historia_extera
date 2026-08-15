@@ -6,10 +6,14 @@ import {
   POLL_MS,
   cancelRun,
   minimumSizeFor,
+  paramsFromSearch,
   randomSeed,
   readRun,
   startRun,
+  suggestedContinueYears,
+  worldFileName,
   type Run,
+  type RunParams,
 } from '../generate';
 import { Panel } from '../components/common';
 
@@ -25,26 +29,58 @@ import { Panel } from '../components/common';
  * that knows how to read a chronicle, and a generator that also held one in memory would
  * be parsing megabytes it is about to navigate away from.
  *
+ * The same form is mounted on a world's Overview, prefilled from that export, so a seed
+ * already on screen can be pushed through more years, different knobs, or the engine as
+ * it stands now without walking back to `/new`.
+ *
  * Development only — the endpoint behind it does not exist in a built viewer.
  */
-export function NewWorld() {
-  const [form, setForm] = useState({
-    seed: String(DEFAULT_PARAMS.seed),
-    years: String(DEFAULT_PARAMS.years),
-    civs: String(DEFAULT_PARAMS.civs),
-    size: String(DEFAULT_PARAMS.size),
-    eastWestPeriodic: DEFAULT_PARAMS.eastWestPeriodic,
-  });
-
+export function NewWorld({
+  initial,
+  sourceLabel,
+  title = 'Simulate a world',
+  showContinue = false,
+}: {
+  initial?: RunParams;
+  sourceLabel?: string;
+  title?: string;
+  showContinue?: boolean;
+} = {}) {
+  const [form, setForm] = useState(() => toForm(initial ?? DEFAULT_PARAMS));
+  const [baseline, setBaseline] = useState(initial ?? DEFAULT_PARAMS);
+  const [source, setSource] = useState(sourceLabel);
+  const [continueYears, setContinueYears] = useState(() =>
+    String(suggestedContinueYears((initial ?? DEFAULT_PARAMS).years)),
+  );
   const [run, setRun] = useState<Run | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [opening, setOpening] = useState(false);
 
   const busy = run?.status === 'running' || opening;
+  const params = fromForm(form);
+  const tooSmall = params.size < minimumSizeFor(params.civs);
+  const continuing = showContinue || Boolean(source);
 
-  // The endpoint and the engine both refuse this; knowing it here is what lets the form say so
-  // while the numbers are still being typed.
-  const tooSmall = Number(form.size) < minimumSizeFor(Number(form.civs));
+  // `/new?seed=` is how the world list hands a previous export to this form. Read it
+  // after mount: the island is prerendered, and `window` is not there yet.
+  useEffect(() => {
+    if (initial) {
+      setBaseline(initial);
+      setForm(toForm(initial));
+      setContinueYears(String(suggestedContinueYears(initial.years)));
+      setSource(sourceLabel);
+      return;
+    }
+
+    const search = paramsFromSearch(window.location.search);
+    const from = new URLSearchParams(window.location.search).get('from') ?? undefined;
+    if (search) {
+      setBaseline(search);
+      setForm(toForm(search));
+      setContinueYears(String(suggestedContinueYears(search.years)));
+    }
+    if (from) setSource(from);
+  }, [initial, sourceLabel]);
 
   // Poll while the CLI is working. Keyed on id and status rather than the run object, so
   // an answer that only moved the clock forward does not tear the timer down and rebuild it.
@@ -73,27 +109,43 @@ export function NewWorld() {
 
   // Then leave for the viewer, pointed at what was just written. `?world=` before the
   // hash is the form that survives navigation, so the world stays selected from here on.
+  // Regenerating the file already on screen has to reload even when the URL is unchanged,
+  // or the viewer keeps the chronicle it loaded at first paint.
   useEffect(() => {
     if (run?.status !== 'done' || !run.world) return;
 
     setOpening(true);
-    window.location.assign(viewerUrl(run.world));
+    const next = viewerUrl(run.world);
+    const here = `${window.location.pathname}${window.location.search}`;
+    const sameWorld = here === next || window.location.search === `?world=${run.world}`;
+
+    if (sameWorld) window.location.reload();
+    else window.location.assign(next);
   }, [run?.status, run?.world]);
 
-  async function submit(event: React.SyntheticEvent) {
-    event.preventDefault();
+  async function generate(event?: React.SyntheticEvent, override?: Partial<RunParams>) {
+    event?.preventDefault();
     setError(null);
 
-    try {
-      setRun(
-        await startRun({
-          seed: Number(form.seed),
-          years: Number(form.years),
-          civs: Number(form.civs),
-          size: Number(form.size),
-          eastWestPeriodic: form.eastWestPeriodic,
-        }),
+    const next: RunParams = { ...params, ...override };
+
+    if (next.size < minimumSizeFor(next.civs)) {
+      setError(
+        `A ${next.size}-unit world has too little room to seat ${next.civs} civilizations.`,
       );
+      return;
+    }
+
+    const output = worldFileName(next);
+    if (source === output) {
+      const confirmed = window.confirm(
+        `Replace ${output}?\n\nThe file you are reusing will be overwritten with a new run of these settings through the current engine.`,
+      );
+      if (!confirmed) return;
+    }
+
+    try {
+      setRun(await startRun(next));
     } catch (cause) {
       setError(messageOf(cause));
     }
@@ -109,9 +161,27 @@ export function NewWorld() {
     }
   }
 
+  const continueTarget = Number(continueYears);
+  const continueReady =
+    Number.isSafeInteger(continueTarget) &&
+    continueTarget > baseline.years &&
+    continueTarget <= BOUNDS.years.max;
+  const unchanged =
+    params.seed === baseline.seed &&
+    params.years === baseline.years &&
+    params.civs === baseline.civs &&
+    params.size === baseline.size &&
+    params.eastWestPeriodic === baseline.eastWestPeriodic;
+  const submitLabel = busy
+    ? 'Working…'
+    : source && unchanged
+      ? 'Run with current engine'
+      : 'Generate';
+  const canContinue = continuing && baseline.years < BOUNDS.years.max;
+
   return (
-    <Panel title="Simulate a world">
-      <form onSubmit={submit} className="flex flex-wrap items-end gap-3">
+    <Panel title={title}>
+      <form id="simulate" onSubmit={(event) => generate(event)} className="flex flex-wrap items-end gap-3">
         <NumberField
           label="Seed"
           value={form.seed}
@@ -176,7 +246,7 @@ export function NewWorld() {
           disabled={busy || tooSmall}
           className="mb-0.5 rounded border border-[var(--accent)] bg-[var(--accent-soft)] px-3 py-1.5 text-sm font-medium text-[var(--accent)] transition-opacity disabled:opacity-40"
         >
-          {busy ? 'Working…' : 'Generate'}
+          {submitLabel}
         </button>
       </form>
 
@@ -189,13 +259,53 @@ export function NewWorld() {
         </p>
       )}
 
-      <p className="mt-3 text-xs text-[var(--ink-faint)]">
-        A seed worth keeping is worth writing down: the same settings always give the same
-        history. A periodic world wraps terrain, rivers, travel, and expansion across its east and
-        west edges. Each run lands in{' '}
-        <code className="rounded bg-[var(--page)] px-1 py-0.5">viewer/public/worlds/</code> and can
-        be reopened later with <code className="rounded bg-[var(--page)] px-1 py-0.5">?world=</code>.
-      </p>
+      {source && (
+        <p className="mt-3 text-xs text-[var(--ink-soft)]">
+          Settings taken from <code className="rounded bg-[var(--page)] px-1 py-0.5">{source}</code>.
+          Change a number and generate, or run them unchanged through the engine as it stands now.
+          The first {baseline.years.toLocaleString()} years of a longer run are the same history —
+          the seed is deterministic.
+        </p>
+      )}
+
+      {canContinue && (
+        <form
+          onSubmit={(event) => generate(event, { ...baseline, years: continueTarget })}
+          className="mt-4 flex flex-wrap items-end gap-3 border-t border-[var(--rule)] pt-3"
+        >
+          <NumberField
+            label="Continue through year"
+            value={continueYears}
+            bounds={{ min: baseline.years + 1, max: BOUNDS.years.max }}
+            width="w-36"
+            disabled={busy}
+            onChange={setContinueYears}
+          />
+          <button
+            type="submit"
+            disabled={busy || !continueReady}
+            className="mb-0.5 rounded border border-[var(--rule)] px-3 py-1.5 text-sm text-[var(--ink-soft)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:opacity-40"
+          >
+            Continue
+          </button>
+          <p className="mb-1 max-w-prose text-xs text-[var(--ink-faint)]">
+            Keeps seed {baseline.seed}, {baseline.civs} civilizations and a {baseline.size}-unit
+            world. Writes a new file; the {baseline.years}-year export stays on disk.
+          </p>
+        </form>
+      )}
+
+      {!source && (
+        <p className="mt-3 text-xs text-[var(--ink-faint)]">
+          A seed worth keeping is worth writing down: the same settings always give the same
+          history. A periodic world wraps terrain, rivers, travel, and expansion across its east and
+          west edges. Each run lands in{' '}
+          <code className="rounded bg-[var(--page)] px-1 py-0.5">viewer/public/worlds/</code> and can
+          be reopened later with <code className="rounded bg-[var(--page)] px-1 py-0.5">?world=</code>
+          . Reusing a previous export from the list below fills these numbers so it can be run
+          again, stretched, or pushed through a newer engine.
+        </p>
+      )}
 
       {error && (
         <p className="mt-3 rounded border border-[var(--accent)] bg-[var(--accent-soft)] px-3 py-2 text-sm text-[var(--accent)]">
@@ -300,6 +410,26 @@ function NumberField({
       />
     </label>
   );
+}
+
+function toForm(params: RunParams) {
+  return {
+    seed: String(params.seed),
+    years: String(params.years),
+    civs: String(params.civs),
+    size: String(params.size),
+    eastWestPeriodic: params.eastWestPeriodic,
+  };
+}
+
+function fromForm(form: ReturnType<typeof toForm>): RunParams {
+  return {
+    seed: Number(form.seed),
+    years: Number(form.years),
+    civs: Number(form.civs),
+    size: Number(form.size),
+    eastWestPeriodic: form.eastWestPeriodic,
+  };
 }
 
 /** The viewer, showing one particular export. `BASE_URL` always ends in a slash. */

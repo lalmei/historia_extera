@@ -13,6 +13,7 @@ import {
   yearRange,
 } from '../components/common';
 import { cultureOf, figures, type World } from '../store';
+import { CAN_GENERATE } from '../generate';
 import {
   AUTHORITY_LABELS,
   DEATH_LABELS,
@@ -38,6 +39,7 @@ import {
   WarTable,
   warsOf,
 } from './EntityPages';
+import { RerunWorld } from './RerunWorld';
 
 export function TradeRouteList({ world }: { world: World }) {
   const { tradeRoutes } = world.export;
@@ -1376,6 +1378,8 @@ export function Overview({ world }: { world: World }) {
           hint="Calamities recorded"
         />
       </div>
+
+      {CAN_GENERATE && <RerunWorld world={world} />}
 
       <div className="grid gap-5 lg:grid-cols-2">
         <Panel title="Great houses">
