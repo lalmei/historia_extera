@@ -23,7 +23,7 @@ namespace HistoryEngine.Systems;
 public sealed class ExpansionSystem : IYearSystem
 {
     /// <summary>Baseline yearly chance of founding a settlement, before culture and pressure.</summary>
-    private const double BaseChance = 0.10;
+    private const double BaseChance = 0.06;
 
     /// <summary>Population per existing settlement at which pressure is considered full.</summary>
     private const double PressureReference = 2200.0;
