@@ -162,10 +162,8 @@ public sealed class PopulationSystem : ISystem
 
                 Record(world, settlement, region, before, harvest, year);
 
-                if (settlement.Population > settlement.PeakPopulation)
-                {
-                    settlement.PeakPopulation = settlement.Population;
-                }
+                // The peak follows the write itself — see Settlement.Population — so it is already
+                // current here and the depression test below reads this year's figure.
 
                 // Depression, not decline. See Settlement.YearsDepressed for why counting
                 // declining years cannot work when collapse and recovery are this asymmetric.
