@@ -24,7 +24,7 @@ namespace HistoryEngine.Systems;
 ///
 /// <para>Samples no terrain.</para>
 /// </remarks>
-public sealed class ArtifactSystem : IYearSystem
+public sealed class ArtifactSystem : ISystem
 {
     /// <summary>Yearly chance a qualifying settlement makes something, before its character.</summary>
     private const double CreationChance = 0.0022;
@@ -55,8 +55,12 @@ public sealed class ArtifactSystem : IYearSystem
 
     public string Name => "artifacts";
 
-    public void Tick(WorldState world, int year)
+    public Cadence Cadence => Cadence.Annual;
+
+    public void Tick(WorldState world, Stamp now)
     {
+        int year = now.Year;
+
         IRng rng = world.Root.Fork(Name, year);
 
         foreach (Civilization civilization in world.ActiveCivilizations())

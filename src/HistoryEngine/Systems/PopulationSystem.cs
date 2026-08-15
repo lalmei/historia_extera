@@ -25,7 +25,7 @@ namespace HistoryEngine.Systems;
 /// reads is a cached region statistic or a noise lookup. That is the pattern
 /// <c>TerrainDisciplineTests</c> exists to protect.</para>
 /// </remarks>
-public sealed class PopulationSystem : IYearSystem
+public sealed class PopulationSystem : ISystem
 {
     /// <summary>
     /// Annual growth rate for a settlement far below its capacity.
@@ -97,8 +97,12 @@ public sealed class PopulationSystem : IYearSystem
 
     public string Name => "population";
 
-    public void Tick(WorldState world, int year)
+    public Cadence Cadence => Cadence.Annual;
+
+    public void Tick(WorldState world, Stamp now)
     {
+        int year = now.Year;
+
         IRng rng = world.Root.Fork(Name, year);
 
         foreach (Civilization civilization in world.ActiveCivilizations())

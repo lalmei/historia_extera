@@ -23,7 +23,7 @@ namespace HistoryEngine.Systems;
 /// vacant on schedule, which is what makes a republic's chronicle look nothing like a
 /// monarchy's.</para>
 /// </remarks>
-public sealed class SuccessionSystem : IYearSystem
+public sealed class SuccessionSystem : ISystem
 {
     /// <summary>Chance of a contested succession at zero aggression, before the culture's own is added.</summary>
     private const double DisputeFloor = 0.06;
@@ -47,8 +47,12 @@ public sealed class SuccessionSystem : IYearSystem
 
     public string Name => "succession";
 
-    public void Tick(WorldState world, int year)
+    public Cadence Cadence => Cadence.Annual;
+
+    public void Tick(WorldState world, Stamp now)
     {
+        int year = now.Year;
+
         IRng rng = world.Root.Fork(Name, year);
 
         foreach (Civilization civilization in world.ActiveCivilizations())

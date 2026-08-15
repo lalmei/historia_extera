@@ -1,0 +1,293 @@
+using HistoryEngine.Core;
+using HistoryEngine.Systems;
+using HistoryEngine.World;
+using Xunit;
+
+namespace HistoryEngine.Tests;
+
+public sealed class StampTests
+{
+    [Fact]
+    public void OrdersByYearThenDay()
+    {
+        Assert.True(new Stamp(4, 359) < new Stamp(5, 0));
+        Assert.True(new Stamp(5, 0) < new Stamp(5, 1));
+        Assert.True(new Stamp(5, 90) > new Stamp(5, 89));
+        Assert.True(new Stamp(5, 90) >= new Stamp(5, 90));
+        Assert.Equal(0, new Stamp(5, 90).CompareTo(new Stamp(5, 90)));
+    }
+
+    /// <summary>
+    /// A comparison must not need to know how long a year is.
+    /// </summary>
+    /// <remarks>
+    /// The reason <c>Stamp</c> is two integers and not one absolute day. If ordering went through a
+    /// calendar, two stamps could compare differently in two worlds — and every sorted structure
+    /// holding them would have a configuration-dependent order, which is the class of bug this
+    /// engine has a whole test file against.
+    /// </remarks>
+    [Fact]
+    public void OrderingIsIndependentOfAnyCalendar()
+    {
+        var early = new Stamp(3, 400);
+        var late = new Stamp(4, 1);
+
+        Assert.True(early < late);
+    }
+
+    [Fact]
+    public void OpeningIsDayZero()
+    {
+        Assert.Equal(new Stamp(7, 0), Stamp.Opening(7));
+        Assert.Equal("7.0", Stamp.Opening(7).ToString());
+    }
+}
+
+public sealed class CalendarTests
+{
+    [Fact]
+    public void TheStandardYearDividesExactly()
+    {
+        var calendar = new Calendar();
+
+        Assert.Equal(360, calendar.DaysPerYear);
+        Assert.Equal(4, calendar.SeasonsPerYear);
+        Assert.Equal(90, calendar.DaysPerSeason);
+
+        calendar.Validate();
+    }
+
+    [Theory]
+    [InlineData(0, 4)]
+    [InlineData(360, 0)]
+    [InlineData(100, 3)]
+    public void RejectsYearsThatDoNotDivideIntoWholeSeasons(int days, int seasons) =>
+        Assert.Throws<InvalidOperationException>(() => new Calendar(days, seasons).Validate());
+
+    [Fact]
+    public void AbsoluteDayCountsFromYearZero()
+    {
+        var calendar = new Calendar();
+
+        Assert.Equal(0L, calendar.AbsoluteDay(new Stamp(0, 0)));
+        Assert.Equal(360L, calendar.AbsoluteDay(new Stamp(1, 0)));
+        Assert.Equal(450L, calendar.AbsoluteDay(new Stamp(1, 90)));
+    }
+
+    /// <summary>
+    /// "Forty days from now" is allowed to run past the end of the year.
+    /// </summary>
+    /// <remarks>
+    /// The arithmetic a docket exists to serve produces exactly this stamp, and it must land where
+    /// the days say rather than where the year field says. See <c>Docket</c>'s comparer.
+    /// </remarks>
+    [Fact]
+    public void ADayPastTheEndOfItsYearStillCounts()
+    {
+        var calendar = new Calendar();
+
+        Assert.Equal(
+            calendar.AbsoluteDay(new Stamp(4, 40)), calendar.AbsoluteDay(new Stamp(3, 400)));
+    }
+
+    /// <summary>A world's calendar is validated with the rest of its config, not on first use.</summary>
+    [Fact]
+    public void AnImpossibleCalendarFailsConfigValidation()
+    {
+        var config = new WorldConfig { Calendar = new Calendar(365, 4) };
+
+        Assert.Throws<InvalidOperationException>(() => config.Validate());
+    }
+}
+
+public sealed class DocketTests
+{
+    private static readonly EntityId Battle3 = new(EntityKind.Battle, 3);
+    private static readonly EntityId Battle7 = new(EntityKind.Battle, 7);
+
+    [Fact]
+    public void ComesOffInStampOrderWhateverOrderItWentOnIn()
+    {
+        var docket = new Docket(new Calendar());
+
+        docket.Schedule(new Stamp(5, 200), DocketKind.Arrival, Battle3);
+        docket.Schedule(new Stamp(4, 10), DocketKind.Arrival, Battle3);
+        docket.Schedule(new Stamp(5, 20), DocketKind.Arrival, Battle3);
+        docket.Schedule(new Stamp(4, 350), DocketKind.Arrival, Battle3);
+
+        Assert.Equal(
+            new[] { new Stamp(4, 10), new Stamp(4, 350), new Stamp(5, 20), new Stamp(5, 200) },
+            docket.Entries.Select(e => e.Due).ToArray());
+    }
+
+    /// <summary>
+    /// Two schedulings that differ only in the order they were made produce the same queue.
+    /// </summary>
+    /// <remarks>
+    /// The property the whole type exists for, and the one a <c>PriorityQueue</c> would not have
+    /// given: what comes off next is a function of the keys, not of how the structure was filled.
+    /// </remarks>
+    [Fact]
+    public void TheQueueIsAFunctionOfItsKeys()
+    {
+        var forwards = new Docket(new Calendar());
+        var backwards = new Docket(new Calendar());
+
+        (Stamp Due, DocketKind Kind, EntityId Subject)[] work =
+        {
+            (new Stamp(2, 30), DocketKind.SiegeResolves, Battle3),
+            (new Stamp(2, 30), DocketKind.OutbreakStep, Battle7),
+            (new Stamp(1, 300), DocketKind.Arrival, Battle3),
+            (new Stamp(2, 30), DocketKind.SiegeResolves, Battle7),
+        };
+
+        foreach ((Stamp due, DocketKind kind, EntityId subject) in work)
+        {
+            forwards.Schedule(due, kind, subject);
+        }
+
+        for (int i = work.Length - 1; i >= 0; i--)
+        {
+            backwards.Schedule(work[i].Due, work[i].Kind, work[i].Subject);
+        }
+
+        Assert.Equal(
+            forwards.Entries.Select(e => (e.Due, e.Kind, e.Subject)).ToArray(),
+            backwards.Entries.Select(e => (e.Due, e.Kind, e.Subject)).ToArray());
+    }
+
+    /// <summary>
+    /// Scheduling an unrelated entry first must not move an existing one.
+    /// </summary>
+    /// <remarks>
+    /// The episodic RNG rule leans on this: a siege's dice must not depend on how many other sieges
+    /// were scheduled before it. Order-dependence here would reintroduce that dependency through
+    /// the queue rather than through the fork.
+    /// </remarks>
+    [Fact]
+    public void AnUnrelatedSchedulingDoesNotDisturbWhatIsAlreadyQueued()
+    {
+        var docket = new Docket(new Calendar());
+
+        docket.Schedule(new Stamp(9, 100), DocketKind.SiegeResolves, Battle3);
+        DocketEntry before = docket.Entries[0];
+
+        docket.Schedule(new Stamp(3, 1), DocketKind.OutbreakStep, Battle7);
+        docket.Schedule(new Stamp(40, 1), DocketKind.Arrival, Battle7);
+
+        Assert.Equal(before, docket.Entries[1]);
+    }
+
+    /// <summary>Days ordered across a year boundary, not years then days.</summary>
+    [Fact]
+    public void ADueDateThatOverrunsItsYearSortsWhereItsDaysPutIt()
+    {
+        var docket = new Docket(new Calendar());
+
+        docket.Schedule(new Stamp(4, 100), DocketKind.SiegeResolves, Battle3);
+
+        // Day 400 of year three is day 40 of year four, which is earlier.
+        docket.Schedule(new Stamp(3, 400), DocketKind.SiegeResolves, Battle3);
+
+        Assert.Equal(new Stamp(3, 400), docket.Entries[0].Due);
+    }
+
+    [Fact]
+    public void TakesEverythingOwedAtOrBeforeNowAndNothingAfter()
+    {
+        var docket = new Docket(new Calendar());
+
+        docket.Schedule(new Stamp(1, 10), DocketKind.OutbreakStep, Battle3);
+        docket.Schedule(new Stamp(1, 40), DocketKind.OutbreakStep, Battle3);
+        docket.Schedule(new Stamp(2, 0), DocketKind.OutbreakStep, Battle3);
+
+        var taken = new List<Stamp>();
+        while (docket.TryTakeDue(new Stamp(1, 40), out DocketEntry entry)) taken.Add(entry.Due);
+
+        Assert.Equal(new[] { new Stamp(1, 10), new Stamp(1, 40) }, taken.ToArray());
+        Assert.Equal(1, docket.Count);
+    }
+
+    /// <summary>A world carries its own docket, so a split run carries it too.</summary>
+    [Fact]
+    public void EveryWorldHasOne()
+    {
+        WorldState world = WorldBuilder.Create(TestWorlds.Standard());
+
+        Assert.Equal(0, world.Docket.Count);
+        Assert.Equal(Stamp.Opening(world.StartYear), world.Now);
+        Assert.Equal(world.Now.Year, world.Year);
+    }
+}
+
+/// <summary>
+/// Cadence is part of what a run is, and an all-annual run is the run it always was.
+/// </summary>
+public sealed class CadenceTests
+{
+    [Fact]
+    public void EverySystemIsAnnualForNow()
+    {
+        foreach (ISystem system in Simulator.DefaultSystems())
+        {
+            Assert.Equal(Cadence.Annual, system.Cadence);
+        }
+    }
+
+    /// <summary>
+    /// Changing a system's cadence changes the run's identity, exactly as reordering it does.
+    /// </summary>
+    [Fact]
+    public void ADifferentCadenceIsADifferentRun()
+    {
+        var annual = new Simulator(new ISystem[] { new StubSystem(Cadence.Annual) });
+        var seasonal = new Simulator(new ISystem[] { new StubSystem(Cadence.Seasonal) });
+        var episodic = new Simulator(new ISystem[] { new StubSystem(Cadence.Episodic) });
+
+        Assert.NotEqual(annual.SystemOrderHash, seasonal.SystemOrderHash);
+        Assert.NotEqual(seasonal.SystemOrderHash, episodic.SystemOrderHash);
+    }
+
+    /// <summary>
+    /// The annual default does not enter the hash, so the standard order hashes as it always has.
+    /// </summary>
+    /// <remarks>
+    /// The same argument as <c>ConfigTests.TheStandardCalendarDoesNotEnterTheHash</c>: this value
+    /// travels in the export, and a run whose history is byte for byte what it always was must not
+    /// claim a new identity because cadences became declarable.
+    /// </remarks>
+    [Fact]
+    public void TheAnnualDefaultDoesNotEnterTheHash()
+    {
+        var simulator = new Simulator(new ISystem[]
+        {
+            new StubSystem(Cadence.Annual, "one"),
+            new StubSystem(Cadence.Annual, "two"),
+        });
+
+        ulong hash = Hash.OfString("systems");
+        hash = Hash.Combine(hash, Hash.OfString("one"));
+        hash = Hash.Combine(hash, Hash.OfString("two"));
+
+        Assert.Equal(
+            hash.ToString("x16", System.Globalization.CultureInfo.InvariantCulture),
+            simulator.SystemOrderHash);
+    }
+
+    private sealed class StubSystem : ISystem
+    {
+        public StubSystem(Cadence cadence, string name = "stub")
+        {
+            Cadence = cadence;
+            Name = name;
+        }
+
+        public string Name { get; }
+
+        public Cadence Cadence { get; }
+
+        public void Tick(WorldState world, Stamp now)
+        {
+        }
+    }
+}

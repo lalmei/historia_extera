@@ -77,7 +77,8 @@ public sealed class DeterminismGuardTests
     public void EngineAvoidsCultureSensitiveOperations() => AssertAbsent(CultureSensitive);
 
     /// <summary>
-    /// Yearly systems must not hold a <see cref="Dictionary{TKey,TValue}"/>.
+    /// Systems, and the queue they schedule through, must not hold a
+    /// <see cref="Dictionary{TKey,TValue}"/>.
     /// </summary>
     /// <remarks>
     /// Dictionary enumeration order depends on insertion history, capacity and collisions. It is
@@ -86,18 +87,25 @@ public sealed class DeterminismGuardTests
     /// alters an insertion sequence, and then produces a different history for reasons nobody can
     /// trace. <c>DetMap</c> and <c>EntityTable</c> are the ordered alternatives.
     ///
-    /// <para>Scoped to <c>Systems/</c> because elsewhere a dictionary is sometimes the right tool
-    /// used correctly: <c>TerrainAtlas</c> keeps one as a pure cache it never iterates, and
-    /// <c>WorldExporter</c> builds one then sorts it into a <c>SortedDictionary</c> with an explicit
-    /// ordinal comparer.</para>
+    /// <para>Scoped to <c>Systems/</c> and to <c>World/Docket.cs</c> because elsewhere a dictionary
+    /// is sometimes the right tool used correctly: <c>TerrainAtlas</c> keeps one as a pure cache it
+    /// never iterates, and <c>WorldExporter</c> builds one then sorts it into a
+    /// <c>SortedDictionary</c> with an explicit ordinal comparer. The docket is in scope because it
+    /// decides what runs next, which makes its iteration order a simulation decision wherever it
+    /// physically lives.</para>
     /// </remarks>
     [Fact]
-    public void YearlySystemsUseOrderedCollections()
+    public void SystemsUseOrderedCollections()
     {
         string systems = Path.Combine(EngineSource.Root, "Systems");
         var offenders = new List<string>();
 
-        foreach (string file in Directory.GetFiles(systems, "*.cs"))
+        var scanned = new List<string>(Directory.GetFiles(systems, "*.cs"))
+        {
+            Path.Combine(EngineSource.Root, "World", "Docket.cs"),
+        };
+
+        foreach (string file in scanned)
         {
             string[] lines = File.ReadAllLines(file);
             for (int i = 0; i < lines.Length; i++)
@@ -115,7 +123,7 @@ public sealed class DeterminismGuardTests
 
         Assert.True(
             offenders.Count == 0,
-            "Yearly systems must use ordered collections (DetMap, EntityTable, List) so iteration " +
+            "Systems must use ordered collections (DetMap, EntityTable, List) so iteration " +
             "order cannot drift. Offending lines: " + string.Join(", ", offenders));
     }
 

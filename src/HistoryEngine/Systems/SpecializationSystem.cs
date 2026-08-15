@@ -28,12 +28,16 @@ namespace HistoryEngine.Systems;
 /// value it needs comes from <see cref="TerrainAtlas.SampleCoarse"/>, which interpolates the
 /// already-primed lattice for free.</para>
 /// </remarks>
-public sealed class SpecializationSystem : IYearSystem
+public sealed class SpecializationSystem : ISystem
 {
     public string Name => "specialization";
 
-    public void Tick(WorldState world, int year)
+    public Cadence Cadence => Cadence.Annual;
+
+    public void Tick(WorldState world, Stamp now)
     {
+        int year = now.Year;
+
         IRng rng = world.Root.Fork(Name, year);
 
         foreach (Civilization civilization in world.ActiveCivilizations())

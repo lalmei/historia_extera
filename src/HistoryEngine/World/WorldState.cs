@@ -50,7 +50,8 @@ public sealed class WorldState
         Harvest = new HarvestModel(config);
         Outbreaks = new List<Outbreak>();
         Series = new SeriesLog();
-        Year = config.StartYear;
+        Docket = new Docket(config.Calendar);
+        Now = Stamp.Opening(config.StartYear);
     }
 
     public WorldConfig Config { get; }
@@ -135,8 +136,36 @@ public sealed class WorldState
     /// </remarks>
     public List<Outbreak> Outbreaks { get; }
 
-    /// <summary>The year currently being simulated.</summary>
-    public int Year { get; set; }
+    /// <summary>
+    /// Work scheduled for a date, waiting for it.
+    /// </summary>
+    /// <remarks>
+    /// Held here rather than on the system that scheduled it, for the reason
+    /// <see cref="Outbreaks"/> gives and one more: state on a system instance is invisible to the
+    /// <c>Advance</c>-versus-<c>Run</c> split determinism test, which is the strongest test in the
+    /// suite precisely because everything the simulation knows has to be reachable from this
+    /// object.
+    /// </remarks>
+    public Docket Docket { get; }
+
+    /// <summary>The instant currently being simulated.</summary>
+    /// <remarks>
+    /// Set by the tick loop and read by everything else. Between two ticks it holds the opening of
+    /// the next step to run, so <see cref="Systems.Simulator.Run"/> and
+    /// <see cref="Systems.Simulator.Advance"/> resume from the same place.
+    /// </remarks>
+    public Stamp Now { get; set; }
+
+    /// <summary>
+    /// The year currently being simulated.
+    /// </summary>
+    /// <remarks>
+    /// Derived from <see cref="Now"/> rather than stored, so there is one clock and not two. Kept
+    /// as a property because the great majority of this engine reasons in years and should go on
+    /// doing so — a figure's age, a harvest, a truce — and rewriting those call sites to say
+    /// <c>Now.Year</c> would be churn dressed as progress.
+    /// </remarks>
+    public int Year => Now.Year;
 
     public int StartYear => Config.StartYear;
 

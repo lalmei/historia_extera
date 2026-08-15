@@ -37,7 +37,7 @@ public enum DisasterKind
 /// has a cause that is neither weather nor war: a town knocked down twice in a decade is one the
 /// lifecycle can then finish, without this system needing a rule for ruin.</para>
 /// </remarks>
-public sealed class DisasterSystem : IYearSystem
+public sealed class DisasterSystem : ISystem
 {
     /// <summary>Yearly chance per settlement, before the region's hazard scales it.</summary>
     private const double BaseChance = 0.0075;
@@ -58,8 +58,12 @@ public sealed class DisasterSystem : IYearSystem
 
     public string Name => "disaster";
 
-    public void Tick(WorldState world, int year)
+    public Cadence Cadence => Cadence.Annual;
+
+    public void Tick(WorldState world, Stamp now)
     {
+        int year = now.Year;
+
         IRng rng = world.Root.Fork(Name, year);
 
         foreach (Civilization civilization in world.ActiveCivilizations())

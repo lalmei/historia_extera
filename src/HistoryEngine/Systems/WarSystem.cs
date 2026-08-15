@@ -23,7 +23,7 @@ namespace HistoryEngine.Systems;
 /// another. At roughly one year in two, wars produce campaigns with lulls in them, and the long
 /// grinding ones stand out from the short decisive ones.</para>
 /// </remarks>
-public sealed class WarSystem : IYearSystem
+public sealed class WarSystem : ISystem
 {
     /// <summary>Chance a war sees a pitched engagement in any given year.</summary>
     private const double CampaignChance = 0.55;
@@ -71,8 +71,12 @@ public sealed class WarSystem : IYearSystem
 
     public string Name => "war";
 
-    public void Tick(WorldState world, int year)
+    public Cadence Cadence => Cadence.Annual;
+
+    public void Tick(WorldState world, Stamp now)
     {
+        int year = now.Year;
+
         IRng rng = world.Root.Fork(Name, year);
 
         // Collected first: making peace does not change the war table, but ending one can end a

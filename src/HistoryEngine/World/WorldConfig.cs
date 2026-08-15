@@ -56,6 +56,16 @@ public sealed record WorldConfig
     /// <summary>How many civilizations are seeded at the start.</summary>
     public int InitialCivilizations { get; init; } = 8;
 
+    /// <summary>
+    /// How long a year is, and how many parts it has.
+    /// </summary>
+    /// <remarks>
+    /// Simulation-affecting, and therefore hashed: the calendar decides how many steps a year has
+    /// and how far anything gets in one of them. See <see cref="World.Calendar"/> for why 360, and
+    /// <see cref="ConfigHash"/> for why it is folded in only when it is not the default.
+    /// </remarks>
+    public Calendar Calendar { get; init; } = Calendar.Default;
+
     public TerrainSettings Terrain { get; init; } = new();
 
     /// <summary>
@@ -127,6 +137,18 @@ public sealed record WorldConfig
             // golden test exists to discourage.
             if (TerrainSource.Length > 0) Append(nameof(TerrainSource), TerrainSource);
 
+            // Appended only when the world does not keep the standard year, for the same reason as
+            // the two conditionals above. Every world written before there was a calendar kept one
+            // implicitly — the year was the atom and nothing divided it — so hashing 360 days and
+            // four seasons unconditionally would move the provenance of files whose histories are
+            // identical, which is the reflex the golden test exists to discourage. A world that
+            // changes its calendar is a different history and says so.
+            if (Calendar != Calendar.Default)
+            {
+                Append(nameof(Calendar.DaysPerYear), Calendar.DaysPerYear);
+                Append(nameof(Calendar.SeasonsPerYear), Calendar.SeasonsPerYear);
+            }
+
             Append(nameof(TerrainSettings.ContinentScale), Terrain.ContinentScale);
             Append(nameof(TerrainSettings.RidgeScale), Terrain.RidgeScale);
             Append(nameof(TerrainSettings.RainfallScale), Terrain.RainfallScale);
@@ -149,14 +171,20 @@ public sealed record WorldConfig
     /// simulation-affecting field being added without extending the hash.
     /// </summary>
     /// <remarks>
-    /// A ceiling rather than a count: <see cref="TerrainSource"/> contributes only when a
-    /// foreign terrain backend is in play, and <see cref="EastWestPeriodic"/> only when enabled,
-    /// preserving hashes from bounded worlds generated before either option existed.
+    /// <para>A ceiling rather than a count: <see cref="TerrainSource"/> contributes only when a
+    /// foreign terrain backend is in play, <see cref="EastWestPeriodic"/> only when enabled, and
+    /// <see cref="Calendar"/> only when the world does not keep the standard year — preserving
+    /// hashes from worlds generated before any of those options existed.</para>
+    ///
+    /// <para>Fields, not appended keys: <see cref="Calendar"/> is one field carrying two numbers,
+    /// and both go in when it goes in.</para>
     /// </remarks>
-    public const int HashedFieldCount = 21;
+    public const int HashedFieldCount = 22;
 
     public void Validate()
     {
+        Calendar.Validate();
+
         if (Years < 0) throw new InvalidOperationException("Years cannot be negative.");
         if (WorldSize <= 0) throw new InvalidOperationException("WorldSize must be positive.");
         if (RegionSize <= 0) throw new InvalidOperationException("RegionSize must be positive.");

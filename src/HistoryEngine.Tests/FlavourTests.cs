@@ -634,7 +634,7 @@ public sealed class FlavourTests
         long without = HistoryRun.Execute(
             config,
             inner: null,
-            simulator: new Simulator(new IYearSystem[]
+            simulator: new Simulator(new ISystem[]
             {
                 new PopulationSystem(),
                 new SettlementLifecycleSystem(),

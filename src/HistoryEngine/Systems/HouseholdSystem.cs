@@ -27,7 +27,7 @@ namespace HistoryEngine.Systems;
 /// against the line as it stands after any coronation — a new king's brothers are demoted the same
 /// year he is crowned, not the year after.</para>
 /// </remarks>
-public sealed class HouseholdSystem : IYearSystem
+public sealed class HouseholdSystem : ISystem
 {
     /// <summary>Youngest age at which a figure may be married.</summary>
     private const int MarriageAge = 16;
@@ -79,8 +79,12 @@ public sealed class HouseholdSystem : IYearSystem
 
     public string Name => "houses";
 
-    public void Tick(WorldState world, int year)
+    public Cadence Cadence => Cadence.Annual;
+
+    public void Tick(WorldState world, Stamp now)
     {
+        int year = now.Year;
+
         IRng rng = world.Root.Fork(Name, year);
         DetMap<EntityId, int> ranks = RankEveryHouse(world);
 

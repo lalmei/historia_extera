@@ -26,7 +26,7 @@ namespace HistoryEngine.Systems;
 ///
 /// <para>Samples no terrain. River and coastal access are region facts derived during worldgen.</para>
 /// </remarks>
-public sealed class TradeRouteSystem : IYearSystem
+public sealed class TradeRouteSystem : ISystem
 {
     /// <summary>Longest direct commercial link; longer journeys emerge as chains of routes.</summary>
     public const double MaximumDistance = 1600.0;
@@ -53,8 +53,12 @@ public sealed class TradeRouteSystem : IYearSystem
 
     public string Name => "trade-routes";
 
-    public void Tick(WorldState world, int year)
+    public Cadence Cadence => Cadence.Annual;
+
+    public void Tick(WorldState world, Stamp now)
     {
+        int year = now.Year;
+
         Maintain(world, year);
         if ((year - world.StartYear) % FormationInterval == 0) Establish(world, year);
     }

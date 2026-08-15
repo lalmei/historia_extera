@@ -746,11 +746,11 @@ public sealed class WarTests
             $"{counter.SampleCount} without it, so the war systems are sampling terrain.");
     }
 
-    private static IYearSystem[] NoWarSystems()
+    private static ISystem[] NoWarSystems()
     {
-        var kept = new List<IYearSystem>();
+        var kept = new List<ISystem>();
 
-        foreach (IYearSystem system in Simulator.DefaultSystems())
+        foreach (ISystem system in Simulator.DefaultSystems())
         {
             if (system.Name is "diplomacy" or "war") continue;
 
