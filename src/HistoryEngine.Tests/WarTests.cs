@@ -123,6 +123,33 @@ public sealed class WarTests
         return held;
     }
 
+    /// <summary>
+    /// Who held a region in a given year, replayed from the chronicle.
+    /// </summary>
+    /// <remarks>
+    /// The same reasoning as <see cref="HeldAfter"/>, applied to ground rather than to objects, and
+    /// the same reasoning the engine itself uses: territory at any year is replayed from the events
+    /// that moved it, never read off the end state. Every acre a realm ever held entered the log as
+    /// a claim or a cession, so those two kinds are the whole history of a region's ownership.
+    /// </remarks>
+    private static EntityId OwnerAt(WorldState world, EntityId regionId, int year)
+    {
+        EntityId owner = EntityId.None;
+
+        foreach (HistoryEvent entry in world.Chronicle.Events)
+        {
+            if (entry.Year > year) break;
+            if (entry.Subject != regionId) continue;
+
+            if (entry.Kind is EventKind.RegionClaimed or EventKind.RegionCeded)
+            {
+                owner = entry.Object;
+            }
+        }
+
+        return owner;
+    }
+
     /// <summary>Religious grievances must preserve the concrete thing or faiths fought over.</summary>
     private static void ValidateReligiousGrievance(WorldState world, War war)
     {
@@ -157,7 +184,14 @@ public sealed class WarTests
                         world.Settlements.Contains(held),
                         $"{relic.Name} was claimed by {ended} and held by nothing.");
 
-                    Assert.Equal(war.AggressorId, world.Settlements[held].CivilizationId);
+                    // Whose the holding town was at the peace, not whose it is now. A settlement
+                    // won in one war can be lost in the next, and reading its present owner made
+                    // this assert that no relic-winner ever subsequently lost the town — which is
+                    // not a property of the relic system and not true. The same mistake the
+                    // comment above records for the relic, one line further down.
+                    Assert.Equal(
+                        war.AggressorId,
+                        OwnerAt(world, world.Settlements[held].RegionId, ended));
                 }
             }
 
@@ -695,8 +729,19 @@ public sealed class WarTests
         new Simulator(NoWarSystems()).Run(quiet);
 
         Assert.True(withWar.World.Wars.Count > 0, "The compared run fought no wars.");
+
+        // Allowed to differ by a few foundings' worth, and no more. War changes which realms
+        // survive to expand, and expansion is what costs samples — so the two runs legitimately
+        // found different numbers of settlements. What this is watching for is a war system that
+        // asks the terrain how defensible a battlefield is, which would cost per battle per year
+        // and run to the tens of thousands. The bound was a strict inequality until M10 raised the
+        // cost of one founding fourfold, at which point a handful of extra colonies was enough to
+        // trip it.
+        const int SamplesPerFounding = 64;
+        const int FoundingsOfSlack = 20;
+
         Assert.True(
-            withWar.SimulationSamples <= counter.SampleCount,
+            withWar.SimulationSamples <= counter.SampleCount + (SamplesPerFounding * FoundingsOfSlack),
             $"A run with war cost {withWar.SimulationSamples} terrain samples against " +
             $"{counter.SampleCount} without it, so the war systems are sampling terrain.");
     }

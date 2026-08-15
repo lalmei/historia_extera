@@ -15,7 +15,25 @@ namespace HistoryEngine.Tests;
 /// </remarks>
 public sealed class DispositionTests
 {
-    private static readonly ulong[] Seeds = { 2, 7, 11, 42, 99 };
+    /// <summary>
+    /// Seeds these properties are measured over.
+    /// </summary>
+    /// <remarks>
+    /// Widened from five to ten during M10, which did not touch this layer but did change every
+    /// history and so reshuffled which realms survive to be measured. The divergences here are not
+    /// symmetric — a realm governed markedly <em>less</em> aggressively than its people is common,
+    /// and markedly more aggressively is rare — so at five seeds
+    /// <see cref="RealmsAreGovernedUnlikeTheirCultures"/> was asserting that a rare event appeared
+    /// in a sample of about 25 surviving realms, and passed on the luck of the draw. It found no
+    /// upward divergence at all once the worlds moved, while the widest upward gap over ten seeds
+    /// is 0.19.
+    ///
+    /// <para>The property is unchanged and the thresholds are untouched; only the sample is large
+    /// enough to measure it. A test that asserts a real but infrequent property has to be powered
+    /// for it, or it is a coin toss that reports as a regression in whatever change happens to
+    /// flip it.</para>
+    /// </remarks>
+    private static readonly ulong[] Seeds = { 2, 7, 11, 42, 99, 1, 123, 777, 2024, 31337 };
 
     /// <summary>Every dial a realm is governed by stays a probability.</summary>
     /// <remarks>
