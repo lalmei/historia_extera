@@ -5,6 +5,7 @@ import {
   DEFAULT_PARAMS,
   POLL_MS,
   cancelRun,
+  minimumSizeFor,
   randomSeed,
   readRun,
   startRun,
@@ -40,6 +41,10 @@ export function NewWorld() {
   const [opening, setOpening] = useState(false);
 
   const busy = run?.status === 'running' || opening;
+
+  // The endpoint and the engine both refuse this; knowing it here is what lets the form say so
+  // while the numbers are still being typed.
+  const tooSmall = Number(form.size) < minimumSizeFor(Number(form.civs));
 
   // Poll while the CLI is working. Keyed on id and status rather than the run object, so
   // an answer that only moved the clock forward does not tear the timer down and rebuild it.
@@ -168,12 +173,21 @@ export function NewWorld() {
 
         <button
           type="submit"
-          disabled={busy}
+          disabled={busy || tooSmall}
           className="mb-0.5 rounded border border-[var(--accent)] bg-[var(--accent-soft)] px-3 py-1.5 text-sm font-medium text-[var(--accent)] transition-opacity disabled:opacity-40"
         >
           {busy ? 'Working…' : 'Generate'}
         </button>
       </form>
+
+      {/* Said before the run rather than after it: a world with no room for its civilizations
+          simulates happily and produces an empty chronicle, which reads as a broken engine. */}
+      {tooSmall && (
+        <p className="mt-3 text-xs text-[var(--accent)]">
+          A {form.size}-unit world has too little room to seat {form.civs} civilizations. Raise the
+          world size to at least {minimumSizeFor(Number(form.civs))}, or ask for fewer.
+        </p>
+      )}
 
       <p className="mt-3 text-xs text-[var(--ink-faint)]">
         A seed worth keeping is worth writing down: the same settings always give the same

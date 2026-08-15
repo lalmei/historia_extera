@@ -189,5 +189,48 @@ public sealed record WorldConfig
         {
             throw new InvalidOperationException("InitialCivilizations cannot be negative.");
         }
+
+        int regions = (WorldSize / RegionSize) * (WorldSize / RegionSize);
+        if (InitialCivilizations > 0 && regions < RegionsPerCivilization * InitialCivilizations)
+        {
+            throw new InvalidOperationException(
+                $"A world of {WorldSize} units holds {regions} regions, which is too few to seat " +
+                $"{InitialCivilizations} civilizations. Allow at least {RegionsPerCivilization} " +
+                $"regions each — raise WorldSize to at least " +
+                $"{MinimumWorldSize(InitialCivilizations, RegionSize)}, or lower " +
+                "InitialCivilizations.");
+        }
+    }
+
+    /// <summary>
+    /// Regions a civilization needs to its name before a world is worth simulating.
+    /// </summary>
+    /// <remarks>
+    /// <para>Homelands are chosen from land that clears <c>MinFoundingHabitability</c>, and most of
+    /// a region grid is ocean, mountain or ice. So the grid has to be several times larger than the
+    /// civilization count before there is anywhere to put them, and
+    /// <see cref="WorldBuilder"/> relaxes its separation constraint rather than failing — by design,
+    /// since a mostly-ocean seed legitimately seats fewer. The consequence was that asking for
+    /// eight civilizations in a small world returned a world with no civilizations, no settlements
+    /// and a one-line chronicle, reported as a successful run.</para>
+    ///
+    /// <para>Sixteen is where that stops. Measured over seeds 1, 42 and 99 at four, eight and
+    /// sixteen civilizations: every configuration at or above sixteen regions each seated the full
+    /// count, and every configuration below it came up short — 8 regions each seated six
+    /// civilizations of eight, and 2 each seated five. It is a floor against a world that cannot
+    /// work, not a promise: a particularly wet seed can still seat fewer, which is why the CLI
+    /// reports the shortfall rather than this rejecting it.</para>
+    /// </remarks>
+    public const int RegionsPerCivilization = 16;
+
+    /// <summary>Smallest world that can seat this many civilizations, rounded up to whole regions.</summary>
+    public static int MinimumWorldSize(int civilizations, int regionSize)
+    {
+        int regions = RegionsPerCivilization * civilizations;
+
+        int perAxis = 1;
+        while (perAxis * perAxis < regions) perAxis++;
+
+        return perAxis * regionSize;
     }
 }

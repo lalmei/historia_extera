@@ -197,7 +197,7 @@ internal static class Program
         Console.WriteLine("── History ──────────────────────────────");
         Console.WriteLine($"  years          {world.StartYear}–{world.EndYear}");
         Console.WriteLine($"  events         {world.Chronicle.Count:N0}");
-        Console.WriteLine($"  civilizations  {activeCivs} standing, {fallenCivs} fallen");
+        Console.WriteLine($"  civilizations  {activeCivs} standing, {fallenCivs} fallen{Shortfall(world)}");
         Console.WriteLine($"  settlements    {activeSettlements} active ({cities} cities), {abandoned} abandoned");
         Console.WriteLine($"  holy sites     {world.HolySites.Count} recorded");
         Console.WriteLine($"  trade routes   {activeRoutes} active, {world.TradeRoutes.Count} recorded");
@@ -217,6 +217,26 @@ internal static class Program
         Console.WriteLine($"  elapsed        {run.Elapsed.TotalMilliseconds:N0} ms");
         Console.WriteLine($"  size           {jsonLength / 1024.0 / 1024.0:F2} MB");
         Console.WriteLine($"  written        {path}");
+    }
+
+    /// <summary>
+    /// Names the civilizations the world had no room for.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="WorldConfig.Validate"/> rejects a world too small to seat the request at all, but
+    /// habitable land is a property of the seed rather than the size, so a legitimately wet or
+    /// mountainous world still seats fewer than it was asked for. Silence there reads as a
+    /// simulation that produced nothing, which sends the reader looking for a bug instead of a
+    /// different seed.
+    /// </remarks>
+    private static string Shortfall(WorldState world)
+    {
+        int requested = world.Config.InitialCivilizations;
+        int founded = world.Civilizations.Count;
+
+        return founded < requested
+            ? $" — {requested} requested, {founded} seated on habitable land"
+            : string.Empty;
     }
 
     private static string Backend(WorldConfig config) =>
