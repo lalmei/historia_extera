@@ -16,6 +16,7 @@ import {
   type Region,
   type Religion,
   type Artifact,
+  type Series,
   type Settlement,
   type TradeRoute,
   type War,
@@ -33,6 +34,8 @@ export interface World {
   export: WorldExport;
   byId: Map<EntityId, AnyEntity>;
   eventsFor: (id: EntityId) => HistoryEvent[];
+  /** Every yearly measure recorded for one entity, in the order the engine sampled them. */
+  seriesFor: (id: EntityId) => Series[];
   nameOf: (id: EntityId) => string;
   raster: DecodedRaster;
   /** The world as it stood in any year, replayed from the chronicle. */
@@ -108,6 +111,15 @@ export function buildWorld(data: WorldExport): World {
     return indices.map((index) => data.events[index]);
   };
 
+  // Bucketed once on load for the same reason the event index exists: an entity page should
+  // cost a lookup, not a scan of every series in the world.
+  const seriesByEntity = new Map<EntityId, Series[]>();
+  for (const series of data.series ?? []) {
+    const existing = seriesByEntity.get(series.entity);
+    if (existing) existing.push(series);
+    else seriesByEntity.set(series.entity, [series]);
+  }
+
   const nameOf = (id: EntityId): string => {
     const entity = byId.get(id);
     if (entity && 'name' in entity) return entity.name;
@@ -138,6 +150,7 @@ export function buildWorld(data: WorldExport): World {
     export: data,
     byId,
     eventsFor,
+    seriesFor: (id) => seriesByEntity.get(id) ?? [],
     nameOf,
     raster: decodeRaster(data),
     timeline: buildTimeline(data),

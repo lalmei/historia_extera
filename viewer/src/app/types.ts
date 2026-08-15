@@ -7,7 +7,7 @@
  * stops moving.
  */
 
-export const SCHEMA_VERSION = 9;
+export const SCHEMA_VERSION = 10;
 
 /** `"civ:3"`, `"fig:1204"` — readable, greppable, and directly usable as a route. */
 export type EntityId = string;
@@ -43,8 +43,34 @@ export interface WorldExport {
   holySites: HolySite[];
   artifacts: Artifact[];
   events: HistoryEvent[];
+  series: Series[];
   indices: ExportIndices;
   narration: Record<string, string>;
+}
+
+/** How a measure should be read: a headcount, or a dial in [0, 1]. */
+export type MeasureUnit = 'Count' | 'Fraction';
+
+/**
+ * One measure of one entity, sampled once a year.
+ *
+ * The entity records elsewhere in this file report where the run ended — a realm's population,
+ * its weariness, the values it was last governed by. None of them can say whether it got there
+ * by growing steadily or by being halved twice and clawing its way back, which is usually the
+ * interesting half. These carry the shape.
+ *
+ * Self-describing on purpose: `group` says which measures belong on one set of charts and
+ * `unit` says what the axis means, so the viewer can plot a measure it has never heard of.
+ */
+export interface Series {
+  entity: EntityId;
+  metric: string;
+  /** Measures sharing a group are drawn together. Empty means it stands alone. */
+  group: string;
+  unit: MeasureUnit;
+  /** The year `values` begins — not necessarily the year the world does. */
+  fromYear: number;
+  values: number[];
 }
 
 export interface ExportMeta {
