@@ -75,7 +75,7 @@ public sealed record Disposition(CultureValues Values, double Centralism)
     /// and a monarch or hierarch has many; a republic distributes decisions by construction, and
     /// a consul who wants to centralise is fighting his own constitution.
     /// </remarks>
-    private static double CentralismNorm(GovernmentForm government) => government switch
+    public static double CentralismNorm(GovernmentForm government) => government switch
     {
         GovernmentForm.Chiefdom => 0.35,
         GovernmentForm.Monarchy => 0.60,

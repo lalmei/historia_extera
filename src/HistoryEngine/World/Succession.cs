@@ -40,6 +40,98 @@ public static class Succession
     /// <summary>How many of the strongest claims an elective government actually chooses between.</summary>
     public const int ElectorateSize = 4;
 
+    /// <summary>Relative weight of each place on an elective ballot, strongest claim first.</summary>
+    public static readonly IReadOnlyList<double> BallotWeights = new[] { 0.45, 0.27, 0.17, 0.11 };
+
+    /// <summary>
+    /// The narrowest and widest the electorate's own preference may move a claim.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Claim strength must stay the dominant term.</b> This is the sharpest calibration
+    /// risk in the reign-aware layer: widen this range and an elective realm stops being dynastic
+    /// altogether — the ballot becomes pure trait-matching, the fourth-placed claimant wins
+    /// routinely, and the whole apparatus of houses and lines of descent stops mattering in
+    /// exactly the governments that were meant to show it off.</para>
+    ///
+    /// <para>The invariant that keeps it honest, and which <c>DispositionTests</c> asserts: the
+    /// least-wanted first claimant must still outweigh the most-wanted last one.</para>
+    /// </remarks>
+    public const double MinFavour = 0.5;
+
+    public const double MaxFavour = 1.6;
+
+    /// <summary>Distance at or below which a candidate is exactly what the realm was hoping for.</summary>
+    private const double CloseEnough = 0.15;
+
+    /// <summary>Distance at or beyond which they are not what it wanted at all.</summary>
+    private const double FarEnough = 0.45;
+
+    /// <summary>How devout a fervent establishment wants its ruler.</summary>
+    private const double FaithWantsPiety = 0.5;
+
+    /// <summary>How much a realm in trouble wants a firm hand rather than a delegating one.</summary>
+    private const double CrisisWantsAStrongHand = 0.4;
+
+    /// <summary>
+    /// The ruler this realm would choose if it could describe one.
+    /// </summary>
+    /// <remarks>
+    /// <para>Derived and stored nowhere. It is the realm's own culture as its recent past leaves
+    /// it — the same shifts a reign is judged through, applied to what a people asks for rather
+    /// than to what it does — plus two things that bear on a ruler specifically: an establishment
+    /// with a fervent faith wants a devout one, and a realm in crisis wants a firm hand.</para>
+    ///
+    /// <para>Read by elective ballots and by disputed successions, so "the realm backed the
+    /// brother who promised war" is available under primogeniture too, without a second system and
+    /// without anyone casting a ballot in a kingdom.</para>
+    /// </remarks>
+    public static Disposition Wanted(WorldState world, Civilization civilization, Culture culture)
+    {
+        CultureValues values = culture.Values.ShiftedBy(civilization.Fortunes);
+
+        EntityId faithId = world.FaithOf(civilization);
+        if (world.Religions.Contains(faithId))
+        {
+            double fervour = world.Religions[faithId].Fervour;
+            values = values with
+            {
+                Piety = DetMath.Lerp(values.Piety, 1.0, fervour * FaithWantsPiety),
+            };
+        }
+
+        // Weariness and calamity both argue for someone who will simply decide. Grievance does
+        // not: a realm wanting its province back wants a fighter, which the values above already
+        // say, not a firmer hand at home.
+        double crisis = (civilization.Fortunes.Weariness + civilization.Fortunes.Calamity) * 0.5;
+
+        double centralism = DetMath.Clamp01(
+            Disposition.CentralismNorm(culture.Government)
+            + (crisis * CrisisWantsAStrongHand));
+
+        return new Disposition(values, centralism);
+    }
+
+    /// <summary>
+    /// How much more, or less, than their claim alone this candidate is wanted.
+    /// </summary>
+    /// <remarks>
+    /// A multiplier on a ballot weight rather than a term added to it, so it scales a claim
+    /// instead of replacing one. Centralism counts as one dial among the seven, not as a seventh
+    /// of the answer on its own.
+    /// </remarks>
+    public static double Favour(Figure candidate, Disposition wanted)
+    {
+        double distance =
+            ((candidate.Disposition.Values.DistanceTo(wanted.Values) * 6.0)
+             + Math.Abs(candidate.Disposition.Centralism - wanted.Centralism))
+            / 7.0;
+
+        double match = DetMath.Clamp01(
+            DetMath.InverseLerp(FarEnough, CloseEnough, distance));
+
+        return DetMath.Lerp(MinFavour, MaxFavour, match);
+    }
+
     /// <summary>
     /// Everyone entitled to take a civilization's throne, strongest claim first.
     /// </summary>
