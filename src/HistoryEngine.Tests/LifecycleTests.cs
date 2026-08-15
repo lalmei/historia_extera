@@ -1,3 +1,4 @@
+using System.Globalization;
 using HistoryEngine.Core;
 using HistoryEngine.Entities;
 using HistoryEngine.Events;
@@ -308,5 +309,51 @@ public sealed class SettlementLifecycleTests
             large > 0,
             $"{abandoned} settlements were abandoned and not one had ever held a thousand people, "
                 + "which is the signature of an absolute floor vetoing the relative decline test.");
+    }
+
+    /// <summary>
+    /// The survivors of an abandoned settlement go somewhere, and no more of them than existed.
+    /// </summary>
+    /// <remarks>
+    /// Abandonment used to delete whoever was still living in a settlement the year it was given
+    /// up — between 4% and 25% of a world's living population over a thousand years, including
+    /// cities that still held thousands. The dying is already done by then, by population, plague,
+    /// disaster and war; what is left is survivors, and they walk to the nearest place standing.
+    /// </remarks>
+    [Fact]
+    public void TheSurvivorsOfAnAbandonedSettlementGoSomewhere()
+    {
+        HistoryRun run = HistoryRun.Execute(TestWorlds.Standard() with { Years = 800 });
+
+        var finalPopulation = new Dictionary<EntityId, int>();
+        foreach (Settlement settlement in run.World.Settlements)
+        {
+            finalPopulation[settlement.Id] = settlement.Population;
+        }
+
+        int abandoned = 0;
+        int resettling = 0;
+
+        foreach (HistoryEvent entry in run.World.Chronicle.Events)
+        {
+            if (entry.Kind != EventKind.SettlementAbandoned) continue;
+
+            abandoned++;
+            if (entry.Data is null || !entry.Data.TryGetValue("resettled", out string? moved)) continue;
+
+            resettling++;
+
+            Assert.True(entry.Data.TryGetValue("refuge", out _), "People moved to nowhere named.");
+
+            // Nobody is invented on the way out: the arrivals cannot exceed the people who left.
+            int left = finalPopulation[entry.Subject];
+            Assert.InRange(int.Parse(moved, CultureInfo.InvariantCulture), 1, left);
+        }
+
+        Assert.True(abandoned > 0, "A run of 800 years abandoned nothing at all.");
+        Assert.True(
+            resettling > 0,
+            $"None of {abandoned} abandoned settlements sent its survivors anywhere, so the "
+                + "population they still had was discarded.");
     }
 }

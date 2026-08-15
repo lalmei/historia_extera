@@ -435,6 +435,38 @@ hold more settlements than it has habitable regions, and every seed saturates in
 much land it has. A world that feels crowded is usually a world with a lot of land in it, which is
 why the density target is expressed against land regions rather than as an absolute count.
 
+### Where the people go when a town is given up
+
+Making abandonment reachable exposed a second fault immediately behind it. Abandonment set a year
+and released a region, and left the population sitting on the dead settlement where nothing counts
+it again. While only settlements under four hundred people could be abandoned this was a rounding
+error. Once cities could be, it was not: over a thousand years it silently discarded **4% to 25% of
+a world's living population**, in single steps of up to six and a half thousand people.
+
+The argument for moving them rather than capping the loss is that **the dying has already
+happened**. Population, plague, disaster and war take their toll across the decades that drive a
+settlement to 45% of its peak; that toll is the reason abandonment fires at all. Whoever remains at
+the end is a survivor, and survivors walk. Deleting them was killing the same people twice, and it
+corrupted the realm population that war and diplomacy both read.
+
+- **Sixty percent arrive.** Not a conservation law, which would be a false precision — the far
+  larger loss is the unattributed slide from peak to abandonment, which goes nowhere at all. The
+  remainder die on the road or scatter to steadings below the size this engine models.
+- **Shares go by the size of the receiving settlement**, a gravity model in miniature. Splitting by
+  rank or distance alone lets a hamlet of fifty absorb a city and become one overnight.
+- **Arrivals may exceed the receiver's capacity, deliberately.** That is what a refugee influx is,
+  and the logistic decline sheds the excess over the following years — which can push the receiver
+  into its own depression and occasionally finish it too. Seed 99 shows exactly this: seven
+  settlements given up between years 617 and 621, a regional collapse travelling through the places
+  that took each other's people in. That cascade is the behaviour, not a bug to cap away.
+- **Own realm first, a neighbour's only when nothing of the people's own is in reach.** The faith
+  does not travel with them; whether arrivals convert their hosts is the religion system's question,
+  and it already reads the map this leaves behind.
+
+Measured at a thousand years, the unaccounted population falls from 25% to 9.3% (seed 42), 20% to
+5.7% (seed 99) and 4% to 1.9% (seed 7), and living population rises correspondingly because the
+survivors are now somebody's.
+
 ### Dynasties: one traversal, two questions
 
 The M5 deliverable was replacing "a successor is a new adult figure from nowhere" with a
