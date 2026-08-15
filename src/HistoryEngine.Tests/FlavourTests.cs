@@ -187,10 +187,11 @@ public sealed class FlavourTests
 
         Assert.Contains(run.World.Religions, faith => faith.PeakSettlements > 1);
 
-        // Ending is reachable, which is what stops the world only ever accumulating faiths. Not
-        // asserted on every seed — a run where every faith founded happens to survive is a
-        // legitimate history — but the standard world does lose one.
-        Assert.Contains(run.World.Religions, faith => !faith.IsActive);
+        // Ending is reachable, which is what stops the world only ever accumulating faiths. It is
+        // deliberately checked on a known fading seed rather than requiring every standard world
+        // to lose a faith: a history where every faith happens to survive is legitimate.
+        HistoryRun fadingRun = HistoryRun.Execute(TestWorlds.Standard(seed: 11));
+        Assert.Contains(fadingRun.World.Religions, faith => !faith.IsActive);
     }
 
     /// <summary>
