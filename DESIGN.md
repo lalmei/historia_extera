@@ -4,7 +4,7 @@ A Dwarf Fortress-style world history generator for Vintage Story, plus a Legends
 viewer. This file is the running decision log: what was chosen, and why, so that a
 decision can be revisited on its merits rather than rediscovered.
 
-**Status:** Milestones 0–9 and 12 complete. Real naming languages, a settlement lifecycle that
+**Status:** Milestones 0–9, 11 and 12 complete. Real naming languages, a settlement lifecycle that
 runs its full course rather than only ever growing, rulers who inherit from a family
 tree instead of appearing from nowhere, realms that fall to conquest as well as to the
 weather, faiths and pestilence that cross the borders those realms draw, a map that
@@ -613,8 +613,9 @@ what real onomastics looks like, and the viewer distinguishes them by dates and 
 
 ### Offices: what a court does with the people it already has
 
-> **Designed, not built.** The measurements below are of the world as it stands today. Every
-> number attached to the proposal itself is an estimate and is marked as one.
+> **Built**, after M12. The measurements below were of the world before either landed, and the
+> numbers attached to the proposal were estimates; *What it cost* at the end records what the
+> build actually produced and the four places it disagreed with this design.
 
 M5's attention budget breeds a court full of people and finds work for exactly one of them.
 On seed 42 at 300 years the chronicle holds 1,107 figures, of whom 831 reach sixteen and
@@ -895,6 +896,45 @@ intrigue: the assassination model still names no culprit, for the reason already
 and an office roster is not evidence. No revolt, no secession, no provinces spanning several
 settlements. Each of those wants this state to exist first, which is the argument for building
 it plainly now rather than in the shape some later feature might want.
+
+#### What it cost, as built
+
+Seed 42 at 300 years: **451 grants and 18 disgraces against 4,162 events, 11% of the chronicle**
+— inside the 600–800 estimate and at the low end of it, because the fill roll spreads a reign's
+appointments over several years rather than filling every vacancy the moment it opens. The world
+is otherwise unmoved: across six seeds, cities 102 → 103, active settlements 356 → 354, realms
+standing 37 → 36. Figures rise 13.8%, which is the one-time cost of the seats themselves and not
+a change in growth rate — doubling the run still only doubles the count, as it did before.
+
+The offices are read, which was the standard set for them. Of 64 named commands on seed 42, 20
+went to a sitting marshal; four governors died of plague in the towns they governed, a death
+that could not previously reach anyone outside a capital; and schisms are now preached by a
+realm's own senior cleric rather than by whichever adult happened to be oldest.
+
+Four places the build disagreed with the design:
+
+- **Founding parties needed a floor on the town they leave.** Deducting settlers made expansion
+  cost something, which was the point — but without a minimum left behind, a realm reduced to one
+  struggling village would send parties out of it until the abandonment threshold finished it.
+  Expansion is meant to be a symptom of success, and it had become a way for a failing realm to
+  kill itself.
+- **A colony's first governor breaks the size threshold on purpose.** Governorships are for towns
+  and a colony of seventy is not one, but somebody led those people there and is who a chronicle
+  names. When they die the place governs itself until it grows into the threshold, which turns out
+  to be the honest shape of frontier administration rather than the exception it looked like.
+- **A governed town promoted to capital kept its governor.** Capitals move — the succession system
+  repoints a realm whose seat was abandoned or taken to its largest surviving settlement, which is
+  exactly the town most likely to have had one sitting in it. The lapse pass now checks for it.
+- **Two test invariants were stated too strongly and failed correctly.** A crown is inherited
+  rather than served, so the service-age requirement cannot apply to a child on a throne under a
+  regent. And a figure of no house holding an office is not necessarily an invented notable: a
+  widowed consort made regent for her own child is exactly the dowager path this design wanted,
+  and she has children by definition.
+
+One prediction landed and one did not. Governor grants are indeed the largest single contributor
+to the volume, as expected. But the marshal did **not** collapse the variance of who commands —
+capping a standing marshal at three fields in four left non-rulers a wide spread of commands,
+because a realm fights on more than one frontier and a marshal cannot be at both.
 
 ### Rulers who react: a people, a person, and a recent past
 
@@ -1554,7 +1594,7 @@ viewer reading it.
 | M8 | Flavour: religions, artifacts, plagues, disasters | done |
 | M9 | Phase 2 spike: raster-backed `ITerrainSampler` | done |
 | M10 | Phase 2 proper: site selection with teeth on real terrain | next |
-| M11 | Offices: appointments, governors, founding parties | designed |
+| M11 | Offices: appointments, governors, founding parties | **done** |
 | M12 | Rulers who react: dispositions, realm fortunes, trait-aware elections | **done** |
 
 M12 landed first. `Disposition` is the record both milestones read, so building it once — rather
