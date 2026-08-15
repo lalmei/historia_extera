@@ -32,8 +32,66 @@ public enum Sex
     Male = 1,
 }
 
-/// <summary>A title held over a span of years.</summary>
-public sealed record TitleHolding(string Title, EntityId CivilizationId, int FromYear, int? ToYear);
+/// <summary>
+/// The offices a figure can hold. Explicit values — part of the export format.
+/// </summary>
+/// <remarks>
+/// <para><b>The kind is what systems read; the title is what the chronicle says.</b> One culture's
+/// Marshal is another's Strategos and another's Warlord, and that is the cheapest character this
+/// engine buys — but a system asking "does this realm have a marshal" must not be asking about a
+/// string.</para>
+///
+/// <para>The split is load-bearing rather than tidy. Before it, a reign was identified by
+/// <c>titles.find(t =&gt; t.title !== 'Regent')</c> in the viewer and by the same comparison in the
+/// test suite. Neither breaks loudly when a second non-ruling office exists; both just quietly
+/// start returning marshalships.</para>
+/// </remarks>
+public enum OfficeKind
+{
+    Ruler = 0,
+    Regent = 1,
+    Consort = 2,
+    Marshal = 3,
+    HighPriest = 4,
+    Governor = 5,
+}
+
+/// <summary>An office held over a span of years.</summary>
+/// <param name="CivilizationId">The realm the office sits in. Never <see cref="EntityId.None"/>.</param>
+/// <param name="ToYear">Null while the office is still held.</param>
+/// <remarks>
+/// The four positional members are what every office has. The rest are init-only because a crown
+/// has no scope beyond its realm and nobody grants it — where an office does have those, they are
+/// the whole difference between two governorships that are otherwise identical rows.
+/// </remarks>
+public sealed record OfficeHolding(
+    OfficeKind Kind,
+    string Title,
+    EntityId CivilizationId,
+    int FromYear,
+    int? ToYear)
+{
+    /// <summary>The settlement or faith held over, where the office is over one.</summary>
+    public EntityId ScopeId { get; init; } = EntityId.None;
+
+    /// <summary>
+    /// Whoever granted it, or <see cref="EntityId.None"/> where nobody did.
+    /// </summary>
+    /// <remarks>
+    /// None is not missing data. A body that chose its own — a town's notables, a faith's clergy —
+    /// has no grantor, and that is exactly what distinguishes it from a crown appointment.
+    /// </remarks>
+    public EntityId GrantedBy { get; init; } = EntityId.None;
+
+    /// <summary>
+    /// How they came by it, in prose: "by the king's mandate", "by the town's own council".
+    /// </summary>
+    /// <remarks>
+    /// Borrowed from <see cref="World.Houses.Enthrone"/> deliberately. A coronation reads far
+    /// better for saying which rule produced it, and an appointment is the same.
+    /// </remarks>
+    public string? Claim { get; init; }
+}
 
 /// <summary>
 /// A notable person.
@@ -68,7 +126,7 @@ public sealed class Figure
         Name = name;
         Sex = sex;
         BirthYear = birthYear;
-        Titles = new List<TitleHolding>();
+        Offices = new List<OfficeHolding>();
         ChildIds = new List<EntityId>();
         SpouseIds = new List<EntityId>();
     }
@@ -150,7 +208,8 @@ public sealed class Figure
     /// </remarks>
     public Disposition Disposition { get; init; } = Disposition.Neutral;
 
-    public List<TitleHolding> Titles { get; }
+    /// <summary>Every office this figure has ever held, in the order they were granted.</summary>
+    public List<OfficeHolding> Offices { get; }
 
     public EntityId MotherId { get; set; } = EntityId.None;
 
@@ -181,53 +240,70 @@ public sealed class Figure
         if (!FatherId.IsNone) yield return FatherId;
     }
 
-    /// <summary>The title currently held, if any.</summary>
-    public TitleHolding? CurrentTitle
+    /// <summary>The office currently held, if any. The most recently granted, where several are.</summary>
+    public OfficeHolding? CurrentOffice
     {
         get
         {
-            // Reverse order: the most recently granted title is the operative one.
-            for (int i = Titles.Count - 1; i >= 0; i--)
+            // Reverse order: the most recently granted office is the operative one.
+            for (int i = Offices.Count - 1; i >= 0; i--)
             {
-                if (Titles[i].ToYear is null) return Titles[i];
+                if (Offices[i].ToYear is null) return Offices[i];
             }
 
             return null;
         }
     }
 
-    /// <summary>Closes the most recently granted open title as of <paramref name="year"/>.</summary>
-    /// <remarks>
-    /// For laying down one office while keeping another — a term expiring, a regency ending. Use
-    /// <see cref="EndAllTitles"/> when the holder is what ended.
-    /// </remarks>
-    public void EndCurrentTitle(int year)
+    /// <summary>The open holding of a given kind, if this figure has one.</summary>
+    public OfficeHolding? OpenOffice(OfficeKind kind)
     {
-        for (int i = Titles.Count - 1; i >= 0; i--)
+        for (int i = Offices.Count - 1; i >= 0; i--)
         {
-            if (Titles[i].ToYear is null)
+            if (Offices[i].ToYear is null && Offices[i].Kind == kind) return Offices[i];
+        }
+
+        return null;
+    }
+
+    public bool Holds(OfficeKind kind) => OpenOffice(kind) is not null;
+
+    /// <summary>
+    /// Closes the open office of a given kind as of <paramref name="year"/>.
+    /// </summary>
+    /// <remarks>
+    /// Named by kind rather than by recency. The older <c>EndCurrentTitle</c> closed whichever
+    /// open holding happened to be newest, which was unambiguous only while a figure could hold
+    /// at most a crown and a regency; with marshals and governorships in the same list it would
+    /// silently end the wrong one. Use <see cref="EndAllOffices"/> when the holder is what ended.
+    /// </remarks>
+    public void EndOffice(OfficeKind kind, int year)
+    {
+        for (int i = Offices.Count - 1; i >= 0; i--)
+        {
+            if (Offices[i].ToYear is null && Offices[i].Kind == kind)
             {
-                Titles[i] = Titles[i] with { ToYear = year };
+                Offices[i] = Offices[i] with { ToYear = year };
                 return;
             }
         }
     }
 
     /// <summary>
-    /// Closes every open title as of <paramref name="year"/>.
+    /// Closes every open office as of <paramref name="year"/>.
     /// </summary>
     /// <remarks>
-    /// A figure can hold two offices at once — a regency for one realm and a throne of their own —
-    /// and death ends both. Closing only the most recent left the older one open for ever, which
+    /// A figure can hold two at once — a regency for one realm and a throne of their own — and
+    /// death ends both. Closing only the most recent left the older one open for ever, which
     /// surfaced as a regent still recorded as governing three centuries after they died. It took
     /// M8's plague to find: before it, the deaths that reached a double office-holder were rare
     /// enough not to occur in any tested seed.
     /// </remarks>
-    public void EndAllTitles(int year)
+    public void EndAllOffices(int year)
     {
-        for (int i = 0; i < Titles.Count; i++)
+        for (int i = 0; i < Offices.Count; i++)
         {
-            if (Titles[i].ToYear is null) Titles[i] = Titles[i] with { ToYear = year };
+            if (Offices[i].ToYear is null) Offices[i] = Offices[i] with { ToYear = year };
         }
     }
 

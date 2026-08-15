@@ -108,7 +108,7 @@ public sealed class SuccessionSystem : IYearSystem
         WorldState world, Civilization civilization, Culture culture, int year)
     {
         Figure ruler = world.Figures[civilization.CurrentRulerId];
-        ruler.EndCurrentTitle(year);
+        ruler.EndOffice(OfficeKind.Ruler, year);
 
         civilization.CurrentRulerId = EntityId.None;
         civilization.RegentId = EntityId.None;
@@ -375,7 +375,7 @@ public sealed class SuccessionSystem : IYearSystem
 
             if (world.Figures.Contains(civilization.RegentId))
             {
-                world.Figures[civilization.RegentId].EndCurrentTitle(year);
+                world.Figures[civilization.RegentId].EndOffice(OfficeKind.Regent, year);
             }
 
             civilization.RegentId = EntityId.None;
@@ -394,7 +394,12 @@ public sealed class SuccessionSystem : IYearSystem
         if (regent is null) return;
 
         civilization.RegentId = regent.Id;
-        regent.Titles.Add(new TitleHolding("Regent", civilization.Id, year, null));
+        regent.Offices.Add(
+            new OfficeHolding(OfficeKind.Regent, "Regent", civilization.Id, year, null)
+            {
+                ScopeId = ruler.Id,
+                Claim = "for a ruler under age",
+            });
 
         world.Chronicle.Record(
             year,

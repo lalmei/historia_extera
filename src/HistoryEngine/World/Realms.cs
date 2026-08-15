@@ -133,7 +133,7 @@ public static class Realms
         if (!civilization.CurrentRulerId.IsNone)
         {
             Figure ruler = world.Figures[civilization.CurrentRulerId];
-            if (ruler.IsAlive) ruler.EndCurrentTitle(year);
+            if (ruler.IsAlive) ruler.EndOffice(OfficeKind.Ruler, year);
             civilization.CurrentRulerId = EntityId.None;
         }
 

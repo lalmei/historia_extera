@@ -838,8 +838,24 @@ export function FigureList({ world }: { world: World }) {
       key: 'role',
       label: 'Role',
       options: [
-        { value: 'ruled', label: 'Ruled', match: (f) => f.titles.length > 0 },
-        { value: 'never', label: 'Never ruled', match: (f) => f.titles.length === 0 },
+        // "Ruled" means held a crown, not held any office. Left as titles.length these two
+        // would have silently become "held anything" and "held nothing" the moment marshals
+        // and governors appeared, and nobody would have seen the filter change meaning.
+        {
+          value: 'ruled',
+          label: 'Ruled',
+          match: (f) => f.titles.some((t) => t.kind === 'Ruler'),
+        },
+        {
+          value: 'never',
+          label: 'Never ruled',
+          match: (f) => !f.titles.some((t) => t.kind === 'Ruler'),
+        },
+        {
+          value: 'served',
+          label: 'Held office',
+          match: (f) => f.titles.some((t) => t.kind !== 'Ruler'),
+        },
         // Consorts keep the house they were born into, so no house means married in from
         // outside — which is the only way to find them in a list of a thousand people.
         { value: 'married-in', label: 'Married in', match: (f) => f.dynastyId === undefined },

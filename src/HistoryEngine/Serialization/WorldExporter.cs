@@ -569,11 +569,18 @@ public static class WorldExporter
 
         foreach (Figure figure in world.Figures)
         {
-            var titles = new List<ExportTitle>(figure.Titles.Count);
-            foreach (TitleHolding holding in figure.Titles)
+            var titles = new List<ExportTitle>(figure.Offices.Count);
+            foreach (OfficeHolding holding in figure.Offices)
             {
                 titles.Add(new ExportTitle(
-                    holding.Title, holding.CivilizationId, holding.FromYear, holding.ToYear));
+                    Kind: holding.Kind,
+                    Title: holding.Title,
+                    CivilizationId: holding.CivilizationId,
+                    FromYear: holding.FromYear,
+                    ToYear: holding.ToYear,
+                    ScopeId: OrNull(holding.ScopeId),
+                    GrantedBy: OrNull(holding.GrantedBy),
+                    Claim: holding.Claim));
             }
 
             list.Add(new ExportFigure(

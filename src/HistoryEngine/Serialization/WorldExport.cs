@@ -475,7 +475,24 @@ public sealed record ExportFigure(
     IReadOnlyList<EntityId> ChildIds,
     IReadOnlyList<EntityId> SpouseIds);
 
-public sealed record ExportTitle(string Title, EntityId CivilizationId, int FromYear, int? ToYear);
+/// <summary>
+/// One office held over a span of years.
+/// </summary>
+/// <remarks>
+/// <see cref="Kind"/> is what a consumer should branch on and <see cref="Title"/> is what it should
+/// print. Identifying a reign by its title text works only while the crown and the regency are the
+/// only two offices there are; the moment a third exists, every such comparison starts quietly
+/// returning the wrong one rather than failing.
+/// </remarks>
+public sealed record ExportTitle(
+    OfficeKind Kind,
+    string Title,
+    EntityId CivilizationId,
+    int FromYear,
+    int? ToYear,
+    EntityId? ScopeId,
+    EntityId? GrantedBy,
+    string? Claim);
 
 /// <summary>
 /// One person's own inclinations, on the same dials their culture has.
