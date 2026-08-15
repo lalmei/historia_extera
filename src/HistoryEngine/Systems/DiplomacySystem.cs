@@ -141,6 +141,16 @@ public sealed class DiplomacySystem : ISystem
     private const double ReligiousWarFervour = 0.55;
 
     /// <summary>
+    /// Maximum tolerance in the aggressor's faith for a religious war.
+    /// </summary>
+    /// <remarks>
+    /// Fervour is how hard a faith presses; tolerance is whether it will name that press as a
+    /// war. A missionary church that lives with its neighbours still converts them. Only a
+    /// faith that will not coexist takes the diplomatic step M8 already gated on fervour.
+    /// </remarks>
+    private const double ReligiousWarTolerance = 0.72;
+
+    /// <summary>
     /// People a realm needs behind it before it will declare a war at all.
     /// </summary>
     /// <remarks>
@@ -518,7 +528,8 @@ public sealed class DiplomacySystem : ISystem
             && world.Religions.Contains(ourFaith)
             && world.Religions.Contains(theirFaith)
             && values.Piety >= ReligiousWarPiety
-            && world.Religions[ourFaith].Fervour >= ReligiousWarFervour)
+            && world.Religions[ourFaith].Fervour >= ReligiousWarFervour
+            && world.Religions[ourFaith].Character.Tolerance < ReligiousWarTolerance)
         {
             return new WarCause(
                 CasusBelli.ReligiousWar,

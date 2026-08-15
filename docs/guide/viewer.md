@@ -114,7 +114,8 @@ reproduces it. Entities with explicit lifespans, including wars and trade routes
 their founding and ending years.
 
 **Lists** carry faceted filters whose option counts are computed against every filter but
-their own, so narrowing to cities tells you how many are known for mining.
+their own, so narrowing to cities tells you how many are known for mining. Faiths filter
+by living/forgotten, root/schism, deity structure and church form.
 
 Figure pages and lists retain both levels of mortality evidence: `deathCause` supplies stable
 filters such as plague, disaster and poisoning, while `deathDetail` shows the named outbreak,
@@ -123,9 +124,10 @@ court casualties they caused, just as battles already link their commanders.
 
 ## Schema
 
-The viewer pins the export's `schemaVersion` (**8**) and refuses a file it does not
+The viewer pins the export's `schemaVersion` (**14**) and refuses a file it does not
 understand rather than misrendering it. Regenerate the world with the matching engine if
-it complains.
+it complains. Version 14 added a faith's character — gods, church, clergy, observance and
+the dials besides fervour — so an older world file will not load.
 
 ## Stack
 

@@ -14,7 +14,9 @@ import {
 } from '../components/common';
 import { cultureOf, figures, type World } from '../store';
 import {
+  AUTHORITY_LABELS,
   DEATH_LABELS,
+  DEITY_LABELS,
   SUCCESSION_LABELS,
   type Civilization,
   type Culture,
@@ -529,6 +531,18 @@ export function ReligionList({ world }: { world: World }) {
       align: 'right',
     },
     {
+      key: 'deity',
+      header: 'Gods',
+      cell: (faith) => DEITY_LABELS[faith.character.deity],
+      sort: (faith) => faith.character.deity,
+    },
+    {
+      key: 'authority',
+      header: 'Church',
+      cell: (faith) => AUTHORITY_LABELS[faith.character.authority],
+      sort: (faith) => faith.character.authority,
+    },
+    {
       key: 'fervour',
       header: 'Fervour',
       cell: (faith) => faith.fervour.toFixed(2),
@@ -566,6 +580,25 @@ export function ReligionList({ world }: { world: World }) {
         { value: 'schism', label: 'Broke from another', match: (f) => f.parentId !== undefined },
       ],
     },
+    {
+      key: 'deity',
+      label: 'Gods',
+      options: [
+        { value: 'mono', label: 'Monotheistic', match: (f) => f.character.deity === 'Monotheistic' },
+        { value: 'poly', label: 'Polytheistic', match: (f) => f.character.deity === 'Polytheistic' },
+        { value: 'pan', label: 'Pantheistic', match: (f) => f.character.deity === 'Pantheistic' },
+        { value: 'anim', label: 'Animistic', match: (f) => f.character.deity === 'Animistic' },
+      ],
+    },
+    {
+      key: 'church',
+      label: 'Church',
+      options: [
+        { value: 'hier', label: 'Hierarchical', match: (f) => f.character.authority === 'Hierarchical' },
+        { value: 'dec', label: 'Decentralized', match: (f) => f.character.authority === 'Decentralized' },
+        { value: 'mon', label: 'Monastic', match: (f) => f.character.authority === 'Monastic' },
+      ],
+    },
   ];
 
   return (
@@ -592,7 +625,9 @@ export function ReligionList({ world }: { world: World }) {
           rows={religions}
           columns={columns}
           facets={facets}
-          searchText={(faith) => faith.name}
+          searchText={(faith) =>
+            `${faith.name} ${faith.character.deity} ${faith.character.authority} ${faith.character.dogma}`
+          }
           placeholder="Search faiths…"
           initialSort={{ key: 'peak', descending: true }}
           emptyMessage="No faith was ever preached in this world."
@@ -615,8 +650,9 @@ export function HolySiteList({ world }: { world: World }) {
         <Stat label="Independent" value={independent.length} hint="Outside settlements" />
         <Stat label="In settlements" value={holySites.length - independent.length} />
         <Stat
-          label="Faiths represented"
-          value={new Set(holySites.map((site: HolySite) => site.religionId)).size}
+          label="Traditions"
+          value={new Set(holySites.map((site: HolySite) => site.description.tradition)).size}
+          hint="Architectural families"
         />
       </div>
 

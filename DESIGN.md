@@ -2287,6 +2287,76 @@ was unsettled even after the simulation knows the victor. Rites and teachings ar
 invented part: they are derived from the faith's identity rather than from the individual
 book, so two codices of one religion agree about what its followers do.
 
+### Faith character: what a religion is, not only how hard it presses
+
+M8 gave every faith a name, a founder, a fervour, and a congregation. That was enough to
+spread, schism and fade, and not enough to tell two churches apart. Fervour is how hard a
+faith presses *outwards*; it does not say how many gods it admits, who may speak for it,
+whether it will coexist, or how readily it splits. Those are now a `FaithCharacter`,
+rolled once at founding from the culture it arose among — piety colours the gods and the
+church, tradition the clergy, learning a monastic bent — and never revised. A later
+congregation that believes something else is a schism, not an edit.
+
+**The dials besides fervour each move an outcome in the religion tick.**
+
+| Dial | Moves |
+|---|---|
+| **Fervour** | Conversion press (unchanged role) |
+| **Zealotry** | How hard a congregation holds what it already believes |
+| **Tolerance** | Damps conversion of a neighbour that already believes something else; gates religious war |
+| **Schism proneness** | Per-faith split chance, further weighted by authority |
+| **Syncretism** | Kinship conversion (parent/child, or the same gods when both sides are syncretic); how close a splinter stays to its parent |
+
+**Structure is not flavour.** Deity structure *admits* holy-site dedications, it does
+not merely bias them: a monotheism raises houses to a God or a saint, never to a nature
+spirit or an ancient god; an animism does the reverse. Authority admits the form of the
+house — a church is a hierarchical (or monotheistic) word, and an animism will not
+raise one — and how readily the crown names a high priest. Wealth practice tilts
+independent sanctuaries (mendicant) against landed temples. Offerings follow dietary
+rules, so a dry congregation is not described leaving wine. Clergy admission is read
+when a high priest is invented or chosen from court: a male-only faith does not raise
+a priestess, a bloodline faith prefers a dynast, and a celibate clergy is refused
+marriage for as long as they hold the seat.
+
+**Cosmology, dogma and observance are the identity tomes already promised.** Rites and
+teachings used to be a random pick forked on the faith's id, which made two books of one
+religion agree without either of them describing *this* religion. They now pick from
+tables keyed on deity, afterlife, dogma, diet, dress and festival season. The festival is
+a season because the world's calendar has four; it is named in the books and is not yet
+a yearly tick.
+
+**Schism inherits.** Cosmology usually survives a split — people leave a church over who
+may speak for it, not over whether the soul transmigrates. Authority and dogma are the
+seats of the argument. A syncretic parent keeps its children closer.
+
+Bloodline clergy made high priests out of dynasts, who enter the marriage pool that
+invented clergy never do. A sitting officer who moved realm on marriage left their seat
+in one civilization and their person in another — the M5 class of bug, now also covering
+every office below the throne. `HouseholdSystem.WhoMoves` will not move a sitting officer;
+a foreign officer is not a marriage candidate.
+
+Fervour itself is still the first draw on the faith's own stream, so the number that
+already fed diplomacy, succession and religious war did not move to make room for the
+rest. The character stream is a fork of that one.
+
+#### What this does not yet do, and where it should land
+
+These are stored so a later system can read them rather than invent a second vocabulary.
+None of them should grow a parallel "religion flavour" table.
+
+| Term | Belongs to | Why it is not wired yet |
+|---|---|---|
+| Tithes / landed wealth as an economic fact | `PopulationSystem` / harvest | A tithe that moved carrying capacity would be the first religion term to change M4's demography. Measure it the way the M8 faith-in-diplomacy coefficient was measured, or do not add it. |
+| Festival as a yearly gathering | a calendar tick; then trade and opinion | Would boost traffic on routes into a holy site's region in that season, and perhaps standing between co-religionists. Needs a seasonal pass that does not currently exist — the year is the tick. |
+| Daily prayer / dress / diet as settlement modifiers | population happiness, if that ever exists | Observance is currently chronicle-facing. A happiness dial would be a new system, not a new religion field. |
+| Hereditary priesthood as true office succession | `OfficeSystem` / `FillMode.Customary` | `Customary` is declared and the claim string is written, but `ChooseMode` never returns it. Bloodline clergy currently prefers a dynast from court. Wiring `Customary` means the last holder's child takes the seat, which is a succession model of its own. |
+| Tolerance as a diplomatic standing term | `DiplomacySystem.NaturalStanding` | Faith-divide is still the measured M8 coefficient (piety × same/different). Replacing "different" with a tolerance-weighted distance would rewrite war volumes. Measure it before substituting. Tolerance currently only gates whether a fervent faith will *name* the war religious. |
+| Syncretism absorbing neighbour traits in place | religion tick | Absorbing would mutate a living faith, which this model forbids: change is schism. A later "local rite" overlay on a settlement is the honest version — the faith stays, the town's observance drifts. |
+| Holy sites as pilgrimage magnets | conversion pull / trade | Sites already exist as geography. Weighting conversion pull by a nearby shrine, or founding a seasonal fair, is the next use of that geography. |
+
+**Schema 14** carries the character on each exported faith. The golden moves because
+conversion, schism, holy-site form, appointments and tome text all read it.
+
 **Written works circulate without becoming a pile of new artifacts.** A tome's copying
 ceiling is fixed when it is written: tradition, mercantile culture, religious subject matter,
 city and capital scriptoria, and trade, craft or shrine specializations make duplication more

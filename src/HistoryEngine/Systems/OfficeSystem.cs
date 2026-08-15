@@ -258,9 +258,18 @@ public sealed class OfficeSystem : ISystem
 
         if (mode == FillMode.Mandated && governing is not null)
         {
-            List<Figure> candidates = Offices.Courtiers(world, civilization, year);
+            List<Figure> candidates = Eligible(world, civilization, kind, Offices.Courtiers(world, civilization, year));
             holder = candidates.Count == 0 ? null : rng.Pick(candidates);
             if (holder is not null) grantedBy = governing.Id;
+        }
+        else if (kind == OfficeKind.HighPriest && BloodlineFaith(world, civilization))
+        {
+            // A bloodline clergy is the nearest thing this engine has to a hereditary priesthood:
+            // the court supplies a dynast, and the chronicle says the body chose. A true Customary
+            // succession — last holder's child takes the seat — is not wired; FillMode.Customary
+            // remains declared for that.
+            List<Figure> candidates = Eligible(world, civilization, kind, Offices.Courtiers(world, civilization, year));
+            holder = candidates.Count == 0 ? null : rng.Pick(candidates);
         }
         else
         {
@@ -316,7 +325,7 @@ public sealed class OfficeSystem : ISystem
         mandate *= kind switch
         {
             OfficeKind.Marshal => 1.4,
-            OfficeKind.HighPriest => 0.6,
+            OfficeKind.HighPriest => 0.6 * PriestlyMandate(world, civilization),
             _ => 1.0,
         };
 
@@ -342,6 +351,36 @@ public sealed class OfficeSystem : ISystem
         }
 
         return rng.Chance(DetMath.Clamp01(mandate)) ? FillMode.Mandated : FillMode.Internal;
+    }
+
+    private static double PriestlyMandate(WorldState world, Civilization civilization)
+    {
+        EntityId faithId = world.FaithOf(civilization);
+        if (faithId.IsNone || !world.Religions.Contains(faithId)) return 1.0;
+
+        return world.Religions[faithId].Character.PriestlyMandate();
+    }
+
+    private static bool BloodlineFaith(WorldState world, Civilization civilization)
+    {
+        EntityId faithId = world.FaithOf(civilization);
+        return !faithId.IsNone
+               && world.Religions.Contains(faithId)
+               && world.Religions[faithId].Character.Clergy == ClergyAdmission.Bloodline;
+    }
+
+    private static List<Figure> Eligible(
+        WorldState world, Civilization civilization, OfficeKind kind, List<Figure> candidates)
+    {
+        if (kind != OfficeKind.HighPriest) return candidates;
+
+        var admitted = new List<Figure>(candidates.Count);
+        foreach (Figure figure in candidates)
+        {
+            if (Offices.EligibleCleric(world, civilization, figure)) admitted.Add(figure);
+        }
+
+        return admitted;
     }
 
     private static string ClaimFor(FillMode mode, OfficeKind kind, Culture culture) => mode switch

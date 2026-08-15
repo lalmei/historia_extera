@@ -179,6 +179,7 @@ public sealed class HouseholdSystem : ISystem
         // interested in them, and by then the chronicle is following their children instead.
         if (figure.DynastyId.IsNone) return false;
         if (!InAStandingRealm(world, figure)) return false;
+        if (VowedToCelibacy(world, figure)) return false;
 
         return ranks.TryGetValue(figure.Id, out int rank) && rank <= MarriageableRank;
     }
@@ -194,6 +195,40 @@ public sealed class HouseholdSystem : ISystem
     private static bool InAStandingRealm(WorldState world, Figure figure) =>
         world.Civilizations.Contains(figure.CivilizationId)
         && world.Civilizations[figure.CivilizationId].IsActive;
+
+    /// <summary>
+    /// A sitting officer of a realm, other than a consort.
+    /// </summary>
+    /// <remarks>
+    /// Consorts are created by marriage; pinning them would refuse the very move the office
+    /// records. Everyone else holds a post that belongs to a realm, and moving them is how that
+    /// post ends up in the wrong one.
+    /// </remarks>
+    private static bool PinnedByOffice(Figure figure)
+    {
+        OfficeHolding? held = figure.CurrentOffice;
+        return held is not null && held.Kind is not OfficeKind.Consort;
+    }
+
+    /// <summary>
+    /// A high priest of a faith that forbids its clergy to marry.
+    /// </summary>
+    /// <remarks>
+    /// Only the sitting holder, and only while they hold the seat. A retired priest returning to
+    /// ordinary life is a later story; inventing one here would need an ending the office system
+    /// does not yet write. The vow is the faith's, not the person's, so a realm that changes
+    /// religion mid-tenure releases them.
+    /// </remarks>
+    private static bool VowedToCelibacy(WorldState world, Figure figure)
+    {
+        OfficeHolding? held = figure.OpenOffice(OfficeKind.HighPriest);
+        if (held is null || !world.Civilizations.Contains(held.CivilizationId)) return false;
+
+        EntityId faithId = world.FaithOf(world.Civilizations[held.CivilizationId]);
+        return !faithId.IsNone
+               && world.Religions.Contains(faithId)
+               && world.Religions[faithId].Character.CelibateClergy;
+    }
 
     /// <summary>
     /// Looks for a match among the other houses.
@@ -232,6 +267,7 @@ public sealed class HouseholdSystem : ISystem
                 if (age < MarriageAge || age > LastChildbearingAge) continue;
 
                 if (!InAStandingRealm(world, candidate)) continue;
+                if (VowedToCelibacy(world, candidate)) continue;
 
                 // A reigning ruler is not available to marry into someone else's realm: one of the
                 // pair would have to move, and a crowned head that moves is a personal union, which
@@ -240,6 +276,7 @@ public sealed class HouseholdSystem : ISystem
                 // without this the eight of them pair off with each other and half the founding
                 // houses are absorbed into the other half before the chronicle has begun.
                 if (Succession.HoldsAThrone(world, candidate)) continue;
+                if (PinnedByOffice(candidate)) continue;
 
                 if (Succession.AreCloseKin(world, figure, candidate)) continue;
 
@@ -295,22 +332,28 @@ public sealed class HouseholdSystem : ISystem
     }
 
     /// <summary>
-    /// Which partner leaves home. The weaker claim, and never a crowned head.
+    /// Which partner leaves home. The weaker claim, and never a crowned head or a sitting officer.
     /// </summary>
     /// <remarks>
-    /// The throne check is not a nicety. A ruler moved out of the realm they rule leaves
+    /// <para>The throne check is not a nicety. A ruler moved out of the realm they rule leaves
     /// <see cref="Civilization.CurrentRulerId"/> pointing at someone who now lives somewhere else,
     /// and <see cref="Houses.Die"/> finds the civilization to vacate through the dead figure's own
     /// residence — so their death empties the wrong throne and leaves the right one occupied by a
     /// corpse. Succession sees a realm that has a ruler and skips it, for ever. Three realms in a
     /// three-century run were governed by the dead for over a century each before this, and
-    /// nothing in the chronicle said so: the events simply stopped.
+    /// nothing in the chronicle said so: the events simply stopped.</para>
+    ///
+    /// <para>The same shape applies to every other office. A high priest of a bloodline faith is a
+    /// dynast, so they enter the marriage pool that invented clergy never do, and moving them
+    /// leaves the seat in one realm and its holder in another. A governor is worse: they live in
+    /// the town they govern, and a marriage that changed their civilization would not change the
+    /// town.</para>
     /// </remarks>
     private static Figure WhoMoves(
         WorldState world, Figure a, Figure b, DetMap<EntityId, int> ranks)
     {
-        if (Succession.HoldsAThrone(world, a)) return b;
-        if (Succession.HoldsAThrone(world, b)) return a;
+        if (Succession.HoldsAThrone(world, a) || PinnedByOffice(a)) return b;
+        if (Succession.HoldsAThrone(world, b) || PinnedByOffice(b)) return a;
 
         int rankA = ranks.TryGetValue(a.Id, out int found) ? found : int.MaxValue;
         int rankB = ranks.TryGetValue(b.Id, out int other) ? other : int.MaxValue;

@@ -28,8 +28,9 @@ A Dwarf Fortress-style **world history generator** aimed at a Medival like world
 Milestones 0–9 are complete: real naming languages, a settlement lifecycle that can
 decline and abandon, dynastic succession, diplomacy and war — named battles, sackings,
 territory changing hands at the peace table, and realms conquered out of existence — a
-map that replays to any year of the run, faiths, plagues, disasters and treasures
-that cross the borders the wars draw, and terrain that can come from somewhere else.
+map that replays to any year of the run, faiths that differ in gods, church and temper rather
+than only in fervour, plagues, disasters and treasures that cross the borders the wars draw,
+and terrain that can come from somewhere else.
 
 M9 built the first backend behind `ITerrainSampler` that the interface was not written
 alongside. Worlds are still noise by default; pointing `--terrain` at a set of heightmap
