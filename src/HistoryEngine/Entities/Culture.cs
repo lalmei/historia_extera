@@ -13,26 +13,67 @@ public enum GovernmentForm
 }
 
 /// <summary>
-/// A culture's dispositions, each in [0, 1].
+/// A set of dispositions, each in [0, 1].
 /// </summary>
 /// <remarks>
-/// These are the dials that make one civilization behave unlike another. They are read by
+/// <para>These are the dials that make one civilization behave unlike another. They are read by
 /// the systems rather than hard-coded into them, so "this civ expands relentlessly and
-/// rarely fights" is data, not a branch.
+/// rarely fights" is data, not a branch.</para>
+///
+/// <para><b>A ruler's own inclinations use this same record</b> — see <see cref="Disposition"/>.
+/// That is the decision the whole reign-aware layer hangs off: a separate ruler-trait vocabulary
+/// would need every consuming system to learn a mapping from traits onto behaviour, and there
+/// are thirty such systems to disagree with each other. Sharing the shape means blending a
+/// person into a people is one function and no system needs a new branch.</para>
 /// </remarks>
 public sealed record CultureValues(
     double Aggression,
     double Expansionism,
     double Piety,
     double Tradition,
-    double Mercantile)
+    double Mercantile,
+    double Learning)
 {
     public static CultureValues Roll(IRng rng) => new(
         Aggression: rng.NextDouble(),
         Expansionism: rng.NextDouble(),
         Piety: rng.NextDouble(),
         Tradition: rng.NextDouble(),
-        Mercantile: rng.NextDouble());
+        Mercantile: rng.NextDouble(),
+
+        // Drawn from a substream rather than from the next position in this one. A sixth draw
+        // here would shift the government-form roll that follows in WorldBuilder and rewrite
+        // every world ever generated — see Pcg32.Fork, which derives from the seed rather than
+        // the live position and so consumes nothing.
+        Learning: rng.Fork("learning").NextDouble());
+
+    /// <summary>
+    /// This set moved <paramref name="t"/> of the way toward <paramref name="other"/>.
+    /// </summary>
+    /// <remarks>
+    /// How a reign displaces a people. <paramref name="t"/> is the latitude one person has to
+    /// bend the culture they govern, never one: a ruler is an argument, not a replacement.
+    /// </remarks>
+    public CultureValues BlendToward(CultureValues other, double t) => new(
+        DetMath.Lerp(Aggression, other.Aggression, t),
+        DetMath.Lerp(Expansionism, other.Expansionism, t),
+        DetMath.Lerp(Piety, other.Piety, t),
+        DetMath.Lerp(Tradition, other.Tradition, t),
+        DetMath.Lerp(Mercantile, other.Mercantile, t),
+        DetMath.Lerp(Learning, other.Learning, t));
+
+    /// <summary>Mean absolute distance across the dials, in [0, 1].</summary>
+    /// <remarks>
+    /// Backs both the electorate's affinity for a candidate and the divergence between a reign
+    /// and the people it governs — the measure an unrest system would read.
+    /// </remarks>
+    public double DistanceTo(CultureValues other) =>
+        (Math.Abs(Aggression - other.Aggression)
+         + Math.Abs(Expansionism - other.Expansionism)
+         + Math.Abs(Piety - other.Piety)
+         + Math.Abs(Tradition - other.Tradition)
+         + Math.Abs(Mercantile - other.Mercantile)
+         + Math.Abs(Learning - other.Learning)) / 6.0;
 }
 
 /// <summary>

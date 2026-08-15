@@ -139,6 +139,17 @@ public sealed class Figure
     /// </remarks>
     public EntityId DynastyId { get; set; } = EntityId.None;
 
+    /// <summary>
+    /// This person's own inclinations, as distinct from their culture's.
+    /// </summary>
+    /// <remarks>
+    /// Rolled for everyone at birth and consulted only for those who come to govern — which is
+    /// cheaper than it sounds, since it is derived from a fork on the figure's own id and so
+    /// costs nothing until read. Assigned in <see cref="World.Houses.NewFigure"/>; the neutral
+    /// default exists so that no code path can meet a figure without one.
+    /// </remarks>
+    public Disposition Disposition { get; init; } = Disposition.Neutral;
+
     public List<TitleHolding> Titles { get; }
 
     public EntityId MotherId { get; set; } = EntityId.None;

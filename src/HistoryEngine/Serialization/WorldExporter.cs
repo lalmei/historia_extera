@@ -196,6 +196,7 @@ public static class WorldExporter
                 Piety: culture.Values.Piety,
                 Tradition: culture.Values.Tradition,
                 Mercantile: culture.Values.Mercantile,
+                Learning: culture.Values.Learning,
                 Lexicon: BuildLexicon(markov, culture)));
         }
 
@@ -576,6 +577,14 @@ public static class WorldExporter
                 DeathCause: figure.DeathCause,
                 DeathDetail: figure.DeathDetail,
                 BirthSettlementId: OrNull(figure.BirthSettlementId),
+                Disposition: new ExportDisposition(
+                    figure.Disposition.Values.Aggression,
+                    figure.Disposition.Values.Expansionism,
+                    figure.Disposition.Values.Piety,
+                    figure.Disposition.Values.Tradition,
+                    figure.Disposition.Values.Mercantile,
+                    figure.Disposition.Values.Learning,
+                    figure.Disposition.Centralism),
                 Titles: titles,
                 MotherId: OrNull(figure.MotherId),
                 FatherId: OrNull(figure.FatherId),

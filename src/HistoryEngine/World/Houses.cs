@@ -46,6 +46,12 @@ public static class Houses
             birthYear)
         {
             BirthSettlementId = civilization.CapitalId,
+
+            // Forked on the figure's own id, so a person's character cannot depend on how many
+            // people were born before them — and, because a fork consumes nothing from its
+            // parent, adding this drew no number away from any stream that already existed.
+            Disposition = Disposition.Roll(
+                culture, world.Root.Fork("disposition", id.ToDiscriminator())),
         };
 
         world.Figures.Add(figure);
