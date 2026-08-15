@@ -7,7 +7,7 @@
  * stops moving.
  */
 
-export const SCHEMA_VERSION = 10;
+export const SCHEMA_VERSION = 11;
 
 /** `"civ:3"`, `"fig:1204"` — readable, greppable, and directly usable as a route. */
 export type EntityId = string;
@@ -99,6 +99,15 @@ export interface ExportWorld {
   height: number;
   regionSize: number;
   terrainStride: number;
+  /**
+   * Whether the east and west edges are the same meridian.
+   *
+   * Carried because it cannot be inferred and everything drawn from coordinates is wrong
+   * without it: the simulation measures distance the short way round, so two towns either side
+   * of the seam are neighbours, and a map that has not been told draws the link between them
+   * clean across the world.
+   */
+  eastWestPeriodic: boolean;
   capabilities: string;
   raster: ExportRaster;
   rivers: ExportRiver[];

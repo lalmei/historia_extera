@@ -1,3 +1,4 @@
+import type React from 'react';
 import { type MouseEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { NarratedEvent } from '../components/EventList';
 import { Badge, EntityLink, PageTitle, Panel } from '../components/common';
@@ -12,6 +13,7 @@ import {
   type EntityId,
   type HolySite,
   type Region,
+  type Settlement,
 } from '../types';
 
 /**
@@ -67,8 +69,40 @@ const BIOME_COLOURS: Record<Biome, [number, number, number]> = {
 
 type Hover =
   | { kind: 'settlement'; standing: Standing }
+  | { kind: 'ruin'; settlement: Settlement }
   | { kind: 'holy-site'; site: HolySite }
   | { kind: 'region'; region: Region; owner?: EntityId };
+
+/** One drawn stroke in map units. A wrapped link needs two of them. */
+type Stroke = { x1: number; y1: number; x2: number; y2: number };
+
+/**
+ * The stroke or strokes that join two points, taking the seam when the world wraps.
+ *
+ * A link between a town at the eastern edge and one at the western edge is a short hop in a
+ * periodic world and the simulation has always treated it as one. Drawn naively it is a line
+ * clean across the map — visually the single longest connection in the world, and the only
+ * reading that is certainly false. Crossing the seam splits it in two: out through one edge,
+ * back in through the other, at the latitude the link actually crosses.
+ */
+function link(from: Stroke, periodic: boolean): Stroke[] {
+  const dx = from.x2 - from.x1;
+  if (!periodic || Math.abs(dx) <= 50) return [from];
+
+  // The short way round leaves through the nearer edge: east when the naive line ran west.
+  const wrapped = from.x1 + (dx > 0 ? dx - 100 : dx + 100);
+  const exit = wrapped < 0 ? 0 : 100;
+  const crossing = (exit - from.x1) / (wrapped - from.x1);
+  const y = from.y1 + (from.y2 - from.y1) * crossing;
+
+  // A town sitting exactly on the seam leaves the map at the point it starts, so one half has
+  // no length. Dropped rather than drawn: a round cap on a zero-length line is a stray dot on
+  // the edge of the world.
+  return [
+    { x1: from.x1, y1: from.y1, x2: exit, y2: y },
+    { x1: exit === 0 ? 100 : 0, y1: y, x2: from.x2, y2: from.y2 },
+  ].filter((stroke) => stroke.x1 !== stroke.x2 || stroke.y1 !== stroke.y2);
+}
 
 export function WorldMap({ world }: { world: World }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -82,6 +116,7 @@ export function WorldMap({ world }: { world: World }) {
   const [showRivers, setShowRivers] = useState(true);
   const [showTradeRoutes, setShowTradeRoutes] = useState(true);
   const [showSettlements, setShowSettlements] = useState(true);
+  const [showRuins, setShowRuins] = useState(true);
   const [showHolySites, setShowHolySites] = useState(true);
   const [showTerritory, setShowTerritory] = useState(true);
   const [year, setYear] = useState(endYear);
@@ -109,6 +144,44 @@ export function WorldMap({ world }: { world: World }) {
     () => data.holySites.filter((site) => !site.settlementId && site.foundedYear <= year),
     [data.holySites, year],
   );
+
+  /**
+   * Towns that stood in this year and do not any more.
+   *
+   * They used to leave the map the year they emptied, which quietly made every abandonment
+   * invisible — a frontier that was settled and then given up reads exactly like one nobody
+   * ever reached. A ruin is also the only way back to that settlement's page from the map.
+   */
+  const ruins = useMemo(
+    () =>
+      data.settlements.filter(
+        (settlement) =>
+          settlement.abandonedYear !== undefined && settlement.abandonedYear <= year,
+      ),
+    [data.settlements, year],
+  );
+
+  /**
+   * Each route's traffic in the selected year, from the yearly series.
+   *
+   * The export's own `traffic` field is the final year's, and drawing an early map with it
+   * would leak the future into the past — which is why these lines were a constant width until
+   * the engine began sampling. A route with no series (an older file) simply has no width to
+   * vary and falls back to the flat stroke.
+   */
+  const trafficAt = useMemo(() => {
+    const now = new Map<EntityId, number>();
+
+    for (const route of data.tradeRoutes) {
+      const series = world.seriesFor(route.id).find((one) => one.metric === 'traffic');
+      if (!series) continue;
+
+      const index = year - series.fromYear;
+      if (index >= 0 && index < series.values.length) now.set(route.id, series.values[index]);
+    }
+
+    return now;
+  }, [data.tradeRoutes, world, year]);
 
   const tradeRoutes = useMemo(
     () =>
@@ -261,6 +334,13 @@ export function WorldMap({ world }: { world: World }) {
    * What lies under the cursor, resolved from the pointer position rather than from per-shape
    * handlers: a settlement dot sits on top of its own region, and two overlapping sets of
    * mouse handlers fight over which one is "hovered".
+   *
+   * <b>Nearest wins, across all three kinds of marker.</b> Taking each kind in turn and stopping
+   * at the first hit inside its radius sounds equivalent and is not: the pick radii are several
+   * times the size of the marks, so whichever kind is tested first swallows everything near it.
+   * Ruins are the case that proves it — a town is usually abandoned in a district with other
+   * towns in it, so every ruin on the map sits within a dot's radius and none of them could be
+   * hovered or clicked at all. Ties go to the living, by the order these are considered.
    */
   const probe = (event: MouseEvent<SVGSVGElement>) => {
     const box = svgRef.current?.getBoundingClientRect();
@@ -269,44 +349,42 @@ export function WorldMap({ world }: { world: World }) {
     const x = ((event.clientX - box.left) / box.width) * 100;
     const y = ((event.clientY - box.top) / box.height) * 100;
 
-    if (showHolySites) {
-      let nearest: HolySite | null = null;
-      let best = 1.5 * 1.5;
+    const within: { hover: Hover; distance: number }[] = [];
 
-      for (const site of independentHolySites) {
-        const dx = toWorld(site.x, 'x') - x;
-        const dy = toWorld(site.z, 'z') - y;
-        const distance = dx * dx + dy * dy;
-        if (distance < best) {
-          best = distance;
-          nearest = site;
-        }
-      }
+    const consider = (hover: Hover, worldX: number, worldZ: number, radius: number) => {
+      const dx = toWorld(worldX, 'x') - x;
+      const dy = toWorld(worldZ, 'z') - y;
+      const distance = dx * dx + dy * dy;
 
-      if (nearest) {
-        setHovered({ kind: 'holy-site', site: nearest });
-        return;
+      if (distance <= radius * radius) within.push({ hover, distance });
+    };
+
+    if (showSettlements) {
+      for (const entry of standing) {
+        consider({ kind: 'settlement', standing: entry }, entry.settlement.x, entry.settlement.z, 1.6);
       }
     }
 
-    if (showSettlements) {
-      let nearest: Standing | null = null;
-      let best = 1.6 * 1.6;
+    if (showRuins) {
+      for (const settlement of ruins) {
+        consider({ kind: 'ruin', settlement }, settlement.x, settlement.z, 1.4);
+      }
+    }
 
-      for (const entry of standing) {
-        const dx = toWorld(entry.settlement.x, 'x') - x;
-        const dy = toWorld(entry.settlement.z, 'z') - y;
-        const distance = dx * dx + dy * dy;
-        if (distance < best) {
-          best = distance;
-          nearest = entry;
-        }
+    if (showHolySites) {
+      for (const site of independentHolySites) {
+        consider({ kind: 'holy-site', site }, site.x, site.z, 1.5);
+      }
+    }
+
+    if (within.length > 0) {
+      let nearest = within[0];
+      for (const candidate of within) {
+        if (candidate.distance < nearest.distance) nearest = candidate;
       }
 
-      if (nearest) {
-        setHovered({ kind: 'settlement', standing: nearest });
-        return;
-      }
+      setHovered(nearest.hover);
+      return;
     }
 
     const region = grid.atPoint(x, y);
@@ -318,6 +396,11 @@ export function WorldMap({ world }: { world: World }) {
 
     if (hovered.kind === 'settlement') {
       navigate(`/${hovered.standing.settlement.id}`);
+      return;
+    }
+
+    if (hovered.kind === 'ruin') {
+      navigate(`/${hovered.settlement.id}`);
       return;
     }
 
@@ -344,11 +427,15 @@ export function WorldMap({ world }: { world: World }) {
             <Badge>
               {data.world.width.toLocaleString()} × {data.world.height.toLocaleString()} units
             </Badge>
+            {data.world.eastWestPeriodic && (
+              <Badge tone="accent">east/west edges joined</Badge>
+            )}
             <Badge>raster {raster.resolution}²</Badge>
             <Badge>
               {realms.length} {realms.length === 1 ? 'realm' : 'realms'} · {standing.length}{' '}
               settlements
             </Badge>
+            {ruins.length > 0 && <Badge tone="muted">{ruins.length} in ruins</Badge>}
             <Badge>{tradeRoutes.length} trade routes</Badge>
             <Badge>{independentHolySites.length} independent holy sites</Badge>
           </>
@@ -379,6 +466,7 @@ export function WorldMap({ world }: { world: World }) {
             <Toggle label="Rivers" on={showRivers} onChange={setShowRivers} />
             <Toggle label="Trade" on={showTradeRoutes} onChange={setShowTradeRoutes} />
             <Toggle label="Settlements" on={showSettlements} onChange={setShowSettlements} />
+            <Toggle label="Ruins" on={showRuins} onChange={setShowRuins} />
             <Toggle label="Holy sites" on={showHolySites} onChange={setShowHolySites} />
             <Toggle label="Territory" on={showTerritory} onChange={setShowTerritory} />
           </div>
@@ -444,36 +532,77 @@ export function WorldMap({ world }: { world: World }) {
 
             {/* Logical economic links, deliberately straight. Physical road and water paths
                 belong to the later transport-network layer; these lines show demand, not
-                geometry that the simulation has not calculated. Width is constant because the
-                export retains final/peak traffic, not a yearly series; using peak traffic here
-                would leak future knowledge into an earlier map year. */}
+                geometry that the simulation has not calculated. Width is this year's traffic —
+                from the yearly series, so scrubbing back never shows a corridor thriving before
+                it did. A link across a periodic world's seam is drawn the short way, in two
+                strokes, because that is the way the goods went. */}
             {showTradeRoutes &&
-              tradeRoutes.map(({ route, a, b }) => (
-                <line
-                  key={route.id}
-                  x1={toWorld(a!.x, 'x')}
-                  y1={toWorld(a!.z, 'z')}
-                  x2={toWorld(b!.x, 'x')}
-                  y2={toWorld(b!.z, 'z')}
-                  stroke={
-                    route.mode === 'River'
-                      ? 'rgb(82 126 168)'
-                      : route.mode === 'Coastal'
-                        ? 'rgb(72 142 150)'
-                        : 'rgb(188 132 68)'
-                  }
-                  strokeWidth={0.38}
-                  strokeDasharray={route.mode === 'Overland' ? '1.2 0.7' : undefined}
-                  strokeLinecap="round"
-                  strokeOpacity={0.72}
-                  className="pointer-events-none"
-                >
-                  <title>
-                    {world.nameOf(route.id)} · logical {route.mode.toLowerCase()} connection;
-                    physical path not yet modelled
-                  </title>
-                </line>
-              ))}
+              tradeRoutes.map(({ route, a, b }) => {
+                const traffic = trafficAt.get(route.id);
+
+                return link(
+                  {
+                    x1: toWorld(a!.x, 'x'),
+                    y1: toWorld(a!.z, 'z'),
+                    x2: toWorld(b!.x, 'x'),
+                    y2: toWorld(b!.z, 'z'),
+                  },
+                  data.world.eastWestPeriodic,
+                ).map((stroke, index) => (
+                  <line
+                    key={`${route.id}-${index}`}
+                    x1={stroke.x1}
+                    y1={stroke.y1}
+                    x2={stroke.x2}
+                    y2={stroke.y2}
+                    stroke={
+                      route.mode === 'River'
+                        ? 'rgb(82 126 168)'
+                        : route.mode === 'Coastal'
+                          ? 'rgb(72 142 150)'
+                          : 'rgb(188 132 68)'
+                    }
+                    strokeWidth={traffic === undefined ? 0.38 : 0.18 + traffic * 0.62}
+                    strokeDasharray={route.mode === 'Overland' ? '1.2 0.7' : undefined}
+                    strokeLinecap="round"
+                    strokeOpacity={0.72}
+                    className="pointer-events-none"
+                  >
+                    <title>
+                      {world.nameOf(route.id)} · logical {route.mode.toLowerCase()} connection
+                      {traffic !== undefined && ` · traffic ${traffic.toFixed(2)} in ${year}`}
+                      ; physical path not yet modelled
+                    </title>
+                  </line>
+                ));
+              })}
+
+            {/* Ruins, under the living dots. A mark rather than a circle, so an empty place can
+                never be read as an inhabited one at a glance, and in plain ink rather than a
+                realm colour, because a ruin belongs to nobody. */}
+            {showRuins &&
+              ruins.map((settlement) => {
+                const x = toWorld(settlement.x, 'x');
+                const y = toWorld(settlement.z, 'z');
+                const arm = 0.52;
+
+                return (
+                  <g
+                    key={settlement.id}
+                    className="pointer-events-none"
+                    stroke="rgb(152 146 138)"
+                    strokeWidth={0.24}
+                    strokeLinecap="round"
+                    strokeOpacity={0.9}
+                  >
+                    <title>
+                      {settlement.name} · abandoned in {settlement.abandonedYear}
+                    </title>
+                    <line x1={x - arm} y1={y - arm} x2={x + arm} y2={y + arm} />
+                    <line x1={x - arm} y1={y + arm} x2={x + arm} y2={y - arm} />
+                  </g>
+                );
+              })}
 
             {showSettlements &&
               standing.map((entry) => (
@@ -552,6 +681,14 @@ export function WorldMap({ world }: { world: World }) {
                       ` · ${world.nameOf(hovered.standing.religionId)}`}
                   </div>
                 </>
+              ) : hovered.kind === 'ruin' ? (
+                <>
+                  <div className="font-serif text-sm">{hovered.settlement.name}</div>
+                  <div className="text-[var(--ink-faint)]">
+                    Ruins · abandoned in {hovered.settlement.abandonedYear} · once{' '}
+                    {hovered.settlement.peakPopulation.toLocaleString()} people
+                  </div>
+                </>
               ) : hovered.kind === 'holy-site' ? (
                 <>
                   <div className="font-serif text-sm">{hovered.site.name}</div>
@@ -591,11 +728,20 @@ export function WorldMap({ world }: { world: World }) {
           }}
         />
 
+        <MarkerKey
+          settlements={showSettlements}
+          ruins={showRuins && ruins.length > 0}
+          holySites={showHolySites && independentHolySites.length > 0}
+          battles={battles.length > 0}
+        />
+
         {showTradeRoutes && (
           <p className="mx-auto mt-2 max-w-3xl text-xs text-[var(--ink-faint)]">
             Trade overlay: dashed amber is overland demand, blue uses river access, and teal uses
-            the coast. These are logical connections between markets; physical roads and paths are
-            not modelled yet.
+            the coast. Line weight is the traffic the route carried in {year}. These are logical
+            connections between markets; physical roads and paths are not modelled yet.
+            {data.world.eastWestPeriodic &&
+              ' Links between towns either side of the seam leave one edge and return at the other, which is the short way round in a world whose east and west edges are the same meridian.'}
           </p>
         )}
 
@@ -635,6 +781,96 @@ export function WorldMap({ world }: { world: World }) {
           </ol>
         )}
       </Panel>
+    </div>
+  );
+}
+
+/**
+ * What the marks on the map mean.
+ *
+ * Shape carries meaning here and colour carries identity — a dot is a place with people in it,
+ * a cross is one that had them — so the shapes need saying once. Drawn from the same primitives
+ * as the map itself rather than described in words, and each entry appears only while that
+ * layer is on and has something in it.
+ */
+function MarkerKey({
+  settlements,
+  ruins,
+  holySites,
+  battles,
+}: {
+  settlements: boolean;
+  ruins: boolean;
+  holySites: boolean;
+  battles: boolean;
+}) {
+  const marks: { label: string; glyph: React.ReactNode }[] = [];
+
+  if (settlements) {
+    marks.push({
+      label: 'settlement, by size',
+      glyph: (
+        <>
+          <circle cx={4} cy={8} r={1.6} fill="var(--ink-soft)" />
+          <circle cx={10} cy={8} r={3} fill="var(--ink-soft)" />
+        </>
+      ),
+    });
+  }
+
+  if (ruins) {
+    marks.push({
+      label: 'abandoned',
+      glyph: (
+        <g stroke="rgb(152 146 138)" strokeWidth={1.6} strokeLinecap="round">
+          <line x1={4} y1={5} x2={10} y2={11} />
+          <line x1={4} y1={11} x2={10} y2={5} />
+        </g>
+      ),
+    });
+  }
+
+  if (holySites) {
+    marks.push({
+      label: 'holy site',
+      glyph: (
+        <rect
+          x={4}
+          y={5}
+          width={6}
+          height={6}
+          rx={0.6}
+          fill="rgb(238 204 112)"
+          transform="rotate(45 7 8)"
+        />
+      ),
+    });
+  }
+
+  if (battles) {
+    marks.push({
+      label: 'battle this year',
+      glyph: (
+        <>
+          <circle cx={7} cy={8} r={4} fill="none" stroke="rgb(214 96 84)" strokeWidth={1.2} />
+          <circle cx={7} cy={8} r={1.1} fill="rgb(214 96 84)" />
+        </>
+      ),
+    });
+  }
+
+  if (marks.length === 0) return null;
+
+  return (
+    <div className="mx-auto mt-2 flex max-w-3xl flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[var(--ink-faint)]">
+      {marks.map((mark) => (
+        <span key={mark.label} className="flex items-center gap-1.5">
+          <svg viewBox="0 0 14 16" className="h-3.5 w-3.5 shrink-0" aria-hidden="true">
+            {mark.glyph}
+          </svg>
+          {mark.label}
+        </span>
+      ))}
     </div>
   );
 }
