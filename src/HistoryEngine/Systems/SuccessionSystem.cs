@@ -433,6 +433,13 @@ public sealed class SuccessionSystem : IYearSystem
             if (Eligible(parent)) return parent;
         }
 
+        // Then the crowned consort, who is usually the mother and has already been taken above —
+        // but not always. A child ruler whose own parents are dead still has a dowager with a
+        // public standing and no claim of her own, and she outranks the eldest cousin for exactly
+        // the reason the mother does: her interest in the reign is not a claim to replace it.
+        Figure? dowager = Offices.HolderOf(world, civilization, OfficeKind.Consort);
+        if (dowager is not null && Eligible(dowager)) return dowager;
+
         Figure? eldest = null;
         foreach (Figure relative in Succession.Kin(world, civilization))
         {

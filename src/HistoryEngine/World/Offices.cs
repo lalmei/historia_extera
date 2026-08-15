@@ -193,6 +193,28 @@ public static class Offices
         return candidates;
     }
 
+    /// <summary>
+    /// The living holder of a realm-wide office, if it has one.
+    /// </summary>
+    /// <remarks>
+    /// The lookup every consumer goes through, so "does this realm have a marshal" is asked one
+    /// way. Walks the figure table rather than keeping an index on the civilization: office
+    /// holders are a handful per realm, the walk is once per battle rather than once per year,
+    /// and an index is a second place for the answer to be wrong.
+    /// </remarks>
+    public static Figure? HolderOf(WorldState world, Civilization civilization, OfficeKind kind)
+    {
+        foreach (Figure figure in world.Figures)
+        {
+            if (!figure.IsAlive) continue;
+
+            OfficeHolding? held = figure.OpenOffice(kind);
+            if (held is not null && held.CivilizationId == civilization.Id) return figure;
+        }
+
+        return null;
+    }
+
     /// <summary>What the office is held over, for the event's object slot.</summary>
     private static EntityId Subject(OfficeKind kind, Civilization civilization, EntityId scope) =>
         kind == OfficeKind.Governor ? scope : civilization.Id;

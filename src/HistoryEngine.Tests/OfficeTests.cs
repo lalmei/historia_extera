@@ -190,6 +190,74 @@ public sealed class OfficeTests
     }
 
     /// <summary>
+    /// Every office changes what some other system does.
+    /// </summary>
+    /// <remarks>
+    /// The standard the design set itself, and the one worth a test rather than a comment: an
+    /// office nothing reads is a title generator. Each of the three appointed offices is asserted
+    /// through its consumer rather than through its own record — a marshal by the fields he takes,
+    /// a governor by dying somewhere the court is not, a high priest by the faiths he starts.
+    /// </remarks>
+    [Fact]
+    public void OfficesChangeWhatOtherSystemsDo()
+    {
+        int marshalCommands = 0;
+        int governorsKilledByGeography = 0;
+        int faithsFromClergy = 0;
+
+        foreach (ulong seed in Seeds)
+        {
+            WorldState world = HistoryRun.Execute(TestWorlds.Standard(seed)).World;
+
+            foreach (Battle battle in world.Battles)
+            {
+                foreach (EntityId id in new[] { battle.AttackerCommanderId, battle.DefenderCommanderId })
+                {
+                    if (!world.Figures.Contains(id)) continue;
+                    if (HeldAt(world.Figures[id], OfficeKind.Marshal, battle.Year)) marshalCommands++;
+                }
+            }
+
+            foreach (Figure figure in world.Figures)
+            {
+                if (figure.DeathCause is not (DeathCause.Disaster or DeathCause.Plague)) continue;
+                if (figure.DeathYear is not int died) continue;
+
+                // Killed where they were posted rather than where the court is: the exposure the
+                // residence model exists to give, and impossible before offices.
+                if (HeldAt(figure, OfficeKind.Governor, died)) governorsKilledByGeography++;
+            }
+
+            foreach (Religion faith in world.Religions)
+            {
+                if (!world.Figures.Contains(faith.FounderId)) continue;
+                if (HeldAt(world.Figures[faith.FounderId], OfficeKind.HighPriest, faith.FoundedYear))
+                {
+                    faithsFromClergy++;
+                }
+            }
+        }
+
+        Assert.True(marshalCommands > 0, "No marshal ever took the field.");
+        Assert.True(
+            governorsKilledByGeography > 0,
+            "No governor was ever reached by a calamity in the town they governed.");
+        Assert.True(faithsFromClergy > 0, "No faith was ever preached by a realm's own high priest.");
+    }
+
+    /// <summary>Whether a figure held a given office in a given year.</summary>
+    private static bool HeldAt(Figure figure, OfficeKind kind, int year)
+    {
+        foreach (OfficeHolding held in figure.Offices)
+        {
+            if (held.Kind != kind || held.FromYear > year) continue;
+            if (held.ToYear is null || held.ToYear >= year) return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// Appointments are a bounded share of the chronicle.
     /// </summary>
     /// <remarks>

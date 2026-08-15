@@ -78,6 +78,13 @@ public static class Warfare
     /// </remarks>
     private const int WorthSacking = 250;
 
+    /// <summary>Odds a standing marshal takes a given field, rather than some other dynast.</summary>
+    /// <remarks>
+    /// Not one. A realm fights on more than one frontier and a marshal cannot be at both, and a
+    /// figure who commands every engagement of a forty-year career is a hero rather than a record.
+    /// </remarks>
+    private const double MarshalTakesTheField = 0.75;
+
     /// <summary>Chance the losing commander does not come home, and the winning one's.</summary>
     private const double LoserCommanderFalls = 0.14;
 
@@ -493,6 +500,18 @@ public static class Warfare
 
         IRng officers = rng.Fork("officer", civilization.Id.ToDiscriminator());
         if (!officers.Chance(OfficerTakesField)) return EntityId.None;
+
+        // A realm with a standing marshal has mostly answered the question of who commands — but
+        // only mostly, and deliberately. Handing every campaign to one man collapses the variance
+        // that made 216 of 604 named commands go to non-rulers: he either dies in his first season
+        // or appears undefeated for thirty years, and no other cadet ever sees a battlefield.
+        Figure? marshal = Offices.HolderOf(world, civilization, OfficeKind.Marshal);
+        if (marshal is not null
+            && marshal.AgeIn(year) >= Succession.MajorityAge
+            && officers.Chance(MarshalTakesTheField))
+        {
+            return marshal.Id;
+        }
 
         var candidates = new List<Figure>();
         foreach (Figure kin in Succession.Kin(world, civilization))

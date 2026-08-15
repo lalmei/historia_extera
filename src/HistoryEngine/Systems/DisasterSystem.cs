@@ -227,9 +227,15 @@ public sealed class DisasterSystem : IYearSystem
     /// Lets a calamity at the seat of government reach the named people the chronicle follows.
     /// </summary>
     /// <remarks>
-    /// Non-capital losses remain population losses. Treating every figure in a realm as present at
-    /// every village disaster would fabricate a precision the residence model does not have; the
-    /// capital is the one settlement at which the court can honestly be placed.
+    /// <para>Losses anywhere else remain population losses. Treating every figure in a realm as
+    /// present at every village disaster would fabricate a precision the residence model does not
+    /// have; the capital is the one settlement at which a whole court can honestly be placed.</para>
+    ///
+    /// <para><b>Except for those who genuinely live elsewhere.</b> Since offices, a governor has a
+    /// street address — the town they govern — and so is exposed to what happens there while the
+    /// rest of the court is not. That is the payoff of a residence finer than a realm, and it is
+    /// why a governorship is a real position rather than a line on a figure's page: it is the one
+    /// office in this engine that can get its holder killed by geography.</para>
     /// </remarks>
     private static List<Figure> CourtCasualties(
         WorldState world,
@@ -240,7 +246,8 @@ public sealed class DisasterSystem : IYearSystem
     {
         Civilization owner = world.Civilizations[settlement.CivilizationId];
         var dead = new List<Figure>();
-        if (owner.CapitalId != settlement.Id) return dead;
+
+        bool isSeat = owner.CapitalId == settlement.Id;
 
         double mortality = DetMath.Clamp01(severity * CourtExposure);
         IRng court = rng.Fork("court-casualties", settlement.Id.ToDiscriminator());
@@ -249,6 +256,12 @@ public sealed class DisasterSystem : IYearSystem
         {
             if (!figure.IsAlive || figure.CivilizationId != owner.Id) continue;
             if (figure.AgeIn(year) < 0) continue;
+
+            // At the seat, everyone the chronicle follows. Elsewhere, only those posted here.
+            bool present = figure.ResidenceSettlementId == settlement.Id
+                || (isSeat && figure.ResidenceSettlementId.IsNone);
+
+            if (!present) continue;
 
             IRng fate = court.Fork("figure", figure.Id.ToDiscriminator());
             if (fate.Chance(mortality))
