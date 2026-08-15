@@ -1,3 +1,4 @@
+using System.Globalization;
 using HistoryEngine.Core;
 using HistoryEngine.Entities;
 using HistoryEngine.Events;
@@ -197,6 +198,11 @@ public static class WorldBuilder
     }
 
     /// <summary>Creates a settlement, wires it to its civilization, and records the founding.</summary>
+    /// <param name="from">
+    /// The settlement the party came out of, where one did. A capital founded at the beginning of
+    /// the world came from nowhere, and says so by leaving this null.
+    /// </param>
+    /// <param name="leader">Whoever led them out, where the court could spare somebody.</param>
     public static Settlement FoundSettlement(
         WorldState world,
         Civilization civilization,
@@ -205,7 +211,9 @@ public static class WorldBuilder
         Point2 site,
         int year,
         int population,
-        IRng rng)
+        IRng rng,
+        Settlement? from = null,
+        Figure? leader = null)
     {
         EntityId id = world.Settlements.NextId;
 
@@ -226,8 +234,40 @@ public static class WorldBuilder
         world.Settlements.Add(settlement);
         civilization.SettlementIds.Add(id);
 
+        var data = new DetMap<string, string>();
+        if (from is not null)
+        {
+            data["settlers"] = population.ToString(CultureInfo.InvariantCulture);
+            data["from"] = from.Name;
+        }
+
         world.Chronicle.Record(
-            year, EventKind.SettlementFounded, id, obj: civilization.Id, location: region.Id);
+            year,
+            EventKind.SettlementFounded,
+            id,
+            obj: civilization.Id,
+            location: region.Id,
+            extra: leader is null ? null : new[] { leader.Id },
+            data: data.Count == 0 ? null : data);
+
+        // The leader of the party governs what they founded, whatever its size. The office is
+        // normally reserved for towns, and a colony of seventy is not one — but somebody led these
+        // people here, and they are who a chronicle names when it writes about the place. When
+        // they die the colony is left to itself until it grows enough to warrant a court
+        // appointment, which is the honest shape of how a frontier settlement is administered.
+        if (leader is not null)
+        {
+            Offices.Grant(
+                world,
+                civilization,
+                culture,
+                leader,
+                OfficeKind.Governor,
+                settlement.Id,
+                EntityId.None,
+                "by the founding of the town",
+                year);
+        }
 
         return settlement;
     }

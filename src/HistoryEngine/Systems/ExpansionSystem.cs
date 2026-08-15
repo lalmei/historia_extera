@@ -34,6 +34,20 @@ public sealed class ExpansionSystem : IYearSystem
     /// <summary>Starting population of a new settlement.</summary>
     private const int SettlerCount = 70;
 
+    /// <summary>
+    /// People a departure point keeps whatever else happens.
+    /// </summary>
+    /// <remarks>
+    /// A settlement does not colonise itself out of existence. Without a floor, a realm reduced to
+    /// one struggling village would send parties out of it until the abandonment threshold
+    /// finished it — and expansion, which is supposed to be a sign of success, would become a way
+    /// for a failing realm to kill itself.
+    /// </remarks>
+    private const int MinimumLeftBehind = 140;
+
+    /// <summary>A party smaller than this is not worth sending, and would not survive.</summary>
+    private const int MinimumParty = 25;
+
     /// <summary>Candidate sites per axis. Coarser than a capital's — a colony is a smaller bet.</summary>
     private const int SitesPerAxis = 4;
 
@@ -135,7 +149,61 @@ public sealed class ExpansionSystem : IYearSystem
 
         Point2 site = SiteSelection.Best(world, target, SitesPerAxis);
 
+        // Settlers come out of somewhere. Conjuring them made expansion free, so a realm could
+        // seed a continent without ever feeling it; taking them from the nearest town means a
+        // frontier is paid for by the places behind it.
+        Settlement? parent = Departure(world, civilization, target);
+        int settlers = SettlerCount;
+
+        if (parent is not null)
+        {
+            settlers = Math.Min(SettlerCount, parent.Population - MinimumLeftBehind);
+            if (settlers < MinimumParty) return;
+
+            parent.Population -= settlers;
+        }
+
+        // A cadet ranked out of the line is precisely who is sent: the heir is needed at home,
+        // and a fourth son with no prospect of a throne has every reason to take one. This is the
+        // loop the offices design named and did not build — a house planted in a colony, whose
+        // children are born there, is where a breakaway realm eventually comes from.
+        List<Figure> spare = Offices.Courtiers(world, civilization, year);
+        Figure? leader = spare.Count == 0 ? null : rng.Pick(spare);
+
         WorldBuilder.FoundSettlement(
-            world, civilization, culture, target, site, year, SettlerCount, rng);
+            world, civilization, culture, target, site, year, settlers, rng, parent, leader);
+    }
+
+    /// <summary>
+    /// The settlement a founding party comes out of: the realm's nearest active town to the site.
+    /// </summary>
+    /// <remarks>
+    /// Nearest rather than largest, because a party walks. Distance goes through
+    /// <see cref="WorldState.Distance"/> so it takes the short way across the seam on a periodic
+    /// world, and ties break on id — two settlements equidistant from a third is not rare on a grid
+    /// and <see cref="List{T}.Sort"/> would otherwise order them unpredictably.
+    /// </remarks>
+    private static Settlement? Departure(
+        WorldState world, Civilization civilization, Region target)
+    {
+        Settlement? nearest = null;
+        double best = double.PositiveInfinity;
+
+        foreach (Settlement candidate in world.ActiveSettlementsOf(civilization))
+        {
+            if (candidate.Population <= MinimumLeftBehind) continue;
+
+            double distance = world.Distance(
+                candidate.X, candidate.Z, target.CenterX, target.CenterZ);
+
+            if (distance < best
+                || (distance == best && nearest is not null && candidate.Id.CompareTo(nearest.Id) < 0))
+            {
+                best = distance;
+                nearest = candidate;
+            }
+        }
+
+        return nearest;
     }
 }
