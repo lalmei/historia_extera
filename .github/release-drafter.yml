@@ -84,11 +84,16 @@ autolabeler:
       - '/^\s*✨/'
       - '/^\s*🔭/'
       - '/^\s*🎉/'
+      - '/^\s*🗺️/'
+      - '/^\s*🦠/'
+      - '/^\s*⚖️/'
       - '/^\s*feat(\(|:)/i'
   - label: bug
     title:
       - '/^\s*🐛/'
       - '/^\s*🚑/'
+      - '/^\s*🏚️/'
+      - '/^\s*🛡️\s*(fix|bug|determinism)/i'
       - '/^\s*(fix|bug)(\(|:)/i'
   - label: style
     title:
@@ -111,6 +116,7 @@ autolabeler:
   - label: test
     title:
       - '/^\s*✅/'
+      - '/^\s*🛡️\s*test/i'
       - '/^\s*test(\(|:)/i'
   - label: ci
     title:
