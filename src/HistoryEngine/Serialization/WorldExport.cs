@@ -65,8 +65,11 @@ public sealed record WorldExport(
     /// description of a holy site: tradition, dedication, fabric, atmosphere, scale, focal point
     /// and offering, written once when the place was founded. Version 14 added a faith's character:
     /// deity structure, cosmology, church, clergy, observance, and the dials besides fervour.
+    /// Version 15 added what feeds each standing settlement — its capacity itemised into the site,
+    /// its share of the surrounding fields, and what the roads bring — so a reader can tell why a
+    /// place is the size it is rather than only how large it is.
     /// </remarks>
-    public const int CurrentSchemaVersion = 14;
+    public const int CurrentSchemaVersion = 15;
 }
 
 public sealed record ExportMeta(
@@ -370,7 +373,35 @@ public sealed record ExportSettlement(
     bool IsFortified,
     EntityId? ReligionId,
     int? ConvertedYear,
-    SiteCharacter Site);
+    SiteCharacter Site,
+    ExportSupport? Support);
+
+/// <summary>
+/// What was feeding a settlement when the chronicle closed.
+/// </summary>
+/// <remarks>
+/// <para>Present for settlements still standing at the end of the run and absent for abandoned
+/// ones, because there is nothing left to feed and the last figures a dying place produced would
+/// only mislead.</para>
+///
+/// <para>Population answers how large somewhere is; this answers why, and they are not the same
+/// question. A town of four thousand on exceptional ground, one on six busy trade routes and one
+/// held together by a capital's administration read identically from a population figure and are
+/// three different histories. The parts are in people and sum to <see cref="Capacity"/>.</para>
+///
+/// <para><see cref="LandShare"/> is how much of the surrounding country the settlement keeps
+/// rather than ceding to a neighbour — one means it stands alone. It is the term that explains the
+/// villages: a place can sit on excellent ground and stay small because a city took the fields.
+/// </para>
+/// </remarks>
+public sealed record ExportSupport(
+    int Capacity,
+    int FromSite,
+    int FromLand,
+    int FromTrade,
+    double LandShare,
+    double RouteTraffic,
+    SupportSource Principal);
 
 /// <summary>
 /// One durable commercial connection. It carries topology and economic history, not a physical

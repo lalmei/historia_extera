@@ -410,6 +410,11 @@ public static class WorldExporter
     {
         var list = new List<ExportSettlement>(world.Settlements.Count);
 
+        // Both surveyed once for the whole table, as the yearly tick does, rather than per
+        // settlement: each per-settlement query walks a whole table of its own.
+        TradeTraffic traffic = TradeRoutes.TrafficBySettlement(world);
+        Hinterland hinterland = Hinterland.Survey(world);
+
         foreach (Settlement settlement in world.Settlements)
         {
             list.Add(new ExportSettlement(
@@ -432,10 +437,48 @@ public static class WorldExporter
                 IsFortified: settlement.IsFortified,
                 ReligionId: OrNull(settlement.ReligionId),
                 ConvertedYear: settlement.ConvertedYear,
-                Site: settlement.Site));
+                Site: settlement.Site,
+                Support: SupportOf(world, settlement, traffic, hinterland)));
         }
 
         return list;
+    }
+
+    /// <summary>
+    /// What is feeding a settlement as the chronicle closes, or null if it stands empty.
+    /// </summary>
+    /// <remarks>
+    /// Measured against the final year's harvest, traffic and neighbours, so it describes the world
+    /// the export is a picture of. An abandoned settlement gets nothing rather than a stale reading
+    /// from the year it emptied.
+    /// </remarks>
+    private static ExportSupport? SupportOf(
+        WorldState world, Settlement settlement, TradeTraffic traffic, Hinterland hinterland)
+    {
+        if (!settlement.IsActive) return null;
+        if (!world.Civilizations.Contains(settlement.CivilizationId)) return null;
+
+        Civilization civilization = world.Civilizations[settlement.CivilizationId];
+        Region region = world.Regions[settlement.RegionId];
+
+        SettlementSupport support = PopulationSystem.SupportFor(
+            world,
+            civilization,
+            world.CultureOf(civilization),
+            settlement,
+            region,
+            world.Harvest.QualityAt(region, world.EndYear),
+            traffic.At(settlement.Id),
+            hinterland.ShareFor(world, settlement));
+
+        return new ExportSupport(
+            Capacity: (int)Math.Round(support.Capacity),
+            FromSite: (int)Math.Round(support.FromSite),
+            FromLand: (int)Math.Round(support.FromLand),
+            FromTrade: (int)Math.Round(support.FromTrade),
+            LandShare: Math.Round(support.LandShare, 3),
+            RouteTraffic: Math.Round(support.RouteTraffic, 3),
+            Principal: support.Principal);
     }
 
     private static List<ExportTradeRoute> BuildTradeRoutes(WorldState world)

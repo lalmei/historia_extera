@@ -206,6 +206,31 @@ public sealed class PopulationSystem : ISystem
         Region region,
         double harvest,
         double routeTraffic,
+        double landShare) =>
+        SupportFor(world, civilization, culture, settlement, region, harvest, routeTraffic, landShare)
+            .Capacity;
+
+    /// <summary>
+    /// The same calculation as <see cref="CapacityOf"/>, itemised.
+    /// </summary>
+    /// <remarks>
+    /// <para>Exists so the export can say <em>why</em> a settlement is the size it is, rather than
+    /// only how large it is. A reader looking at a town of four thousand has no way to tell from
+    /// the number whether it stands on exceptional ground, on six trade routes, or on a capital's
+    /// administration — and those are different histories that the chronicle otherwise never
+    /// distinguishes.</para>
+    ///
+    /// <para>The itemised parts are reported after the modifiers, so they sum to the capacity and a
+    /// reader can compare them directly.</para>
+    /// </remarks>
+    public static SettlementSupport SupportFor(
+        WorldState world,
+        Civilization civilization,
+        Culture culture,
+        Settlement settlement,
+        Region region,
+        double harvest,
+        double routeTraffic,
         double landShare)
     {
         SettlementSpecialization specialization = settlement.Specialization;
@@ -219,31 +244,33 @@ public sealed class PopulationSystem : ISystem
         // fields alone, which is what keeps the great majority of settlements villages.
         double fromTrade = routeTraffic * Specializations.ImportReliance(specialization);
 
-        double capacity = Specializations.SiteCapacity(specialization) + fromLand + fromTrade;
+        double fromSite = Specializations.SiteCapacity(specialization);
 
         // A poor year bites in proportion to how exposed the settlement's trade is to it.
         double sensitivity = Specializations.HarvestSensitivity(specialization);
-        double harvestFactor = DetMath.Lerp(1.0, DetMath.Lerp(0.18, 1.22, harvest), sensitivity);
-        capacity *= harvestFactor;
+        double modifier = DetMath.Lerp(1.0, DetMath.Lerp(0.18, 1.22, harvest), sensitivity);
 
         // Overextension. A realm can only feed and defend so far from its seat, and how far
         // depends on what the settlement needs from it.
-        capacity *= SupplyFactor(world, civilization, settlement, specialization);
+        modifier *= SupplyFactor(world, civilization, settlement, specialization);
 
         // Culture. Mercantile realms sustain larger towns everywhere; pious ones sustain their
         // shrines beyond what the land would bear.
-        capacity *= DetMath.Lerp(0.92, 1.14, culture.Values.Mercantile);
+        modifier *= DetMath.Lerp(0.92, 1.14, culture.Values.Mercantile);
         if (specialization == SettlementSpecialization.Shrine)
         {
-            capacity *= DetMath.Lerp(0.85, 1.45, culture.Values.Piety);
+            modifier *= DetMath.Lerp(0.85, 1.45, culture.Values.Piety);
         }
 
-        if (settlement.IsCapital) capacity *= CapitalCapacityBonus;
-        if (settlement.IsFortified) capacity *= FortificationBonus;
+        if (settlement.IsCapital) modifier *= CapitalCapacityBonus;
+        if (settlement.IsFortified) modifier *= FortificationBonus;
 
-        // Never zero: a positive floor keeps the logistic term finite, and the abandonment
-        // threshold in SettlementLifecycleSystem is what actually ends a settlement.
-        return Math.Max(40.0, capacity);
+        return new SettlementSupport(
+            FromSite: fromSite * modifier,
+            FromLand: fromLand * modifier,
+            FromTrade: fromTrade * modifier,
+            LandShare: landShare,
+            RouteTraffic: routeTraffic);
     }
 
     private static double SupplyFactor(

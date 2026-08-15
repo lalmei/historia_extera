@@ -124,10 +124,12 @@ court casualties they caused, just as battles already link their commanders.
 
 ## Schema
 
-The viewer pins the export's `schemaVersion` (**14**) and refuses a file it does not
+The viewer pins the export's `schemaVersion` (**15**) and refuses a file it does not
 understand rather than misrendering it. Regenerate the world with the matching engine if
-it complains. Version 14 added a faith's character — gods, church, clergy, observance and
-the dials besides fervour — so an older world file will not load.
+it complains. Version 15 added what feeds each standing settlement — its carrying capacity
+itemised into the site, its share of the surrounding fields and what the roads bring — which
+is what the **What supports it** panel reads. Version 14 added a faith's character — gods,
+church, clergy, observance and the dials besides fervour. An older world file will not load.
 
 ## Stack
 
