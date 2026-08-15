@@ -175,7 +175,7 @@ public static class Offices
             world,
             civilization,
             culture,
-            rng.Chance(0.5) ? Sex.Male : Sex.Female,
+            ClericSex(world, civilization, office, rng),
             year - rng.NextInt(min, max + 1));
 
         notable.Origin = DoorInto(office);
@@ -190,6 +190,37 @@ public static class Offices
         }
 
         return notable;
+    }
+
+    /// <summary>
+    /// The sex an invented office-holder is born with.
+    /// </summary>
+    /// <remarks>
+    /// A faith that admits only men or only women to holy office is the one case where this is
+    /// not a coin toss. Other offices stay even, which is what keeps a marshal's sex a fact of
+    /// the person rather than of the post.
+    /// </remarks>
+    private static Sex ClericSex(
+        WorldState world, Civilization civilization, OfficeKind office, IRng rng)
+    {
+        if (office != OfficeKind.HighPriest) return rng.Chance(0.5) ? Sex.Male : Sex.Female;
+
+        EntityId faithId = world.FaithOf(civilization);
+        if (faithId.IsNone || !world.Religions.Contains(faithId))
+        {
+            return rng.Chance(0.5) ? Sex.Male : Sex.Female;
+        }
+
+        return world.Religions[faithId].Character.ClericSex(rng);
+    }
+
+    /// <summary>Whether this figure may hold holy office in the realm's current faith.</summary>
+    public static bool EligibleCleric(WorldState world, Civilization civilization, Figure figure)
+    {
+        EntityId faithId = world.FaithOf(civilization);
+        if (faithId.IsNone || !world.Religions.Contains(faithId)) return true;
+
+        return world.Religions[faithId].Character.Admits(figure.Sex);
     }
 
     /// <summary>Whether this figure is free to take an office.</summary>

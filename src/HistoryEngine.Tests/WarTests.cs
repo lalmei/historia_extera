@@ -587,51 +587,58 @@ public sealed class WarTests
     /// grudge has long since drifted back toward whatever the geography says, and the winner is
     /// usually the more aggressive of the two and so structurally the colder. Both facts are
     /// correct; neither is evidence about the peace terms. The step change is.</para>
+    ///
+    /// <para>Sampled across the same seeds as the rest of this file. A single long world is a
+    /// small sample of a stochastic process, and a faith map that happens to unite a frontier
+    /// can leave one seed with too few decided wars to judge the terms.</para>
     /// </remarks>
     [Fact]
     public void APeaceCostsTheLoserMore()
     {
-        WorldConfig config = TestWorlds.Standard() with { Years = 800 };
-
-        WorldState world = WorldBuilder.Create(
-            config,
-            new CountingTerrainSampler(
-                new ProceduralTerrainSampler(config.Seed, config.Bounds, config.Terrain)));
-
-        var simulator = new Simulator();
-
         int compared = 0;
         int loserFellFurther = 0;
-        int read = 0;
 
-        while (world.Year <= world.EndYear)
+        foreach (ulong seed in Seeds)
         {
-            Dictionary<(EntityId, EntityId), double> before = Snapshot(world);
-            simulator.Advance(world, 1);
+            WorldConfig config = TestWorlds.Standard(seed);
 
-            for (int i = read; i < world.Chronicle.Count; i++)
+            WorldState world = WorldBuilder.Create(
+                config,
+                new CountingTerrainSampler(
+                    new ProceduralTerrainSampler(config.Seed, config.Bounds, config.Terrain)));
+
+            var simulator = new Simulator();
+            int read = 0;
+
+            while (world.Year <= world.EndYear)
             {
-                HistoryEvent entry = world.Chronicle.Events[i];
-                if (entry.Kind != EventKind.WarEnded || entry.Object.IsNone) continue;
+                Dictionary<(EntityId, EntityId), double> before = Snapshot(world);
+                simulator.Advance(world, 1);
 
-                War war = world.Wars[entry.Subject];
-                EntityId winnerId = entry.Object;
-                EntityId loserId = war.IsAttacker(winnerId) ? war.DefenderId : war.AggressorId;
+                for (int i = read; i < world.Chronicle.Count; i++)
+                {
+                    HistoryEvent entry = world.Chronicle.Events[i];
+                    if (entry.Kind != EventKind.WarEnded || entry.Object.IsNone) continue;
 
-                Civilization winner = world.Civilizations[winnerId];
-                Civilization loser = world.Civilizations[loserId];
+                    War war = world.Wars[entry.Subject];
+                    EntityId winnerId = entry.Object;
+                    EntityId loserId = war.IsAttacker(winnerId) ? war.DefenderId : war.AggressorId;
 
-                double loserDrop = before.GetValueOrDefault((loserId, winnerId))
-                                   - Diplomacy.Relation(loser, winner);
+                    Civilization winner = world.Civilizations[winnerId];
+                    Civilization loser = world.Civilizations[loserId];
 
-                double winnerDrop = before.GetValueOrDefault((winnerId, loserId))
-                                    - Diplomacy.Relation(winner, loser);
+                    double loserDrop = before.GetValueOrDefault((loserId, winnerId))
+                                       - Diplomacy.Relation(loser, winner);
 
-                compared++;
-                if (loserDrop > winnerDrop) loserFellFurther++;
+                    double winnerDrop = before.GetValueOrDefault((winnerId, loserId))
+                                       - Diplomacy.Relation(winner, loser);
+
+                    compared++;
+                    if (loserDrop > winnerDrop) loserFellFurther++;
+                }
+
+                read = world.Chronicle.Count;
             }
-
-            read = world.Chronicle.Count;
         }
 
         Assert.True(compared > 10, $"Only {compared} decided wars, too few to judge the grudge.");

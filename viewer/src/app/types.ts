@@ -7,7 +7,7 @@
  * stops moving.
  */
 
-export const SCHEMA_VERSION = 12;
+export const SCHEMA_VERSION = 14;
 
 /** `"civ:3"`, `"fig:1204"` — readable, greppable, and directly usable as a route. */
 export type EntityId = string;
@@ -467,8 +467,118 @@ export interface Religion {
   endedYear?: number;
   /** How hard it presses outwards, in [0, 1]. */
   fervour: number;
+  character: FaithCharacter;
   peakSettlements: number;
   settlementIds: EntityId[];
+}
+
+export type DeityStructure = 'Monotheistic' | 'Polytheistic' | 'Pantheistic' | 'Animistic';
+export type Afterlife = 'None' | 'Ancestral' | 'Judgement' | 'Rebirth' | 'Union';
+export type SoulDoctrine = 'MortalBreath' | 'ImmortalSpark' | 'WorldSpirit' | 'Transmigrating';
+export type AuthorityType = 'Hierarchical' | 'Decentralized' | 'Monastic';
+export type ClergyAdmission = 'Open' | 'MaleOnly' | 'FemaleOnly' | 'Bloodline';
+export type WealthPractice = 'Tithes' | 'Landed' | 'Mendicant';
+export type DogmaEmphasis = 'Honour' | 'Mercy' | 'Purity' | 'Knowledge' | 'Dominion' | 'Hospitality';
+export type PrayerCadence = 'Seasonal' | 'Weekly' | 'Daily';
+export type DietaryRule = 'None' | 'Fasting' | 'TabooFlesh' | 'TabooIntoxicants';
+export type DressCode = 'None' | 'Modest' | 'ClericalColour' | 'SacredMarks';
+export type FestivalSeason = 'Spring' | 'Summer' | 'Autumn' | 'Winter';
+
+export const DEITY_LABELS: Record<DeityStructure, string> = {
+  Monotheistic: 'Monotheistic',
+  Polytheistic: 'Polytheistic',
+  Pantheistic: 'Pantheistic',
+  Animistic: 'Animistic',
+};
+
+export const AFTERLIFE_LABELS: Record<Afterlife, string> = {
+  None: 'No afterlife',
+  Ancestral: 'Ancestral',
+  Judgement: 'Judged',
+  Rebirth: 'Rebirth',
+  Union: 'Union with the divine',
+};
+
+export const SOUL_LABELS: Record<SoulDoctrine, string> = {
+  MortalBreath: 'A mortal breath',
+  ImmortalSpark: 'An immortal spark',
+  WorldSpirit: 'A world-spirit',
+  Transmigrating: 'Transmigrating',
+};
+
+export const AUTHORITY_LABELS: Record<AuthorityType, string> = {
+  Hierarchical: 'Hierarchical',
+  Decentralized: 'Decentralized',
+  Monastic: 'Monastic',
+};
+
+export const CLERGY_LABELS: Record<ClergyAdmission, string> = {
+  Open: 'Open',
+  MaleOnly: 'Men only',
+  FemaleOnly: 'Women only',
+  Bloodline: 'Sacred bloodline',
+};
+
+export const WEALTH_LABELS: Record<WealthPractice, string> = {
+  Tithes: 'Tithes',
+  Landed: 'Landed',
+  Mendicant: 'Mendicant',
+};
+
+export const DOGMA_LABELS: Record<DogmaEmphasis, string> = {
+  Honour: 'Honour',
+  Mercy: 'Mercy',
+  Purity: 'Purity',
+  Knowledge: 'Knowledge',
+  Dominion: 'Dominion',
+  Hospitality: 'Hospitality',
+};
+
+export const PRAYER_LABELS: Record<PrayerCadence, string> = {
+  Seasonal: 'Seasonal',
+  Weekly: 'Weekly',
+  Daily: 'Daily',
+};
+
+export const DIET_LABELS: Record<DietaryRule, string> = {
+  None: 'None',
+  Fasting: 'Fasting',
+  TabooFlesh: 'Taboo on flesh',
+  TabooIntoxicants: 'Taboo on intoxicants',
+};
+
+export const DRESS_LABELS: Record<DressCode, string> = {
+  None: 'None',
+  Modest: 'Modest dress',
+  ClericalColour: 'Clerical colour',
+  SacredMarks: 'Sacred marks',
+};
+
+export const FESTIVAL_LABELS: Record<FestivalSeason, string> = {
+  Spring: 'Spring',
+  Summer: 'Summer',
+  Autumn: 'Autumn',
+  Winter: 'Winter',
+};
+
+export interface FaithCharacter {
+  deity: DeityStructure;
+  afterlife: Afterlife;
+  soul: SoulDoctrine;
+  authority: AuthorityType;
+  clergy: ClergyAdmission;
+  celibateClergy: boolean;
+  wealth: WealthPractice;
+  dogma: DogmaEmphasis;
+  prayer: PrayerCadence;
+  diet: DietaryRule;
+  dress: DressCode;
+  festival: FestivalSeason;
+  fervour: number;
+  zealotry: number;
+  tolerance: number;
+  schismProneness: number;
+  syncretism: number;
 }
 
 export type HolySiteKind = 'Shrine' | 'Temple' | 'Church' | 'Monastery' | 'Sanctuary';
@@ -480,6 +590,57 @@ export const HOLY_SITE_LABELS: Record<HolySiteKind, string> = {
   Monastery: 'Monastery',
   Sanctuary: 'Sanctuary',
 };
+
+export type SacredTradition = 'Nordic' | 'Classical' | 'Steppe' | 'Forest';
+
+export const SACRED_TRADITION_LABELS: Record<SacredTradition, string> = {
+  Nordic: 'Nordic & elemental',
+  Classical: 'Sun-drenched & classical',
+  Steppe: 'Steppe & silk-road',
+  Forest: 'Deep forest & river',
+};
+
+export type HolySiteDedicationKind =
+  | 'God'
+  | 'AncientGod'
+  | 'NatureSpirit'
+  | 'CosmicForce'
+  | 'DivineConcept'
+  | 'AncestralKing'
+  | 'LivingKing'
+  | 'Martyr'
+  | 'Saint'
+  | 'Sage';
+
+export const HOLY_SITE_DEDICATION_LABELS: Record<HolySiteDedicationKind, string> = {
+  God: 'God',
+  AncientGod: 'Ancient god',
+  NatureSpirit: 'Nature spirit',
+  CosmicForce: 'Cosmic force',
+  DivineConcept: 'Divine concept',
+  AncestralKing: 'Ancestral ruler',
+  LivingKing: 'Living ruler',
+  Martyr: 'Martyr',
+  Saint: 'Saint',
+  Sage: 'Sage',
+};
+
+export type HolySiteScale = 'Small' | 'Medium' | 'Large';
+
+/** How a holy place looks and what is done there, fixed at founding. */
+export interface HolySiteDescription {
+  tradition: SacredTradition;
+  dedicationKind: HolySiteDedicationKind;
+  dedication: string;
+  style: string;
+  atmosphere: string;
+  scale: HolySiteScale;
+  capacity: string;
+  hasStatue: boolean;
+  focalPoint: string;
+  offering: string;
+  dedicateeId?: EntityId;
+}
 
 /** A place of worship, either within a settlement or at an independent map coordinate. */
 export interface HolySite {
@@ -493,6 +654,7 @@ export interface HolySite {
   x: number;
   z: number;
   foundedYear: number;
+  description: HolySiteDescription;
 }
 
 export type ArtifactKind = 'Regalia' | 'Weapon' | 'Relic' | 'Tome' | 'Idol' | 'Jewel';

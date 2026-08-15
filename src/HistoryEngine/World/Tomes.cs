@@ -18,9 +18,10 @@ namespace HistoryEngine.World;
 /// it choose a subject and write sections from entity state. The independent artifact-id stream
 /// makes richer contents unable to perturb whether another town creates an artifact that year.</para>
 ///
-/// <para>Religious rites and teachings are invented, because no event can record a doctrine, but
-/// they are keyed to the religion rather than to the book. Two codices of one faith therefore
-/// agree about its observance instead of inventing a fresh religion each time.</para>
+    /// <para>Religious rites and teachings are invented, because no event can record a doctrine, but
+    /// they are keyed to the faith's character rather than to the book. Two codices of one religion
+    /// therefore agree about its gods, its sins and its observance instead of inventing a fresh
+    /// religion each time.</para>
 /// </remarks>
 public static class Tomes
 {
@@ -859,60 +860,15 @@ public static class Tomes
     // Faith
     // -----------------------------------------------------------------------
 
-    private static readonly string[] RiteNames =
-    {
-        "Vigil of Lamps",
-        "Rite of the Open Hand",
-        "Procession of Ash",
-        "Keeping of Names",
-        "Washing at First Light",
-        "Feast of Returning",
-    };
-
-    private static readonly string[] RiteTimes =
-    {
-        "at first light",
-        "after sunset",
-        "at the turning of each season",
-        "on the anniversary of the faith's first preaching",
-        "before a household begins a journey",
-    };
-
-    private static readonly string[] RiteActions =
-    {
-        "stand in a circle while the names of their dead are spoken",
-        "wash their hands and touch the threshold of the sanctuary",
-        "walk three times around the gathering place in silence",
-        "light one lamp from another until the assembly is illuminated",
-        "share bread before reciting the promises of the community",
-    };
-
-    private static readonly string[] RiteOfferings =
-    {
-        "bread and salt",
-        "oil for the sanctuary lamps",
-        "a ribbon bearing the name of an ancestor",
-        "the first cup of the season's drink",
-        "flowers gathered outside the settlement walls",
-    };
-
-    private static readonly string[] RitePurposes =
-    {
-        "to remember obligations between the living and the dead",
-        "to ask safe passage through uncertainty",
-        "to reconcile neighbours before witnesses",
-        "to mark gratitude for what the community has preserved",
-        "to renew the promises made at the faith's founding",
-    };
-
     private static TomeContents ReligiousRite(WorldState world, Religion religion, int year)
     {
         IRng lore = world.Root.Fork("religion.rite", religion.Id.ToDiscriminator());
-        string name = lore.Pick(RiteNames);
-        string observance = "The " + name + " is observed " + lore.Pick(RiteTimes)
-                            + ". Worshippers " + lore.Pick(RiteActions) + ".";
-        string offering = "An offering of " + lore.Pick(RiteOfferings) + " is made "
-                          + lore.Pick(RitePurposes) + ".";
+        FaithCharacter faith = religion.Character;
+        string name = lore.Pick(RiteNames(faith));
+        string observance = "The " + name + " is observed " + lore.Pick(RiteTimes(faith))
+                            + ". Worshippers " + lore.Pick(RiteActions(faith)) + ".";
+        string offering = "An offering of " + lore.Pick(RiteOfferings(faith)) + " is made "
+                          + lore.Pick(RitePurposes(faith)) + ".";
 
         return new TomeContents(
             TomeContentKind.ReligiousRite,
@@ -926,30 +882,132 @@ public static class Tomes
             });
     }
 
-    private static readonly string[] Teachings =
+    private static string[] RiteNames(FaithCharacter faith) => faith.Festival switch
     {
-        "Memory binds the living to those who came before.",
-        "A promise witnessed by the community is sacred.",
-        "Power is held in trust and is judged by what it preserves.",
-        "The stranger and the neighbour are owed the same honest measure.",
-        "Loss must be named before renewal can begin.",
-        "Wisdom is proved by restraint when vengeance is possible.",
+        FestivalSeason.Spring => new[] { "Vigil of First Green", "Rite of the Open Hand", "Washing at First Light" },
+        FestivalSeason.Summer => new[] { "Feast of High Sun", "Procession of Ash", "Keeping of Names" },
+        FestivalSeason.Autumn => new[] { "Feast of Returning", "Vigil of Lamps", "Rite of the Stored Harvest" },
+        _ => new[] { "Vigil of the Long Night", "Keeping of Names", "Procession of Ash" },
     };
 
-    private static readonly string[] Instructions =
+    private static string[] RiteTimes(FaithCharacter faith) => faith.Prayer switch
     {
-        "Followers are instructed to settle disputes before sharing a ceremonial meal.",
-        "Each household is to keep the names of its dead and recite them once each year.",
-        "Travellers are to be offered water before they are asked their business.",
-        "A leader must hear a grievance in public before passing judgment.",
-        "Debts of food are forgiven after a failed harvest, but debts of violence require witness.",
-        "One day in each season is reserved for repairing a work held in common.",
+        PrayerCadence.Daily => new[]
+        {
+            "at first light each day",
+            "after sunset each day",
+            "before a household begins its work",
+        },
+        PrayerCadence.Weekly => new[]
+        {
+            "after sunset on the gathering day",
+            "at first light on the gathering day",
+            "before a household begins a journey",
+        },
+        _ => new[]
+        {
+            "at the turning of each season",
+            "on the anniversary of the faith's first preaching",
+            "in " + FaithCharacters.Label(faith.Festival) + ", at the great gathering",
+        },
+    };
+
+    private static string[] RiteActions(FaithCharacter faith) => faith.Deity switch
+    {
+        DeityStructure.Animistic => new[]
+        {
+            "leave a portion of food at the edge of the wood",
+            "walk three times around the gathering place in silence",
+            "wash their hands in running water and speak the names of the local spirits",
+        },
+        DeityStructure.Pantheistic => new[]
+        {
+            "stand facing the open sky until the assembly is still",
+            "light one lamp from another until the gathering is illuminated",
+            "touch the ground and the threshold of the sanctuary in turn",
+        },
+        DeityStructure.Monotheistic => new[]
+        {
+            "kneel while the names of the dead are spoken",
+            "share bread before reciting the promises of the community",
+            "wash their hands and touch the threshold of the sanctuary",
+        },
+        _ => new[]
+        {
+            "stand in a circle while the names of their dead are spoken",
+            "light one lamp from another until the assembly is illuminated",
+            "share bread before reciting the promises of the community",
+        },
+    };
+
+    private static string[] RiteOfferings(FaithCharacter faith) => faith.Diet switch
+    {
+        DietaryRule.TabooFlesh => new[]
+        {
+            "bread and salt",
+            "oil for the sanctuary lamps",
+            "flowers gathered outside the settlement walls",
+        },
+        DietaryRule.TabooIntoxicants => new[]
+        {
+            "bread and salt",
+            "water drawn at first light",
+            "a ribbon bearing the name of an ancestor",
+        },
+        DietaryRule.Fasting => new[]
+        {
+            "a cup of water after the fast is lifted",
+            "oil for the sanctuary lamps",
+            "the first grain of the season, uneaten",
+        },
+        _ => new[]
+        {
+            "bread and salt",
+            "oil for the sanctuary lamps",
+            "the first cup of the season's drink",
+            "a ribbon bearing the name of an ancestor",
+        },
+    };
+
+    private static string[] RitePurposes(FaithCharacter faith) => faith.Afterlife switch
+    {
+        Afterlife.Ancestral => new[]
+        {
+            "to remember obligations between the living and the dead",
+            "to feed those who still sit among their people",
+            "to renew the promises made at the faith's founding",
+        },
+        Afterlife.Judgement => new[]
+        {
+            "to ask to be weighed honestly",
+            "to renew the promises made at the faith's founding",
+            "to reconcile neighbours before witnesses",
+        },
+        Afterlife.Rebirth => new[]
+        {
+            "to mark gratitude for what the community has preserved",
+            "to ask a kinder birth for those who have gone",
+            "to renew the promises made at the faith's founding",
+        },
+        Afterlife.Union => new[]
+        {
+            "to remember that the self is not the last word",
+            "to mark gratitude for what the community has preserved",
+            "to ask safe passage through uncertainty",
+        },
+        _ => new[]
+        {
+            "to remember the names that would otherwise be lost",
+            "to ask safe passage through uncertainty",
+            "to reconcile neighbours before witnesses",
+        },
     };
 
     private static TomeContents ReligiousTeaching(
         WorldState world, Religion religion, int year)
     {
         IRng lore = world.Root.Fork("religion.teaching", religion.Id.ToDiscriminator());
+        FaithCharacter faith = religion.Character;
         string authority = religion.Fervour >= 0.65
             ? "The text commands: "
             : "The text teaches: ";
@@ -961,9 +1019,99 @@ public static class Tomes
             new[]
             {
                 ReligionOrigins(world, religion, year),
-                Section("First principle", authority + lore.Pick(Teachings), religion.Id),
-                Section("Instruction", lore.Pick(Instructions), religion.Id),
+                Section("First principle", authority + lore.Pick(Teachings(faith)), religion.Id),
+                Section("Instruction", lore.Pick(Instructions(faith)), religion.Id),
             });
+    }
+
+    private static string[] Teachings(FaithCharacter faith) => faith.Dogma switch
+    {
+        DogmaEmphasis.Honour => new[]
+        {
+            "A slight unanswered is a slight invited.",
+            "A promise witnessed by the community is sacred.",
+            "Power is held in trust and is judged by what it preserves.",
+        },
+        DogmaEmphasis.Mercy => new[]
+        {
+            "Wisdom is proved by restraint when vengeance is possible.",
+            "The stranger and the neighbour are owed the same honest measure.",
+            "Loss must be named before renewal can begin.",
+        },
+        DogmaEmphasis.Purity => new[]
+        {
+            "What is kept clean is kept holy.",
+            "A promise witnessed by the community is sacred.",
+            "Memory binds the living to those who came before.",
+        },
+        DogmaEmphasis.Knowledge => new[]
+        {
+            "What is not written will be rewritten by whoever speaks next.",
+            "Power is held in trust and is judged by what it preserves.",
+            "Loss must be named before renewal can begin.",
+        },
+        DogmaEmphasis.Dominion => new[]
+        {
+            "The faithful are owed the ground they can hold.",
+            "A slight unanswered is a slight invited.",
+            "Power is held in trust and is judged by what it preserves.",
+        },
+        _ => new[]
+        {
+            "The stranger and the neighbour are owed the same honest measure.",
+            "Travellers are to be received before they are judged.",
+            "A promise witnessed by the community is sacred.",
+        },
+    };
+
+    private static string[] Instructions(FaithCharacter faith)
+    {
+        var lines = new List<string>
+        {
+            faith.Dogma switch
+            {
+                DogmaEmphasis.Hospitality =>
+                    "Travellers are to be offered water before they are asked their business.",
+                DogmaEmphasis.Knowledge =>
+                    "Each household is to keep the names of its dead and recite them once each year.",
+                DogmaEmphasis.Honour =>
+                    "A leader must hear a grievance in public before passing judgment.",
+                DogmaEmphasis.Dominion =>
+                    "A leader must hear a grievance in public before passing judgment.",
+                DogmaEmphasis.Purity =>
+                    "Followers are instructed to settle disputes before sharing a ceremonial meal.",
+                _ => "Debts of food are forgiven after a failed harvest, but debts of violence require witness.",
+            },
+            "One day in each " + FaithCharacters.Label(faith.Festival)
+            + " is reserved for the great gathering of the faithful.",
+        };
+
+        if (faith.Diet != DietaryRule.None)
+        {
+            lines.Add(faith.Diet switch
+            {
+                DietaryRule.Fasting => "A fast is kept before the gathering, and broken together.",
+                DietaryRule.TabooFlesh => "Flesh is not eaten on days of observance.",
+                _ => "No intoxicant is taken inside a house of worship.",
+            });
+        }
+
+        if (faith.Dress != DressCode.None)
+        {
+            lines.Add(faith.Dress switch
+            {
+                DressCode.Modest => "The faithful cover the body when they enter a sacred place.",
+                DressCode.ClericalColour => "Those who serve at the altar wear the colour of the faith.",
+                _ => "The faithful mark themselves so that a stranger can name the church they keep.",
+            });
+        }
+
+        if (faith.CelibateClergy)
+        {
+            lines.Add("Those who take holy office do not marry.");
+        }
+
+        return lines.ToArray();
     }
 
     private static TomeSection ReligionOrigins(WorldState world, Religion religion, int year)
@@ -979,7 +1127,9 @@ public static class Tomes
             references.Add(religion.FounderId);
         }
 
-        text += ".";
+        text += ". It is a " + FaithCharacters.Label(religion.Character.Deity)
+                + " faith, teaching " + FaithCharacters.Label(religion.Character.Soul)
+                + " and " + FaithCharacters.Label(religion.Character.Afterlife) + ".";
 
         if (!religion.ParentId.IsNone && world.Religions.Contains(religion.ParentId))
         {

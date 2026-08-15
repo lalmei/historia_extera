@@ -61,9 +61,12 @@ public sealed record WorldExport(
     /// viewer whether the world's east and west edges are the same meridian, which it cannot infer
     /// and draws wrong without. Version 12 records what each settlement's ground was chosen for —
     /// a confluence, a river mouth, a sheltered harbour, a pass — which the viewer can only
-    /// otherwise guess at by reading coordinates against the map.
+    /// otherwise guess at by reading coordinates against the map. Version 13 added the composed
+    /// description of a holy site: tradition, dedication, fabric, atmosphere, scale, focal point
+    /// and offering, written once when the place was founded. Version 14 added a faith's character:
+    /// deity structure, cosmology, church, clergy, observance, and the dials besides fervour.
     /// </remarks>
-    public const int CurrentSchemaVersion = 12;
+    public const int CurrentSchemaVersion = 14;
 }
 
 public sealed record ExportMeta(
@@ -403,8 +406,31 @@ public sealed record ExportReligion(
     int FoundedYear,
     int? EndedYear,
     double Fervour,
+    ExportFaithCharacter Character,
     int PeakSettlements,
     IReadOnlyList<EntityId> SettlementIds);
+
+/// <summary>
+/// What a faith is: its gods, its church, its rules, and the dials that move it. Fixed at founding.
+/// </summary>
+public sealed record ExportFaithCharacter(
+    DeityStructure Deity,
+    Afterlife Afterlife,
+    SoulDoctrine Soul,
+    AuthorityType Authority,
+    ClergyAdmission Clergy,
+    bool CelibateClergy,
+    WealthPractice Wealth,
+    DogmaEmphasis Dogma,
+    PrayerCadence Prayer,
+    DietaryRule Diet,
+    DressCode Dress,
+    FestivalSeason Festival,
+    double Fervour,
+    double Zealotry,
+    double Tolerance,
+    double SchismProneness,
+    double Syncretism);
 
 /// <summary>
 /// A house of worship or sacred place. <see cref="SettlementId"/> is present when it stands
@@ -419,7 +445,24 @@ public sealed record ExportHolySite(
     EntityId? SettlementId,
     int X,
     int Z,
-    int FoundedYear);
+    int FoundedYear,
+    ExportHolySiteDescription Description);
+
+/// <summary>
+/// How a holy place looks and what is done there, fixed at founding.
+/// </summary>
+public sealed record ExportHolySiteDescription(
+    SacredTradition Tradition,
+    HolySiteDedicationKind DedicationKind,
+    string Dedication,
+    string Style,
+    string Atmosphere,
+    HolySiteScale Scale,
+    string Capacity,
+    bool HasStatue,
+    string FocalPoint,
+    string Offering,
+    EntityId? DedicateeId);
 
 /// <summary>
 /// A made thing, and everywhere it has been.

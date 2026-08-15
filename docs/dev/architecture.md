@@ -60,7 +60,34 @@ table if that faith is forgotten.
 The religion system creates one site with every faith and may create more when settlements adopt
 it. Independent locations are selected from the exact four-per-axis terrain refinement already
 used to site the settlement, keeping terrain work tied to founding decisions rather than yearly
-ticks.
+ticks. The form of the house — shrine, temple, church, monastery, sanctuary — is weighted by
+the faith's authority and wealth practice, not drawn uniformly. A church is refused by
+animistic and pantheistic faiths: the word names a second theology. Dedication is admitted
+the same way, so an animism does not raise a house to a saint and a monotheism does not
+appease a nature spirit. Offerings follow dietary rules, and the description's remaining
+lines are filtered so a dry congregation is not described leaving wine.
+
+Each site carries a description composed once at founding: architectural tradition (from the
+culture's naming language, coloured by climate), dedication, fabric, atmosphere, scale, focal
+point and offering. Real figures are used when the chronicle has a king, martyr or founder to
+name; otherwise the dedicatee is legendary and named in the culture's own tongue. The text is
+stored on the entity, like a tome's contents, so later growth of the town cannot rewrite the
+church that was raised in a village.
+
+## Faith character
+
+A faith is more than fervour. `FaithCharacter` is rolled once at founding from the culture the
+faith arose among and is never revised — a later congregation that believes something else is a
+schism. Fervour remains how hard the faith presses outwards. Zealotry, tolerance, schism
+proneness and syncretism are the other dials, and they are read by conversion and schism in the
+religion tick. Deity structure, authority, clergy admission and wealth practice change holy-site
+form, who may hold a temple, and whether a high priest marries. Cosmology, dogma and observance
+are what two codices of one religion agree about.
+
+See `DESIGN.md` for the terms deliberately *not* wired yet (tithes on the harvest, festival
+trade, hereditary priesthood as true office succession, tolerance as a diplomatic standing
+term). Those belong to other systems; the character stores them so those systems can read a
+single vocabulary.
 
 ## Trade routes and future roads
 

@@ -31,14 +31,27 @@ import {
   ARTIFACT_LABELS,
   CAUSE_LABELS,
   DEATH_LABELS,
+  AFTERLIFE_LABELS,
+  AUTHORITY_LABELS,
+  CLERGY_LABELS,
+  DEITY_LABELS,
+  DIET_LABELS,
+  DOGMA_LABELS,
+  DRESS_LABELS,
+  FESTIVAL_LABELS,
+  HOLY_SITE_DEDICATION_LABELS,
   HOLY_SITE_LABELS,
   KIND_LABELS,
   OUTCOME_LABELS,
+  PRAYER_LABELS,
+  SACRED_TRADITION_LABELS,
   SITE_LABELS,
+  SOUL_LABELS,
   SPECIALIZATION_LABELS,
   SUCCESSION_LABELS,
   TIER_ORDER,
   TOME_CONTENT_LABELS,
+  WEALTH_LABELS,
   kindOf,
   type Artifact,
   type Battle,
@@ -49,7 +62,9 @@ import {
   type EntityId,
   type Figure,
   type Fortunes,
+  type FaithCharacter,
   type HolySite,
+  type HolySiteDedicationKind,
   type Region,
   type Relation,
   type Religion,
@@ -1078,6 +1093,8 @@ export function ReligionPage({ world, religion }: { world: World; religion: Reli
             <Badge tone={religion.endedYear === undefined ? 'accent' : 'muted'}>
               {religion.endedYear === undefined ? 'Followed' : 'Forgotten'}
             </Badge>
+            <Badge>{DEITY_LABELS[religion.character.deity]}</Badge>
+            <Badge>{AUTHORITY_LABELS[religion.character.authority]}</Badge>
             <span className="text-[var(--ink-faint)]">
               {yearRange(religion.foundedYear, religion.endedYear)}
             </span>
@@ -1098,6 +1115,34 @@ export function ReligionPage({ world, religion }: { world: World; religion: Reli
 
       <Panel title="Following">
         <FollowingChart world={world} religion={religion} />
+      </Panel>
+
+      <Panel title="Beliefs">
+        <dl>
+          <Field label="Gods">{DEITY_LABELS[religion.character.deity]}</Field>
+          <Field label="Afterlife">{AFTERLIFE_LABELS[religion.character.afterlife]}</Field>
+          <Field label="Soul">{SOUL_LABELS[religion.character.soul]}</Field>
+          <Field label="Virtue">{DOGMA_LABELS[religion.character.dogma]}</Field>
+        </dl>
+      </Panel>
+
+      <Panel title="Church">
+        <dl>
+          <Field label="Authority">{AUTHORITY_LABELS[religion.character.authority]}</Field>
+          <Field label="Clergy">
+            {CLERGY_LABELS[religion.character.clergy]}
+            {religion.character.celibateClergy ? ' · celibate' : ''}
+          </Field>
+          <Field label="Wealth">{WEALTH_LABELS[religion.character.wealth]}</Field>
+          <Field label="Prayer">{PRAYER_LABELS[religion.character.prayer]}</Field>
+          <Field label="Diet">{DIET_LABELS[religion.character.diet]}</Field>
+          <Field label="Dress">{DRESS_LABELS[religion.character.dress]}</Field>
+          <Field label="Festival">{FESTIVAL_LABELS[religion.character.festival]}</Field>
+        </dl>
+      </Panel>
+
+      <Panel title="Temper">
+        <Dials dials={faithDials(religion.character)} />
       </Panel>
 
       <Panel title="Details">
@@ -1155,24 +1200,48 @@ export function ReligionPage({ world, religion }: { world: World; religion: Reli
 
 /** A temple, church or sanctuary, including independent locations beyond settlement walls. */
 export function HolySitePage({ world, site }: { world: World; site: HolySite }) {
+  const { description } = site;
+
   return (
     <div className="space-y-5">
       <PageTitle
         eyebrow={`Holy site · ${HOLY_SITE_LABELS[site.kind]}`}
         title={site.name}
         meta={
-          <Badge tone={site.settlementId ? 'accent' : 'muted'}>
-            {site.settlementId ? 'Within a settlement' : 'Independent location'}
-          </Badge>
+          <>
+            <Badge tone={site.settlementId ? 'accent' : 'muted'}>
+              {site.settlementId ? 'Within a settlement' : 'Independent location'}
+            </Badge>
+            <Badge>{SACRED_TRADITION_LABELS[description.tradition]}</Badge>
+          </>
         }
       />
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <Stat label="Kind" value={HOLY_SITE_LABELS[site.kind]} />
         <Stat label="Founded" value={site.foundedYear} />
-        <Stat label="Position" value={`${site.x}, ${site.z}`} />
-        <Stat label="Setting" value={site.settlementId ? 'Settlement' : 'Open country'} />
+        <Stat label="Scale" value={description.scale} />
+        <Stat label="Dedication" value={HOLY_SITE_DEDICATION_LABELS[description.dedicationKind]} />
       </div>
+
+      <Panel title="The place">
+        <div className="space-y-5">
+          <HolySitePassage
+            heading="Dedication"
+            text={description.dedication}
+            mention={description.dedicateeId}
+            world={world}
+          />
+          <HolySitePassage heading="Style & visuals" text={description.style} />
+          <HolySitePassage heading="Atmosphere" text={description.atmosphere} />
+          <HolySitePassage heading="Size" text={description.capacity} />
+          <HolySitePassage
+            heading={description.hasStatue ? 'Statue' : 'Focal point'}
+            text={description.focalPoint}
+          />
+          <HolySitePassage heading="Offering area" text={description.offering} />
+        </div>
+      </Panel>
 
       <Panel title="Details">
         <dl>
@@ -1191,6 +1260,12 @@ export function HolySitePage({ world, site }: { world: World; site: HolySite }) 
               </span>
             )}
           </Field>
+          <Field label="Tradition">{SACRED_TRADITION_LABELS[description.tradition]}</Field>
+          <Field label="Position">
+            <span className="tabular-nums">
+              {site.x}, {site.z}
+            </span>
+          </Field>
         </dl>
       </Panel>
 
@@ -1198,6 +1273,31 @@ export function HolySitePage({ world, site }: { world: World; site: HolySite }) 
         <EventList world={world} events={world.eventsFor(site.id)} />
       </Panel>
     </div>
+  );
+}
+
+function HolySitePassage({
+  heading,
+  text,
+  mention,
+  world,
+}: {
+  heading: string;
+  text: string;
+  mention?: EntityId;
+  world?: World;
+}) {
+  return (
+    <article>
+      <h3 className="font-serif text-base font-semibold">{heading}</h3>
+      <p className="mt-1 text-sm leading-relaxed text-[var(--ink-soft)]">{text}</p>
+      {world && mention && (
+        <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-xs text-[var(--ink-faint)]">
+          <span className="font-medium tracking-wide uppercase">Honours</span>
+          <EntityLink world={world} id={mention} />
+        </div>
+      )}
+    </article>
   );
 }
 
@@ -1655,6 +1755,36 @@ function LexiconPanel({ culture }: { culture: Culture }) {
   );
 }
 
+function faithDials(character: FaithCharacter): Dial[] {
+  return [
+    {
+      label: 'Fervour',
+      value: character.fervour,
+      hint: 'How hard it presses outwards',
+    },
+    {
+      label: 'Zealotry',
+      value: character.zealotry,
+      hint: 'How hard a congregation defends what it already believes',
+    },
+    {
+      label: 'Tolerance',
+      value: character.tolerance,
+      hint: 'Whether it will coexist rather than overwrite a neighbour',
+    },
+    {
+      label: 'Schism',
+      value: character.schismProneness,
+      hint: 'How readily a large congregation splits',
+    },
+    {
+      label: 'Syncretism',
+      value: character.syncretism,
+      hint: 'How readily it treats a neighbour’s faith as kin',
+    },
+  ];
+}
+
 /**
  * The six dials, in the order the engine declares them.
  *
@@ -1736,6 +1866,18 @@ export function HolySiteTable({ world, sites }: { world: World; sites: HolySite[
       sort: (site) => site.kind,
     },
     {
+      key: 'dedication',
+      header: 'Dedication',
+      cell: (site) => HOLY_SITE_DEDICATION_LABELS[site.description.dedicationKind],
+      sort: (site) => site.description.dedicationKind,
+    },
+    {
+      key: 'tradition',
+      header: 'Tradition',
+      cell: (site) => SACRED_TRADITION_LABELS[site.description.tradition],
+      sort: (site) => site.description.tradition,
+    },
+    {
       key: 'faith',
       header: 'Faith',
       cell: (site) => <EntityLink world={world} id={site.religionId} />,
@@ -1782,6 +1924,26 @@ export function HolySiteTable({ world, sites }: { world: World; sites: HolySite[
         match: (site: HolySite) => site.kind === kind,
       })),
     },
+    {
+      key: 'tradition',
+      label: 'Tradition',
+      options: present(sites.map((site) => site.description.tradition)).map((tradition) => ({
+        value: tradition,
+        label: SACRED_TRADITION_LABELS[tradition],
+        match: (site: HolySite) => site.description.tradition === tradition,
+      })),
+    },
+    {
+      key: 'dedication',
+      label: 'Dedication',
+      options: present(sites.map((site) => site.description.dedicationKind)).map(
+        (kind: HolySiteDedicationKind) => ({
+          value: kind,
+          label: HOLY_SITE_DEDICATION_LABELS[kind],
+          match: (site: HolySite) => site.description.dedicationKind === kind,
+        }),
+      ),
+    },
   ];
 
   return (
@@ -1790,7 +1952,7 @@ export function HolySiteTable({ world, sites }: { world: World; sites: HolySite[
       columns={columns}
       facets={facets}
       searchText={(site) =>
-        `${site.name} ${site.kind} ${world.nameOf(site.religionId)} ${world.nameOf(site.settlementId ?? site.regionId)}`
+        `${site.name} ${site.kind} ${site.description.tradition} ${site.description.dedicationKind} ${site.description.dedication} ${site.description.style} ${world.nameOf(site.religionId)} ${world.nameOf(site.settlementId ?? site.regionId)}`
       }
       placeholder="Search holy sites…"
       initialSort={{ key: 'founded', descending: false }}

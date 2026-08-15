@@ -475,6 +475,7 @@ public static class WorldExporter
                 FoundedYear: religion.FoundedYear,
                 EndedYear: religion.EndedYear,
                 Fervour: religion.Fervour,
+                Character: ExportCharacter(religion.Character),
                 PeakSettlements: religion.PeakSettlements,
                 SettlementIds: religion.SettlementIds.ToArray()));
         }
@@ -482,12 +483,32 @@ public static class WorldExporter
         return list;
     }
 
+    private static ExportFaithCharacter ExportCharacter(FaithCharacter character) => new(
+        Deity: character.Deity,
+        Afterlife: character.Afterlife,
+        Soul: character.Soul,
+        Authority: character.Authority,
+        Clergy: character.Clergy,
+        CelibateClergy: character.CelibateClergy,
+        Wealth: character.Wealth,
+        Dogma: character.Dogma,
+        Prayer: character.Prayer,
+        Diet: character.Diet,
+        Dress: character.Dress,
+        Festival: character.Festival,
+        Fervour: character.Fervour,
+        Zealotry: character.Zealotry,
+        Tolerance: character.Tolerance,
+        SchismProneness: character.SchismProneness,
+        Syncretism: character.Syncretism);
+
     private static List<ExportHolySite> BuildHolySites(WorldState world)
     {
         var list = new List<ExportHolySite>(world.HolySites.Count);
 
         foreach (HolySite site in world.HolySites)
         {
+            HolySiteDescription d = site.Description;
             list.Add(new ExportHolySite(
                 Id: site.Id,
                 Name: site.Name,
@@ -497,7 +518,19 @@ public static class WorldExporter
                 SettlementId: OrNull(site.SettlementId),
                 X: site.X,
                 Z: site.Z,
-                FoundedYear: site.FoundedYear));
+                FoundedYear: site.FoundedYear,
+                Description: new ExportHolySiteDescription(
+                    Tradition: d.Tradition,
+                    DedicationKind: d.DedicationKind,
+                    Dedication: d.Dedication,
+                    Style: d.Style,
+                    Atmosphere: d.Atmosphere,
+                    Scale: d.Scale,
+                    Capacity: d.Capacity,
+                    HasStatue: d.HasStatue,
+                    FocalPoint: d.FocalPoint,
+                    Offering: d.Offering,
+                    DedicateeId: OrNull(d.DedicateeId))));
         }
 
         return list;

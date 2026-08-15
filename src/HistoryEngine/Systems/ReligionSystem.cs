@@ -24,10 +24,17 @@ namespace HistoryEngine.Systems;
 /// the presence map, one to convert, and the cost stays linear in a world that reaches a couple
 /// of hundred settlements.</para>
 ///
-/// <para><b>Tradition is the brake.</b> Without one, faiths chase each other across the map for
-/// centuries and the chronicle fills with conversions that mean nothing. A settlement resists in
-/// proportion to its culture's tradition and to how long it has held what it holds, so an ancient
-/// holy city is nearly immovable while a young frontier village turns twice in a generation.</para>
+/// <para><b>Tradition is the brake, and so is zealotry.</b> Without one, faiths chase each other
+/// across the map for centuries and the chronicle fills with conversions that mean nothing. A
+/// settlement resists in proportion to its culture's tradition, how long it has held what it
+/// holds, and how zealous the faith it already follows is, so an ancient holy city is nearly
+/// immovable while a young frontier village turns twice in a generation.</para>
+///
+/// <para><b>A faith is more than fervour.</b> Fervour is still how hard it presses outwards;
+/// the rest of its character — gods, church, clergy, tolerance, the likelihood it splits —
+/// is rolled once at founding and read by conversion, schism, holy-site form and who may
+/// hold a temple. A later congregation that believes something else is a schism, not a
+/// revision of the parent.</para>
 ///
 /// <para>Samples no terrain.</para>
 /// </remarks>
@@ -125,11 +132,26 @@ public sealed class ReligionSystem : ISystem
                 Religion faith = world.Religions[chosen];
                 if (!faith.IsActive) continue;
 
+                bool occupied = !settlement.ReligionId.IsNone;
+                double holdfast = 1.0;
+                double kinship = 1.0;
+                if (occupied && world.Religions.Contains(settlement.ReligionId))
+                {
+                    Religion held = world.Religions[settlement.ReligionId];
+                    holdfast = held.Character.Holdfast();
+                    if (faith.KindredTo(held))
+                    {
+                        kinship = DetMath.Lerp(1.0, 1.32, faith.Character.Syncretism);
+                    }
+                }
+
                 double chance = ConversionChance
                                 * DetMath.Clamp01(pull)
                                 * (0.35 + (culture.Values.Piety * 0.9))
-                                * (0.45 + (faith.Fervour * 0.85))
-                                * Resistance(culture, settlement, year);
+                                * faith.Character.OutwardPressure(occupied)
+                                * Resistance(culture, settlement, year)
+                                * holdfast
+                                * kinship;
 
                 if (!rng.Chance(DetMath.Clamp01(chance))) continue;
 
@@ -302,7 +324,8 @@ public sealed class ReligionSystem : ISystem
                 if (settlement.Id == faith.OriginSettlementId) continue;
                 if (settlement.Tier < SettlementTier.Town) continue;
 
-                if (rng.Chance(SchismChance)) splitting.Add(settlement);
+                double chance = SchismChance * faith.Character.SchismWeight();
+                if (rng.Chance(chance)) splitting.Add(settlement);
             }
         }
 
@@ -366,9 +389,9 @@ public sealed class ReligionSystem : ISystem
 
         if (!required && !own.Chance(DetMath.Clamp01(chance))) return;
 
-        HolySiteKind kind = ChooseHolySiteKind(settlement, own);
+        HolySiteKind kind = ChooseHolySiteKind(settlement, faith, own);
         bool independent = settlement.Specialization == SettlementSpecialization.Shrine
-                           || own.Chance(0.20 + (values.Piety * 0.22));
+                           || own.Chance(0.20 + (values.Piety * 0.22) + faith.Character.IndependentSiteBias());
         Point2 position = new(settlement.X, settlement.Z);
         if (independent)
         {
@@ -380,6 +403,8 @@ public sealed class ReligionSystem : ISystem
 
         EntityId id = world.HolySites.NextId;
         string name = $"{HolySiteKindLabel(kind)} of {world.Names.ForHolySite(id, culture)}";
+        HolySiteDescription description = HolySites.Compose(
+            world, id, kind, faith, culture, settlement, independent, year);
 
         var site = new HolySite(
             id,
@@ -390,7 +415,8 @@ public sealed class ReligionSystem : ISystem
             independent ? EntityId.None : settlement.Id,
             position.X,
             position.Z,
-            year);
+            year,
+            description);
 
         world.HolySites.Add(site);
         world.Chronicle.Record(
@@ -425,7 +451,7 @@ public sealed class ReligionSystem : ISystem
         return false;
     }
 
-    private static HolySiteKind ChooseHolySiteKind(Settlement settlement, IRng rng)
+    private static HolySiteKind ChooseHolySiteKind(Settlement settlement, Religion faith, IRng rng)
     {
         // A settlement already known for pilgrimage builds the thing its character promises.
         if (settlement.Specialization == SettlementSpecialization.Shrine)
@@ -433,14 +459,25 @@ public sealed class ReligionSystem : ISystem
             return HolySiteKind.Shrine;
         }
 
-        return rng.NextInt(5) switch
+        (HolySiteKind Kind, int Weight)[] weights = faith.Character.HolySiteWeights();
+        int total = 0;
+        foreach ((HolySiteKind _, int weight) in weights)
         {
-            0 => HolySiteKind.Shrine,
-            1 => HolySiteKind.Temple,
-            2 => HolySiteKind.Church,
-            3 => HolySiteKind.Monastery,
-            _ => HolySiteKind.Sanctuary,
-        };
+            if (weight > 0) total += weight;
+        }
+
+        if (total <= 0) return HolySiteKind.Shrine;
+
+        int roll = rng.NextInt(total);
+        int acc = 0;
+        foreach ((HolySiteKind kind, int weight) in weights)
+        {
+            if (weight <= 0) continue;
+            acc += weight;
+            if (roll < acc) return kind;
+        }
+
+        return HolySiteKind.Sanctuary;
     }
 
     /// <summary>
@@ -507,6 +544,13 @@ public sealed class ReligionSystem : ISystem
         // Forked on the faith's own id, so its fervour does not depend on how many faiths were
         // founded before it.
         IRng own = rng.Fork("faith", id.ToDiscriminator());
+        double fervour = DetMath.Clamp01(own.NextDouble(0.15, 0.85) + (culture.Values.Piety * 0.2));
+        IRng character = own.Fork("character");
+
+        FaithCharacter identity = parentId.IsNone || !world.Religions.Contains(parentId)
+            ? FaithCharacter.Roll(character, culture.Values, fervour)
+            : FaithCharacter.FromParent(
+                world.Religions[parentId].Character, character, culture.Values, fervour);
 
         var faith = new Religion(
             id,
@@ -514,7 +558,7 @@ public sealed class ReligionSystem : ISystem
             culture.Id,
             settlement.Id,
             year,
-            fervour: DetMath.Clamp01(own.NextDouble(0.15, 0.85) + (culture.Values.Piety * 0.2)))
+            identity)
         {
             FounderId = founderId,
             ParentId = parentId,

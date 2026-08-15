@@ -200,6 +200,78 @@ public sealed class FlavourTests
     }
 
     /// <summary>
+    /// A faith is more than a name and a fervour. The rest of its character is rolled at
+    /// founding, stays inside [0, 1], and actually varies across a world.
+    /// </summary>
+    [Fact]
+    public void FaithsCarryACharacterThatVaries()
+    {
+        HistoryRun run = HistoryRun.Execute(TestWorlds.Standard());
+
+        Assert.NotEmpty(run.World.Religions);
+
+        var deities = new HashSet<DeityStructure>();
+        var authorities = new HashSet<AuthorityType>();
+
+        foreach (Religion faith in run.World.Religions)
+        {
+            FaithCharacter character = faith.Character;
+
+            Assert.Equal(character.Fervour, faith.Fervour);
+            Assert.InRange(character.Fervour, 0.0, 1.0);
+            Assert.InRange(character.Zealotry, 0.0, 1.0);
+            Assert.InRange(character.Tolerance, 0.0, 1.0);
+            Assert.InRange(character.SchismProneness, 0.0, 1.0);
+            Assert.InRange(character.Syncretism, 0.0, 1.0);
+
+            deities.Add(character.Deity);
+            authorities.Add(character.Authority);
+
+            if (!faith.ParentId.IsNone)
+            {
+                Assert.True(run.World.Religions.Contains(faith.ParentId));
+            }
+        }
+
+        Assert.True(
+            deities.Count > 1,
+            "A standard world should preach more than one kind of god.");
+        Assert.True(
+            authorities.Count > 1,
+            "A standard world should raise more than one kind of church.");
+    }
+
+    /// <summary>
+    /// A faith that admits only one sex to holy office does not invent a high priest of the other.
+    /// </summary>
+    [Fact]
+    public void InventedHighPriestsHonourClergyAdmission()
+    {
+        HistoryRun run = HistoryRun.Execute(TestWorlds.Standard());
+        int checkedClerics = 0;
+
+        foreach (Figure figure in run.World.Figures)
+        {
+            if (figure.Origin != FigureOrigin.Clergy) continue;
+
+            OfficeHolding? held = figure.OpenOffice(OfficeKind.HighPriest)
+                                  ?? figure.Offices.Find(o => o.Kind == OfficeKind.HighPriest);
+            if (held is null || held.ScopeId.IsNone || !run.World.Religions.Contains(held.ScopeId))
+            {
+                continue;
+            }
+
+            FaithCharacter character = run.World.Religions[held.ScopeId].Character;
+            Assert.True(
+                character.Admits(figure.Sex),
+                $"{figure.FullName} is {figure.Sex} clergy of a faith that admits {character.Clergy}.");
+            checkedClerics++;
+        }
+
+        Assert.True(checkedClerics > 0, "A standard world should raise clergy into the record.");
+    }
+
+    /// <summary>
     /// Faith leaves places on the map: ordinary houses of worship inside settlements and rarer
     /// sanctuaries with coordinates of their own.
     /// </summary>
@@ -234,11 +306,135 @@ public sealed class FlavourTests
                 Assert.Equal(settlement.RegionId, site.RegionId);
                 Assert.Equal((settlement.X, settlement.Z), (site.X, site.Z));
             }
+
+            HolySiteDescription description = site.Description;
+            Assert.False(string.IsNullOrWhiteSpace(description.Dedication), site.Name);
+            Assert.False(string.IsNullOrWhiteSpace(description.Style), site.Name);
+            Assert.False(string.IsNullOrWhiteSpace(description.Atmosphere), site.Name);
+            Assert.False(string.IsNullOrWhiteSpace(description.Capacity), site.Name);
+            Assert.False(string.IsNullOrWhiteSpace(description.FocalPoint), site.Name);
+            Assert.False(string.IsNullOrWhiteSpace(description.Offering), site.Name);
+
+            if (!description.DedicateeId.IsNone)
+            {
+                Assert.True(world.Figures.Contains(description.DedicateeId), site.Name);
+                Assert.True(
+                    world.Figures[description.DedicateeId].BirthYear < site.FoundedYear,
+                    $"{site.Name} honours {description.DedicateeId} who was not yet born.");
+            }
         }
 
         Assert.Equal(
             world.HolySites.Count,
             Of(run, EventKind.HolySiteFounded).Count);
+    }
+
+    /// <summary>
+    /// A holy place is described in the tongue and climate that raised it, and the wording is
+    /// a fact of founding rather than of later export.
+    /// </summary>
+    [Fact]
+    public void HolySiteDescriptionsAreComposedAtFoundingAndStable()
+    {
+        HistoryRun first = HistoryRun.Execute(TestWorlds.Standard());
+        HistoryRun second = HistoryRun.Execute(TestWorlds.Standard());
+
+        Assert.Equal(first.World.HolySites.Count, second.World.HolySites.Count);
+
+        var traditions = new HashSet<SacredTradition>();
+        var dedications = new HashSet<HolySiteDedicationKind>();
+
+        foreach (HolySite site in first.World.HolySites)
+        {
+            HolySite other = second.World.HolySites[site.Id];
+            HolySiteDescription a = site.Description;
+            HolySiteDescription b = other.Description;
+
+            Assert.Equal(a.Tradition, b.Tradition);
+            Assert.Equal(a.DedicationKind, b.DedicationKind);
+            Assert.Equal(a.Dedication, b.Dedication);
+            Assert.Equal(a.Style, b.Style);
+            Assert.Equal(a.Atmosphere, b.Atmosphere);
+            Assert.Equal(a.Scale, b.Scale);
+            Assert.Equal(a.Capacity, b.Capacity);
+            Assert.Equal(a.HasStatue, b.HasStatue);
+            Assert.Equal(a.FocalPoint, b.FocalPoint);
+            Assert.Equal(a.Offering, b.Offering);
+            Assert.Equal(a.DedicateeId, b.DedicateeId);
+
+            traditions.Add(a.Tradition);
+            dedications.Add(a.DedicationKind);
+        }
+
+        Assert.True(
+            traditions.Count >= 2,
+            "A standard world should raise holy places in more than one architectural tradition.");
+        Assert.True(
+            dedications.Count >= 2,
+            "A standard world should dedicate holy places to more than one kind of presence.");
+    }
+
+    /// <summary>
+    /// A holy place does not preach a second religion.
+    /// </summary>
+    /// <remarks>
+    /// Kind, dedication, offering and the words that describe them used to be nominated by
+    /// architecture and terrain alone, with the faith's character adding a thumb on the scale.
+    /// That left animisms raising churches to saints and dry congregations leaving wine. The
+    /// congregation now admits or refuses; this is the property that makes that refusal load-bearing.
+    /// </remarks>
+    [Fact]
+    public void HolySitesAgreeWithTheFaithThatRaisedThem()
+    {
+        foreach (ulong seed in Seeds)
+        {
+            WorldState world = HistoryRun.Execute(TestWorlds.Standard(seed)).World;
+
+            foreach (HolySite site in world.HolySites)
+            {
+                Religion faith = world.Religions[site.ReligionId];
+                FaithCharacter character = faith.Character;
+                HolySiteDescription description = site.Description;
+
+                Assert.True(
+                    character.AdmitsKind(site.Kind) || site.Kind == HolySiteKind.Shrine,
+                    $"{site.Name} is a {site.Kind}, which the {faith.Name} "
+                    + $"({character.Deity}, {character.Authority}) would not raise.");
+
+                Assert.True(
+                    character.AdmitsDedication(description.DedicationKind),
+                    $"{site.Name} is dedicated to a {description.DedicationKind}, which the "
+                    + $"{faith.Name} ({character.Deity}) does not worship.");
+
+                if (character.Diet == DietaryRule.TabooIntoxicants)
+                {
+                    Assert.DoesNotContain(
+                        "wine",
+                        description.Offering,
+                        StringComparison.OrdinalIgnoreCase);
+                }
+
+                if (character.Diet == DietaryRule.TabooFlesh)
+                {
+                    Assert.DoesNotContain("animal fat", description.Offering, StringComparison.OrdinalIgnoreCase);
+                    Assert.DoesNotContain("fish hooks", description.Offering, StringComparison.OrdinalIgnoreCase);
+                    Assert.DoesNotContain("antlers", description.Offering, StringComparison.OrdinalIgnoreCase);
+                }
+
+                if (!character.AdmitsDedication(HolySiteDedicationKind.Saint))
+                {
+                    Assert.DoesNotContain("saint", description.FocalPoint, StringComparison.OrdinalIgnoreCase);
+                    Assert.DoesNotContain("Saint ", description.Dedication, StringComparison.Ordinal);
+                }
+
+                if (character.Deity == DeityStructure.Monotheistic)
+                {
+                    Assert.DoesNotContain("multi-faced", description.FocalPoint, StringComparison.OrdinalIgnoreCase);
+                    Assert.DoesNotContain("Ancient God", description.Dedication, StringComparison.Ordinal);
+                    Assert.DoesNotContain("nature spirit", description.Dedication, StringComparison.OrdinalIgnoreCase);
+                }
+            }
+        }
     }
 
     /// <summary>

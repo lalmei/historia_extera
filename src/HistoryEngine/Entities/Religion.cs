@@ -26,14 +26,14 @@ public sealed class Religion
         EntityId cultureId,
         EntityId originSettlementId,
         int foundedYear,
-        double fervour)
+        FaithCharacter character)
     {
         Id = id;
         Name = name;
         CultureId = cultureId;
         OriginSettlementId = originSettlementId;
         FoundedYear = foundedYear;
-        Fervour = fervour;
+        Character = character;
         SettlementIds = new List<EntityId>();
     }
 
@@ -60,21 +60,47 @@ public sealed class Religion
     public bool IsActive => EndedYear is null;
 
     /// <summary>
+    /// What this faith is: its gods, its church, its rules, and the dials that move it.
+    /// </summary>
+    /// <remarks>
+    /// Fixed at founding. A later congregation that believes something else is a schism, not a
+    /// revision — see <see cref="ParentId"/>.
+    /// </remarks>
+    public FaithCharacter Character { get; }
+
+    /// <summary>
     /// How hard it presses outwards, in [0, 1].
     /// </summary>
     /// <remarks>
     /// Rolled once at founding from the piety of the culture it arose in, and never revised. It is
     /// what stops every faith spreading at the same rate and therefore what makes one of them the
     /// one that takes a continent — the religious counterpart of a culture's aggression, which M6
-    /// showed is where a world gets its character.
+    /// showed is where a world gets its character. Kept as a forwarding property so every system
+    /// that already reads fervour keeps compiling while the rest of <see cref="Character"/> lands.
     /// </remarks>
-    public double Fervour { get; }
+    public double Fervour => Character.Fervour;
 
     /// <summary>Settlements following it now, in the order they converted.</summary>
     public List<EntityId> SettlementIds { get; }
 
     /// <summary>The most settlements it ever held at once. Survives its decline.</summary>
     public int PeakSettlements { get; set; }
+
+    /// <summary>
+    /// Whether this faith and another would recognise each other as kin.
+    /// </summary>
+    /// <remarks>
+    /// Parentage is kinship even when the gods have been renamed. Matching deity-structure is
+    /// kinship only where both sides are syncretic enough to treat a neighbour's pantheon as a
+    /// dialect of their own.
+    /// </remarks>
+    public bool KindredTo(Religion other)
+    {
+        if (Id == other.ParentId || other.Id == ParentId) return true;
+        if (ParentId == other.ParentId && !ParentId.IsNone) return true;
+
+        return Character.DoctrinallyCloseTo(other.Character);
+    }
 
     public void Gain(EntityId settlementId)
     {
