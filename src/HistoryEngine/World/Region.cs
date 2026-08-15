@@ -29,8 +29,14 @@ public sealed class Region
         double geologicActivity,
         bool isLand,
         bool hasRiver,
-        bool isCoastal)
+        bool isCoastal,
+        double riverAccess,
+        double harbourQuality,
+        double ruggedness)
     {
+        RiverAccess = riverAccess;
+        HarbourQuality = harbourQuality;
+        Ruggedness = ruggedness;
         Id = id;
         Bounds = bounds;
         Biome = biome;
@@ -73,6 +79,23 @@ public sealed class Region
 
     public bool IsCoastal { get; }
 
+    /// <summary>
+    /// Fresh water at the best spot in the region, in [0, 1].
+    /// </summary>
+    /// <remarks>
+    /// The best spot rather than the average, because a region is only ever settled at one point
+    /// and siting will put the town wherever the water is. Averaging would rank a region with one
+    /// excellent riverside corner below a uniformly mediocre one, and then the town would be built
+    /// on the river anyway.
+    /// </remarks>
+    public double RiverAccess { get; }
+
+    /// <summary>Sheltered water at the best spot in the region, in [0, 1]. Zero inland.</summary>
+    public double HarbourQuality { get; }
+
+    /// <summary>How broken the country is, in [0, 1]. Averaged — this one is about the whole patch.</summary>
+    public double Ruggedness { get; }
+
     /// <summary>Four-way neighbours. Populated once when the grid is built.</summary>
     public List<EntityId> AdjacentRegions { get; }
 
@@ -83,9 +106,16 @@ public sealed class Region
     /// How attractive this region is to settle, in [0, 1].
     /// </summary>
     /// <remarks>
-    /// Fertility dominates, with rivers and coastlines adding the premium that historically
-    /// put cities on them — fresh water, transport, trade — and habitability gating the
-    /// whole thing. This is the score expansion sorts on.
+    /// <para>Fertility dominates, with water adding the premium that historically put cities on it
+    /// — fresh water, transport, trade — and habitability gating the whole thing. This is the score
+    /// expansion sorts on, and therefore the thing that decides which country a realm wants;
+    /// <see cref="SiteSelection"/> only decides where inside it to stand.</para>
+    ///
+    /// <para><b>Graded rather than flagged, since M10.</b> The premiums used to be a flat 0.18 for
+    /// touching a river and 0.12 for touching the sea, which made a region with a great river
+    /// through its middle indistinguishable from one clipping a headwater at its corner, and an
+    /// enclosed bay indistinguishable from an exposed cliff coast. Both distinctions are now
+    /// measured, so the ranking expansion sorts on says what it means.</para>
     /// </remarks>
     public double Habitability
     {
@@ -94,14 +124,16 @@ public sealed class Region
             if (!IsLand || !BiomeClassifier.IsHabitable(Biome)) return 0.0;
 
             double score = Fertility * 0.7;
-            if (HasRiver) score += 0.18;
-            if (IsCoastal) score += 0.12;
+            score += RiverAccess * 0.18;
+            score += HarbourQuality * 0.12;
 
-            // Harsh ground is survivable but not attractive.
+            // Harsh ground is survivable but not attractive — height for the thin air, and broken
+            // country for everything a valley wall costs to farm, build on and walk across.
             double exposure = DetMath.Lerp(
                 1.0, 0.55, DetMath.InverseLerp(1200.0, 2100.0, MeanHeight));
+            double footing = DetMath.Lerp(1.0, 0.70, Ruggedness);
 
-            return DetMath.Clamp01(score * exposure);
+            return DetMath.Clamp01(score * exposure * footing);
         }
     }
 

@@ -27,6 +27,7 @@ public static class RegionGrid
 
         atlas.EnsurePrimed();
         Hydrology hydrology = atlas.Hydrology;
+        Landform landform = atlas.Landform;
 
         TerrainBounds world = atlas.Bounds;
         int columns = (world.Width + regionSize - 1) / regionSize;
@@ -44,7 +45,7 @@ public static class RegionGrid
                     Math.Min(regionSize, world.MaxX - (world.MinX + (column * regionSize))),
                     Math.Min(regionSize, world.MaxZ - (world.MinZ + (row * regionSize))));
 
-                Region region = Summarise(atlas, hydrology, bounds, table.NextId);
+                Region region = Summarise(atlas, hydrology, landform, bounds, table.NextId);
                 table.Add(region);
                 regions.Add(region);
             }
@@ -55,7 +56,11 @@ public static class RegionGrid
     }
 
     private static Region Summarise(
-        TerrainAtlas atlas, Hydrology hydrology, TerrainBounds bounds, EntityId id)
+        TerrainAtlas atlas,
+        Hydrology hydrology,
+        Landform landform,
+        TerrainBounds bounds,
+        EntityId id)
     {
         double heightSum = 0.0;
         double fertilitySum = 0.0;
@@ -66,6 +71,13 @@ public static class RegionGrid
         int total = 0;
         bool hasRiver = false;
         bool isCoastal = false;
+
+        // Water is taken at the best spot in the region and roughness averaged over it: a region
+        // is settled at one point, and siting will find the water, but the whole patch has to be
+        // walked and farmed.
+        double bestRiverAccess = 0.0;
+        double bestHarbour = 0.0;
+        double ruggednessSum = 0.0;
 
         int stepX = Math.Max(1, bounds.Width / SubSamplesPerAxis);
         int stepZ = Math.Max(1, bounds.Height / SubSamplesPerAxis);
@@ -90,6 +102,11 @@ public static class RegionGrid
 
                 if (hydrology.IsRiver(x, z)) hasRiver = true;
                 if (hydrology.IsCoast(x, z)) isCoastal = true;
+
+                bestRiverAccess = Math.Max(bestRiverAccess, hydrology.RiverAccess(x, z));
+                bestHarbour = Math.Max(
+                    bestHarbour, hydrology.SeaAccess(x, z) * hydrology.ShelterAt(x, z));
+                ruggednessSum += landform.RuggednessAt(x, z);
             }
         }
 
@@ -129,7 +146,10 @@ public static class RegionGrid
             meanGeology,
             isLand,
             hasRiver && isLand,
-            isCoastal && isLand);
+            isCoastal && isLand,
+            isLand ? bestRiverAccess : 0.0,
+            isLand ? bestHarbour : 0.0,
+            ruggednessSum / total);
     }
 
     /// <summary>Four-way adjacency, in a fixed order so expansion walks the grid reproducibly.</summary>

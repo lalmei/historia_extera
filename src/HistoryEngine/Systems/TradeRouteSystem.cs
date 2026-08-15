@@ -2,6 +2,7 @@ using System.Globalization;
 using HistoryEngine.Core;
 using HistoryEngine.Entities;
 using HistoryEngine.Events;
+using HistoryEngine.Terrain;
 using HistoryEngine.World;
 
 namespace HistoryEngine.Systems;
@@ -234,15 +235,15 @@ public sealed class TradeRouteSystem : IYearSystem
                 0.45,
                 (Diplomacy.Relation(realmA, realmB) + Diplomacy.Relation(realmB, realmA)) * 0.5);
 
-        Region regionA = world.Regions[a.RegionId];
-        Region regionB = world.Regions[b.RegionId];
-        double access = regionA.IsCoastal && regionB.IsCoastal
-            ? 1.0
-            : regionA.HasRiver && regionB.HasRiver
-                ? 0.85
-                : regionA.IsCoastal || regionB.IsCoastal || regionA.HasRiver || regionB.HasRiver
-                    ? 0.35
-                    : 0.0;
+        // Water access is a fact about the two towns, not about the two regions they sit in. A
+        // route runs between quays, and before M10 a settlement an hour's walk from the coast
+        // counted exactly as coastal as one on it, because the region it stood in touched the sea
+        // somewhere. Both ends have to have the water for it to be a water route, so the pair
+        // takes the weaker end.
+        double access = Math.Max(
+            Math.Min(WaterAccess(world, a), WaterAccess(world, b)),
+            PartialWaterAccess
+                * Math.Max(WaterAccess(world, a), WaterAccess(world, b)));
 
         double complement = a.Specialization != b.Specialization ? 1.0 : 0.0;
         double tradeHub = a.Specialization == SettlementSpecialization.Trade
@@ -295,13 +296,42 @@ public sealed class TradeRouteSystem : IYearSystem
             _ => 0.10,
         };
 
+    /// <summary>
+    /// How much water a settlement itself has, in [0, 1] — sheltered sea first, then river.
+    /// </summary>
+    /// <remarks>
+    /// Sea outranks river where a town has both, because a hull that can work a coast can carry
+    /// more than one that works a reach. Shelter weights the sea term for the same reason it
+    /// weights a harbour when the site was chosen: an exposed shore is somewhere ships pass, not
+    /// somewhere they call.
+    /// </remarks>
+    private static double WaterAccess(WorldState world, Settlement settlement)
+    {
+        Hydrology hydrology = world.Terrain.Hydrology;
+
+        double sea = hydrology.SeaAccess(settlement.X, settlement.Z)
+                     * hydrology.ShelterAt(settlement.X, settlement.Z);
+        double river = hydrology.RiverAccess(settlement.X, settlement.Z) * RiverAgainstSea;
+
+        return DetMath.Clamp01(Math.Max(sea, river));
+    }
+
+    /// <summary>What a river is worth against a sheltered coast, for carrying goods.</summary>
+    private const double RiverAgainstSea = 0.85;
+
+    /// <summary>What water at one end of a route is worth when the other end has none.</summary>
+    private const double PartialWaterAccess = 0.35;
+
     private static TradeRouteMode Mode(WorldState world, Settlement a, Settlement b)
     {
-        Region regionA = world.Regions[a.RegionId];
-        Region regionB = world.Regions[b.RegionId];
+        Hydrology hydrology = world.Terrain.Hydrology;
 
-        if (regionA.IsCoastal && regionB.IsCoastal) return TradeRouteMode.Coastal;
-        if (regionA.HasRiver && regionB.HasRiver) return TradeRouteMode.River;
+        bool coastal = hydrology.IsCoast(a.X, a.Z) && hydrology.IsCoast(b.X, b.Z);
+        if (coastal) return TradeRouteMode.Coastal;
+
+        bool river = hydrology.IsRiver(a.X, a.Z) && hydrology.IsRiver(b.X, b.Z);
+        if (river) return TradeRouteMode.River;
+
         return TradeRouteMode.Overland;
     }
 
