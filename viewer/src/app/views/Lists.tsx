@@ -6,6 +6,7 @@ import {
   DataTable,
   EntityLink,
   type Facet,
+  Field,
   PageTitle,
   Panel,
   Stat,
@@ -1344,6 +1345,54 @@ export function Overview({ world }: { world: World }) {
           exist in every phase — Vintage Story&rsquo;s sampler cannot report them without the
           Watersheds sampler installed.
         </p>
+      </Panel>
+
+      {/* Everything needed to reproduce this file byte for byte. The export carries no
+          timestamp on purpose — seed and hashes are the provenance, and a clock would make the
+          determinism test impossible to write. */}
+      <Panel title="Provenance">
+        <dl>
+          <Field label="Seed">
+            <span className="tabular-nums">{meta.seed}</span>
+          </Field>
+          <Field label="Config hash">
+            <code className="font-mono text-xs">{meta.configHash}</code>
+          </Field>
+          <Field label="System order">
+            <code className="font-mono text-xs">{meta.systemOrderHash}</code>
+            <div className="mt-1 text-xs text-[var(--ink-faint)]">
+              {meta.systemOrder.join(' → ')}
+            </div>
+          </Field>
+          <Field label="Years simulated">
+            <span className="tabular-nums">
+              {meta.yearsSimulated.toLocaleString()}
+            </span>
+            <span className="ml-2 text-[var(--ink-faint)]">
+              (years {meta.startYear} – {meta.endYear})
+            </span>
+          </Field>
+          <Field label="Engine">
+            {meta.engineVersion}
+            <span className="ml-2 text-[var(--ink-faint)]">
+              · schema v{world.export.schemaVersion} · narration syntax v
+              {meta.narrationSyntaxVersion}
+            </span>
+          </Field>
+          <Field label="Map lattice">
+            <span className="tabular-nums">{world.export.world.regionSize}</span> per region,
+            terrain sampled every{' '}
+            <span className="tabular-nums">{world.export.world.terrainStride}</span> units
+          </Field>
+          <Field label="Measures tracked">
+            <span className="tabular-nums">{world.export.series.length.toLocaleString()}</span>{' '}
+            yearly series across{' '}
+            <span className="tabular-nums">
+              {new Set(world.export.series.map((s) => s.entity)).size.toLocaleString()}
+            </span>{' '}
+            entities
+          </Field>
+        </dl>
       </Panel>
 
       <Panel title="Recent history">
