@@ -51,6 +51,13 @@ public enum EventKind
     DynastyEnded = 311,
     DynastyAscended = 312,
 
+    // ---- Offices (320, within the figures block) ----
+    // Only the decisions are recorded. A holder's death already has an event, and an appointment
+    // lapsing with the reign that made it carries nothing the next grant does not — recording
+    // both ends of every office roughly doubles what the appointment system writes to say nothing.
+    OfficeGranted = 320,
+    OfficeRevoked = 321,
+
     // ---- Territory (400) ----
     RegionClaimed = 400,
     RegionCeded = 401,

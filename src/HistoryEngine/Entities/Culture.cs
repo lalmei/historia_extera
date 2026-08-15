@@ -189,5 +189,66 @@ public sealed class Culture
         _ => "Ruler",
     };
 
+    /// <summary>
+    /// What this culture calls the holder of a given office.
+    /// </summary>
+    /// <remarks>
+    /// The cheapest character this engine buys: one realm's Marshal is another's War-leader and a
+    /// third's Strategos, and a reader learns what kind of place it is from the vocabulary without
+    /// being told a rule. Systems must branch on <see cref="OfficeKind"/> and print this.
+    /// </remarks>
+    public string TitleFor(OfficeKind office, Sex sex) => office switch
+    {
+        OfficeKind.Ruler => RulerTitle,
+        OfficeKind.Regent => "Regent",
+        OfficeKind.Consort => ConsortTitle(sex),
+
+        OfficeKind.Marshal => Government switch
+        {
+            GovernmentForm.Chiefdom => "War-leader",
+            GovernmentForm.Monarchy => "Marshal",
+            GovernmentForm.Theocracy => "Champion",
+            GovernmentForm.Oligarchy => "Strategos",
+            GovernmentForm.Republic => "Praetor",
+            _ => "Marshal",
+        },
+
+        OfficeKind.HighPriest => Government switch
+        {
+            GovernmentForm.Theocracy => "Hierophant",
+            GovernmentForm.Chiefdom => "Elder",
+            GovernmentForm.Republic => "Pontifex",
+            _ => "High Priest",
+        },
+
+        OfficeKind.Governor => Government switch
+        {
+            GovernmentForm.Chiefdom => "Headman",
+            GovernmentForm.Monarchy => "Governor",
+            GovernmentForm.Theocracy => "Warden",
+            GovernmentForm.Oligarchy => "Eparch",
+            GovernmentForm.Republic => "Prefect",
+            _ => "Governor",
+        },
+
+        _ => "Officer",
+    };
+
+    /// <summary>
+    /// What a ruler's crowned spouse is called.
+    /// </summary>
+    /// <remarks>
+    /// The one office whose title turns on the holder rather than the culture, because a queen and
+    /// a prince consort are different words for the same post and a chronicle that called both
+    /// "Consort" would be throwing away the most recognisable title it has.
+    /// </remarks>
+    private string ConsortTitle(Sex sex) => Government switch
+    {
+        GovernmentForm.Monarchy => sex == Sex.Female ? "Queen" : "Prince Consort",
+        GovernmentForm.Chiefdom => sex == Sex.Female ? "Chief's Wife" : "Chief's Husband",
+        GovernmentForm.Theocracy => "Consort",
+        _ => "Consort",
+    };
+
     public override string ToString() => $"{Id} {Name} ({Government})";
 }
