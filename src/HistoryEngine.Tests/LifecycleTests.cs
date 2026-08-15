@@ -270,4 +270,43 @@ public sealed class SettlementLifecycleTests
 
         Assert.True(abandoned > 0, "A run of 800 years abandoned nothing at all.");
     }
+
+    /// <summary>
+    /// A city in terminal decline must be able to die, and not only a hamlet.
+    /// </summary>
+    /// <remarks>
+    /// <para>The regression this pins down. An absolute floor of four hundred people sat beside the
+    /// relative decline test, so anything that had grown past roughly nine hundred could not be
+    /// abandoned however far it fell — the relative test fires at 45% of peak, and the floor
+    /// demanded very much less than that. Measured over one five-century run, twenty-one
+    /// settlements met the decline criterion, several having been below half their peak for a
+    /// hundred and forty years, and all twenty-one were held back by that floor alone.</para>
+    ///
+    /// <para><see cref="OnlyDiminishedSettlementsAreAbandoned"/> did not catch it, because
+    /// abandonment still fired once or twice a run on places that never grew large enough to be
+    /// vetoed. A count greater than zero was true the whole time it was broken; what was false is
+    /// that decline could ever finish a real town.</para>
+    /// </remarks>
+    [Fact]
+    public void ACityCanBeGivenUpAndNotOnlyAHamlet()
+    {
+        HistoryRun run = HistoryRun.Execute(TestWorlds.Standard() with { Years = 800 });
+
+        int abandoned = 0;
+        int large = 0;
+
+        foreach (Settlement settlement in run.World.Settlements)
+        {
+            if (settlement.IsActive) continue;
+
+            abandoned++;
+            if (settlement.PeakPopulation >= 1000) large++;
+        }
+
+        Assert.True(abandoned > 0, "A run of 800 years abandoned nothing at all.");
+        Assert.True(
+            large > 0,
+            $"{abandoned} settlements were abandoned and not one had ever held a thousand people, "
+                + "which is the signature of an absolute floor vetoing the relative decline test.");
+    }
 }

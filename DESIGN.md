@@ -325,7 +325,7 @@ altering a scoring curve, not a bug — see *Working notes*.
 ### Settlement lifecycle: what made decline possible
 
 The M4 deliverable was specialization and abandonment. Specialization was easy; making
-abandonment *reachable* took five wrong answers, and each one is worth recording because
+abandonment *reachable* took six wrong answers, and each one is worth recording because
 each looked correct in isolation and each passed its own tests.
 
 **The chain of bugs, in the order they were found:**
@@ -355,6 +355,30 @@ each looked correct in isolation and each passed its own tests.
    growth to 3.8% brings settlements to their ceiling in ~110 years, after which they live
    at the mercy of the harvest for two centuries. That is the regime the whole lifecycle
    was designed around, and nothing else worked until it held.
+6. **An absolute floor beside the relative test.** Found much later, from the opposite
+   direction: a thousand-year world kept growing and never lost anything. `FatalDeclineFraction`
+   deliberately measures a settlement against *its own* peak, for the reason recorded below —
+   an absolute headcount cannot be calibrated against a carrying capacity that varies by an
+   order of magnitude across the map. A `FatalDeclineCeiling` of 400 people then sat directly
+   beside it, and reintroduced exactly that failure. The relative test fires at 45% of peak;
+   the ceiling demanded very much less, so anything that had ever grown past roughly nine
+   hundred people could not be abandoned however far it fell. Over one five-century run,
+   twenty-one settlements met the decline criterion — several below half their peak for a
+   hundred and forty years — and **all twenty-one were held back by that constant alone**.
+   Replaced with a tolerance that scales on peak population: a hamlet is given up after
+   fifteen years of decline, a great city after two or three generations, and both can die.
+
+   Why it survived so long: abandonment was not *zero*, so no test caught it. It still fired
+   once or twice a run on places that never grew large enough to be vetoed, and
+   `OnlyDiminishedSettlementsAreAbandoned` asserted only that the count was above zero — true
+   the entire time the feature was broken. What was false is that decline could ever finish a
+   real town. `ACityCanBeGivenUpAndNotOnlyAHamlet` pins the distinction.
+
+   The consequence reached much further than settlement counts. Plague, famine, disaster and
+   war all reduce population and none of them removes a settlement directly — they hand that
+   to the lifecycle, which could not act on any of it. Four systems' worth of destruction had
+   nowhere to land, so a world's settlement count only ever went up, and the map at a thousand
+   years was a thousand years of accumulation with no mortality in it.
 
 The lesson worth keeping: every one of these was a *calibration* fault presenting as a
 missing feature. `SettlementLifecycleTests` now asserts the outcomes appear — promotions,
@@ -382,6 +406,34 @@ Tradition chooses among the monarchical succession laws, Aggression sets how oft
 succession is contested and how the loser fares, and Mercantile decides how outward-looking
 a people is about marriage — so a trading culture's family tree reaches across the map while
 an insular one marries its neighbours.
+
+### Settlement density: what actually sets it
+
+Prompted by a thousand-year map that looked like an explosion of settlements. It was not an
+explosion. Founding is close to linear at a fixed expansion chance — cumulatively 23, 63, 108,
+154, 208, 311 and 433 settlements at years 100 through 1000 — and the apparent burst is simply
+a straight line seen at five times the usual length of a run. **Nothing was being removed**,
+for the reason recorded as bug 6 above.
+
+Two separate quantities were being confused, and they have different controls:
+
+- **Whether the stock has an equilibrium at all** is the abandonment gate. Without it the count
+  is monotonic and no amount of rate tuning changes that shape; with it the curve decelerates and
+  the world acquires ruins, dead cities and territory that changes hands. This is also what makes
+  plague, famine, disaster and war matter to the map rather than only to the chronicle.
+- **Where that equilibrium sits** is `ExpansionSystem.BaseChance`. Measured at 1000 years with
+  abandonment working, settled land is ~52–55% of land regions at `0.10` and ~26–39% at `0.06`,
+  across seeds 42, 7 and 99.
+
+So the honest answer to "is the expansion rate too high" is that it was the wrong question on its
+own — but not a wrong change. Lowering the rate without fixing the gate only rescales a line that
+still never bends; fixing the gate without lowering the rate leaves a land-rich world at half its
+regions settled. The two are complementary and both are kept.
+
+The ceiling on all of this is **land**, not time: a settlement claims a region, so a world cannot
+hold more settlements than it has habitable regions, and every seed saturates in proportion to how
+much land it has. A world that feels crowded is usually a world with a lot of land in it, which is
+why the density target is expressed against land regions rather than as an absolute count.
 
 ### Dynasties: one traversal, two questions
 

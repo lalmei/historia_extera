@@ -73,38 +73,53 @@ public sealed class TerritoryTests
     /// for the rest of the run — including over regions a neighbour has since claimed for itself,
     /// which is how the omission would first be noticed.
     /// </remarks>
+    /// <remarks>
+    /// Over several long-running seeds rather than one, because whether a particular seed contains
+    /// a fallen realm at all is a property of the balance constants, not of the invariant being
+    /// checked. Pinned to seed 42 at 300 years, this failed after deliberate simulation tuning —
+    /// not because a dead realm held land, but because that seed no longer had a dead realm, and
+    /// the precondition guarding the real assertion was the only thing that fired.
+    /// </remarks>
     [Fact]
     public void NoLandIsHeldByARealmThatHasEnded()
     {
-        WorldExport export = HistoryRun.Execute(
-            TestWorlds.Standard() with { Years = 800 }).ToExport();
+        int realmsChecked = 0;
 
-        var endedIn = new Dictionary<EntityId, int>();
-        foreach (ExportCivilization civilization in export.Civilizations)
+        foreach (ulong seed in new ulong[] { 2, 7, 11, 42, 99 })
         {
-            if (civilization.EndedYear is int ended) endedIn[civilization.Id] = ended;
-        }
+            WorldExport export = HistoryRun.Execute(
+                TestWorlds.Standard(seed) with { Years = 800 }).ToExport();
 
-        Assert.NotEmpty(endedIn);
-
-        var owners = new Dictionary<EntityId, EntityId>();
-        int year = export.Meta.StartYear;
-
-        foreach (ExportEvent entry in export.Events)
-        {
-            // Checked on each year boundary rather than each event: within the year a realm falls,
-            // the ending is written before the provinces it gives up, and that ordering is
-            // deliberate.
-            if (entry.Year != year)
+            var endedIn = new Dictionary<EntityId, int>();
+            foreach (ExportCivilization civilization in export.Civilizations)
             {
-                AssertNoDeadLandlords(owners, endedIn, year);
-                year = entry.Year;
+                if (civilization.EndedYear is int ended) endedIn[civilization.Id] = ended;
             }
 
-            Apply(owners, entry);
+            realmsChecked += endedIn.Count;
+            if (endedIn.Count == 0) continue;
+
+            var owners = new Dictionary<EntityId, EntityId>();
+            int year = export.Meta.StartYear;
+
+            foreach (ExportEvent entry in export.Events)
+            {
+                // Checked on each year boundary rather than each event: within the year a realm
+                // falls, the ending is written before the provinces it gives up, and that ordering
+                // is deliberate.
+                if (entry.Year != year)
+                {
+                    AssertNoDeadLandlords(owners, endedIn, year);
+                    year = entry.Year;
+                }
+
+                Apply(owners, entry);
+            }
+
+            AssertNoDeadLandlords(owners, endedIn, year);
         }
 
-        AssertNoDeadLandlords(owners, endedIn, year);
+        Assert.True(realmsChecked > 0, "No realm fell in any tested world, so nothing was checked.");
     }
 
     private static void AssertNoDeadLandlords(

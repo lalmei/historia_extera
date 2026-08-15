@@ -37,8 +37,35 @@ public sealed class SettlementLifecycleSystem : IYearSystem
     /// </remarks>
     private const double FatalDeclineFraction = 0.45;
 
-    /// <summary>Ceiling on the population a decline can carry off. A large town is not abandoned quietly.</summary>
-    private const int FatalDeclineCeiling = 400;
+    /// <summary>
+    /// Peak population at which a settlement endures decline for <see cref="LargePlacePatience"/>
+    /// times as long before it is given up.
+    /// </summary>
+    /// <remarks>
+    /// <para>This replaces an absolute ceiling of four hundred people, below which a settlement had
+    /// to fall before a long decline could finish it. The intent was right — a large town is not
+    /// abandoned quietly — but an absolute floor beside a relative test reintroduces exactly the
+    /// failure the relative test was written to avoid, and it did: anything that had ever grown
+    /// past about nine hundred people could no longer be abandoned at all, because the relative
+    /// test fires at 45% of peak and the ceiling demanded far less than that.</para>
+    ///
+    /// <para>The effect was total rather than marginal. Over a five-century run, twenty-one
+    /// settlements met the decline test — several having lost two thirds of their people and stayed
+    /// that way for a hundred and forty years — and every one of the twenty-one was held back by
+    /// this constant alone. Across a thousand-year run of four hundred and thirty-three
+    /// settlements, nothing was ever abandoned. Plague, famine, disaster and war all reduced
+    /// populations that the lifecycle could then never finish, so the one system that removes
+    /// settlements could not reach any of them.</para>
+    ///
+    /// <para>Scaling the tolerance keeps the intent and drops the veto: a city takes two or three
+    /// generations of sustained decline to give up where a hamlet takes fifteen years, and both can
+    /// still die. Measured against what it once was rather than what it is now, since a dying
+    /// city's current population is on its way through every tier below it.</para>
+    /// </remarks>
+    private const double LargePlacePeak = 6000.0;
+
+    /// <summary>How much longer the largest settlements hold on. See <see cref="LargePlacePeak"/>.</summary>
+    private const double LargePlacePatience = 3.0;
 
     /// <summary>
     /// Years of depression after which a shrunken settlement is given up.
@@ -106,10 +133,16 @@ public sealed class SettlementLifecycleSystem : IYearSystem
 
         // 1.0 at no tradition, 1.8 at full — worth roughly another fifteen years of clinging on.
         double patience = DetMath.Lerp(1.0, 1.8, culture.Values.Tradition);
-        int tolerance = (int)(FatalDeclineYears * patience);
 
-        bool shrunken = settlement.Population < settlement.PeakPopulation * FatalDeclineFraction
-                        && settlement.Population < FatalDeclineCeiling;
+        // And a great city outlasts a hamlet by two or three generations more.
+        double weight = DetMath.Lerp(
+            1.0,
+            LargePlacePatience,
+            DetMath.InverseLerp(0.0, LargePlacePeak, settlement.PeakPopulation));
+
+        int tolerance = (int)(FatalDeclineYears * patience * weight);
+
+        bool shrunken = settlement.Population < settlement.PeakPopulation * FatalDeclineFraction;
 
         if (shrunken && settlement.YearsDepressed >= tolerance)
         {
