@@ -37,8 +37,13 @@ public sealed class SuccessionSystem : IYearSystem
     /// <summary>Odds the losing claimant does not survive having lost.</summary>
     private const double LoserIsExecuted = 0.35;
 
-    /// <summary>Relative weight of each place on an elective ballot, strongest claim first.</summary>
-    private static readonly double[] BallotWeights = { 0.45, 0.27, 0.17, 0.11 };
+    /// <summary>How far the realm's own preference can move a disputed succession.</summary>
+    /// <remarks>
+    /// Smaller than the elective ballot's swing, deliberately. A dispute is settled by whoever can
+    /// bring more men to the capital; that the realm would rather have one of them is a thumb on
+    /// that scale and not the scale itself.
+    /// </remarks>
+    private const double DisputeSwing = 0.25;
 
     public string Name => "succession";
 
@@ -134,7 +139,7 @@ public sealed class SuccessionSystem : IYearSystem
         }
 
         Figure presumed = culture.Succession == SuccessionLaw.Elective
-            ? Elect(line, rng)
+            ? Elect(world, civilization, culture, line, rng)
             : line[0];
 
         Figure heir = Contest(
@@ -184,7 +189,18 @@ public sealed class SuccessionSystem : IYearSystem
         double chance = DisputeFloor + DisputeFromAggression * culture.Values.Aggression;
         if (!rng.Chance(chance)) return presumed;
 
-        bool presumedWins = rng.Chance(StrongerClaimPrevails);
+        // Which of the two the realm would rather have is worth something once swords are drawn:
+        // the rival with the better claim on the country's sympathies finds more of it willing to
+        // fight for him. This is how "the realm backed the brother who promised war" happens under
+        // primogeniture, with no second system and nobody casting a ballot in a kingdom.
+        Disposition wanted = Succession.Wanted(world, civilization, culture);
+        double forPresumed = Succession.Favour(presumed, wanted);
+        double forRival = Succession.Favour(rival, wanted);
+
+        double edge = (forPresumed - forRival) / (forPresumed + forRival);
+
+        bool presumedWins = rng.Chance(
+            DetMath.Clamp01(StrongerClaimPrevails + (edge * DisputeSwing)));
         Figure winner = presumedWins ? presumed : rival;
         Figure loser = presumedWins ? rival : presumed;
 
@@ -204,19 +220,38 @@ public sealed class SuccessionSystem : IYearSystem
         return winner;
     }
 
-    /// <summary>Weighted draw across the strongest claims, so an election is not simply the heir.</summary>
-    private static Figure Elect(List<Figure> line, IRng rng)
+    /// <summary>
+    /// Weighted draw across the strongest claims, so an election is not simply the heir.
+    /// </summary>
+    /// <remarks>
+    /// <para>Each place on the ballot is weighted by its claim and then scaled by how much the
+    /// realm actually wants that person — a people lately bled prefers the cousin who is not
+    /// spoiling for a war, and a realm under a fervent establishment prefers the devout one.</para>
+    ///
+    /// <para><b>Claim remains the dominant term.</b> Even the least-wanted first claimant outweighs
+    /// the most-wanted fourth, which is the invariant that keeps an elective realm dynastic; see
+    /// <see cref="Succession.MinFavour"/> for what goes wrong without it.</para>
+    /// </remarks>
+    private static Figure Elect(
+        WorldState world, Civilization civilization, Culture culture, List<Figure> line, IRng rng)
     {
         int pool = Math.Min(Succession.ElectorateSize, line.Count);
+        Disposition wanted = Succession.Wanted(world, civilization, culture);
 
+        var weights = new double[pool];
         double total = 0.0;
-        for (int i = 0; i < pool; i++) total += BallotWeights[i];
+
+        for (int i = 0; i < pool; i++)
+        {
+            weights[i] = Succession.BallotWeights[i] * Succession.Favour(line[i], wanted);
+            total += weights[i];
+        }
 
         double roll = rng.NextDouble() * total;
 
         for (int i = 0; i < pool; i++)
         {
-            roll -= BallotWeights[i];
+            roll -= weights[i];
             if (roll < 0.0) return line[i];
         }
 

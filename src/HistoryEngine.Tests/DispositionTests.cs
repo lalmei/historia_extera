@@ -213,6 +213,112 @@ public sealed class DispositionTests
     }
 
     /// <summary>
+    /// An elective realm stays dynastic: the electorate's preference is a thumb on the scale.
+    /// </summary>
+    /// <remarks>
+    /// <para>The single sharpest risk in this layer. If preference can outweigh claim, the ballot
+    /// becomes pure trait-matching, the last-placed claimant wins routinely, and the whole
+    /// apparatus of houses and descent stops mattering in precisely the governments built to show
+    /// it off.</para>
+    ///
+    /// <para><b>The guarantee is about the extremes, not about adjacent places.</b> Preference
+    /// <em>should</em> be able to lift the second claimant over the first — a realm preferring the
+    /// king's brother to his infant son is the entire point, and an invariant forbidding it would
+    /// leave the model unable to change any outcome it is there to change. What must never happen
+    /// is the far ends inverting: the man with the best claim in the realm, whom nobody much
+    /// wants, still outweighs the remotest of the four who is everything they hoped for.</para>
+    ///
+    /// <para>Stated as an inequality over the constants, so it holds for every candidate any seed
+    /// could produce rather than for the ones these seeds happened to.</para>
+    /// </remarks>
+    [Fact]
+    public void TheStrongestClaimIsNeverOutweighedByTheWeakest()
+    {
+        IReadOnlyList<double> weights = Succession.BallotWeights;
+
+        double leastWantedFirst = weights[0] * Succession.MinFavour;
+        double mostWantedLast = weights[weights.Count - 1] * Succession.MaxFavour;
+
+        Assert.True(
+            leastWantedFirst > mostWantedLast,
+            $"The most-wanted last claimant ({mostWantedLast:F3}) outweighs the least-wanted "
+            + $"first one ({leastWantedFirst:F3}). The ballot has stopped being about claims.");
+
+        // And preference must still be able to do something, or it is a multiplication that
+        // decides nothing. The second place must be reachable over a disliked first.
+        Assert.True(
+            weights[1] * Succession.MaxFavour > weights[0] * Succession.MinFavour,
+            "Preference cannot lift even the second claimant over a disliked first.");
+    }
+
+    /// <summary>
+    /// A realm asks for something different after a disaster than it did before one.
+    /// </summary>
+    /// <remarks>
+    /// The other half of the electorate model: preference has to move with events, or it is just
+    /// the culture again under another name and the ballot is unchanged.
+    /// </remarks>
+    [Fact]
+    public void WhatARealmWantsMovesWithWhatHasHappenedToIt()
+    {
+        WorldState world = HistoryRun.Execute(TestWorlds.Standard(42)).World;
+
+        Civilization realm = world.Civilizations[0];
+        Culture culture = world.CultureOf(realm);
+
+        Disposition atRest = Succession.Wanted(world, realm, culture);
+
+        for (int i = 0; i < 6; i++)
+        {
+            realm.Fortunes.Suffered(400, 2000);
+            realm.Fortunes.LostABattle();
+        }
+
+        Disposition inCrisis = Succession.Wanted(world, realm, culture);
+
+        Assert.True(
+            inCrisis.Values.Piety > atRest.Values.Piety,
+            "A realm that has just been scourged should want a more devout ruler.");
+
+        Assert.True(
+            inCrisis.Centralism > atRest.Centralism,
+            "A realm in crisis should want a firmer hand.");
+
+        Assert.True(
+            inCrisis.Values.Aggression < atRest.Values.Aggression,
+            "A realm that has just been bled should not be asking for a warmonger.");
+    }
+
+    /// <summary>A candidate the realm wants is favoured over one it does not, within bounds.</summary>
+    [Fact]
+    public void FavourTracksWhatTheRealmAsksFor()
+    {
+        WorldState world = HistoryRun.Execute(TestWorlds.Standard(42)).World;
+
+        Civilization realm = world.Civilizations[0];
+        Disposition wanted = Succession.Wanted(world, realm, world.CultureOf(realm));
+
+        double best = 0.0;
+        double worst = double.MaxValue;
+
+        foreach (Figure figure in world.Figures)
+        {
+            double favour = Succession.Favour(figure, wanted);
+
+            Assert.InRange(favour, Succession.MinFavour, Succession.MaxFavour);
+
+            best = Math.Max(best, favour);
+            worst = Math.Min(worst, favour);
+        }
+
+        // The measure has to discriminate. A world where every candidate scores the same has a
+        // preference model that costs a multiplication and decides nothing.
+        Assert.True(
+            best - worst > 0.3,
+            $"Favour ranged only {worst:F2}–{best:F2} across every figure in the world.");
+    }
+
+    /// <summary>
     /// Rulers vary from their people in both directions and by a real amount.
     /// </summary>
     /// <remarks>
