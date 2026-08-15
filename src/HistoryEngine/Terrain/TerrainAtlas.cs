@@ -55,6 +55,7 @@ public sealed class TerrainAtlas
 
     private bool _primed;
     private Hydrology? _hydrology;
+    private Landform? _landform;
 
     public TerrainAtlas(
         ITerrainSampler sampler,
@@ -129,6 +130,24 @@ public sealed class TerrainAtlas
         {
             EnsurePrimed();
             return _hydrology ??= Terrain.Hydrology.Build(this, HydrologyStride);
+        }
+    }
+
+    /// <summary>
+    /// How broken the country is, and where the passes through it are.
+    /// </summary>
+    /// <remarks>
+    /// Built on the same grid as <see cref="Hydrology"/> and therefore free: that grid is memoised
+    /// into the exact cache when hydrology is derived, so this re-reads points already in memory
+    /// and samples nothing. Kept as a separate type rather than more members on hydrology because
+    /// it is about the land rather than the water, and the two are only neighbours by resolution.
+    /// </remarks>
+    public Landform Landform
+    {
+        get
+        {
+            EnsurePrimed();
+            return _landform ??= Terrain.Landform.Build(this, HydrologyStride);
         }
     }
 
