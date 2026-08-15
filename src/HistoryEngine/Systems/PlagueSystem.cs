@@ -38,18 +38,37 @@ public sealed class PlagueSystem : ISystem
     /// <summary>Yearly ignition hazard contributed by one unit of urban exposure.</summary>
     private const double IgnitionPerExposure = 0.0018;
 
-    /// <summary>Ceiling on the yearly chance, however large the world grows.</summary>
-    private const double MaxIgnitionChance = 0.030;
+    /// <summary>
+    /// Ceiling on the yearly chance, however large the world grows.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>This constant used to decide the answer by itself.</b> At 0.030 against a soft cap,
+    /// a world with eight qualifying towns already sat at half the ceiling and a mature one sat at
+    /// 93% of it, so the elaborate exposure model above governed the first century and nothing
+    /// afterwards. The measurement is unambiguous: over five thousand-year runs whose worlds ranged
+    /// from 51 settlements to 301, and whose living populations ranged from 138,000 to 1.6 million,
+    /// the number of outbreaks was 22, 21, 20, 26 and 28. A world six times the size of another had
+    /// the same plague history, which is the precise opposite of what the remarks above this claim
+    /// and what the system was built to do.</para>
+    ///
+    /// <para>At 0.14 the cap goes back to being a backstop against a runaway rather than the
+    /// operative term. A young world of a few towns runs at about 1% a year and a dense, connected,
+    /// mature one at about 6%, so urban exposure now moves plague frequency across a sixfold range
+    /// instead of a 1.9-fold one, and a world that never urbanises never gets its plague years.</para>
+    /// </remarks>
+    private const double MaxIgnitionChance = 0.14;
 
     /// <summary>
     /// How many plagues may run at once.
     /// </summary>
     /// <remarks>
-    /// Two, so a second can arrive while the first is still burning — which happens — without the
-    /// world ever being in a state where every settlement is infected by something and population
-    /// never recovers between them.
+    /// So a second can arrive while the first is still burning — which happens — without the world
+    /// ever being in a state where every settlement is infected by something and population never
+    /// recovers between them. Raised from two with the ceiling above: at the frequency this now
+    /// produces, two was binding often enough to become a second hidden rate limit, which is the
+    /// same failure the ceiling had.
     /// </remarks>
-    private const int MaxConcurrentOutbreaks = 2;
+    private const int MaxConcurrentOutbreaks = 3;
 
     /// <summary>A plague needs a town to start in. Below this it is an unremarkable bad year.</summary>
     private const int MinimumSeatOfInfection = 900;
