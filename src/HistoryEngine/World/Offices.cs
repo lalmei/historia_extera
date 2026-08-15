@@ -36,10 +36,37 @@ public static class Offices
     /// <summary>Youngest age at which someone may hold an office below the throne.</summary>
     public const int ServiceAge = Succession.MajorityAge;
 
-    /// <summary>Age a local notable is invented at, when a body must supply its own.</summary>
-    private const int NotableMinAge = 26;
+    /// <summary>
+    /// The age at which someone raised from the ordinary population takes each office.
+    /// </summary>
+    /// <remarks>
+    /// <para>Career length, not a uniform guess. Every office used to recruit at 26–45 whatever it
+    /// was, so a high priest and a town's headman were the same age on average and neither had
+    /// done anything to get there. An office is the end of a career, and the band is how long that
+    /// career took.</para>
+    ///
+    /// <para>A marshal has served: long enough to have been a soldier and been noticed, short
+    /// enough to still take the field. A high priest has risen through a temple, which is the
+    /// slowest ladder and the one where age is itself a qualification. A town's governor is
+    /// somebody established in it — old enough to own something, young enough to be worth the
+    /// crown's while.</para>
+    /// </remarks>
+    private static (int Min, int Max) CareerAge(OfficeKind office) => office switch
+    {
+        OfficeKind.Marshal => (32, 52),
+        OfficeKind.HighPriest => (38, 62),
+        OfficeKind.Governor => (30, 55),
+        _ => (26, 45),
+    };
 
-    private const int NotableMaxAge = 45;
+    /// <summary>Which door into the record each office opens.</summary>
+    private static FigureOrigin DoorInto(OfficeKind office) => office switch
+    {
+        OfficeKind.Marshal => FigureOrigin.Soldiery,
+        OfficeKind.HighPriest => FigureOrigin.Clergy,
+        OfficeKind.Governor => FigureOrigin.Townsfolk,
+        _ => FigureOrigin.Unrecorded,
+    };
 
     /// <summary>
     /// Grants an office and records it.
@@ -127,22 +154,35 @@ public static class Offices
     ///
     /// <para>One per seat, so their number tracks the settlements above the governor threshold and
     /// the faiths in the world — neither of which compounds.</para>
+    ///
+    /// <para><b>They arrive with a life behind them.</b> The birth year is worked back from an age
+    /// the office could plausibly be reached at, and the origin says which ladder they climbed, so
+    /// a marshal raised from the ranks reads as a soldier who was noticed rather than as a name
+    /// that appeared in the year it was needed. See <see cref="CareerAge"/>.</para>
     /// </remarks>
     public static Figure Notable(
         WorldState world,
         Civilization civilization,
         Culture culture,
+        OfficeKind office,
         EntityId residence,
         int year,
         IRng rng)
     {
+        (int min, int max) = CareerAge(office);
+
         Figure notable = Houses.NewFigure(
             world,
             civilization,
             culture,
             rng.Chance(0.5) ? Sex.Male : Sex.Female,
-            year - rng.NextInt(NotableMinAge, NotableMaxAge + 1));
+            year - rng.NextInt(min, max + 1));
 
+        notable.Origin = DoorInto(office);
+
+        // Born where they served, so far as the record goes. A governor is a figure of their own
+        // town and a marshal or a high priest of the realm's seat, which is where the army musters
+        // and the temple that matters stands.
         if (world.Settlements.Contains(residence))
         {
             notable.BirthSettlementId = residence;

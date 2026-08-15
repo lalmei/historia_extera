@@ -487,6 +487,7 @@ public sealed record ExportFigure(
     DeathCause DeathCause,
     string? DeathDetail,
     EntityId? BirthSettlementId,
+    FigureOrigin Origin,
     ExportDisposition Disposition,
     IReadOnlyList<ExportTitle> Titles,
     EntityId? MotherId,

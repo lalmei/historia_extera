@@ -259,6 +259,23 @@ export interface Fortunes {
 }
 
 /**
+ * What a figure was before the chronicle started following them.
+ *
+ * Empty for anyone born into the record — a dynast's origin is their house, a consort's the
+ * marriage that brought them in, and both are already recorded in more detail. It carries
+ * information only for people an office raised out of the ordinary population, who would
+ * otherwise have no life behind them at all.
+ */
+export type FigureOrigin = 'Unrecorded' | 'Soldiery' | 'Clergy' | 'Townsfolk';
+
+export const ORIGIN_LABELS: Record<FigureOrigin, string> = {
+  Unrecorded: '',
+  Soldiery: 'Risen from the ranks',
+  Clergy: 'Risen through the temple',
+  Townsfolk: 'Of the town',
+};
+
+/**
  * One person's own inclinations, on the same dials their culture has.
  *
  * Present on every figure, not only those who governed — the brother who would have been a
@@ -770,6 +787,8 @@ export interface Figure {
   /** Specific form of the cause when known, such as a named plague or a flood. */
   deathDetail?: string;
   birthSettlementId?: EntityId;
+  /** What they were before the record began following them. See ORIGIN_LABELS. */
+  origin: FigureOrigin;
   disposition: Disposition;
   titles: Title[];
   motherId?: EntityId;
