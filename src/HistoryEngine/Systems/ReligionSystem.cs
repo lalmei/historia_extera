@@ -530,6 +530,13 @@ public sealed class ReligionSystem : IYearSystem
     /// </remarks>
     private static EntityId Preacher(WorldState world, Civilization civilization, int year)
     {
+        // The realm's own high priest, where it has one. This mostly reaches schisms rather than
+        // foundings — a realm with no faith at all has no high priest to break away from one —
+        // and a schism led by the establishment's own senior cleric is what a reform actually is.
+        // The fallback below is the original placeholder, and reads like one.
+        Figure? cleric = Offices.HolderOf(world, civilization, OfficeKind.HighPriest);
+        if (cleric is not null && cleric.Id != civilization.CurrentRulerId) return cleric.Id;
+
         EntityId eldest = EntityId.None;
         int oldest = -1;
 
