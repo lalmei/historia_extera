@@ -8,6 +8,15 @@ export interface SavedWorld {
   bytes: number;
   modifiedAt?: string;
   schemaVersion: number | null;
+  /** Settings reconstructed from the file header and, for civs, the filename. */
+  params?: {
+    seed: number;
+    years: number;
+    civs: number;
+    size: number;
+    eastWestPeriodic: boolean;
+  } | null;
+  engineVersion?: string | null;
   error?: string;
 }
 

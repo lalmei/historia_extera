@@ -8,6 +8,8 @@
  * module. A built viewer remains a static file that opens off disk.
  */
 
+import type { WorldExport } from './types';
+
 export const CAN_GENERATE: boolean = import.meta.env.DEV;
 
 const RUNS = '/api/worlds/runs';
@@ -106,4 +108,111 @@ async function request(url: string, init?: RequestInit): Promise<Run> {
 /** A fresh seed worth trying. 32 bits, so it stays short enough to read out loud. */
 export function randomSeed(): number {
   return Math.floor(Math.random() * 2 ** 32);
+}
+
+/**
+ * The filename the generator writes for these settings.
+ *
+ * Kept in one place so the form, the catalog and the overwrite warning all agree on
+ * whether a run will replace an export already on disk.
+ */
+export function worldFileName(params: RunParams): string {
+  const boundary = params.eastWestPeriodic ? '-ewp' : '';
+  return `world-s${params.seed}-y${params.years}-c${params.civs}-z${params.size}${boundary}.json`;
+}
+
+/**
+ * Settings encoded in a generator filename.
+ *
+ * Older runs omitted `-z<size>`; those still parse, and size stays unknown so the
+ * caller can fill it from the export header instead.
+ */
+export function paramsFromFilename(name: string): Partial<RunParams> | null {
+  const match = /^world-s(\d+)-y(\d+)-c(\d+)(?:-z(\d+))?(-ewp)?\.json$/i.exec(name);
+  if (!match) return null;
+
+  return {
+    seed: Number(match[1]),
+    years: Number(match[2]),
+    civs: Number(match[3]),
+    ...(match[4] ? { size: Number(match[4]) } : {}),
+    eastWestPeriodic: Boolean(match[5]),
+  };
+}
+
+/** Rebuild the form from a loaded export, preferring the filename for the civ count. */
+export function paramsFromExport(data: WorldExport, fileName?: string): RunParams {
+  const named = fileName ? paramsFromFilename(fileName) : null;
+
+  return {
+    seed: data.meta.seed,
+    years: data.meta.yearsSimulated,
+    civs: named?.civs ?? DEFAULT_PARAMS.civs,
+    size: named?.size ?? data.world.width,
+    eastWestPeriodic: data.world.eastWestPeriodic,
+  };
+}
+
+/**
+ * Query string used to hand a previous world's settings to `/new`.
+ *
+ * `from` is the filename being reused, so the form can say which export it took
+ * the numbers from and warn when Generate would overwrite it.
+ */
+export function generatorSearch(params: RunParams, from?: string): string {
+  const query = new URLSearchParams();
+  query.set('seed', String(params.seed));
+  query.set('years', String(params.years));
+  query.set('civs', String(params.civs));
+  query.set('size', String(params.size));
+  if (params.eastWestPeriodic) query.set('ewp', '1');
+  if (from) query.set('from', from);
+  return query.toString();
+}
+
+export function generatorUrl(params: RunParams, from?: string): string {
+  return `${import.meta.env.BASE_URL}new/?${generatorSearch(params, from)}#simulate`;
+}
+
+export function paramsFromSearch(search: string | URLSearchParams): RunParams | null {
+  const query = typeof search === 'string' ? new URLSearchParams(search) : search;
+  if (!query.has('seed') && !query.has('years') && !query.has('from')) return null;
+
+  const named = query.get('from') ? paramsFromFilename(query.get('from')!) : null;
+
+  return {
+    seed: readSearchNumber(query, 'seed', named?.seed ?? DEFAULT_PARAMS.seed),
+    years: readSearchNumber(query, 'years', named?.years ?? DEFAULT_PARAMS.years),
+    civs: readSearchNumber(query, 'civs', named?.civs ?? DEFAULT_PARAMS.civs),
+    size: readSearchNumber(query, 'size', named?.size ?? DEFAULT_PARAMS.size),
+    eastWestPeriodic: query.has('ewp')
+      ? query.get('ewp') !== '0'
+      : (named?.eastWestPeriodic ?? DEFAULT_PARAMS.eastWestPeriodic),
+  };
+}
+
+function readSearchNumber(query: URLSearchParams, name: string, fallback: number): number {
+  const raw = query.get(name);
+  if (raw === null || raw === '') return fallback;
+  const value = Number(raw);
+  return Number.isSafeInteger(value) ? value : fallback;
+}
+
+/**
+ * A plausible next end year: +100, then +200, then +500, never past the form's ceiling.
+ *
+ * Not a continuation of saved state — the engine always starts from year one — but the
+ * same seed is deterministic, so the first N years of a longer run are the history
+ * already on screen.
+ */
+export function suggestedContinueYears(years: number): number {
+  const extra = years >= 1000 ? 500 : years >= 400 ? 200 : 100;
+  return Math.min(BOUNDS.years.max, years + extra);
+}
+
+export function worldFileFromLocation(search = window.location.search): string | undefined {
+  const requested = new URLSearchParams(search).get('world')?.trim();
+  if (!requested) return undefined;
+  const file = requested.split('/').pop();
+  return file && file.endsWith('.json') ? file : undefined;
 }

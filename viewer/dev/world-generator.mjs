@@ -404,9 +404,9 @@ function generatorEndpoint() {
 }
 
 /**
- * Reads only the beginning of each export. The schema version is deliberately the
- * first property in the canonical file, so cataloguing several multi-megabyte worlds
- * does not mean parsing or retaining all of their chronicles.
+ * Lists every JSON export without parsing the chronicle. Identity (seed, years,
+ * size, engine) is read from the file header; civilization count comes from the
+ * generator filename when the name carries it.
  *
  * @param {string} worldDir
  */
@@ -442,17 +442,22 @@ async function inspectWorld(file, name) {
       world: `worlds/${name}`,
       bytes: 0,
       schemaVersion: null,
+      params: null,
+      engineVersion: null,
       error: message(cause),
     };
   }
 
   try {
+    const header = await readWorldHeader(file);
     return {
       name,
       world: `worlds/${name}`,
       bytes: info.size,
       modifiedAt: info.mtime.toISOString(),
-      schemaVersion: await readSchemaVersion(file),
+      schemaVersion: header.schemaVersion,
+      engineVersion: header.engineVersion,
+      params: paramsFor(name, header),
     };
   } catch (cause) {
     return {
@@ -461,32 +466,122 @@ async function inspectWorld(file, name) {
       bytes: info.size,
       modifiedAt: info.mtime.toISOString(),
       schemaVersion: null,
+      params: paramsFromFilename(name),
+      engineVersion: null,
       error: message(cause),
     };
   }
 }
 
 /**
+ * Reads only the beginning of each export. Schema, seed, years and size all sit
+ * before the raster payload, so cataloguing several multi-megabyte worlds does
+ * not mean parsing or retaining their chronicles.
+ *
  * @param {string} file
  */
-async function readSchemaVersion(file) {
+async function readWorldHeader(file) {
   const handle = await open(file, 'r');
 
   try {
-    const buffer = Buffer.alloc(16 * 1024);
+    const buffer = Buffer.alloc(32 * 1024);
     const { bytesRead } = await handle.read(buffer, 0, buffer.length, 0);
     const header = buffer.toString('utf8', 0, bytesRead);
-    const match = /"schemaVersion"\s*:\s*(\d+)/.exec(header);
 
-    if (!match) throw new Error('schemaVersion is missing from the file header');
+    // Cut before the raster so a number inside the base64 cannot be mistaken for
+    // width or years. The fields we want are all declared before it.
+    const rasterAt = header.search(/"raster"\s*:/);
+    const prefix = rasterAt === -1 ? header : header.slice(0, rasterAt);
 
-    const version = Number(match[1]);
-    if (!Number.isSafeInteger(version)) throw new Error('schemaVersion is not a whole number');
+    const schemaVersion = readIntField(prefix, 'schemaVersion');
+    if (schemaVersion === null) throw new Error('schemaVersion is missing from the file header');
 
-    return version;
+    return {
+      schemaVersion,
+      seed: readIntField(prefix, 'seed'),
+      years: readIntField(prefix, 'yearsSimulated'),
+      size: readIntField(prefix, 'width'),
+      eastWestPeriodic: readBoolField(prefix, 'eastWestPeriodic'),
+      engineVersion: readStringField(prefix, 'engineVersion'),
+    };
   } finally {
     await handle.close();
   }
+}
+
+/**
+ * @param {string} name
+ * @param {{
+ *   seed: number | null,
+ *   years: number | null,
+ *   size: number | null,
+ *   eastWestPeriodic: boolean | null,
+ * }} header
+ */
+function paramsFor(name, header) {
+  const named = paramsFromFilename(name);
+
+  const seed = header.seed ?? named?.seed;
+  const years = header.years ?? named?.years;
+  const civs = named?.civs ?? PARAMS.civs.fallback;
+  const size = header.size ?? named?.size ?? PARAMS.size.fallback;
+
+  if (seed === undefined || years === undefined) return named;
+
+  return {
+    seed,
+    years,
+    civs,
+    size,
+    eastWestPeriodic: header.eastWestPeriodic ?? named?.eastWestPeriodic ?? false,
+  };
+}
+
+/**
+ * @param {string} name
+ * @returns {RunParams | null}
+ */
+function paramsFromFilename(name) {
+  const match = /^world-s(\d+)-y(\d+)-c(\d+)(?:-z(\d+))?(-ewp)?\.json$/i.exec(name);
+  if (!match) return null;
+
+  return {
+    seed: Number(match[1]),
+    years: Number(match[2]),
+    civs: Number(match[3]),
+    size: match[4] ? Number(match[4]) : PARAMS.size.fallback,
+    eastWestPeriodic: Boolean(match[5]),
+  };
+}
+
+/**
+ * @param {string} text
+ * @param {string} name
+ */
+function readIntField(text, name) {
+  const match = new RegExp(`"${name}"\\s*:\\s*(-?\\d+)`).exec(text);
+  if (!match) return null;
+  const value = Number(match[1]);
+  return Number.isSafeInteger(value) ? value : null;
+}
+
+/**
+ * @param {string} text
+ * @param {string} name
+ */
+function readBoolField(text, name) {
+  const match = new RegExp(`"${name}"\\s*:\\s*(true|false)`).exec(text);
+  if (!match) return null;
+  return match[1] === 'true';
+}
+
+/**
+ * @param {string} text
+ * @param {string} name
+ */
+function readStringField(text, name) {
+  const match = new RegExp(`"${name}"\\s*:\\s*"([^"]*)"`).exec(text);
+  return match ? match[1] : null;
 }
 
 /**
