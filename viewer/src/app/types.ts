@@ -648,11 +648,42 @@ export const DEATH_LABELS: Record<DeathCause, string> = {
 
 export type Sex = 'Female' | 'Male';
 
+/**
+ * The offices a figure can hold.
+ *
+ * Branch on this, never on `Title.title`. The title text is culture flavour — one realm's
+ * Marshal is another's Strategos — and identifying a reign by comparing it worked only
+ * while the crown and the regency were the only offices in existence.
+ */
+export type OfficeKind =
+  | 'Ruler'
+  | 'Regent'
+  | 'Consort'
+  | 'Marshal'
+  | 'HighPriest'
+  | 'Governor';
+
+export const OFFICE_LABELS: Record<OfficeKind, string> = {
+  Ruler: 'Ruler',
+  Regent: 'Regent',
+  Consort: 'Consort',
+  Marshal: 'Marshal',
+  HighPriest: 'High priest',
+  Governor: 'Governor',
+};
+
 export interface Title {
+  kind: OfficeKind;
   title: string;
   civilizationId: EntityId;
   fromYear: number;
   toYear?: number;
+  /** The settlement or faith held over, where the office is over one. */
+  scopeId?: EntityId;
+  /** Whoever granted it. Absent when the body chose its own. */
+  grantedBy?: EntityId;
+  /** How they came by it, in prose: "by the king's mandate". */
+  claim?: string;
 }
 
 /**

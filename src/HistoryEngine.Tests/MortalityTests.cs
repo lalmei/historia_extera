@@ -150,9 +150,11 @@ public sealed class MortalityTests
 
     private static bool WasRuler(Figure figure, EntityId civilizationId, int year)
     {
-        foreach (TitleHolding title in figure.Titles)
+        foreach (OfficeHolding title in figure.Offices)
         {
-            if (title.CivilizationId != civilizationId || title.Title == "Regent") continue;
+            // By kind, not by title text. This comparison used to read `title.Title == "Regent"`,
+            // which silently counted a marshal as a reign the moment a third office existed.
+            if (title.CivilizationId != civilizationId || title.Kind != OfficeKind.Ruler) continue;
             if (title.FromYear > year) continue;
             if (title.ToYear is null || title.ToYear >= year) return true;
         }

@@ -143,7 +143,20 @@ public static class Houses
         }
 
         Number(world, civilization, ruler);
-        ruler.Titles.Add(new TitleHolding(culture.RulerTitle, civilization.Id, year, null));
+
+        // A crown supersedes whatever lesser office its holder was in. A governor who inherits
+        // does not go on governing his town from the capital, and a marshal who is crowned hands
+        // the army to somebody else — leaving them open would have one person holding two posts
+        // the appointment system would then decline to refill.
+        ruler.EndOffice(OfficeKind.Marshal, year);
+        ruler.EndOffice(OfficeKind.Governor, year);
+        ruler.EndOffice(OfficeKind.Consort, year);
+
+        ruler.Offices.Add(
+            new OfficeHolding(OfficeKind.Ruler, culture.RulerTitle, civilization.Id, year, null)
+            {
+                Claim = claim,
+            });
 
         civilization.CurrentRulerId = ruler.Id;
         civilization.RulerSinceYear = year;
@@ -219,7 +232,7 @@ public static class Houses
         figure.DeathYear = year;
         figure.DeathCause = cause;
         figure.DeathDetail = detail;
-        figure.EndAllTitles(year);
+        figure.EndAllOffices(year);
 
         if (world.Figures.Contains(figure.SpouseId))
         {
@@ -239,7 +252,7 @@ public static class Houses
         // governed get it, because with dynasties the overwhelming majority of deaths are infants,
         // and indexing every one against the realm buries three centuries of its actual history
         // under its nurseries. A child's death belongs to their house's page and their own.
-        EntityId realm = figure.Titles.Count > 0 ? figure.CivilizationId : EntityId.None;
+        EntityId realm = figure.Offices.Count > 0 ? figure.CivilizationId : EntityId.None;
 
         world.Chronicle.Record(
             year,

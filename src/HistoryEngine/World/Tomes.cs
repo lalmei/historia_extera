@@ -328,7 +328,7 @@ public static class Tomes
             {
                 if (figure.CivilizationId == civilization.Id
                     && figure.BirthYear <= year
-                    && figure.Titles.Count > 0)
+                    && figure.Offices.Count > 0)
                 {
                     figures.Add(figure);
                 }
@@ -480,8 +480,8 @@ public static class Tomes
 
         sections.Add(Section("Origins", born, origins));
 
-        List<TitleHolding> titles = new();
-        foreach (TitleHolding title in figure.Titles)
+        List<OfficeHolding> titles = new();
+        foreach (OfficeHolding title in figure.Offices)
         {
             if (title.FromYear <= year) titles.Add(title);
         }
@@ -491,7 +491,7 @@ public static class Tomes
             var offices = new List<string>(titles.Count);
             var officeRefs = new List<EntityId> { figure.Id };
 
-            foreach (TitleHolding title in titles)
+            foreach (OfficeHolding title in titles)
             {
                 int? ended = title.ToYear is int to && to <= year ? to : null;
                 string span = ended is int end

@@ -3,6 +3,8 @@ import {
   Badge,
   type Column,
   DataTable,
+  type Dial,
+  Dials,
   EntityLink,
   type Facet,
   Field,
@@ -40,15 +42,18 @@ import {
   type Battle,
   type Civilization,
   type Culture,
+  type Disposition,
   type Dynasty,
   type EntityId,
   type Figure,
+  type Fortunes,
   type HolySite,
   type Region,
   type Relation,
   type Religion,
   type Settlement,
   type TradeRoute,
+  type Values,
   type War,
 } from '../types';
 
@@ -156,10 +161,39 @@ export function CivilizationPage({ world, civ }: { world: World; civ: Civilizati
         <WarTable world={world} wars={warsOf(world, civ.id)} />
       </Panel>
 
+      <div className="grid gap-5 lg:grid-cols-2">
+        <Panel title="The values it is governed by">
+          <Dials dials={valueDials(civ.effectiveValues, culture)} />
+          <p className="mt-3 text-xs leading-relaxed text-[var(--ink-faint)]">
+            {culture ? (
+              <>
+                Its culture&rsquo;s own values, moved toward whoever was governing in{' '}
+                {world.export.meta.endYear} and then shifted by what the realm had lately been
+                through. Ticks mark <EntityLink world={world} id={culture.id} />
+                &rsquo;s reading of the same dial; the gap is the reign. Tradition and learning
+                never move with a realm&rsquo;s fortunes — a plague leaves nobody less attached to
+                their ancestral sites.
+              </>
+            ) : (
+              <>The dials the realm was actually governed by in {world.export.meta.endYear}.</>
+            )}
+          </p>
+        </Panel>
+
+        <Panel title="What it has lately been through">
+          <Dials dials={fortuneDials(civ.fortunes)} />
+          <p className="mt-3 text-xs leading-relaxed text-[var(--ink-faint)]">
+            Where the last years left it, not a running total: all four decay, and grievance
+            decays slowest. Being beaten exhausts a realm and being humiliated angers it, which is
+            why weariness and grievance are counted apart.
+          </p>
+        </Panel>
+      </div>
+
       {culture && (
         <div className="grid gap-5 lg:grid-cols-2">
           <Panel title="Cultural values">
-            <ValueBars culture={culture} />
+            <Dials dials={valueDials(culture)} />
           </Panel>
           <Panel title="Naming language">
             <LexiconPanel culture={culture} />
@@ -448,6 +482,7 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
       : figure.deathYear - figure.birthYear;
 
   const house = dynastyOf(world, figure.dynastyId);
+  const culture = cultureOf(world, figure.cultureId);
   const hasFamily =
     figure.motherId !== undefined ||
     figure.fatherId !== undefined ||
@@ -475,6 +510,7 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
 
       <Panel title="Details">
         <dl>
+          <Field label="Sex">{figure.sex}</Field>
           <Field label="House">
             {house ? (
               <EntityLink world={world} id={house.id} />
@@ -524,6 +560,25 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
             )}
           </Field>
         </dl>
+      </Panel>
+
+      <Panel title="Disposition">
+        <Dials dials={dispositionDials(figure.disposition, culture)} />
+        <p className="mt-3 text-xs leading-relaxed text-[var(--ink-faint)]">
+          Their own inclinations, on the dials their people hold.
+          {culture && (
+            <>
+              {' '}
+              Ticks mark <EntityLink world={world} id={culture.id} />
+              &rsquo;s reading of each: everyone is rolled around the values they were born to, so
+              the gap is the person rather than the people.
+            </>
+          )}{' '}
+          Centralism is rolled around what the office itself invites rather than around a culture,
+          so it carries no tick.
+          {figure.titles.length === 0 &&
+            ' Recorded for everyone, though it only ever governed anything for those who came to rule.'}
+        </p>
       </Panel>
 
       {hasFamily && (
@@ -615,7 +670,10 @@ function Succession({ world, rulerIds }: { world: World; rulerIds: EntityId[] })
         const previous = index > 0 ? rulers[index - 1] : undefined;
         const changedHouse =
           previous !== undefined && ruler.dynastyId !== previous.dynastyId;
-        const reign = ruler.titles.find((title) => title.title !== 'Regent');
+        // By kind. This read `title.title !== 'Regent'` until offices existed, which meant a
+        // ruler who had earlier been a marshal or a governor had that posting rendered as
+        // their reign — wrongly, and without anything failing to say so.
+        const reign = ruler.titles.find((title) => title.kind === 'Ruler');
 
         return (
           <li key={`${ruler.id}-${index}`} className="flex flex-wrap items-baseline gap-x-2">
@@ -795,12 +853,36 @@ export function RegionPage({ world, region }: { world: World; region: Region }) 
         }
       />
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
         <Stat label="Habitability" value={region.habitability.toFixed(2)} />
         <Stat label="Fertility" value={region.fertility.toFixed(2)} />
         <Stat label="Mean height" value={`${Math.round(region.meanHeight)} m`} />
         <Stat label="Extent" value={`${region.width} × ${region.height}`} />
+        <Stat
+          label="Corner"
+          value={`${region.minX}, ${region.minZ}`}
+          hint="World coordinates of its north-west corner"
+        />
       </div>
+
+      <Panel title="Ground">
+        <dl>
+          <Field label="Biome">{region.biome}</Field>
+          <Field label="Terrain">
+            {region.isLand ? 'Land' : 'Open water'}
+            {region.hasRiver && ' · a river runs through it'}
+            {region.isCoastal && ' · meets the sea'}
+            {!region.hasRiver && !region.isCoastal && region.isLand && ' · no river, no coast'}
+          </Field>
+          <Field label="Claimed by">
+            {region.owner ? (
+              <EntityLink world={world} id={region.owner} />
+            ) : (
+              <span className="text-[var(--ink-faint)]">Unclaimed at the end of the run</span>
+            )}
+          </Field>
+        </dl>
+      </Panel>
 
       <Panel title="Held by">
         <Tenures world={world} region={region} />
@@ -1432,9 +1514,31 @@ export function CulturePage({ world, culture }: { world: World; culture: Culture
         meta={<Badge>Rulers styled &ldquo;{culture.rulerTitle}&rdquo;</Badge>}
       />
 
+      <Panel title="Details">
+        <dl>
+          <Field label="Government">{culture.government}</Field>
+          <Field label="Rulers styled">{culture.rulerTitle}</Field>
+          <Field label="Succession">
+            {SUCCESSION_LABELS[culture.successionLaw] ?? culture.successionLaw}
+          </Field>
+          <Field label="Term">
+            {culture.termYears > 0 ? (
+              `${culture.termYears} years, then the office is filled again`
+            ) : (
+              <span className="text-[var(--ink-faint)]">Held for life</span>
+            )}
+          </Field>
+        </dl>
+      </Panel>
+
       <div className="grid gap-5 lg:grid-cols-2">
         <Panel title="Cultural values">
-          <ValueBars culture={culture} />
+          <Dials dials={valueDials(culture)} />
+          <p className="mt-3 text-xs leading-relaxed text-[var(--ink-faint)]">
+            Fixed at worldgen and read by the systems rather than hard-coded into them. What a
+            realm is actually governed by is this, moved toward its ruler and its recent past —
+            see any of its civilizations below.
+          </p>
         </Panel>
         <Panel title="Naming language">
           <LexiconPanel culture={culture} />
@@ -1533,35 +1637,70 @@ function LexiconPanel({ culture }: { culture: Culture }) {
   );
 }
 
-function ValueBars({ culture }: { culture: Culture }) {
-  const values: [string, number][] = [
-    ['Aggression', culture.aggression],
-    ['Expansionism', culture.expansionism],
-    ['Piety', culture.piety],
-    ['Tradition', culture.tradition],
-    ['Mercantile', culture.mercantile],
-  ];
+/**
+ * The six dials, in the order the engine declares them.
+ *
+ * One table drives a culture's own values, the values a realm is actually governed by, and a
+ * person's disposition — because they are the same six dials, and a reader comparing a king
+ * against his people should not have to check that the rows line up.
+ */
+const VALUE_DIALS: [label: string, key: keyof Values, hint: string][] = [
+  ['Aggression', 'aggression', 'How readily it reaches for war'],
+  ['Expansionism', 'expansionism', 'How hard it presses at its borders'],
+  ['Piety', 'piety', 'How much weight it gives its faith'],
+  ['Tradition', 'tradition', 'How tightly it holds to what it has always done'],
+  ['Mercantile', 'mercantile', 'How much it lives by trade'],
+  ['Learning', 'learning', 'How much it writes, copies and keeps'],
+];
 
-  return (
-    <dl className="space-y-2">
-      {values.map(([label, value]) => (
-        <div key={label} className="flex items-center gap-3">
-          <dt className="w-28 shrink-0 text-sm text-[var(--ink-faint)]">{label}</dt>
-          <dd className="flex min-w-0 flex-1 items-center gap-2">
-            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--rule)]">
-              <div
-                className="h-full rounded-full bg-[var(--accent)]"
-                style={{ width: `${Math.round(value * 100)}%` }}
-              />
-            </div>
-            <span className="w-10 text-right text-xs tabular-nums text-[var(--ink-faint)]">
-              {value.toFixed(2)}
-            </span>
-          </dd>
-        </div>
-      ))}
-    </dl>
-  );
+/** Dials for one set of values, optionally ticked against another set of the same six. */
+function valueDials(values: Values, against?: Values): Dial[] {
+  return VALUE_DIALS.map(([label, key, hint]) => ({
+    label,
+    value: values[key],
+    against: against?.[key],
+    hint,
+  }));
+}
+
+/**
+ * A person's own inclinations: the culture's six, plus one their culture has no reading of.
+ *
+ * Centralism is rolled around what the office itself invites rather than around the people —
+ * a chief has few instruments to appoint with and a hierarch has many — so it is shown
+ * without a tick rather than against a baseline that does not exist.
+ */
+function dispositionDials(disposition: Disposition, against?: Values): Dial[] {
+  return [
+    ...valueDials(disposition, against),
+    {
+      label: 'Centralism',
+      value: disposition.centralism,
+      hint: 'How much they insist on deciding things themselves',
+    },
+  ];
+}
+
+/** The four decaying measures of what a realm has lately been through. */
+function fortuneDials(fortunes: Fortunes): Dial[] {
+  return [
+    {
+      label: 'Weariness',
+      value: fortunes.weariness,
+      hint: 'Bled and knows it — damps aggression, inclines it to trade. Halves in twelve years',
+    },
+    {
+      label: 'Calamity',
+      value: fortunes.calamity,
+      hint: 'Hurt by something it cannot fight — damps expansion, drives it to the temple',
+    },
+    { label: 'Triumph', value: fortunes.triumph, hint: 'It is going well, and everyone can feel it' },
+    {
+      label: 'Grievance',
+      value: fortunes.grievance,
+      hint: 'Ground lost and not recovered. Halves in twenty-five years, so it outlives the exhaustion',
+    },
+  ];
 }
 
 export function HolySiteTable({ world, sites }: { world: World; sites: HolySite[] }) {

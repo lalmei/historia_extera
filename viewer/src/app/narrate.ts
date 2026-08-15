@@ -90,6 +90,51 @@ export function narrateText(
     .join('');
 }
 
+/**
+ * The parts of an event no template prints: leftover data, and the entities it is only
+ * indexed under.
+ *
+ * Templates are prose and are allowed to leave things out — a coronation reads better without
+ * the new king's age in it, and a battle without the id of the war it belongs to. Everything
+ * they leave out is still in the export, and this is what lets the chronicle show it on
+ * request without the viewer learning what any particular event kind carries.
+ *
+ * A `{data:key}` inside a dropped optional segment counts as unprinted, because it is.
+ */
+export function unnarrated(
+  event: HistoryEvent,
+  templates: Record<string, string>,
+): { data: [string, string][]; extra: EntityId[] } {
+  const template = templates[event.kind] ?? templates.Unknown ?? '';
+  const printed = new Set<string>();
+
+  for (const [, inner] of template.matchAll(/\[([^\]]*)\]/g)) {
+    if (!segmentHolds(inner, event)) continue;
+    for (const [, key] of inner.matchAll(/\{data:(\w+)\}/g)) printed.add(key);
+  }
+
+  // Outside the brackets a token stands on its own, so it prints whenever it resolves.
+  for (const [, key] of template.replace(/\[[^\]]*\]/g, '').matchAll(/\{data:(\w+)\}/g)) {
+    if (event.data?.[key]) printed.add(key);
+  }
+
+  const named = new Set([event.subject, event.object, event.location]);
+
+  return {
+    data: Object.entries(event.data ?? {}).filter(([key]) => !printed.has(key)),
+    extra: (event.extra ?? []).filter((id) => !named.has(id)),
+  };
+}
+
+/** Whether an optional segment survives — it is dropped whole if anything in it is absent. */
+function segmentHolds(inner: string, event: HistoryEvent): boolean {
+  for (const [, token] of inner.matchAll(/\{([^}]*)\}/g)) {
+    if (resolve(token, event, () => '') === null) return false;
+  }
+
+  return true;
+}
+
 /** Returns null if any placeholder inside the segment is unresolvable. */
 function renderSegment(
   inner: string,

@@ -181,7 +181,7 @@ public sealed class DynastyTests
 
         foreach (Figure figure in world.Figures)
         {
-            foreach (TitleHolding holding in figure.Titles)
+            foreach (OfficeHolding holding in figure.Offices)
             {
                 int ended = holding.ToYear ?? world.EndYear;
 

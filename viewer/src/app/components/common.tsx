@@ -125,6 +125,68 @@ export function Badge({
   );
 }
 
+/** One [0, 1] reading, optionally against a second reading of the same dial. */
+export interface Dial {
+  label: string;
+  value: number;
+  /** A second reading of the same dial, drawn as a tick on the bar. */
+  against?: number;
+  hint?: string;
+}
+
+/**
+ * A set of [0, 1] dials, drawn to be compared with each other and against a baseline.
+ *
+ * `against` is why this is a component rather than a list of numbers. A realm's effective
+ * values say little on their own and a great deal beside its culture's; a person's
+ * disposition says little until you can see which way it pulls against the people they were
+ * born to. The baseline is a tick on the same bar rather than a second bar, so the gap
+ * between the two is the thing the eye lands on.
+ */
+export function Dials({ dials }: { dials: Dial[] }) {
+  return (
+    <dl className="space-y-2">
+      {dials.map((dial) => (
+        <div key={dial.label} className="flex items-center gap-3" title={dial.hint}>
+          <dt className="w-28 shrink-0 text-sm text-[var(--ink-faint)]">{dial.label}</dt>
+          <dd className="flex min-w-0 flex-1 items-center gap-2">
+            <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--rule)]">
+              <div
+                className="h-full rounded-full bg-[var(--accent)]"
+                style={{ width: `${clamp01(dial.value) * 100}%` }}
+              />
+              {dial.against !== undefined && (
+                <span
+                  className="absolute top-0 h-full w-0.5 -translate-x-1/2 bg-[var(--ink)]"
+                  style={{ left: `${clamp01(dial.against) * 100}%` }}
+                />
+              )}
+            </div>
+            <span className="w-9 shrink-0 text-right text-xs tabular-nums text-[var(--ink-faint)]">
+              {dial.value.toFixed(2)}
+            </span>
+            {dial.against !== undefined && (
+              <span className="w-11 shrink-0 text-right text-xs tabular-nums text-[var(--ink-faint)]">
+                {signed(dial.value - dial.against)}
+              </span>
+            )}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function clamp01(value: number): number {
+  return Math.min(1, Math.max(0, value));
+}
+
+/** `+0.14`, `−0.03`, `·` for a gap too small to mean anything. */
+function signed(delta: number): string {
+  if (Math.abs(delta) < 0.005) return '·';
+  return `${delta > 0 ? '+' : '−'}${Math.abs(delta).toFixed(2)}`;
+}
+
 export function PageTitle({
   eyebrow,
   title,
