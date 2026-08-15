@@ -85,9 +85,15 @@ public sealed class OfficeTests
                         figure.IsAlive,
                         $"{figure.Name} still holds {held.Title} having died in {figure.DeathYear}.");
 
-                    Assert.True(
-                        figure.AgeIn(endYear) >= Offices.ServiceAge,
-                        $"{figure.Name} holds {held.Title} at {figure.AgeIn(endYear)}.");
+                    // A crown is inherited, not served: a child on a throne under a regent is the
+                    // model working, not a breach of it. Every other office is entered into by
+                    // someone who has to be capable of discharging it.
+                    if (held.Kind != OfficeKind.Ruler)
+                    {
+                        Assert.True(
+                            figure.AgeIn(endYear) >= Offices.ServiceAge,
+                            $"{figure.Name} holds {held.Title} at {figure.AgeIn(endYear)}.");
+                    }
 
                     // The office belongs to the realm its holder lives in. An office that could
                     // move someone across a border would reintroduce the M5 class of bug that left

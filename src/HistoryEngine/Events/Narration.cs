@@ -54,7 +54,8 @@ public static class Narration
             "{subject} came to an end[ after {data:years} years][, {data:cause}][ by {object}].");
         Set(EventKind.CapitalMoved, "{subject} moved its seat of government to {location}.");
 
-        Set(EventKind.SettlementFounded, "{subject} was founded[ by {object}].");
+        Set(EventKind.SettlementFounded,
+            "{subject} was founded[ by {object}][, {data:settlers} of them out of {data:from}].");
         Set(EventKind.SettlementPromoted, "{subject} grew into a {data:tier}.");
         Set(EventKind.SettlementDeclined, "{subject} dwindled to a {data:tier}.");
         Set(EventKind.SettlementAbandoned,
