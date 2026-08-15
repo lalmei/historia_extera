@@ -49,6 +49,9 @@ public sealed class OfficeSystem : ISystem
     /// <summary>How far from the capital counts as the far side of the realm.</summary>
     private const double ReachRange = 2200.0;
 
+    /// <summary>How much more a realm at war insists on naming its own officers.</summary>
+    private const double WartimeMandate = 1.3;
+
     public string Name => "offices";
 
     public Cadence Cadence => Cadence.Annual;
@@ -92,8 +95,12 @@ public sealed class OfficeSystem : ISystem
     {
         foreach (Figure figure in world.Figures)
         {
-            OfficeHolding? held = figure.CurrentOffice;
-            if (held is null || held.CivilizationId != civilization.Id) continue;
+            // Every open office this realm granted, not merely the newest. Scanning only the most
+            // recent is unambiguous exactly while nobody can hold two at once, which is a property
+            // of today's grant rules rather than of this loop — the same assumption that left a
+            // regent recorded as governing for three centuries after he died.
+            OfficeHolding? held = OpenHere(figure, civilization);
+            if (held is null) continue;
             if (held.Kind is OfficeKind.Ruler or OfficeKind.Regent) continue;
 
             if (!figure.IsAlive || figure.CivilizationId != civilization.Id)
@@ -127,6 +134,17 @@ public sealed class OfficeSystem : ISystem
                 Offices.Lapse(world, figure, held.Kind, year);
             }
         }
+    }
+
+    /// <summary>The first open office this figure holds of this realm, in the order granted.</summary>
+    private static OfficeHolding? OpenHere(Figure figure, Civilization civilization)
+    {
+        foreach (OfficeHolding held in figure.Offices)
+        {
+            if (held.ToYear is null && held.CivilizationId == civilization.Id) return held;
+        }
+
+        return null;
     }
 
     private static bool StillGoverning(
@@ -206,6 +224,14 @@ public sealed class OfficeSystem : ISystem
 
         // A sovereign in their own right keeps their own style; two crowns do not make a consort.
         if (Succession.HoldsAThrone(world, consort)) return;
+
+        // And they have to live here. Enthrone brings a consort home with the crown, but makes
+        // one deliberate exception — a spouse who holds a throne of their own stays in their own
+        // court, because a ruler resident in a realm they do not rule routes their death to the
+        // wrong throne. Recognising them here anyway gave one figure an office of a realm they had
+        // never lived in, re-granted every year as the release pass threw it straight back, which
+        // is three chronicle entries a year saying nothing.
+        if (consort.CivilizationId != civilization.Id) return;
 
         Offices.Grant(
             world,
@@ -331,6 +357,11 @@ public sealed class OfficeSystem : ISystem
 
         mandate *= DetMath.Lerp(1.25, 0.65, culture.Values.Tradition);
 
+        // A realm at war centralises. Everything a crown delegates in peacetime is a thing it
+        // wants in a reliable hand while there is a campaign to lose, and this is the input the
+        // design named that the first cut of this method left out.
+        if (AtWar(world, civilization.Id)) mandate *= WartimeMandate;
+
         if (world.Settlements.Contains(scope))
         {
             Settlement place = world.Settlements[scope];
@@ -449,6 +480,16 @@ public sealed class OfficeSystem : ISystem
     // -----------------------------------------------------------------------
     // Lookups
     // -----------------------------------------------------------------------
+
+    private static bool AtWar(WorldState world, EntityId civilizationId)
+    {
+        foreach (War war in world.ActiveWars())
+        {
+            if (war.Involves(civilizationId)) return true;
+        }
+
+        return false;
+    }
 
     /// <summary>Whoever the appointments are made by: the regent while one sits, else the ruler.</summary>
     private static Figure? Governing(WorldState world, Civilization civilization)

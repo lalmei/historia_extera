@@ -949,6 +949,11 @@ export interface Figure {
   /** Specific form of the cause when known, such as a named plague or a flood. */
   deathDetail?: string;
   birthSettlementId?: EntityId;
+  /**
+   * Where they actually live, when that is finer than a realm. Set for a governor, who
+   * lives in the town they govern — which is what exposes them to what happens there.
+   */
+  residenceSettlementId?: EntityId;
   /** What they were before the record began following them. See ORIGIN_LABELS. */
   origin: FigureOrigin;
   disposition: Disposition;

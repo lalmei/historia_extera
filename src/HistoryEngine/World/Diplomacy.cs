@@ -269,6 +269,37 @@ public static class Diplomacy
     }
 
     /// <summary>
+    /// Whether the tie between these two houses is the reigning couple's own marriage.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>The bar the consort's office was to be held to.</b> Recognising a ruler's spouse is
+    /// otherwise the one office in the engine with no mechanical consequence, and the design said
+    /// plainly that it should be cut rather than kept for flavour if nothing came to read it.
+    /// This is the first of the two things that do: a crowned consort's tie to the house they were
+    /// born into is worth more than a third cousin's marriage, which turns
+    /// <see cref="MarriedIntoTheHouseOf"/>'s all-or-nothing warmth into something that tracks
+    /// whose marriage it actually was. The second is the dowager regency.</para>
+    ///
+    /// <para>The office rather than the marriage, deliberately. A republic does not crown a
+    /// consul's wife, so a republic earns no diplomatic credit for the same match a monarchy
+    /// would — which is the difference between a dynastic union and two people who married.</para>
+    /// </remarks>
+    public static bool CrownedConsortOf(
+        WorldState world, Civilization civilization, Civilization other)
+    {
+        if (!world.Figures.Contains(civilization.CurrentRulerId)) return false;
+
+        Figure ruler = world.Figures[civilization.CurrentRulerId];
+        if (!world.Figures.Contains(ruler.SpouseId)) return false;
+
+        Figure consort = world.Figures[ruler.SpouseId];
+        if (!consort.IsAlive || !consort.Holds(OfficeKind.Consort)) return false;
+
+        Dynasty? theirs = Succession.HouseOf(world, other);
+        return theirs is not null && consort.DynastyId == theirs.Id;
+    }
+
+    /// <summary>
     /// Regions this realm ceded to that one in past wars and has not taken back.
     /// </summary>
     /// <remarks>

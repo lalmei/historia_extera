@@ -35,6 +35,13 @@ public sealed class FigureIncidentSystem : ISystem
 
     private const double AccidentRisk = 0.00065;
 
+    /// <summary>Years after a disgrace during which a court may still settle accounts.</summary>
+    private const int GrudgeYears = 5;
+
+    private const double DisgraceRiskFloor = 0.012;
+
+    private const double DisgraceRiskFromAggression = 0.045;
+
     private static readonly string[] AccidentDetails =
     {
         "a riding accident",
@@ -115,6 +122,43 @@ public sealed class FigureIncidentSystem : ISystem
                 risk * ClaimantRiskMultiplier,
                 culture,
                 court);
+
+            Reckoning(world, civilization, year, culture, court);
+        }
+    }
+
+    /// <summary>
+    /// A court settling accounts with someone it lately stripped of an office.
+    /// </summary>
+    /// <remarks>
+    /// <para>Political violence needed a political target, and before offices the only one this
+    /// engine had was a claimant — so <see cref="DeathCause.Execution"/> was reachable exclusively
+    /// by losing a succession. A marshal dismissed while the war was going badly, or a governor
+    /// whose town emptied under him, is a man with enemies and no position, which is the other
+    /// way people historically ended up on a scaffold.</para>
+    ///
+    /// <para>Bounded to the years just after the disgrace. A court that executes a man it dismissed
+    /// forty years ago is not settling accounts, it is holding a grudge nothing in this model
+    /// represents.</para>
+    /// </remarks>
+    private static void Reckoning(
+        WorldState world, Civilization civilization, int year, Culture culture, IRng court)
+    {
+        foreach (Figure figure in world.Figures)
+        {
+            if (!figure.IsAlive || figure.CivilizationId != civilization.Id) continue;
+            if (figure.DisgracedYear is not int disgraced) continue;
+            if (year - disgraced > GrudgeYears) continue;
+
+            IRng fate = court.Fork("reckoning", figure.Id.ToDiscriminator());
+
+            double risk = DisgraceRiskFloor
+                + (DisgraceRiskFromAggression * world.ValuesFor(civilization).Aggression);
+
+            if (!fate.Chance(DetMath.Clamp01(risk))) continue;
+
+            Houses.Die(
+                world, figure, year, DeathCause.Execution, "for the loss of their office");
         }
     }
 

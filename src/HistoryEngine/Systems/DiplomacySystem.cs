@@ -52,6 +52,14 @@ public sealed class DiplomacySystem : ISystem
     /// <summary>Warmth from a living marriage between the two ruling houses.</summary>
     private const double MarriageBonus = 0.30;
 
+    /// <summary>Additional warmth when the tie is the reigning couple's own marriage.</summary>
+    /// <remarks>
+    /// Added to <see cref="MarriageBonus"/> rather than replacing it, so a dynastic union is the
+    /// strongest peacetime tie two realms can have short of an alliance — which is what a crowned
+    /// consort historically was for.
+    /// </remarks>
+    private const double CrownedConsortBonus = 0.20;
+
     /// <summary>Warmth per realm both sides regard as hostile, up to <see cref="MaxCommonEnemies"/>.</summary>
     /// <remarks>
     /// <para>The enemy of my enemy, and the term that makes alliances happen at all. Without it the
@@ -242,6 +250,14 @@ public sealed class DiplomacySystem : ISystem
         if (Diplomacy.MarriedIntoTheHouseOf(world, civilization, other))
         {
             standing += MarriageBonus;
+
+            // And the reigning couple's own marriage is worth more than a third cousin's. Without
+            // this the warmth between two houses is all-or-nothing however remote the tie, and a
+            // crowned consort is a title with nothing behind it.
+            if (Diplomacy.CrownedConsortOf(world, civilization, other))
+            {
+                standing += CrownedConsortBonus;
+            }
         }
 
         // Trade cuts both ways round: a mercantile people values a neighbour it sells to, and

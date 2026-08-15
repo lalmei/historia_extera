@@ -128,6 +128,9 @@ public static class Offices
         holder.EndOffice(kind, year);
         if (kind == OfficeKind.Governor) holder.ResidenceSettlementId = EntityId.None;
 
+        // Remembered, because losing an office badly is the sort of thing a court acts on later.
+        holder.DisgracedYear = year;
+
         world.Chronicle.Record(
             year,
             EventKind.OfficeRevoked,
