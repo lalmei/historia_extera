@@ -894,6 +894,239 @@ and an office roster is not evidence. No revolt, no secession, no provinces span
 settlements. Each of those wants this state to exist first, which is the argument for building
 it plainly now rather than in the shape some later feature might want.
 
+### Rulers who react: a people, a person, and a recent past
+
+> **Designed, not built.** Depends on `Figure.Centralism` from *Offices* above; if the two land
+> in the other order, that field moves here.
+
+Offices decide who holds what. This decides how the holder behaves, and it is the larger of the
+two. Today every decision a realm makes is read off its culture, which is fixed at worldgen and
+never changes: `culture.Values.Aggression` decides whether war is declared, whether a city is
+sacked, how hard the levy squeezes and whether a king takes the field in person. So a warlike
+people declares war at the same rate in its first century and its ninth, under thirty different
+rulers, having won every war or lost every war. There is no reign in the chronicle that reads
+unlike the reign before it except by accident of dice.
+
+**Three layers, in order: who they are, who this one is, what just happened.**
+
+```
+Effective(civ) = culture.Values
+                   .BlendToward(ruler.Disposition, Latitude(civ, ruler, year))
+                   .ShiftedBy(civ.Fortunes)
+```
+
+#### The worked example, because it is the whole design
+
+An aggressive people, a king who is not, and a war just lost. Culture aggression 0.78. The
+king's own, 0.31. Latitude for a monarchy, mid-Tradition people, a king twenty years on the
+throne and inclined to insist: 0.42. Blended: **0.58**. Ten years of weariness from two lost
+battles and a sacked city: 0.6, which discounts aggression by a third of itself. Effective
+aggression: **0.46**.
+
+`DiplomacySystem`'s war roll is `Lerp(0.3, 1.6, aggression)`. At the culture's own value that
+multiplier is 1.31; at the effective one it is 0.90. **The realm declares roughly a third fewer
+wars while this king lives and the memory holds** — and climbs back when he dies and a warlike
+nephew is crowned, or sooner if the weariness decays before he does. That is a chronicle beat
+that cannot happen today at all.
+
+#### One disposition record, and it is the culture's own shape
+
+The ruler's dials are *the same dials the culture has* — Aggression, Expansionism, Piety,
+Tradition, Mercantile — plus `Centralism` from the offices design and one addition below. This
+is the decision the rest of the design hangs off, and the alternative is worse in a way worth
+stating: a separate ruler-trait vocabulary (Bold, Cruel, Scholarly, Pious…) means every system
+that wants to consult it needs a new branch mapping traits onto behaviour, and thirty such
+branches is thirty places to disagree about what "bold" does.
+
+Same shape means the blend is one function and **no system needs a new branch at all**. The
+call sites change from `world.CultureOf(civ).Values` to `world.ValuesFor(civ)` and every one of
+them becomes reign-aware in the same commit.
+
+**`Learning` is the sixth dial, added to both culture and disposition**, and it is what "books
+because they want knowledge" requires. `ArtifactSystem.Appetite` currently reads Tradition and
+Piety, and `Choose` treats a tome as one of three things an ordinary town might make — so books
+in this world are essentially a dice roll with no motive behind them. Learning gives commission
+of tomes a patron, biases `Choose` toward tomes at a scholarly court, and raises the copying
+rate in `Tomes.Distribute`. It is the one new axis; the other five already exist.
+
+#### What a ruler may move, and what belongs to the people
+
+There are 30-odd live reads of `culture.Values` in the engine, and **they must not all become
+effective values**. The line to draw:
+
+> A ruler moves **decisions**. A people carries **dispositions**.
+
+| Takes the ruler's hand | Stays the culture's |
+|---|---|
+| `DiplomacySystem:430` declaring war | `PopulationSystem:183,186` how a people farms and trades |
+| `Warfare:545` sacking a taken city | `ReligionSystem:126,150,262` conversion pull, resistance, schism |
+| `Warfare:480` taking the field in person | `SettlementLifecycle:158` patience with a dying town |
+| `Diplomacy:219` the levy fraction | `SuccessionLaw` — see below |
+| `ExpansionSystem:56` founding a colony | `ReligionSystem:505` a new faith's fervour |
+| `SettlementLifecycle:205` raising walls | `TradeRouteSystem:229` whether merchants use a road |
+| `ArtifactSystem:91` commissioning things | `DiplomacySystem:236,246,247` relation drift |
+| `ReligionSystem:353,359` founding holy sites | `FigureIncidentSystem` court violence |
+| `DiplomacySystem:488,507` relic claims, holy war | |
+
+**`SuccessionLaw` must stay cultural, and it is not a close call.** It derives from government
+form with Tradition choosing among the monarchical variants. A ruler who could move Tradition
+could change how their own successor is chosen, mid-reign, by having opinions — agnatic one
+year and absolute the next. Constitutional change is a real thing to model one day and it is
+not a side effect of a personality.
+
+Relation *drift* stays cultural for a calibration reason rather than a philosophical one:
+relations are slow accumulators read every year by every neighbour, and letting each new
+coronation jolt every bilateral standing in reach would make alliances unreadable. The
+*decisions* taken on the back of those relations are where the ruler shows up.
+
+#### Latitude: how far one person can bend a people
+
+```
+latitude = Base(government)                        // chiefdom .45 → republic .20
+         * Lerp(1.25, 0.65, culture.Tradition)     // a traditional people bends less
+         * Lerp(0.50, 1.00, min(1, reign / 15))    // a new ruler has bent nothing yet
+         * Lerp(0.75, 1.25, ruler.Centralism)      // and some insist harder than others
+```
+capped so no reign displaces more than about 60% of the distance to the culture's value. A
+consul serving eight years in a traditional republic barely moves the realm; a chief of a
+pragmatic people, thirty years in and centralising, moves it a long way. That is the same
+`Centralism` the offices design introduced, which now has two consumers and clears the
+read-by-nothing bar on its own.
+
+**During a regency the regent's disposition applies, at reduced latitude** — which is what
+makes a dowager regent's decade legible as her decade rather than as a gap between reigns.
+
+#### Fortunes: the recent past, kept by the systems that caused it
+
+Four decaying scalars on the civilization, in the spirit of `DeathCause` — written by whichever
+system caused them, at the moment it happens, rather than inferred afterwards by walking the
+chronicle:
+
+| | Fed by | Meaning |
+|---|---|---|
+| `Weariness` | battles lost, own casualties, settlements sacked | the realm has been bled and knows it |
+| `Calamity` | plague, disaster and famine deaths | the realm has been hurt by something it cannot fight |
+| `Triumph` | battles won, territory taken | it is going well and everyone can feel it |
+| `Grievance` | territory lost and not regained | the humiliation that outlives the exhaustion |
+
+All four decay geometrically on a living-memory half-life of about twelve years, so a defeat
+governs a decade and is a footnote in three. **Weariness and Grievance are deliberately
+separate** and pull opposite ways: being beaten exhausts a realm and being humiliated angers
+it, and a model with one scalar has to pick one, which is why "we lost, so we will never fight
+again" and "we lost, so we will fight until we get it back" are both wrong on their own.
+
+The shifts, applied after the blend:
+
+- Weariness pulls Aggression down and Mercantile up — a spent realm trades.
+- Grievance pulls Aggression up.
+- Calamity pulls Expansionism down and **Piety up** — which is the first time a disaster or a
+  plague in this engine has any consequence beyond the people it kills, and it is the correct
+  one: catastrophe drives people to the temple.
+- Triumph pulls Expansionism and Aggression up, mildly. Success is its own argument.
+
+#### One answer per year
+
+Effective values are computed once at the top of the year and stored on the civilization,
+exactly as `StateReligionId` already is and for the same reason recorded there: every judgement
+made within one year should be made against the same answer. A war declared in spring and a
+colony founded in autumn are judged by the same king in the same mood.
+
+The consequence to accept deliberately: a ruler crowned in autumn takes effect the following
+spring, because succession runs late in the tick and the year's values were settled before it.
+That is a year's lag on a thirteen-year average reign, and the alternative — recomputing
+mid-year — reintroduces exactly the ordering hazard the annual sync exists to remove.
+
+This wants a new first system in the order, `crown` or `disposition`, running before
+`population`. It is cheap: a handful of lerps per realm per year.
+
+#### The electorate votes for the ruler it wants
+
+This is where the user-facing request lands most directly. The realm has a **wanted
+disposition**, derived and stored nowhere:
+
+```
+wanted = culture.Values
+           .ShiftedBy(civ.Fortunes)         // the same shifts, applied to what a people asks for
+           .PiousBy(state faith's Fervour)  // a fervent establishment wants a devout ruler
+           .CentralisedBy(Weariness + Calamity)   // crisis wants a strong hand
+```
+
+`SuccessionSystem.Elect` currently draws over `BallotWeights = {0.45, 0.27, 0.17, 0.11}` by
+claim order alone. It becomes `BallotWeights[i] × Affinity(candidate.Disposition, wanted)`,
+where affinity is one minus the mean absolute distance across the dials, mapped into a modest
+multiplier — roughly 0.5× for a candidate the realm does not want to 1.6× for the one it does.
+
+**Affinity must not overwhelm claim order, and this is the sharpest calibration risk in the
+whole design.** Push the multiplier range too wide and an elective realm stops being dynastic:
+the ballot becomes pure trait-matching, the fourth-placed claimant wins routinely, and the
+entire M5 apparatus of houses and lines of descent stops mattering in exactly the governments
+that were meant to showcase it. Claim strength must remain the dominant term with affinity as
+the thumb on the scale.
+
+**Monarchies get the same effect through the machinery that already exists.** A disputed
+succession currently resolves on a flat `StrongerClaimPrevails = 0.7`; nudging that by the
+rival's affinity means "the realm backed the brother who promised war" happens under
+primogeniture too, without a second system and without a peasant ever casting a ballot in a
+kingdom.
+
+#### The loop this leaves open on purpose
+
+Divergence — how far a reign's effective values sit from its culture's — is derived, stored
+nowhere, and currently read by nothing. It is named here because it is what a revolt system
+reads, and because the deferred half of the user's request has two halves, not one:
+
+- **The people push back.** Sustained divergence, plus sustained Weariness and Grievance, is
+  unrest. A ruler far from their people for long enough is deposed by them rather than by a
+  rival claimant — which is a kind of `RulerDeposed` the engine can already record and has no
+  way to produce.
+- **Or the people come round.** A culture's values could drift slowly toward a long line of
+  rulers who all pulled the same way: nine generations of warlike kings make a warlike people,
+  and the culture that was fixed at worldgen stops being fixed.
+
+Those two are the same feedback loop seen from either end, and building either one without the
+other gives a world that only ever revolts or only ever converges. Neither is in scope here.
+What is in scope is producing the divergence they both read.
+
+#### Where the calibration will fight back
+
+**Predictions.** Four, and the first is the one that decides whether this feature is worth
+having:
+
+1. **Reign-to-reign whiplash.** Every dial re-blends on every coronation, and with a
+   thirteen-year mean reign a realm could change character six times a century. That is not
+   history, it is noise. The controls are latitude's reign-length term — a new ruler starts
+   near their culture and diverges as they hold on — and the cap. If a chronicle reads as a
+   realm with multiple-personality disorder, that term is where to look first.
+2. **Fortunes as a death spiral.** Weariness lowers aggression, which lowers levies, which
+   loses battles, which raises weariness. Every feedback loop in this engine so far has needed
+   its sign checked; this one is negative on the war side and wants a floor.
+3. **Every realm converges on the mean.** Blending toward a rolled disposition whose mean is
+   the culture's own value is, over many reigns, a random walk that averages out — so the
+   world's realms could end up more alike than they started, which is the opposite of the
+   intent. Dispositions should be rolled with real spread and low latitude, not small spread
+   and high latitude, even though both produce the same average displacement.
+4. **The elective-realm failure above**, which is the one that quietly destroys an existing
+   feature rather than merely failing to add one.
+
+#### The test contract
+
+- Effective values stay in [0, 1] and never sit further from the culture's than the cap allows.
+- The succession law of a realm never changes while its culture is unchanged.
+- Fortunes decay to negligible within a stated span of quiet years, from any starting value.
+- A realm with high Weariness declares measurably fewer wars than the same realm at rest —
+  asserted against the seed's own baseline rather than an absolute rate.
+- Across the standard seeds, at least one reign diverges materially from its culture, and the
+  distribution of realm characters at 300 years is no tighter than at year one (the convergence
+  failure above, made into an assertion).
+- Elections still favour the strongest claim in the majority of cases.
+- Determinism: `Fortunes` is state on `Civilization` and exported; dispositions come from a fork
+  keyed on the figure's own id, so they cannot depend on birth order.
+
+Export goes with the offices bump: `ExportFigure` gains its disposition, `ExportCivilization`
+gains fortunes and the year's effective values. The viewer can then show a realm's dials as
+three numbers rather than one — *the people 0.78, the king 0.31, and 0.46 today* — which is
+probably the single most legible thing this design produces for a reader.
+
 ### Diplomacy and war: reach, not borders
 
 The M6 deliverable was relations, alliances, named battles, territory transfer and
@@ -1278,9 +1511,16 @@ viewer reading it.
 | M9 | Phase 2 spike: raster-backed `ITerrainSampler` | done |
 | M10 | Phase 2 proper: site selection with teeth on real terrain | next |
 | M11 | Offices: appointments, governors, founding parties | designed |
+| M12 | Rulers who react: dispositions, realm fortunes, trait-aware elections | designed |
 
 M11 has no terrain dependency and M10 has no figure dependency, so they can land in either
-order. See *Offices: what a court does with the people it already has* above.
+order. M12 depends on M11 only for `Figure.Centralism`, which moves with whichever lands
+first. See *Offices: what a court does with the people it already has* and *Rulers who react:
+a people, a person, and a recent past* above.
+
+Unrest and cultural drift — a people that deposes a ruler it has diverged from, or slowly
+becomes what a long line of them wanted — are the two halves of the loop M12 leaves open, and
+are not scheduled.
 
 ### As built
 
