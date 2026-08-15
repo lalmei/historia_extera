@@ -205,6 +205,123 @@ procedural backend, whose inputs are hashed already.
 `TerrainRasterBake` writes this format from any `ITerrainSampler`, which is how the
 round trip is tested and how a reference set is produced for comparison.
 
+### Site selection: a score that describes the site, not the region
+
+> **Planned** for M10. The measurements below are of the world before it landed.
+
+`SiteSelection.Best` refines an 8×8 grid of candidates inside a 128-unit region and ranks them
+on fertility, a river flag, a coast flag and a height penalty. Measured over eight seeds and
+542 settlements, here is what those terms are worth *across the 64 candidates of a single
+decision* — which is the only place they do any work, since the choice is between them:
+
+| Term | Spread within one decision |
+|---|---|
+| fertility and the height penalty, together | 0.071 |
+| the river and coast premiums | 0.184 |
+
+**The score has almost nothing to say about a site.** Fertility is built from climate
+interpolated off a 256-unit lattice, so within a 128-unit region it is very nearly constant —
+median spread 0.068 over a whole region. What is left is one boolean, quantised to the 64-unit
+hydrology grid, worth two and a half times everything else. So a siting decision reads: *if a
+river cell falls inside this region, stand on it; otherwise take the largest of 64 numbers that
+differ in the third decimal place.* A quarter of decisions have no water variation at all and
+are settled entirely by that noise. The premiums are not too small. They are the only thing
+there, and they describe the region rather than the site.
+
+**Nothing in the score knows whether the ground can be built on.** Those same eight seeds put
+**19.6% of settlements on a grade steeper than 1-in-2, and the steepest on 2:1** — a cliff face.
+That is not a mistuned weight, because there is no slope term: the question is never asked. And
+the ground is not mute. A median land region spans 33 m of relief, and half of all land regions
+contain a 16-unit step steeper than 1-in-2. The information is there and unread.
+
+So M10 is not "raise the river premium". It is: **give the score terms that vary at the scale of
+the decision it is making.**
+
+#### Everything the new terms need is already paid for
+
+`Hydrology.Build` calls `TerrainAtlas.SampleGrid(64)`, which memoises every point into the same
+cache the three access tiers use. A full-world height grid at 64 units therefore already exists
+before any settlement is sited, along with the flow graph, the drainage accumulation and the
+submerged mask derived from it. This is the quiet consequence of hydrology getting its own grid
+in M1, and M10 is the first thing to spend it on.
+
+That fixes where each measure belongs. Anything varying at the scale of a *landscape* is derived
+once on the 64-unit grid at world creation and costs nothing. Anything that has to distinguish
+two candidates 16 units apart comes from the refinement the siting decision already performs, and
+also costs nothing. **No new terrain samples.**
+
+| Measure | Where derived | From | Read by |
+|---|---|---|---|
+| `IsConfluence` | 64-unit grid | ≥2 river cells draining into one | siting, specialization |
+| `IsEstuary` | 64-unit grid | a river cell meeting the submerged mask | siting, specialization |
+| `Shelter` | 64-unit grid | how enclosed by land the adjacent water is | siting, specialization, trade |
+| `RiverDistance`, `CoastDistance` | 64-unit grid | integer chamfer transform over the grid | siting, habitability |
+| `Ruggedness`, `IsPass` | 64-unit grid | neighbour height spread; saddle test on the 8-ring | siting, habitability |
+| local grade, prominence | the decision's own 16-unit refinement | the refined candidates themselves | siting |
+
+Two of these deserve their reasoning stated, because the obvious version of each is wrong.
+
+**A coast cell is not a harbour.** Whether a place is worth landing at depends on whether the
+water beside it is sheltered, which is a property of the water, not of the shore. So enclosure is
+computed for each *water* cell — the fraction of its neighbours that are land — and a shore cell
+takes the best enclosure among the water it touches. A headland and the bay behind it are both
+"coastal" today and score identically; under this they separate, because the bay's water is
+ringed by land and the headland's is not.
+
+**Distance, not adjacency.** Every water term becomes a distance rather than a flag, because a
+flag on a 64-unit grid cannot rank sixteen candidates that all fall inside one cell — which is
+precisely the defect measured above. An integer 3-4 chamfer transform gives every point in the
+world a continuous distance to fresh water and to the sea, relaxed with a FIFO worklist so it is
+correct across the east/west seam and free of floating point in the propagation.
+
+#### The character a site was chosen for
+
+The chosen site keeps the reason it won, as one categorical value on the settlement:
+
+```csharp
+public enum SiteCharacter
+{
+    Plain = 0,      // unremarkable ground, taken for its soil
+    Riverside = 1,
+    Confluence = 2, // two rivers meet
+    Estuary = 3,    // a river meets the sea
+    Harbour = 4,    // sheltered water
+    Coastal = 5,    // open shore
+    Spur = 6,       // defensible high ground
+    Pass = 7,       // the way through high country
+}
+```
+
+A categorical value rather than the score vector, and for the same reason a chronicle records
+that a city stands at a confluence rather than recording six weights: the numbers decide, the
+category is what history refers to. It goes into the export at schema version 12 and gives the
+viewer a sentence it could not previously write.
+
+#### Standards this has to meet, or be cut
+
+Held to the bar `Consort` was held to in M11 — a term nothing reads is decoration, and here a
+term that changes no outcome is worse than decoration because it costs a golden regeneration.
+
+- **The sample budget does not move.** Every new measure is derived from grids already sampled.
+  If the budget rises, the design was wrong, not the budget.
+- **Fertility keeps deciding *which region*.** These terms rank sites within a region; they must
+  not become large enough to send a civilization to a barren defensible coast. `Region.Habitability`
+  grading on real water access is in scope; inverting the relationship between soil and site is not.
+- **Nothing may require a field only the noise sampler can produce.** Every measure here comes from
+  height and the drainage derived from it, so a height-only raster backend gets all of it — which is
+  what makes M9's "almost any generator" claim keep meaning something.
+- **Each term must move an outcome.** Measured the same way the M8 faith-in-diplomacy coefficient
+  was: run the seeds with the term zeroed and with it, and report the difference. A term that moves
+  nothing gets deleted rather than kept for flavour.
+
+**Rejected.** Floodplain modelling and river navigability by discharge class — both want a channel
+model, and this grid resolves valleys, not channels. Defensibility from anything but ground: walls,
+garrisons and fortification are a settlement's own doing and belong to whatever eventually reads
+`IsFortified`, not to the choice of where to stand.
+
+Every history changes, so the seed-42 golden is regenerated. That is the intended consequence of
+altering a scoring curve, not a bug — see *Working notes*.
+
 ### Settlement lifecycle: what made decline possible
 
 The M4 deliverable was specialization and abandonment. Specialization was easy; making
