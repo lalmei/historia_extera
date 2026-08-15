@@ -609,6 +609,291 @@ requested, so it keeps the property `INameGenerator` exists to protect.
 It deliberately fixes only the case that matters. Two unrelated cousins sharing a name is
 what real onomastics looks like, and the viewer distinguishes them by dates and house.
 
+### Offices: what a court does with the people it already has
+
+> **Designed, not built.** The measurements below are of the world as it stands today. Every
+> number attached to the proposal itself is an estimate and is marked as one.
+
+M5's attention budget breeds a court full of people and finds work for exactly one of them.
+On seed 42 at 300 years the chronicle holds 1,107 figures, of whom 831 reach sixteen and
+**658 — 79% of the adults — never hold an office of any kind**. Three hundred and eighty of
+those are dynasts: the cadets the budget deliberately produces so that houses do not fail, and
+then has nothing to do with. Between them they live 20,813 recorded years past sixteen in
+which nothing happens but a marriage, some children, and a death. The entire title vocabulary
+is six strings — Chief 59, Archon 51, Consul 41, King 23, Hierarch 16, Regent 8 — and every
+one of them is a head of state or a stand-in for one.
+
+So this is not a request for more people. It is a use for the people the world has already
+paid for, and the reason to expect it to be cheap.
+
+**An office has to change what some other system does.** The standard is the one
+`CultureValues.Tradition` failed until M4: a field read by nothing is decoration, and
+decoration in a chronicle reads as noise. Four offices earn a place, each because some system
+is currently answering its question badly or has no way to ask it.
+
+| Office | Held over | Read by | What it replaces |
+|---|---|---|---|
+| **Marshal** | a realm | `Warfare.Commander` | a fresh roll over kin at every battle, so nobody accumulates a military life |
+| **Governor** | a settlement | disasters, plague, sackings, expansion | figures having no address finer than a realm, so only the capital can reach them |
+| **High Priest** | a faith, within a realm | `ReligionSystem` | `Preacher` — "the oldest living adult not on the throne", which is a placeholder and reads as one |
+| **Consort** | a realm | `Diplomacy.MarriedIntoTheHouseOf`, regency | a dynastic tie that counts the same whether it is the king's marriage or a third cousin's |
+
+Rejected for exactly the reason they are tempting: steward, chancellor, spymaster, court
+physician. Nothing would read them, and an office nothing reads is a title generator.
+
+**Consort is the weakest of the four and should be held to a stated bar.** Two hooks justify
+it, and if neither survives implementation it should be cut rather than kept for flavour.
+First, a *crowned* consort's tie to their birth house counts for more than any other marriage
+between the two houses, which turns today's all-or-nothing dynastic warmth into something that
+tracks whose marriage it actually was. Second, a crowned consort who outlives the ruler is the
+dowager, and a dowager regent is an *appointing authority* — the queen mother naming her own
+kin marshal is the sort of thing chronicles are made of, and it falls out of this design
+without an intrigue model to support it. Note also what the office explains by its absence: a
+republic does not crown a consul's wife, so a republic's chronicle has no queens, and that is
+content rather than an omission.
+
+#### The record: an office, not a string
+
+`TitleHolding(Title, CivilizationId, FromYear, ToYear)` is nearly the right shape and cannot
+express the four things this needs: what kind of office it is, what body it is held over, who
+granted it, and why it ended. It becomes:
+
+```csharp
+public sealed record OfficeHolding(
+    OfficeKind Kind,        // what systems read
+    string Title,           // what the chronicle says: Marshal, Strategos, Warlord
+    EntityId CivilizationId,// the realm the office sits in — never None
+    EntityId ScopeId,       // the settlement or faith, where the office is over one
+    EntityId GrantedBy,     // the ruler or regent who named them, None if chosen internally
+    string Claim,           // "by the king's mandate", "by the town's own council"
+    int FromYear,
+    int? ToYear);
+```
+
+The string title stays, because "Marshal" in one culture and "Warlord" in another is the
+cheapest character this engine buys. The enum is what systems branch on, and the split is
+load-bearing rather than tidy: `EntityPages.tsx:618` currently identifies a reign with
+`titles.find((title) => title.title !== 'Regent')`, and that line silently starts returning
+marshalships the day a second non-ruling office exists. `Lists.tsx:841` has the same problem
+with its Ruled / Never ruled filter. Adding offices without adding a kind would not break the
+viewer loudly; it would make it quietly wrong, which is worse.
+
+`Claim` is borrowed from `Houses.Enthrone` deliberately. A coronation is far more readable for
+saying which rule produced it, and an appointment is the same: "by the king's mandate" and "by
+the town's own council" are the whole difference between two governorships that are otherwise
+identical rows.
+
+#### Three ways a seat is filled
+
+This is the substance of the design, and the part that makes two realms' appointment histories
+read unlike each other.
+
+- **Mandated.** The ruler names a holder from the court. The appointment is personal to the
+  ruler who made it and lapses when their reign does — new king, new marshal.
+- **Internal.** The body chooses its own: a town's notables, a faith's clergy. The holder is
+  usually not a dynast, and serves until death.
+- **Customary.** The office runs in a family. The last holder's heir takes it and the crown's
+  part is to acquiesce; it ends only on death or on that line failing.
+
+Defaults by office, before circumstance moves them:
+
+| Office | Leans | Because |
+|---|---|---|
+| Marshal | mandated | an army is the one thing no ruler delegates by custom |
+| Governor | contested — this is where the interesting decision lives | see below |
+| High Priest | internal, customary at high Tradition | a faith that lets the crown name its priests is a faith the crown has absorbed |
+| Consort | mandated by definition | it is the ruler's own marriage being recognised |
+
+**What decides a governorship** is four things the engine already knows and one it does not.
+The crown's inclination to mandate rather than delegate rises with the ruler's own hand
+(below), falls with the culture's Tradition — a people attached to its own customs resents an
+appointee — rises while the realm is at war, falls with distance from the capital, and rises
+sharply for a settlement taken in war within living memory. A city is worth a court
+appointment and a village is not worth the journey, so the office is only filled at all above
+a size threshold, plus wherever the crown has a specific reason. That threshold is the same
+line `MaybeFortify` already draws at Town, which is not a coincidence worth hiding: it is the
+size at which this engine starts treating a place as somewhere that has interests.
+
+The capital is governed by whoever holds the throne, in person. It gets no governor.
+
+#### One dial for the ruler, and not a personality system
+
+"Depending on that leader's desires" needs a leader who has any. Figures have no traits at
+all today; behaviour is entirely cultural, which explains why *realms* differ and leaves
+nothing to explain why one reign differs from the next in the same realm.
+
+One scalar: `Figure.Centralism`, in [0, 1] — how much this person insists on choosing. Rolled
+in `Houses.NewFigure` from a fork keyed on the figure's own id, the
+`rng.Fork("faith", id.ToDiscriminator())` pattern, so it cannot depend on how many people were
+born before them. Its mean comes from government form (a chiefdom's chief has little machinery
+to appoint with; a monarchy or theocracy has plenty; a republic distributes by construction)
+and the figure varies about that mean by a modest spread.
+
+**One field, and the discipline is in refusing the second.** A five-trait personality record is
+the obvious next thought and nothing would read the other four. Anchoring to the culture's mean
+rather than rolling free is the other half: independent rolls per ruler make a line of
+succession read as uncorrelated noise, where an anchored roll reads as "this people centralises,
+and this king unusually so", which is the sentence worth being able to write.
+
+#### Candidates are the people the chronicle already follows
+
+The pool for a mandated office is kin — adult, living, resident in the realm, not the ruler —
+which is the same walk `Warfare.Commander` already does through `Succession.Kin`.
+
+**Standing below the front of the line is a qualification, not a disqualification.** The heir
+is needed at home; a fourth son is precisely who gets an army or a colony. That inverts the
+rank test the household system uses to decide who stops being written about, and it is the
+whole reason this feature pays for itself rather than costing: the same 380 idle dynasts the
+budget already produces become the candidate pool, at no addition to the figure table.
+
+**A body invents its own only when the court will not do.** An internally-chosen governor is
+by definition not a court dynast, so where no candidate exists — or the fill mode says the town
+chooses — a local notable is created, of no house, exactly as `MatchAtHome` already invents
+consorts. That cannot compound: `HouseholdSystem.Marriageable` refuses anyone with
+`DynastyId.IsNone` already, so invented notables hold an office, die, and are replaced without
+ever entering a nursery. The guard exists; this design only has to avoid reaching around it.
+The bound is one holder per seat, so invented figures scale with settlements above the
+threshold and faiths, neither of which compounds.
+
+#### An office never moves a figure between realms
+
+`Figure.CivilizationId` is untouched by this entire system. That is an invariant rather than a
+detail: `HouseholdSystem.WhoMoves` documents what happened the last time a figure was moved
+carelessly — three realms in a three-century run governed by a corpse for over a century each,
+and nothing in the chronicle said so because the events simply stopped.
+
+What an office over a place changes is a new field, `Figure.ResidenceSettlementId`, defaulting
+to the realm's capital. This is what a posting *means*, and it repairs a compromise already
+recorded above under *Figure deaths*: a disaster reaches a figure only when it strikes the
+capital, "the one settlement where the court can honestly be placed". A governor can honestly
+be placed in the town they govern. A governor therefore dies in the sack of their own city, in
+their own city's plague, and in its earthquake — three exposures that exist and cannot currently
+reach anyone outside a capital.
+
+#### Founding parties
+
+`ExpansionSystem` conjures 70 settlers from nowhere and nobody leads them. Three changes, all
+of which the user-facing feature needs anyway:
+
+- The party is **drawn from a real parent settlement** — the nearest active one of the realm to
+  the target region — and deducted from its population. Expansion currently costs nothing,
+  which is why a realm can seed a continent without ever feeling it.
+- It is **led by a named figure** where the court can spare one: an adult dynast ranked below
+  the fertile front of the line, or, failing that, a notable of the parent town.
+- The leader becomes the colony's first governor, `Claim` = "by the founding of the town".
+
+The founding stays one `SettlementFounded` event with the leader in `extra` and two new data
+keys, mirroring what `SettlementAbandoned` already does with `resettled` and `refuge`:
+
+```
+"{subject} was founded[ by {object}][, {data:settlers} of them out of {data:from}]."
+```
+
+The `OfficeGranted` for its first governor follows immediately, so the two read consecutively —
+the same pattern `SettlementPromoted` and `SettlementSpecialized` already rely on.
+
+**The second-order effect is the one worth wanting and is deliberately not built here.** A
+cadet planted in a colony, whose children are born there, is a branch of a house with a seat
+that is not the capital — which is where a breakaway realm comes from. This design creates that
+state and does nothing with it. Naming it now is what stops someone modelling secession later
+by inventing a rebel from nowhere.
+
+There is also a pleasing loop available and worth taking: a court with adult dynasts and no
+offices to put them in has a reason to send one out. Expansion pressure currently comes only
+from population per settlement, and "the king has three grown brothers and one throne" is a
+historically better answer than most of what is already in that formula.
+
+#### When an office ends, and what gets written down
+
+Four endings: the holder dies (already handled — `Figure.EndAllTitles`, and M8 has already paid
+for getting that wrong once); a mandated appointment lapses with its granter's reign; a holder
+is dismissed in disgrace; or the body itself ends — the settlement is abandoned, the faith
+fades, the realm falls.
+
+**An appointment lapsing with its granter is not an event.** This is the volume decision and it
+should be made before anything is written, not after the first run is inspected: recording both
+ends of every office roughly doubles the events this feature adds and the second one carries no
+information the next grant does not. Deaths already have an event. Only grants and dismissals
+are recorded.
+
+Dismissal wants a cause the model actually has: a marshal who loses badly, a governor whose
+town is sacked or falls into famine. Scaled by the court's aggression, as political violence
+already is — and a disgraced marshal is then exactly the kind of figure `FigureIncidentSystem`
+should be able to reach, which is the connection that makes `Execution` reachable for somebody
+who is not a failed claimant.
+
+Two new event kinds, in the figures block, leaving 322–329 free:
+
+```
+OfficeGranted = 320   "{subject} was made {data:office}[ of {object}][ at {location}][, {data:claim}]."
+OfficeRevoked = 321   "{subject} was stripped of the office of {data:office}[ of {object}][, {data:cause}]."
+```
+
+#### What it costs the chronicle
+
+Seed 42 at 300 years currently writes 3,590 events across 190 coronations and 64 term endings.
+**Estimated**, on one holder per seat and the lapse rule above: roughly 200 marshalships, 250 to
+400 governorships, 80 high priests and 90 consorts — **600 to 800 grants, or +17% to +22% on
+today's event count**. That is affordable and it is not negligible, so the levers should be
+known in advance: the governor size threshold, whether term-limited governments re-appoint on
+every term (they should not — eight-year churn across every office is the single likeliest way
+this reads as bureaucracy), and whether internal appointments are recorded at all in places the
+crown never touched.
+
+#### Where the calibration will fight back
+
+**Predictions, not measurements.** Five, in the order they seem likely to bite:
+
+1. **Republics and oligarchies churn.** A consul standing down every eight years re-appointing
+   every office is four times a monarchy's turnover, and offices are the wrong place for a
+   government form to express itself — it already expresses itself in the succession rhythm.
+   Term governments should lean internal, which is also the historically apt answer.
+2. **A standing marshal collapses the variance of who commands.** Today 216 of 604 named
+   commands went to non-rulers, spread across whoever the per-battle roll found. One marshal per
+   realm concentrates that onto one person who either dies in his first season or appears
+   undefeated for thirty years. The marshal should be a strong candidate in
+   `Warfare.Commander`, after the existing government-and-aggression roll for the ruler taking
+   the field in person — not a short circuit past it.
+3. **Governor grants drown the chronicle.** Thirty-eight settlements at Town or above at the end
+   of a 300-year run, each turning over every twenty years, is the largest single contributor to
+   the estimate above and the least informative event in it.
+4. **Offices become a second attention budget, competing with the first.** The rank map is built
+   once a year and read by marriage and birth; an office pass that also walks `Succession.Kin`
+   for every realm is a second traversal with its own idea of who matters. They must agree, or a
+   cadet will be simultaneously too remote to marry and close enough to command an army.
+5. **The viewer's figure filters silently change meaning.** "Ruled" becomes "held any office" and
+   nobody notices for a milestone. This is the cheapest of the five to prevent and the easiest
+   to forget, because nothing fails.
+
+#### The test contract
+
+- Every office kind is reached across the standard seeds, and every fill mode with it — a purely
+  mandated world means the culture inputs are not connected to anything.
+- No grant to a dead, absent, under-age or already-seated holder; no two holders of one seat.
+- Offices close on death — extend the existing `MortalityTests` check that no title outlives its
+  holder, which is the assertion that caught the three-century regent.
+- No office-holder's `CivilizationId` changes as a result of holding it.
+- Invented notables never acquire children, which is the assertion that the existing
+  `Marriageable` guard is still doing its job.
+- Figure-table growth stays linear in reigns: the count at 600 years is within a stated factor
+  of the count at 300, as it is today.
+- `DeterminismGuardTests` covers any new per-realm map, which must be a `DetMap`.
+
+Export schema goes to 9: `ExportTitle` gains `kind`, `scopeId`, `grantedBy` and `claim`, keeping
+`civilizationId` so existing viewer reads survive; `ExportFigure` gains
+`residenceSettlementId` and `centralism`. The golden fingerprint changes and must be
+regenerated — this alters every history from year one, since `Houses.NewFigure` draws a
+disposition for everyone born.
+
+#### What this deliberately does not do
+
+No councils and no factions. No competence or skill ratings on office-holders — a marshal who
+wins is a marshal who was lucky, and the chronicle cannot tell the difference either. No
+intrigue: the assassination model still names no culprit, for the reason already recorded above,
+and an office roster is not evidence. No revolt, no secession, no provinces spanning several
+settlements. Each of those wants this state to exist first, which is the argument for building
+it plainly now rather than in the shape some later feature might want.
+
 ### Diplomacy and war: reach, not borders
 
 The M6 deliverable was relations, alliances, named battles, territory transfer and
@@ -992,6 +1277,10 @@ viewer reading it.
 | M8 | Flavour: religions, artifacts, plagues, disasters | done |
 | M9 | Phase 2 spike: raster-backed `ITerrainSampler` | done |
 | M10 | Phase 2 proper: site selection with teeth on real terrain | next |
+| M11 | Offices: appointments, governors, founding parties | designed |
+
+M11 has no terrain dependency and M10 has no figure dependency, so they can land in either
+order. See *Offices: what a court does with the people it already has* above.
 
 ### As built
 
