@@ -20,7 +20,22 @@ namespace HistoryEngine.Tests;
 /// than being written back automatically. If the fingerprint changes when you did not intend to
 /// change simulation behaviour, that is the bug this test exists to find.</para>
 ///
-/// <para>Regenerate with: <c>dotnet run --project src/HistoryEngine.Cli -- --fingerprint</c></para>
+/// <para><b>Regenerate with the whole command, arguments and all:</b></para>
+/// <code>
+/// dotnet run --project src/HistoryEngine.Cli -- \
+///     --seed 42 --years 300 --civs 8 --size 4096 --raster 64 --fingerprint
+/// </code>
+///
+/// <para>Every argument is load-bearing, and the reason to say so here is that the shorter command
+/// this used to document — <c>--fingerprint</c> alone — runs successfully and prints a hash for a
+/// different world. The CLI defaults to seed 1 and a 256-resolution raster against the seed 42 and
+/// 64 this pins, so the value it prints has never matched and never will. Written into the golden
+/// it silently replaces the pin with a fingerprint of something nobody is testing, and the next
+/// real regression passes.</para>
+///
+/// <para>The failure mode is the one this whole file exists to prevent, arriving through the
+/// instructions rather than through the code: a golden regenerated for a reason that looked fine.
+/// Anything that changes <see cref="Golden"/> has to change this command to match.</para>
 /// </remarks>
 public sealed class GoldenExportTests
 {
@@ -35,8 +50,11 @@ public sealed class GoldenExportTests
         Assert.True(
             File.Exists(path),
             $"Missing golden file {path}. Generate it with:\n" +
-            "  dotnet run --project src/HistoryEngine.Cli -- --fingerprint > " +
-            $"src/HistoryEngine.Tests/Goldens/{GoldenFileName}");
+            "  dotnet run --project src/HistoryEngine.Cli -- --seed 42 --years 300 --civs 8 " +
+            "--size 4096 --raster 64 --fingerprint > " +
+            $"src/HistoryEngine.Tests/Goldens/{GoldenFileName}\n" +
+            "Every argument matters: without them the CLI fingerprints its own default world " +
+            "and prints a hash that has never matched this pin.");
 
         string expected = File.ReadAllText(path).Trim();
         string actual = WorldExporter.Fingerprint(HistoryRun.Execute(Golden()).ToExport());
