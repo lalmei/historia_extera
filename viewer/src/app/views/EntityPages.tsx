@@ -1,4 +1,5 @@
 import { EventList } from '../components/EventList';
+import { HistoryPanels } from '../components/History';
 import {
   Badge,
   type Column,
@@ -190,6 +191,9 @@ export function CivilizationPage({ world, civ }: { world: World; civ: Civilizati
         </Panel>
       </div>
 
+      {/* Both panels above are the last year alone. These are every year of it. */}
+      <HistoryPanels world={world} id={civ.id} />
+
       {culture && (
         <div className="grid gap-5 lg:grid-cols-2">
           <Panel title="Cultural values">
@@ -307,6 +311,8 @@ export function SettlementPage({ world, settlement }: { world: World; settlement
         </dl>
       </Panel>
 
+      <HistoryPanels world={world} id={settlement.id} />
+
       {treasures.length > 0 && (
         <Panel title="Treasury">
           <ArtifactTable world={world} artifacts={treasures} />
@@ -378,6 +384,8 @@ export function TradeRoutePage({ world, route }: { world: World; route: TradeRou
           </Field>
         </dl>
       </Panel>
+
+      <HistoryPanels world={world} id={route.id} />
 
       <Panel title="Chronicle">
         <EventList world={world} events={world.eventsFor(route.id)} />
