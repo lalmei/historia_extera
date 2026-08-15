@@ -1,7 +1,8 @@
 # Historia Extera
 
-A Dwarf Fortress-style **world history generator** aimed at Vintage Story, plus a
-Legends-mode **viewer**. Same seed and config always produce the same history.
+A Dwarf Fortress-style **world history generator** aimed at a Medival like world along with a proper viewer. Same seed and config always produce the same history.
+
+![Historia Extera](https://raw.githubusercontent.com/lalmei/historia_extera/main/docs/historia_extera.png)
 
 <div class="historia-feature-grid">
   <a href="guide/getting-started/">
@@ -37,11 +38,11 @@ Generator, a GIS export, or a heightmap someone painted. Only `height` is requir
 the fields no raster supplied are modelled rather than claimed — so a world built on a
 bare heightmap reports which of its measurements were measured.
 
-| Phase | Terrain backing | State |
-|---|---|---|
-| 1 | Noise-based placeholder | **default** |
-| 2 | Open-source 2D terrain generator | **available** via raster interchange |
-| 3 | Vintage Story worldgen | designed for, not built |
+| Phase | Terrain backing                  | State                                |
+| ----- | -------------------------------- | ------------------------------------ |
+| 1     | Noise-based placeholder          | **default**                          |
+| 2     | Open-source 2D terrain generator | **available** via raster interchange |
+| 3     | Vintage Story worldgen           | designed for, not built              |
 
 See [the CLI guide](guide/cli.md) for the raster route and `DESIGN.md` for what M9 proved
 about the terrain boundary.
