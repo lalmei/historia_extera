@@ -7,7 +7,7 @@
  * stops moving.
  */
 
-export const SCHEMA_VERSION = 14;
+export const SCHEMA_VERSION = 15;
 
 /** `"civ:3"`, `"fig:1204"` — readable, greppable, and directly usable as a route. */
 export type EntityId = string;
@@ -839,6 +839,33 @@ export interface Settlement {
   convertedYear?: number;
   /** What the ground was chosen for. */
   site: SiteCharacter;
+  /**
+   * What was feeding the place when the chronicle closed. Absent for abandoned settlements,
+   * and for any export written before schema 15.
+   */
+  support?: Support;
+}
+
+/** Where the greater part of a settlement's living comes from. */
+export type SupportSource = 'Land' | 'Trade' | 'Site';
+
+/**
+ * Carrying capacity, itemised — the answer to "why is this place this size".
+ *
+ * The three parts are in people and sum to `capacity`. `landShare` is how much of the
+ * surrounding country the settlement keeps rather than ceding to a larger neighbour, so a
+ * small number beside good ground is the whole explanation for a village that never grew.
+ */
+export interface Support {
+  capacity: number;
+  fromSite: number;
+  fromLand: number;
+  fromTrade: number;
+  /** 0–1. One means nothing else is near enough to compete for the fields. */
+  landShare: number;
+  /** Summed live traffic of every trade route reaching the settlement. */
+  routeTraffic: number;
+  principal: SupportSource;
 }
 
 /** The transport corridor a logical route is most likely to use. It is not path geometry. */

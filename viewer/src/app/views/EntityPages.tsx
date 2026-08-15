@@ -232,6 +232,110 @@ export function CivilizationPage({ world, civ }: { world: World; civ: Civilizati
   );
 }
 
+/**
+ * Why a settlement is the size it is, rather than only how large it is.
+ *
+ * A population figure cannot tell a town that stands on exceptional ground from one that
+ * stands on six trade routes from one held together by a capital's administration, and those
+ * are three different histories. The engine already itemises carrying capacity into exactly
+ * those sources, so this is a matter of showing what it computed.
+ *
+ * <b>The share of the fields is the interesting number, and it is the one a reader would never
+ * guess.</b> A village on excellent ground that never grew is not a failure of the soil — it
+ * is a place whose neighbour took the fields, and nothing else on the page says so.
+ */
+function SupportBreakdown({
+  settlement,
+  support,
+}: {
+  settlement: Settlement;
+  support: NonNullable<Settlement['support']>;
+}) {
+  const parts = [
+    { label: 'Its fields', value: support.fromLand, source: 'Land' as const },
+    { label: 'The roads', value: support.fromTrade, source: 'Trade' as const },
+    { label: 'The site', value: support.fromSite, source: 'Site' as const },
+  ].filter((part) => part.value > 0);
+
+  // Against the capacity rather than the largest part, so the bars read as shares of one
+  // whole and a settlement fed by a single source looks like one.
+  const total = Math.max(1, support.capacity);
+  const filled = settlement.population / total;
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-[var(--ink-faint)]">
+        {SUPPORT_SUMMARY[support.principal]} It could support{' '}
+        <span className="text-[var(--ink)]">{support.capacity.toLocaleString()}</span> people
+        {filled < 0.85 && (
+          <>
+            {' '}
+            and holds {Math.round(filled * 100)}% of that — it is still growing into the room it
+            has, or lately lost people
+          </>
+        )}
+        {filled > 1.05 && <> and holds more, which it will shed over the coming years</>}.
+      </p>
+
+      <dl className="space-y-2">
+        {parts.map((part) => (
+          <div key={part.label} className="flex items-center gap-3">
+            <dt className="w-24 shrink-0 text-sm text-[var(--ink-faint)]">{part.label}</dt>
+            <dd className="flex min-w-0 flex-1 items-center gap-2">
+              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--rule)]">
+                <div
+                  className={`h-full rounded-full ${
+                    part.source === support.principal
+                      ? 'bg-[var(--accent)]'
+                      : 'bg-[var(--ink-faint)]'
+                  }`}
+                  style={{ width: `${Math.min(100, (part.value / total) * 100)}%` }}
+                />
+              </div>
+              <span className="w-16 shrink-0 text-right text-xs tabular-nums text-[var(--ink-faint)]">
+                {part.value.toLocaleString()}
+              </span>
+            </dd>
+          </div>
+        ))}
+      </dl>
+
+      <dl>
+        <Field label="Share of the fields">
+          {Math.round(support.landShare * 100)}%
+          <span className="ml-2 text-[var(--ink-faint)]">
+            {support.landShare > 0.85
+              ? 'nothing else is near enough to want them'
+              : support.landShare > 0.45
+                ? 'shared with its neighbours'
+                : 'most of the country around it is worked from somewhere larger'}
+          </span>
+        </Field>
+        <Field label="Traffic reaching it">
+          {support.routeTraffic > 0 ? (
+            <>
+              {support.routeTraffic.toFixed(2)}
+              <span className="ml-2 text-[var(--ink-faint)]">
+                across every live route that reaches it
+              </span>
+            </>
+          ) : (
+            <span className="text-[var(--ink-faint)]">
+              No live trade route reaches it — it lives on its own land
+            </span>
+          )}
+        </Field>
+      </dl>
+    </div>
+  );
+}
+
+const SUPPORT_SUMMARY: Record<NonNullable<Settlement['support']>['principal'], string> = {
+  Land: 'Fed chiefly by the country around it.',
+  Trade: 'Fed chiefly by what the roads bring in — it eats more than it grows.',
+  Site: 'Fed chiefly by the ground it stands on rather than by the fields around it.',
+};
+
 export function SettlementPage({ world, settlement }: { world: World; settlement: Settlement }) {
   const region = regionOf(world, settlement.regionId);
   const treasures = treasuresOf(world, settlement.id);
@@ -335,6 +439,12 @@ export function SettlementPage({ world, settlement }: { world: World; settlement
           </Field>
         </dl>
       </Panel>
+
+      {settlement.support && (
+        <Panel title="What supports it">
+          <SupportBreakdown settlement={settlement} support={settlement.support} />
+        </Panel>
+      )}
 
       <HistoryPanels world={world} id={settlement.id} />
 
