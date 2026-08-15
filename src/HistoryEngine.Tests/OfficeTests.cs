@@ -264,6 +264,87 @@ public sealed class OfficeTests
     }
 
     /// <summary>
+    /// Someone raised from the ordinary population arrives with a career behind them.
+    /// </summary>
+    /// <remarks>
+    /// <para>Every office used to recruit at 26–45 whatever it was, so a high priest and a town's
+    /// headman were the same age on average and neither had done anything to get there. The
+    /// assertion worth making is not that the ages are in range — that is arithmetic — but that
+    /// the ladders differ: a temple is the slowest of them, and if that stops being true the bands
+    /// have been flattened back into one guess.</para>
+    ///
+    /// <para>There is deliberately no birth <em>event</em> to check. The chronicle is append-only
+    /// in non-decreasing year order, so a birth forty years before the appointment cannot be
+    /// inserted; the birth year on the figure is the whole of what can honestly be recorded.</para>
+    /// </remarks>
+    [Fact]
+    public void RaisedFiguresArriveWithAnAgeTheirOfficeExplains()
+    {
+        var ages = new Dictionary<OfficeKind, List<int>>();
+        int withOrigin = 0;
+
+        foreach (ulong seed in Seeds)
+        {
+            WorldState world = HistoryRun.Execute(TestWorlds.Standard(seed)).World;
+
+            foreach (Figure figure in world.Figures)
+            {
+                // A dynast's origin is their house, and a consort's the marriage that brought
+                // them in. Only those an office raised out of the population carry one.
+                if (!figure.DynastyId.IsNone)
+                {
+                    Assert.Equal(FigureOrigin.Unrecorded, figure.Origin);
+                    continue;
+                }
+
+                if (figure.Origin != FigureOrigin.Unrecorded) withOrigin++;
+
+                foreach (OfficeHolding held in figure.Offices)
+                {
+                    if (held.Kind is not (OfficeKind.Marshal
+                        or OfficeKind.HighPriest
+                        or OfficeKind.Governor))
+                    {
+                        continue;
+                    }
+
+                    int age = held.FromYear - figure.BirthYear;
+
+                    // Nobody takes an office before they could have earned it, and nobody is
+                    // raised into one at an age they would not survive holding.
+                    Assert.InRange(age, 16, 75);
+
+                    if (!ages.TryGetValue(held.Kind, out List<int>? seen))
+                    {
+                        seen = new List<int>();
+                        ages[held.Kind] = seen;
+                    }
+
+                    seen.Add(age);
+                }
+            }
+        }
+
+        Assert.True(withOrigin > 50, $"Only {withOrigin} figures were raised with a recorded origin.");
+
+        double priests = Mean(ages[OfficeKind.HighPriest]);
+        double governors = Mean(ages[OfficeKind.Governor]);
+        double marshals = Mean(ages[OfficeKind.Marshal]);
+
+        Assert.True(
+            priests > governors && priests > marshals,
+            $"A temple should be the slowest ladder; priests {priests:F1}, "
+            + $"governors {governors:F1}, marshals {marshals:F1}.");
+    }
+
+    private static double Mean(List<int> values)
+    {
+        long total = 0;
+        foreach (int value in values) total += value;
+        return (double)total / values.Count;
+    }
+
+    /// <summary>
     /// Appointments are a bounded share of the chronicle.
     /// </summary>
     /// <remarks>

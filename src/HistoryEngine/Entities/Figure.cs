@@ -33,6 +33,37 @@ public enum Sex
 }
 
 /// <summary>
+/// What a figure was before the chronicle started following them. Explicit values — part of the
+/// export format.
+/// </summary>
+/// <remarks>
+/// <para>Only carries information for people raised <em>into</em> the record rather than born into
+/// it. A dynast's origin is their house and a consort's is the marriage that brought them in; both
+/// are already recorded, in more detail than this could add, so they stay
+/// <see cref="Unrecorded"/>.</para>
+///
+/// <para>What it is for is the other path into the record. An office can be filled from the
+/// ordinary population, and before this the person who arrived that way had no life at all: they
+/// materialised at a plausible-looking age with nothing behind it. A marshal raised from the ranks
+/// and a high priest risen through a temple are different people who arrive by different doors,
+/// and saying which is the difference between a figure and a placeholder.</para>
+/// </remarks>
+public enum FigureOrigin
+{
+    /// <summary>Born into the record: a house, or a marriage into one.</summary>
+    Unrecorded = 0,
+
+    /// <summary>Rose through an army.</summary>
+    Soldiery = 1,
+
+    /// <summary>Rose through a temple.</summary>
+    Clergy = 2,
+
+    /// <summary>A standing figure of their own town.</summary>
+    Townsfolk = 3,
+}
+
+/// <summary>
 /// The offices a figure can hold. Explicit values — part of the export format.
 /// </summary>
 /// <remarks>
@@ -228,6 +259,22 @@ public sealed class Figure
 
     /// <summary>Where this figure was born, if known.</summary>
     public EntityId BirthSettlementId { get; set; } = EntityId.None;
+
+    /// <summary>
+    /// What they were before the chronicle began following them.
+    /// </summary>
+    /// <remarks>
+    /// <para>Set only for those raised into the record by an office. See
+    /// <see cref="FigureOrigin"/> for why it is empty on everyone else.</para>
+    ///
+    /// <para><b>There is no birth event for these people, and there cannot be.</b> The chronicle is
+    /// append-only in non-decreasing year order, so a birth forty years before the appointment that
+    /// introduced them cannot be inserted — the same reason given in
+    /// <see cref="World.Houses.NewFigure"/> for why a figure created grown gets no birth. What they
+    /// do have is a real <see cref="BirthYear"/>, worked back from an age the office could
+    /// plausibly be held at, so their page reads as a life rather than an entrance.</para>
+    /// </remarks>
+    public FigureOrigin Origin { get; set; } = FigureOrigin.Unrecorded;
 
     /// <summary>
     /// Where this figure actually lives, or <see cref="EntityId.None"/> for "wherever the court is".

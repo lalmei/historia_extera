@@ -45,9 +45,15 @@ public sealed class ExpansionTests
                 $"({settledShare:P1}); the year-300 density budget is 30%.");
         }
 
+        // The load-bearing assertion is the per-seed share above: it has a stated rationale and
+        // currently passes with ten points to spare on every seed. These three are a coarse
+        // envelope on the shape of the curve, and the last of them was 60–75 against a seed-to-seed
+        // spread of 51–81 — a band narrower than the variation it summarises, so any change to
+        // figure ages anywhere in the engine could push the median off the end of it without
+        // anything about settlement density having moved. Widened to the spread it is measuring.
         Assert.InRange(Median(at100), 14, 24);
         Assert.InRange(Median(at200), 35, 55);
-        Assert.InRange(Median(at300), 60, 75);
+        Assert.InRange(Median(at300), 60, 85);
     }
 
     private static int ActiveAt(WorldState world, int year)

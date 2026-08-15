@@ -274,6 +274,7 @@ public sealed class OfficeSystem : ISystem
             world,
             civilization,
             culture,
+            kind,
             kind == OfficeKind.Governor ? scope : civilization.CapitalId,
             year,
             rng);

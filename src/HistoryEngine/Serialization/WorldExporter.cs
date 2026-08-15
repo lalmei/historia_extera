@@ -599,6 +599,7 @@ public static class WorldExporter
                 DeathCause: figure.DeathCause,
                 DeathDetail: figure.DeathDetail,
                 BirthSettlementId: OrNull(figure.BirthSettlementId),
+                Origin: figure.Origin,
                 Disposition: new ExportDisposition(
                     figure.Disposition.Values.Aggression,
                     figure.Disposition.Values.Expansionism,
