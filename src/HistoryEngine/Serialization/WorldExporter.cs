@@ -143,6 +143,7 @@ public static class WorldExporter
             Height: world.Terrain.Bounds.Height,
             RegionSize: world.Config.RegionSize,
             TerrainStride: world.Config.TerrainStride,
+            EastWestPeriodic: world.Config.EastWestPeriodic,
             Capabilities: world.Terrain.Capabilities.ToString(),
             Raster: raster,
             Rivers: rivers);
