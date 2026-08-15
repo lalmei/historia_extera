@@ -251,8 +251,6 @@ public sealed class DisasterSystem : ISystem
         Civilization owner = world.Civilizations[settlement.CivilizationId];
         var dead = new List<Figure>();
 
-        bool isSeat = owner.CapitalId == settlement.Id;
-
         double mortality = DetMath.Clamp01(severity * CourtExposure);
         IRng court = rng.Fork("court-casualties", settlement.Id.ToDiscriminator());
 
@@ -261,11 +259,9 @@ public sealed class DisasterSystem : ISystem
             if (!figure.IsAlive || figure.CivilizationId != owner.Id) continue;
             if (figure.AgeIn(year) < 0) continue;
 
-            // At the seat, everyone the chronicle follows. Elsewhere, only those posted here.
-            bool present = figure.ResidenceSettlementId == settlement.Id
-                || (isSeat && figure.ResidenceSettlementId.IsNone);
-
-            if (!present) continue;
+            // Everyone actually living here, resolved rather than read raw — a governor whose town
+            // has just changed hands is at court, not in a city that is no longer theirs.
+            if (world.ResidenceOf(figure) != settlement.Id) continue;
 
             IRng fate = court.Fork("figure", figure.Id.ToDiscriminator());
             if (fate.Chance(mortality))

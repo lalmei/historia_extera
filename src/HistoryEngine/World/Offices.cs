@@ -126,7 +126,7 @@ public static class Offices
         if (held is null) return;
 
         holder.EndOffice(kind, year);
-        if (kind == OfficeKind.Governor) holder.ResidenceSettlementId = EntityId.None;
+        if (kind == OfficeKind.Governor) SendHome(world, holder);
 
         // Remembered, because losing an office badly is the sort of thing a court acts on later.
         holder.DisgracedYear = year;
@@ -143,7 +143,40 @@ public static class Offices
     public static void Lapse(WorldState world, Figure holder, OfficeKind kind, int year)
     {
         holder.EndOffice(kind, year);
-        if (kind == OfficeKind.Governor) holder.ResidenceSettlementId = EntityId.None;
+        if (kind == OfficeKind.Governor) SendHome(world, holder);
+    }
+
+    /// <summary>
+    /// Returns a figure to their realm's seat when the posting that moved them ends.
+    /// </summary>
+    /// <remarks>
+    /// Their household goes with them, which is the point of recording where people live rather
+    /// than only where they hold office: a governor recalled to court does not leave his wife and
+    /// children in a provincial town to be counted among its casualties.
+    /// </remarks>
+    private static void SendHome(WorldState world, Figure holder)
+    {
+        if (!world.Civilizations.Contains(holder.CivilizationId)) return;
+
+        EntityId seat = world.Civilizations[holder.CivilizationId].CapitalId;
+        EntityId was = holder.ResidenceSettlementId;
+
+        holder.ResidenceSettlementId = seat;
+
+        if (world.Figures.Contains(holder.SpouseId))
+        {
+            Figure spouse = world.Figures[holder.SpouseId];
+            if (spouse.ResidenceSettlementId == was) spouse.ResidenceSettlementId = seat;
+        }
+
+        foreach (EntityId childId in holder.ChildIds)
+        {
+            Figure child = world.Figures[childId];
+            if (child.IsAlive && child.ResidenceSettlementId == was)
+            {
+                child.ResidenceSettlementId = seat;
+            }
+        }
     }
 
     /// <summary>

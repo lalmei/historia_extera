@@ -47,6 +47,11 @@ public static class Houses
         {
             BirthSettlementId = civilization.CapitalId,
 
+            // Everyone starts where their court is. Before this only office-holders had an
+            // address, so "resident at the capital" was inferred from the absence of one — which
+            // works until somebody needs to know where a figure with no office actually is.
+            ResidenceSettlementId = civilization.CapitalId,
+
             // Forked on the figure's own id, so a person's character cannot depend on how many
             // people were born before them — and, because a fork consumes nothing from its
             // parent, adding this drew no number away from any stream that already existed.
@@ -123,11 +128,16 @@ public static class Houses
         // freezes the other's for ever. Two sovereigns married to each other simply keep their own
         // courts, and the union between them is Milestone 6's business.
         ruler.CivilizationId = civilization.Id;
+        ruler.ResidenceSettlementId = civilization.CapitalId;
 
         if (world.Figures.Contains(ruler.SpouseId))
         {
             Figure consort = world.Figures[ruler.SpouseId];
-            if (!Succession.HoldsAThrone(world, consort)) consort.CivilizationId = civilization.Id;
+            if (!Succession.HoldsAThrone(world, consort))
+            {
+                consort.CivilizationId = civilization.Id;
+                consort.ResidenceSettlementId = civilization.CapitalId;
+            }
         }
 
         EntityId previousHouse = civilization.RulingDynastyId;
