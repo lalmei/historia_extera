@@ -1577,6 +1577,337 @@ and wrong map three layers away. The viewer additionally checks the replay again
 final map on load and warns, which covers a world file written by a newer engine than the
 viewer reading it.
 
+### Time: seasons on the year, and days where they are earned
+
+> **Planned** for M13. Measurements quoted from the current world are measurements; every
+> number attached to the proposal is an estimate and is marked as one.
+
+The year is the atom, and it is the last load-bearing choice in this engine that was never
+argued for. `IYearSystem.Tick(world, year)` is the only entry point a system has,
+`Chronicle.Record` takes a year, `HarvestModel.QualityAt` takes a year, and the RNG convention
+is one fork per system per year. Everything that happens *within* a year is expressed as
+**system order** — a single total order over seventeen systems, fixed for the whole run, and
+identical in every realm at every latitude.
+
+That was enough for twelve milestones. It is now the thing standing between four models and
+the behaviour they are already described as having. `Simulator.DefaultSystems` reaches three
+times for a calendar it does not have — "a war declared this spring is fought this summer", "a
+province taken in a spring campaign", "a crown made in the reign of a ruler crowned this
+spring". None of those springs exists. They are the doc-comment describing what the ordering
+*would* mean if the year had parts, which is the clearest possible signal that the model wants
+them.
+
+#### What a year cannot say
+
+| | Today | What the year forbids |
+|---|---|---|
+| **War** | one campaign roll per war per year, `WarSystem.cs:91` | a siege cannot last, be lifted, or be relieved; there is no closed season, so a war in the far north is fought exactly like a war on the equator |
+| **Plague** | one spread step per outbreak per year, `PlagueSystem.cs:112` | an epidemic that arrives, peaks and burns out inside eight months has one tick to do it in, so the shape of an outbreak is a calibration constant rather than a consequence |
+| **Harvest** | one quality per region per year, `HarvestModel.cs:80` | a campaign fought across a region cannot cost it the harvest, because the harvest has no date to be interrupted before |
+| **The record** | events carry a year and nothing finer | two events in one year have no order but the order the systems ran in, and a ruler crowned in autumn governs from the following spring — recorded, and accepted, under *One answer per year* |
+
+The fourth is also the Phase 3 seam. Vintage Story keeps a calendar in months and days, and a
+mod that hands a player a history will be asked what date something happened on.
+
+#### Rejected first, because it is the obvious answer
+
+**A uniform finer tick — every system ticked every day, or every month.** At 360 days a
+300-year run is 108,000 ticks against today's 300. The M9 table puts a run at ~253 ms, so the
+naive daily loop is somewhere around a minute and a half per world, and it lands on the whole
+suite at once, much of which runs full worlds. Monthly is 12× and still buys a suite that takes
+twelve times as long.
+
+The arithmetic is the smaller half of the objection. The larger half is that **most systems
+have nothing to say on most days**. Population growth of 3.8% a year divided across 360 days is
+arithmetic noise with a random number attached; a diplomatic relation that drifts 6% a year does
+not want 360 dice where it currently has one. A uniform clock pays its full cost on every system
+in order to give a finer answer to the four that asked.
+
+#### Three tiers, and the same argument `TerrainAtlas` makes
+
+The terrain design's organising idea is that resolution is bought where a decision needs it and
+nowhere else: a coarse lattice for the majority of queries, a bounded refinement per decision, an
+exact sample only for coordinates that become permanent. **Time gets the same treatment.**
+
+1. **The year** stays the spine — the unit of the harvest, of growth, of a culture, of a
+   figure's age, of every slow accumulator. Most systems never see anything else.
+2. **The season** is the standing sub-year cadence, four to the year. It is what a system ticks
+   on when its subject has a rhythm: campaigning, sowing, the closing of a mountain pass.
+3. **The day** is never looped over. It is reached two ways only — as a **stamp** on something
+   that happened, and as a **due date** on something scheduled. A siege that will resolve in
+   forty days costs one queue entry, not forty ticks.
+
+The consequence to state plainly, because it is the whole reason the cost is affordable:
+**nothing in this design iterates days.** Cost scales with the number of episodes in play rather
+than with the length of the run — the same property `TerrainDisciplineTests` already asserts for
+terrain sampling, and it should be asserted here for the same reason.
+
+#### The calendar
+
+```csharp
+public sealed record Calendar(int DaysPerYear = 360, int SeasonsPerYear = 4);
+```
+
+Twelve months of thirty, so a season is ninety days and both divisions are exact. It is
+**config, and therefore hashed** — the calendar changes how many steps a year has and how far a
+party travels in one — so `WorldConfig.HashedFieldCount` goes 21 → 23 and `ConfigHashTests`
+covers it.
+
+> **Phase 3 note.** Vintage Story configures its year as months × days-per-month, and its
+> default year is materially shorter than 360 days. Confirm the figure against the version
+> actually targeted and set `DaysPerYear` to it; the point of the field is that matching the
+> game's calendar is configuration rather than a change to the model.
+
+**A season is local, not global.** This world already has latitude-driven temperature and a
+region knows its own climate, so "the campaigning season" is a property of the ground being
+fought over rather than of the world clock. Winter in the north is high summer in the south, and
+a realm on the equator has no closed season at all — which is a real asymmetry the model is
+about to acquire, and it is listed below among the things that will need calibrating rather than
+hidden here as flavour.
+
+#### `Stamp`: a year that kept a day
+
+```csharp
+public readonly record struct Stamp(int Year, int Day) : IComparable<Stamp>;
+```
+
+`HistoryEvent` gains `Day` and **keeps `Year`**. That is the migration decision, and it is the
+one schema 9 already made when `ExportTitle` gained four fields and kept `civilizationId`: every
+existing read survives. `eventsByYear`, the viewer's timeline slider, the year filters and the
+territory replay all continue to work untouched, and `day` is additive detail they can adopt
+when there is a reason to.
+
+**The chronicle keeps reading in order, and this is the sharpest structural consequence in the
+design.** Events are appended in non-decreasing year order today — asserted by
+`ExportTests.cs:59`, relied on by the timeline and the year index, and named in `Houses.cs:28`
+as the reason back-dating a birth is not available. Once events carry days, system order and the
+calendar can disagree: `succession` runs after `war` in the system list, so a king who died on
+day 40 would be recorded after a battle fought on day 200.
+
+Two rules keep the invariant, and both are cheap:
+
+- **A system may only stamp inside the step it is running in.** A seasonal system ticking the
+  summer step stamps days within that summer. It is a discipline, and it is checkable.
+- **A step's events are flushed in stamp order**, sorted on `(day, system index, sequence)` — a
+  total order, so it is deterministic. One sort of a short list per step.
+
+Nothing in the engine stores an event id on an entity — a tome's passages carry entity ids, not
+event ids — so reordering within a step is safe, and ids go on encoding position in the log.
+
+#### The docket: scheduled work, in stamp order
+
+```csharp
+world.Docket.Schedule(due: stamp, kind: DocketKind.SiegeResolves, subject: battleId);
+```
+
+A sorted list with binary-search insert, in the shape of `DetMap` and for the same reason:
+enumeration order has to be a property of the keys and not of insertion history. The total order
+is `(absolute day, kind, subject index, sequence)` — all integers, no floating point anywhere in
+the ordering. It lives on `WorldState`, which is what makes it survive the `Advance`-versus-`Run`
+split test, the strongest determinism test the suite has and one that gets stronger here because
+a run can now be split mid-year.
+
+The docket is **not exported**, on the argument `Outbreaks` already carries: it is state a system
+holds between steps rather than something history refers to afterwards. What survives it is the
+events it wrote.
+
+It is also, incidentally, the escape hatch `IYearSystem.cs:22` already names — "buffer intents
+and apply them in a separate phase" — arriving for a different reason than the one it was written
+down against.
+
+#### RNG: one rule per kind of work
+
+The convention today is `world.Root.Fork(Name, year)`. It becomes three, and the split is what
+preserves the fork discipline's central property — that adding a die roll to one system cannot
+perturb another:
+
+| Work | Forks on | Why |
+|---|---|---|
+| an annual system | the year, exactly as today | a system that did not change cadence produces the identical stream |
+| a seasonal system | the absolute step index | monotone, unique, and independent of how many steps any other system took |
+| a scheduled episode | its own subject's id, `Fork(kind, id.ToDiscriminator())` | a siege's dice must not depend on how many other sieges were scheduled before it — the rule M12 used for dispositions, for the same reason |
+
+The third is easy to get wrong and expensive to find. An episode forked on its due date, or on a
+queue position, makes every outcome depend on unrelated scheduling — precisely the failure the
+fork convention exists to prevent.
+
+#### Cadence is part of the run's identity
+
+`SystemOrderHash` folds in the system list because reordering two systems changes the history as
+much as changing the seed. **Changing a system's cadence does exactly the same thing**, so the
+hash folds in each system's cadence alongside its name. `IYearSystem` becomes `ISystem` with a
+declared `Cadence` and `Tick(WorldState, Stamp)`; `WorldState.Year` stays as a property derived
+from `WorldState.Now`, so the great majority of call sites do not move at all.
+
+Most systems stay annual. That is the design working rather than a shortcut:
+
+| Cadence | Systems | Note |
+|---|---|---|
+| **Annual** | `population`, `settlement-lifecycle`, `specialization`, `religion`, `diplomacy`, `figure-incidents`, `figure-lifecycle`, `houses`, `offices`, `artifacts`, `disaster` | growth is realised at the harvest step; the rest keep today's rhythm and gain only a stamp |
+| **Seasonal** | `crown`, `war`, `expansion` | values resettle each step, campaigns run in the season the front allows, parties leave in spring |
+| **Episodic** | `plague` advance, `succession`, sieges, arrivals | woken by the docket, so an outbreak that is not running costs nothing |
+| **Unchanged** | `trade-routes` | already every five years; seasonal corridor closure is a term inside it, not a cadence |
+
+`diplomacy` staying annual is deliberate, and it is M12's argument reused: relations are slow
+accumulators read by every neighbour, and jolting them four times a year makes alliances
+unreadable. The *decisions* taken on the back of a relation become seasonal; the relation does
+not.
+
+`succession` becoming episodic is the quiet repair in that table. The system order's tightest
+coupling exists because "deaths must precede succession or a realm spends a year without a ruler
+for no reason the chronicle can explain" — a death that schedules its own succession states that
+requirement directly instead of encoding it as an adjacency in a list.
+
+#### What each of the four gets
+
+**War acquires a season and a siege.** The campaign roll moves from once a year to once per
+campaigning step, with the chance *converted* rather than repeated — `1-(1-p)^(1/n)` — because
+the first thing a seasonal war system will do if left alone is quadruple every war in the world.
+The bar is stated in advance and it is the M6 measurement: **15.5 wars, 59 battles, 11 sackings
+and 10 provinces ceded per 300-year world across eight seeds, median war six years.** A seasonal
+model that moves those has mis-converted its rates, whatever else it got right.
+
+What is genuinely new is the siege. A siege becomes an episode with a start stamp and a
+resolution scheduled weeks out, which can be **lifted by the season turning or by a relief force
+arriving first** — the first mechanic in this engine that a year cannot express at all, rather
+than one it expresses coarsely. Winter quarters then give indecisive wars a shape the flat
+3.5-a-year exhaustion ramp cannot: a war can be *stalled* rather than merely slow.
+
+**Plague gets its own timescale, and travel becomes time.** An outbreak steps roughly
+fortnightly while it is running and disappears from the cost model when it is not — perhaps
+twenty entries over eight months, against 360 ticks. M8's bounding term, the one line that
+separated a regional catastrophe from a world-ending one, was that people react: a plague two
+towns away closes gates. With travel time modelled, that term stops being a fudge and becomes
+what it describes, because **news has a speed** and the gates close after it arrives.
+
+That needs one new constant, and it is the most consequential number in the milestone:
+
+```
+UnitsPerDay = 64      // a 4096-unit world is ~64 days across
+```
+
+A neighbour at the 1600-unit contact horizon is then about twenty-five days away, a region is two
+days wide, and news crosses a continent in a season. Everything that already moves gets a
+duration for free: settler parties arrive, looted relics arrive, tome copies arrive. It is
+**hashed**, and it should be measured against the settlement equilibrium before it is believed —
+see the predictions.
+
+**The harvest acquires a date, and with it a causal loop.** `QualityAt(region, year)` stays a
+*year's* number and stays stateless: its noise fields run on nine-year and seventy-year periods,
+and sampling them per day would be inventing detail the model does not have. What changes is that
+the year's quality is **realised at the harvest step**, discounted by what happened to the region
+during sowing and growing — a campaign fought across it, a siege sat on it, a sacking in it. One
+multiplier accumulated per region per year.
+
+This is the first time in this engine that a war can cause a famine. Note what it does *not*
+change: growth stays 3.8% a year applied once, because the whole settlement lifecycle was
+calibrated around settlements reaching capacity in ~110 years and then living at the mercy of the
+harvest, and dividing that rate across four steps is the fastest available way to lose the regime
+that made decline reachable at all.
+
+**The record gets dates, and one recorded compromise expires.** *One answer per year* accepted
+that "a ruler crowned in autumn takes effect the following spring", with the alternative —
+recomputing mid-year — rejected for reintroducing the ordering hazard the annual sync exists to
+remove. Under a seasonal `crown` system the answer is resettled at each step boundary, so the lag
+falls from a year to a season **without anything being recomputed mid-step**: the invariant that
+every judgement inside a step is made against the same ruler in the same mood is preserved
+exactly as written. It is the cheapest win in the milestone, and it comes from the clock rather
+than from new code in `CrownSystem`.
+
+Disasters get seasons almost free, since every one of them is already drawn from the ground it
+struck: storms in autumn, wildfire in a dry summer, floods at the melt. No new terrain data, one
+new term.
+
+#### The sample budget does not move
+
+Every question in this design is asked of region statistics, the harvest field and the hydrology
+grid — all derived once at world creation. **A four-times-finer clock must not cost one
+additional terrain sample**, and the existing budget test is where that is caught. It matters
+more after M10 than it would have before: that milestone spent the headroom, taking a run from
+5,798 samples to 8,969 against a ceiling of 12,000, so there is no longer room for a time
+milestone to be careless and be caught later. `TerrainDisciplineTests` asserts today that
+sampling scales with decisions rather than years; the assertion extends to steps, and if it fails
+the design is wrong rather than the budget.
+
+#### Staging, because M12 showed what it is worth
+
+M12 landed in four steps, the first two of which changed no history at all, and recorded that
+this inverted the usual order of work: the foundation could be built and inspected before
+anything was allowed to move. The same is available here and is worth more, because this
+milestone touches every system in the engine.
+
+1. **The clock, at one step per year.** `Stamp`, `Calendar`, `Docket`, `ISystem` with cadences —
+   every cadence annual, every stamp day zero, every fork still on the year. **Byte-identical
+   histories.** The golden does not move, and the whole mechanical change is reviewable against a
+   fingerprint proving it changed nothing.
+2. **Dates in the export.** Schema 13: `day` on events. The simulation is still unmoved; the
+   export gains a field, so the fingerprint moves once, deliberately, for a reason written down.
+3. **Seasons on.** `crown`, `war` and `expansion` re-phased, rates converted. Every history
+   changes, and the calibration work lands here.
+4. **Days.** The docket's first three consumers: sieges, outbreak steps, arrivals.
+
+**Sequence this after M10.** Both regenerate the seed-42 fingerprint, and two milestones' worth
+of change under one golden regeneration is exactly the situation that test exists to prevent —
+nobody can tell by looking which move was which.
+
+#### Where the calibration will fight back
+
+**Predictions, not measurements.** Six, in the order they seem likely to bite:
+
+1. **Everything happens four times as often.** Any per-year Bernoulli re-rolled per season
+   quadruples its outcome unless converted, and the dangerous cases are the ones where the fix is
+   not a conversion at all: an exhaustion ramp measured in points per year, a decline counter
+   measured in consecutive years, a truce measured in years. Grep for the rates, not only for the
+   rolls.
+2. **The chronicle inflates without gaining anything.** M11's governorships are the precedent —
+   the largest contributor to event volume was also the least informative event in it. A seasonal
+   system that records must not record four times a year. **Estimated** cost of the genuinely new
+   events, sieges and arrivals, is +150 to +300 on a run that currently writes 4,162 — so +4% to
+   +7% — and the lever if it lands higher is recording an arrival only where the arrival is the
+   point.
+3. **Equatorial realms acquire a structural advantage.** No closed season means more campaigning
+   steps a year, permanently, for every realm near the equator. This is a *new* asymmetry the
+   seasonal model introduces and the annual one could not have; it wants a floor on the
+   campaigning window rather than a literal reading of the climate.
+4. **A north–south war has no shared season.** Two realms whose windows do not overlap can be at
+   war for a decade without a battle. The front's own season should govern rather than either
+   homeland's — which is also the truthful answer, since the front is where the armies are.
+5. **Travel time collapses the colonisation range.** Settled land currently reaches 52–55% of
+   land regions at `BaseChance = 0.10`. Making a distant founding take a season may quietly move
+   that, and the failure mode is a world that stops expanding rather than an error anybody sees.
+   `UnitsPerDay` is the dial, and that equilibrium is what it should be measured against.
+6. **The suite gets slower and nobody notices until it is annoying.** **Estimated** at 1.5× to
+   2.5× today's wall clock — roughly 5,100 system-ticks per 300-year run becoming roughly 7,200
+   plus the docket. The bar: **under 3×**, and if a stage exceeds it, the cadence table is where
+   to look before the code is.
+
+#### The test contract
+
+- The split-run determinism test extends to splitting **mid-year**: advancing by seasons, and by
+  days, must produce the identical history to one `Run`. It is the strongest test in the suite
+  and this milestone makes it stronger.
+- Every event's stamp lies inside the step that wrote it, and the chronicle is non-decreasing in
+  `(year, day)` — the existing `ExportTests` assertion, strengthened.
+- Stage 1 reproduces the pre-milestone golden exactly. A temporary test by design: it is deleted
+  when stage 3 lands, having done its job.
+- Terrain samples do not rise, asserted against the same budget by running one seed at four steps
+  per year and at one.
+- War, plague and famine volumes stay inside the M6 and M8 envelopes quoted above, asserted
+  against the seeds' own baselines rather than against absolute rates.
+- The docket is covered by `DeterminismGuardTests` — no `Dictionary`, no floating-point ordering
+  key — and an episode's outcome is unchanged by scheduling an unrelated episode before it.
+- `Calendar` and `UnitsPerDay` reach `ConfigHash`; `HashedFieldCount` moves 21 → 23.
+
+#### What this deliberately does not do
+
+No daily loop, in any form, for any system: the moment one exists, the cost model is the rejected
+design above wearing a different name. No hourly time and nothing below a day. No per-day
+weather — the harvest keeps its two noise fields and its year. No positional armies marching
+along paths; an army remains a levy attached to a war, and roads stay deferred where the
+trade-route design left them. And no real-time coupling to a running Vintage Story server:
+aligning the calendar is Phase 3's requirement, while simulating history live against a game
+clock is a different project that this one should not pre-empt.
+
 ---
 
 ## Milestones
@@ -1603,6 +1934,12 @@ order, and the foundation went in without changing a single existing history. M1
 independent of each other: no terrain dependency one way, no figure dependency the other.
 See *Offices: what a court does with the people it already has* and *Rulers who react: a people,
 a person, and a recent past* above.
+
+M13 follows M10 rather than running beside it, and the reason is the golden: both regenerate the
+seed-42 fingerprint, and a single regeneration covering two milestones' worth of change is
+exactly what that test exists to prevent. It touches every system in the engine and is therefore
+staged so that the first step of it changes no history at all — see *Time: seasons on the year,
+and days where they are earned* above.
 
 Unrest and cultural drift — a people that deposes a ruler it has diverged from, or slowly
 becomes what a long line of them wanted — are the two halves of the loop M12 leaves open, and
