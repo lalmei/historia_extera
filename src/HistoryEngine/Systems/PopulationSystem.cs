@@ -67,14 +67,27 @@ public sealed class PopulationSystem : ISystem
     /// Scales the fertility-derived component of capacity.
     /// </summary>
     /// <remarks>
-    /// Applied to <em>squared</em> fertility, not fertility. A linear term gives marginal land far
-    /// too much: at a flat 9,000 per unit, ground scoring 0.05 still fed four hundred people, so
+    /// <para>Applied to <em>squared</em> fertility, not fertility. A linear term gives marginal land
+    /// far too much: at a flat 9,000 per unit, ground scoring 0.05 still fed four hundred people, so
     /// no settlement anywhere could ever fail and abandonment was unreachable in practice. Squaring
     /// makes poor land disproportionately poor, which is both closer to the truth and what opens
-    /// the dynamic range decline needs. Calibrated against squared fertility: the best land reaches
-    /// a large city, ordinary land a town, marginal land a village that a bad decade can empty.
+    /// the dynamic range decline needs.</para>
+    ///
+    /// <para><b>Larger than it looks, because the land is now shared.</b> This is the capacity of a
+    /// whole neighbourhood's fields, not of one settlement's, and <see cref="Hinterland"/> divides
+    /// it among everybody close enough to work it — an ordinary settlement keeps something like a
+    /// third to a half. It was 9,000 when each settlement drew on its own region as though nobody
+    /// else were there, and raising it alongside the division is what keeps a world's total living
+    /// population in the same range it always had while changing how that population is
+    /// distributed. Squared fertility across the regions people actually settle spans a factor of
+    /// thirty-seven from the tenth percentile to the ninetieth, so this term supplies the
+    /// hierarchy's spread; competition for it supplies the hierarchy's shape.</para>
+    ///
+    /// <para>Calibrated by sweeping reach against this number over thousand-year runs on five
+    /// seeds, against three things at once: a world that stays populated, a median settlement that
+    /// is not a town, and a size distribution with a tail rather than a hump.</para>
     /// </remarks>
-    private const double CapacityFromFertility = 9000.0;
+    private const double CapacityFromFertility = 26000.0;
     private const double CapitalCapacityBonus = 1.4;
     private const double FortificationBonus = 1.12;
 
@@ -105,6 +118,16 @@ public sealed class PopulationSystem : ISystem
 
         IRng rng = world.Root.Fork(Name, year);
 
+        // Once for the world, not once per settlement: TradeRoutes.From walks every route in the
+        // table, and asking it per settlement per year is a quadratic no chronicle needs.
+        TradeTraffic traffic = TradeRoutes.TrafficBySettlement(world);
+
+        // Taken before anybody grows. Hinterland shares must be decided against one consistent
+        // picture of the world, or a settlement's share would depend on whether its neighbours
+        // happened to be walked before or after it — which is civilization id order, and would
+        // quietly hand the world's first realm the best land.
+        Hinterland hinterland = Hinterland.Survey(world);
+
         foreach (Civilization civilization in world.ActiveCivilizations())
         {
             Culture culture = world.CultureOf(civilization);
@@ -115,7 +138,15 @@ public sealed class PopulationSystem : ISystem
                 Region region = world.Regions[settlement.RegionId];
                 double harvest = world.Harvest.QualityAt(region, year);
 
-                double capacity = CapacityOf(world, civilization, culture, settlement, region, harvest);
+                double capacity = CapacityOf(
+                    world,
+                    civilization,
+                    culture,
+                    settlement,
+                    region,
+                    harvest,
+                    traffic.At(settlement.Id),
+                    hinterland.ShareFor(world, settlement));
 
                 // Logistic: approaches zero at capacity, negative beyond it, and steeper on the
                 // way down than up.
@@ -157,21 +188,38 @@ public sealed class PopulationSystem : ISystem
     /// <summary>
     /// How many people this settlement can support this year.
     /// </summary>
+    /// <remarks>
+    /// <para><paramref name="routeTraffic"/> is the summed traffic of every live trade route
+    /// touching the settlement. Callers outside the yearly tick can get it from
+    /// <see cref="TradeRoutes.TrafficAt"/>; the tick itself builds the whole table once a year
+    /// instead, because the per-settlement query walks the route table.</para>
+    ///
+    /// <para><paramref name="landShare"/> is the fraction of the surrounding country this
+    /// settlement feeds itself from rather than a neighbour — see <see cref="Hinterland"/>. One
+    /// means nothing else is near enough to compete.</para>
+    /// </remarks>
     public static double CapacityOf(
         WorldState world,
         Civilization civilization,
         Culture culture,
         Settlement settlement,
         Region region,
-        double harvest)
+        double harvest,
+        double routeTraffic,
+        double landShare)
     {
         SettlementSpecialization specialization = settlement.Specialization;
 
         double fromLand = DetMath.IntPow(region.Fertility, 2)
                           * CapacityFromFertility
-                          * Specializations.FertilityWeight(specialization);
+                          * Specializations.FertilityWeight(specialization)
+                          * landShare;
 
-        double capacity = Specializations.BaseCapacity(specialization) + fromLand;
+        // What the roads bring in. A settlement no route reaches gets nothing here and lives on its
+        // fields alone, which is what keeps the great majority of settlements villages.
+        double fromTrade = routeTraffic * Specializations.ImportReliance(specialization);
+
+        double capacity = Specializations.SiteCapacity(specialization) + fromLand + fromTrade;
 
         // A poor year bites in proportion to how exposed the settlement's trade is to it.
         double sensitivity = Specializations.HarvestSensitivity(specialization);

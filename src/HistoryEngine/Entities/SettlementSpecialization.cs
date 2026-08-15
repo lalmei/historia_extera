@@ -46,24 +46,70 @@ public static class Specializations
     };
 
     /// <summary>
-    /// Capacity a specialization supports regardless of the land, in people.
+    /// Capacity the site itself yields regardless of the surrounding land, in people.
     /// </summary>
     /// <remarks>
-    /// Low for the subsistence trades and high for the ones that import their food. That asymmetry
-    /// is what decides which settlements a bad regional decade can actually kill: farming and
-    /// herding villages have almost no floor beneath them, while a mining town or a trading port
-    /// stands on its trade rather than on its soil.
+    /// <para>The ore body, the fishery, the spring the pilgrims come for: what a settlement gets
+    /// from the ground it stands on rather than from the fields around it. Small on purpose, and it
+    /// did not used to be.</para>
+    ///
+    /// <para><b>Why it shrank.</b> These were once 1,400–2,600 for the five trades that do not feed
+    /// themselves, granted unconditionally the year a village outgrew a hamlet. That is not a floor
+    /// a settlement stands on, it is a town handed out for free, and it swamped everything else in
+    /// <see cref="Systems.PopulationSystem.CapacityOf"/>. The signature is visible per trade: on a
+    /// thousand-year run of seed 42, the 47 mining towns had a median population of 2,192 and a
+    /// maximum of 3,185, on ground ranging from barren to excellent. They were not responding to
+    /// the world at all. They were reporting this constant, because nothing else in the calculation
+    /// was large enough to be heard over it.</para>
+    ///
+    /// <para><b>What replaced it.</b> The claim the old docstring made — that a mining town or a
+    /// trading port "stands on its trade rather than on its soil" — is now literally true, because
+    /// <see cref="ImportReliance"/> sources that capacity from the settlement's actual trade
+    /// routes. A trading port with no route to anywhere is a village, which is correct, and a
+    /// closed route now costs a town people over the following decade.</para>
     /// </remarks>
-    public static double BaseCapacity(SettlementSpecialization specialization) => specialization switch
+    public static double SiteCapacity(SettlementSpecialization specialization) => specialization switch
     {
-        SettlementSpecialization.Farming => 90.0,
-        SettlementSpecialization.Pastoral => 260.0,
-        SettlementSpecialization.Fishing => 1900.0,
-        SettlementSpecialization.Mining => 2200.0,
-        SettlementSpecialization.Trade => 2600.0,
-        SettlementSpecialization.Crafts => 1800.0,
-        SettlementSpecialization.Shrine => 1400.0,
-        _ => 150.0,
+        SettlementSpecialization.Farming => 60.0,
+        SettlementSpecialization.Pastoral => 180.0,
+        SettlementSpecialization.Fishing => 620.0,
+        SettlementSpecialization.Mining => 400.0,
+        SettlementSpecialization.Trade => 240.0,
+        SettlementSpecialization.Crafts => 260.0,
+        SettlementSpecialization.Shrine => 300.0,
+        _ => 110.0,
+    };
+
+    /// <summary>
+    /// People one unit of live trade-route traffic can feed here, beyond what the land bears.
+    /// </summary>
+    /// <remarks>
+    /// <para>What a settlement eats that it did not grow. This is the term that makes a city, and
+    /// before it existed nothing did: carrying capacity read the land, the harvest, the distance to
+    /// the capital and the culture, and not one thing about whether the place was connected to
+    /// anywhere. A settlement on four busy routes had the same ceiling as one at the end of a
+    /// track, so <see cref="World.TradeRoute"/> — a system with 421 routes and measured yearly
+    /// traffic on each — reached population by no path at all, and fed only plague and the
+    /// circulation of books.</para>
+    ///
+    /// <para>Ordered by how much of its living a trade takes from elsewhere. A farming village
+    /// barely notices the road; a market town is the road. That ordering is deliberately the mirror
+    /// of <see cref="FertilityWeight"/>, so the two terms hand the hierarchy between them: the land
+    /// decides how large a place can grow on its own, and commerce decides which of them become
+    /// more than that. Cities concentrating a hinterland's surplus rather than standing on
+    /// unusually good fields of their own is both what central-place geography says and what gives
+    /// the size distribution a tail instead of a hump.</para>
+    /// </remarks>
+    public static double ImportReliance(SettlementSpecialization specialization) => specialization switch
+    {
+        SettlementSpecialization.Farming => 120.0,
+        SettlementSpecialization.Pastoral => 150.0,
+        SettlementSpecialization.Fishing => 420.0,
+        SettlementSpecialization.Mining => 560.0,
+        SettlementSpecialization.Trade => 900.0,
+        SettlementSpecialization.Crafts => 700.0,
+        SettlementSpecialization.Shrine => 480.0,
+        _ => 130.0,
     };
 
     /// <summary>

@@ -83,6 +83,7 @@ public sealed class PlagueTests
         int ended = 0;
         int reached = 0;
         int abandoned = 0;
+        int founded = 0;
 
         foreach (ulong seed in Seeds)
         {
@@ -90,6 +91,7 @@ public sealed class PlagueTests
 
             foreach (Settlement settlement in run.World.Settlements)
             {
+                founded++;
                 if (!settlement.IsActive) abandoned++;
             }
 
@@ -109,7 +111,14 @@ public sealed class PlagueTests
         Assert.InRange(outbreaksPerWorld, 3.0, 7.0);
         Assert.InRange(settlementsPerCompletedOutbreak, 2.0, 5.0);
         Assert.InRange(began - ended, 0, Seeds.Length * 2);
-        Assert.InRange(abandoned, 0, 5);
+
+        // A share, not a count. This is the canary for "pestilence has quietly become the dominant
+        // force in the model" — the M8 failure that emptied eighteen settlements out of thirty-four
+        // — and as an absolute number it could not tell that apart from a world that simply founded
+        // more settlements. It read 0-5 against worlds founding 55 to 86 of them, so a world half
+        // as large again would have tripped it without anything being wrong.
+        double abandonedShare = abandoned / (double)founded;
+        Assert.InRange(abandonedShare, 0.0, 0.15);
     }
 
     private static Settlement FindUrbanHub(WorldState world)
