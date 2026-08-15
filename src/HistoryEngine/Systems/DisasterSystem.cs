@@ -185,6 +185,8 @@ public sealed class DisasterSystem : IYearSystem
             owner.Population = Math.Max(0, owner.Population - lost);
         }
 
+        Realms.Suffered(world, settlement, lost);
+
         // Walls come down where the ground moves, which leaves the place easier to take — the
         // same coupling a sacking has, arrived at from the other direction.
         if (Levels(kind) && settlement.IsFortified && rng.Chance(0.5)) settlement.IsFortified = false;

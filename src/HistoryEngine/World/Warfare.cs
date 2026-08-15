@@ -243,6 +243,11 @@ public static class Warfare
 
         battle.VictorId = attackerWins ? invader.Id : holder.Id;
 
+        // Only the two realms that actually met on the field carry the memory of it. A coalition
+        // partner that sent no levy to this battle is not marked by a day it did not have.
+        (attackerWins ? invader : holder).Fortunes.WonABattle();
+        (attackerWins ? holder : invader).Fortunes.LostABattle();
+
         int contestedForce = Math.Max(1, Math.Min(attackerForce, defenderForce));
         int victorLosses = (int)(contestedForce * rng.NextDouble(MinVictorLosses, MaxVictorLosses));
         int loserLosses = (int)(contestedForce * rng.NextDouble(MinLoserLosses, MaxLoserLosses));
@@ -555,6 +560,9 @@ public static class Warfare
 
         Civilization owner = world.Civilizations[target.CivilizationId];
         owner.Population = Math.Max(0, owner.Population - lost);
+
+        owner.Fortunes.TownSacked();
+        sacker.Fortunes.SackedATown();
 
         world.Chronicle.Record(
             year,

@@ -202,11 +202,26 @@ public sealed record ExportCivilization(
     int RulerSinceYear,
     int Population,
     int PeakPopulation,
+    ExportFortunes Fortunes,
     IReadOnlyList<EntityId> RulerIds,
     IReadOnlyList<EntityId> SettlementIds,
     IReadOnlyList<EntityId> TerritoryRegionIds,
     IReadOnlyList<ExportRelation> Relations,
     IReadOnlyList<ExportAlliance> Allies);
+
+/// <summary>
+/// How a realm's recent past sat on it at the end of the run, in four decaying measures.
+/// </summary>
+/// <remarks>
+/// A snapshot of the final year rather than a series. What the realm went through is already in
+/// the chronicle event by event; this is the state those events left behind, and it is exported
+/// so a reader can see why the last reign behaved as it did.
+/// </remarks>
+public sealed record ExportFortunes(
+    double Weariness,
+    double Calamity,
+    double Triumph,
+    double Grievance);
 
 /// <summary>
 /// One realm's standing opinion of another, in [-1, 1].

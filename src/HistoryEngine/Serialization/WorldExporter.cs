@@ -268,6 +268,11 @@ public static class WorldExporter
                 RulerSinceYear: civilization.RulerSinceYear,
                 Population: civilization.Population,
                 PeakPopulation: civilization.PeakPopulation,
+                Fortunes: new ExportFortunes(
+                    civilization.Fortunes.Weariness,
+                    civilization.Fortunes.Calamity,
+                    civilization.Fortunes.Triumph,
+                    civilization.Fortunes.Grievance),
                 RulerIds: civilization.RulerIds.ToArray(),
                 SettlementIds: civilization.SettlementIds.ToArray(),
                 TerritoryRegionIds: civilization.TerritoryRegionIds.ToArray(),

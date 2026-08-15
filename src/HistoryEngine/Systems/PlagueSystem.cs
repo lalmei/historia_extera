@@ -277,6 +277,7 @@ public sealed class PlagueSystem : IYearSystem
         outbreak.Reached++;
 
         int lost = Kill(world, outbreak, settlement, rng);
+        Realms.Suffered(world, settlement, lost);
 
         var data = Chronicle.Data(("name", outbreak.Name));
         if (lost >= NotableLoss) data["lost"] = lost.ToString(CultureInfo.InvariantCulture);

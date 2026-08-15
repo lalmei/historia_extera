@@ -29,7 +29,11 @@ public sealed class Simulator
     /// The system order as of the persistent trade-route model.
     /// </summary>
     /// <remarks>
-    /// <para>Reads as a causal chain within each year: populations change against the harvest,
+    /// <para>The crown settles first: each realm's fortunes fade by a year and the values it will
+    /// be governed by are fixed before any system reads them, so every judgement made within one
+    /// year is made against the same ruler in the same mood.</para>
+    ///
+    /// <para>Then the chain reads causally within each year: populations change against the harvest,
     /// pestilence and the land itself take their share of what is left, that changes what
     /// settlements are, a settlement that has outgrown a hamlet acquires a character, pressure
     /// drives expansion, expansion moves borders, faiths travel across the borders as they now
@@ -74,6 +78,7 @@ public sealed class Simulator
     /// </remarks>
     public static IReadOnlyList<IYearSystem> DefaultSystems() => new IYearSystem[]
     {
+        new CrownSystem(),
         new PopulationSystem(),
         new PlagueSystem(),
         new DisasterSystem(),

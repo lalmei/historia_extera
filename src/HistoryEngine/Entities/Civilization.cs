@@ -118,6 +118,16 @@ public sealed class Civilization
     /// </remarks>
     public DetMap<EntityId, int> Truces { get; }
 
+    /// <summary>
+    /// How the realm's recent past sits on it: what it has suffered, lost and won lately.
+    /// </summary>
+    /// <remarks>
+    /// Written by the systems that cause each entry and faded once a year by the crown system,
+    /// which runs before anything reads it. This is the third of the three layers a realm's
+    /// decisions are made from — after the culture it has and the person governing it.
+    /// </remarks>
+    public RealmFortunes Fortunes { get; } = new();
+
     /// <summary>Total population across active settlements. Recomputed each tick.</summary>
     public int Population { get; set; }
 

@@ -78,6 +78,12 @@ public static class Realms
 
         war.CededRegionIds.Add(region.Id);
 
+        // Ground changing hands is the one loss this engine models that a realm does not merely
+        // recover from: it answers the taker's own older grievances and opens one on the far side
+        // that outlives everyone who remembers the war.
+        from.Fortunes.LandLost();
+        to.Fortunes.LandTaken();
+
         world.Chronicle.Record(
             year,
             EventKind.RegionCeded,
@@ -85,6 +91,23 @@ public static class Realms
             obj: to.Id,
             location: taken,
             extra: new[] { war.Id, from.Id });
+    }
+
+    /// <summary>
+    /// Records against a settlement's realm the people it just lost to something unfightable.
+    /// </summary>
+    /// <remarks>
+    /// Shared by plague, disaster and famine so all three reach the realm's fortunes the same way
+    /// and none of them has to repeat the guard for a settlement whose owner has already fallen.
+    /// The severity is worked out against the realm's population rather than the settlement's, so
+    /// a thousand dead is a catastrophe to a small realm and a bad year to a large one.
+    /// </remarks>
+    public static void Suffered(WorldState world, Settlement settlement, int lost)
+    {
+        if (lost <= 0 || !world.Civilizations.Contains(settlement.CivilizationId)) return;
+
+        Civilization realm = world.Civilizations[settlement.CivilizationId];
+        realm.Fortunes.Suffered(lost, realm.Population);
     }
 
     /// <summary>
