@@ -53,9 +53,10 @@ public sealed record WorldExport(
     /// circulation of a tome, and the particular relic and two faiths named by the new religious
     /// causes of war. Version 6 added persistent trade routes. Version 7 added holy sites as
     /// independent map entities. Version 8 added the exact detail behind a figure's categorical
-    /// cause of death.
+    /// cause of death. Version 9 added the reign-aware layer: a culture's Learning dial, every
+    /// figure's own disposition, and the fortunes and effective values a realm is governed by.
     /// </remarks>
-    public const int CurrentSchemaVersion = 8;
+    public const int CurrentSchemaVersion = 9;
 }
 
 public sealed record ExportMeta(
@@ -166,6 +167,7 @@ public sealed record ExportCulture(
     double Piety,
     double Tradition,
     double Mercantile,
+    double Learning,
     ExportLexicon Lexicon);
 
 /// <summary>
@@ -434,6 +436,7 @@ public sealed record ExportFigure(
     DeathCause DeathCause,
     string? DeathDetail,
     EntityId? BirthSettlementId,
+    ExportDisposition Disposition,
     IReadOnlyList<ExportTitle> Titles,
     EntityId? MotherId,
     EntityId? FatherId,
@@ -441,6 +444,23 @@ public sealed record ExportFigure(
     IReadOnlyList<EntityId> SpouseIds);
 
 public sealed record ExportTitle(string Title, EntityId CivilizationId, int FromYear, int? ToYear);
+
+/// <summary>
+/// One person's own inclinations, on the same dials their culture has.
+/// </summary>
+/// <remarks>
+/// Exported for everyone rather than only for those who governed, because the viewer draws family
+/// trees and "the brother who would have been a very different king" is exactly the sort of thing
+/// a reader of a chronicle wants to be able to see.
+/// </remarks>
+public sealed record ExportDisposition(
+    double Aggression,
+    double Expansionism,
+    double Piety,
+    double Tradition,
+    double Mercantile,
+    double Learning,
+    double Centralism);
 
 public sealed record ExportEvent(
     int Id,

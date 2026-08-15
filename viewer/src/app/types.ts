@@ -7,7 +7,7 @@
  * stops moving.
  */
 
-export const SCHEMA_VERSION = 8;
+export const SCHEMA_VERSION = 9;
 
 /** `"civ:3"`, `"fig:1204"` — readable, greppable, and directly usable as a route. */
 export type EntityId = string;
@@ -196,7 +196,25 @@ export interface Culture {
   piety: number;
   tradition: number;
   mercantile: number;
+  learning: number;
   lexicon: Lexicon;
+}
+
+/**
+ * One person's own inclinations, on the same dials their culture has.
+ *
+ * Present on every figure, not only those who governed — the brother who would have been a
+ * very different king is exactly what a reader of a family tree wants to be able to see.
+ */
+export interface Disposition {
+  aggression: number;
+  expansionism: number;
+  piety: number;
+  tradition: number;
+  mercantile: number;
+  learning: number;
+  /** How much this person insists on deciding things themselves. */
+  centralism: number;
 }
 
 /**
@@ -627,6 +645,7 @@ export interface Figure {
   /** Specific form of the cause when known, such as a named plague or a flood. */
   deathDetail?: string;
   birthSettlementId?: EntityId;
+  disposition: Disposition;
   titles: Title[];
   motherId?: EntityId;
   fatherId?: EntityId;
