@@ -938,6 +938,75 @@ to the volume, as expected. But the marshal did **not** collapse the variance of
 capping a standing marshal at three fields in four left non-rulers a wide spread of commands,
 because a realm fights on more than one frontier and a marshal cannot be at both.
 
+### Notable households: what an office raises out of the population
+
+> **Half built.** The careers are in; the families are designed and not built. `FillMode.Customary`
+> is currently a value of an enum that nothing ever produces — three fill modes were designed and
+> two shipped — and the families are what would make the third reachable.
+
+**An office is filled from a house or from the ordinary population, and the population is the
+larger door.** Of 279 appointed office-holders on seed 42, 104 came from a house and 175 were
+raised. That ratio is right and worth keeping: a realm's marshals should not all be the king's
+cousins, and the whole point of `Offices.Courtiers` skipping the front of the line is that the
+people it does supply are cadets nobody else had a use for.
+
+**What was wrong with the raised half.** They were invented at 26–45 whatever the office was, so a
+high priest and a town's headman were the same age on average, and neither had done anything to
+get there. An office is the end of a career and the age band is how long that career took: a
+marshal has served (32–52), a high priest has risen through a temple (38–62, the slowest ladder),
+a governor is established in their own town (30–55). Each now carries the door they came through
+— soldiery, clergy, townsfolk — which is the difference between a figure and a placeholder.
+Measured after: median age at appointment 52 for priests against 42 for governors.
+
+**There is no birth event for these people and there cannot be.** The chronicle is append-only in
+non-decreasing year order, so a birth forty years before the appointment that introduced them
+cannot be inserted — the constraint `Houses.NewFigure` already records for anyone created grown.
+What they have is a real birth year, worked back from the office, so a reader sees a life rather
+than an entrance. Anything more would need the chronicle to accept back-dated entries, which is a
+much larger change than it looks and would cost the property that events can be replayed in order.
+
+#### The families, and the bound they need
+
+**This is the one part of the offices design that can break M5's linearity, and it needs the same
+trick M5 used.** `HouseholdSystem.Marriageable` refuses anyone of no house, which is exactly why
+175 raised notables cost nothing today: they hold an office, die, and are replaced. Give each of
+them a spouse and two or three children and the figure table gains about 56% — and if those
+children then marry and breed, the growth is exponential, which is the failure the attention
+budget exists to prevent.
+
+M5 did not cap fertility; it capped *proximity to the throne*. The same move works one level down:
+**a notable's household is followed while they hold office, and for a generation after it ends.**
+Their children are recorded and are themselves extended only if one of them takes an office. The
+extra population is then a level shift — one spouse and a few children per seat — rather than a
+growth rate, and the same sentence justifies it that justified the original budget: this is a
+claim about whose children a chronicle bothers to name.
+
+**The generation of grace is the part worth arguing for.** Following a family only while the
+office is held makes them vanish the year the holder dies, which is both wrong and useless: a
+local family's standing outlives the post that gave it to them, and the whole reason to track
+them is what happens *between* appointments. Twenty-five years is a child growing up, which is
+the interval that matters, because it is the one in which the next holder could come from the
+same household.
+
+**And that is what makes `FillMode.Customary` reachable.** The third mode is "the office runs in a
+family: the last holder's heir takes it and the crown's part is to acquiesce". It has been
+unbuildable because raised notables had no heirs. With households it becomes the natural third
+branch of `ChooseMode`, weighted by the culture's Tradition — which is where a hereditary local
+gentry comes from, and eventually the pressure a centralising ruler pushes against.
+
+**Where it will fight back**, in advance:
+
+- **The share of raised holders is itself a dial.** Households make the raised path more
+  expensive, so if the figure count runs hot the first lever is not the family model but the
+  balance between `Courtiers` and `Notable` — a court that fills more of its own seats needs
+  fewer invented families.
+- **Customary succession can ossify a realm.** An office that always passes to the last holder's
+  son stops being a decision, and a realm whose every seat is hereditary has no appointments left
+  to read about. Tradition must weight it, not decide it.
+- **Two attention budgets that disagree.** The rank map and the office-proximity rule will both
+  be walked every year and must not contradict each other, or a person will be simultaneously too
+  remote for the chronicle to marry off and close enough to inherit a governorship.
+
 ### Rulers who react: a people, a person, and a recent past
 
 > **Built**, ahead of *Offices* above and against the order originally planned. `Centralism`
@@ -1930,6 +1999,7 @@ clock is a different project that this one should not pre-empt.
 | M11 | Offices: appointments, governors, founding parties | **done** |
 | M12 | Rulers who react: dispositions, realm fortunes, trait-aware elections | **done** |
 | M13 | Sub-year time: seasons, dated events, scheduled episodes | planned |
+| M14 | Notable households: families for the figures an office raises | designed |
 
 M12 landed first. `Disposition` is the record both milestones read, so building it once — rather
 than landing `Centralism` alone with M11 and folding it in a milestone later — was the cheaper
