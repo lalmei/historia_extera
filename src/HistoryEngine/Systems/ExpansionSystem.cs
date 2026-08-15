@@ -20,7 +20,7 @@ namespace HistoryEngine.Systems;
 /// contend for the same regions. That contention is the seam Milestone 6's diplomacy and war
 /// plugs into.</para>
 /// </remarks>
-public sealed class ExpansionSystem : IYearSystem
+public sealed class ExpansionSystem : ISystem
 {
     /// <summary>Baseline yearly chance of founding a settlement, before culture and pressure.</summary>
     private const double BaseChance = 0.06;
@@ -68,8 +68,12 @@ public sealed class ExpansionSystem : IYearSystem
 
     public string Name => "expansion";
 
-    public void Tick(WorldState world, int year)
+    public Cadence Cadence => Cadence.Annual;
+
+    public void Tick(WorldState world, Stamp now)
     {
+        int year = now.Year;
+
         IRng rng = world.Root.Fork(Name, year);
 
         foreach (Civilization civilization in world.ActiveCivilizations())

@@ -20,7 +20,7 @@ namespace HistoryEngine.Systems;
 /// gains an <see cref="Civilization.EndedYear"/>. Every event that referenced them still
 /// resolves in the viewer, which is the whole point of a chronicle.</para>
 /// </remarks>
-public sealed class SettlementLifecycleSystem : IYearSystem
+public sealed class SettlementLifecycleSystem : ISystem
 {
     /// <summary>Population at or below which a settlement is given up outright.</summary>
     private const int AbandonmentThreshold = 12;
@@ -107,8 +107,12 @@ public sealed class SettlementLifecycleSystem : IYearSystem
 
     public string Name => "settlement-lifecycle";
 
-    public void Tick(WorldState world, int year)
+    public Cadence Cadence => Cadence.Annual;
+
+    public void Tick(WorldState world, Stamp now)
     {
+        int year = now.Year;
+
         IRng rng = world.Root.Fork(Name, year);
 
         foreach (Civilization civilization in world.ActiveCivilizations())

@@ -22,12 +22,16 @@ namespace HistoryEngine.Systems;
 /// what makes an heir predeceasing their father — the engine of most interesting successions —
 /// happen at a believable rate.</para>
 /// </remarks>
-public sealed class FigureLifecycleSystem : IYearSystem
+public sealed class FigureLifecycleSystem : ISystem
 {
     public string Name => "figure-lifecycle";
 
-    public void Tick(WorldState world, int year)
+    public Cadence Cadence => Cadence.Annual;
+
+    public void Tick(WorldState world, Stamp now)
     {
+        int year = now.Year;
+
         IRng rng = world.Root.Fork(Name, year);
 
         // Id order, which is birth order — stable regardless of who is currently near a throne.

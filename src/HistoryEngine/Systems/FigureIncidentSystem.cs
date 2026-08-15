@@ -22,7 +22,7 @@ namespace HistoryEngine.Systems;
 /// martial cultures somewhat more exposed. A separate per-figure random stream means adding a
 /// claimant to one court cannot change another person's fate.</para>
 /// </remarks>
-public sealed class FigureIncidentSystem : IYearSystem
+public sealed class FigureIncidentSystem : ISystem
 {
     private const double PoliticalRiskFloor = 0.0010;
     private const double PoliticalRiskFromAggression = 0.0025;
@@ -46,8 +46,12 @@ public sealed class FigureIncidentSystem : IYearSystem
 
     public string Name => "figure-incidents";
 
-    public void Tick(WorldState world, int year)
+    public Cadence Cadence => Cadence.Annual;
+
+    public void Tick(WorldState world, Stamp now)
     {
+        int year = now.Year;
+
         IRng rng = world.Root.Fork(Name, year);
 
         PoliticalViolence(world, year, rng);

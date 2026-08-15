@@ -33,7 +33,7 @@ namespace HistoryEngine.Systems;
 /// <para>Samples no terrain: spread is decided by distance between settlements the simulation
 /// already knows the coordinates of.</para>
 /// </remarks>
-public sealed class PlagueSystem : IYearSystem
+public sealed class PlagueSystem : ISystem
 {
     /// <summary>Yearly ignition hazard contributed by one unit of urban exposure.</summary>
     private const double IgnitionPerExposure = 0.0018;
@@ -87,8 +87,12 @@ public sealed class PlagueSystem : IYearSystem
 
     public string Name => "plague";
 
-    public void Tick(WorldState world, int year)
+    public Cadence Cadence => Cadence.Annual;
+
+    public void Tick(WorldState world, Stamp now)
     {
+        int year = now.Year;
+
         IRng rng = world.Root.Fork(Name, year);
 
         // Existing outbreaks are advanced before a new one can ignite, so a plague that starts

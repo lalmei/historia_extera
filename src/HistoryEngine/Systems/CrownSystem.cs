@@ -25,7 +25,7 @@ namespace HistoryEngine.Systems;
 ///
 /// <para>Draws no random numbers and samples no terrain.</para>
 /// </remarks>
-public sealed class CrownSystem : IYearSystem
+public sealed class CrownSystem : ISystem
 {
     /// <summary>
     /// The most of the distance to their own inclinations any one person may move a people.
@@ -57,8 +57,12 @@ public sealed class CrownSystem : IYearSystem
 
     public string Name => "crown";
 
-    public void Tick(WorldState world, int year)
+    public Cadence Cadence => Cadence.Annual;
+
+    public void Tick(WorldState world, Stamp now)
     {
+        int year = now.Year;
+
         foreach (Civilization civilization in world.ActiveCivilizations())
         {
             // Faded before the blend, so the year is judged against a memory that has already

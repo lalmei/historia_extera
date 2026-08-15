@@ -26,7 +26,7 @@ namespace HistoryEngine.Systems;
 ///
 /// <para>Samples no terrain.</para>
 /// </remarks>
-public sealed class OfficeSystem : IYearSystem
+public sealed class OfficeSystem : ISystem
 {
     /// <summary>Yearly chance a vacant seat is actually filled.</summary>
     /// <remarks>
@@ -51,8 +51,12 @@ public sealed class OfficeSystem : IYearSystem
 
     public string Name => "offices";
 
-    public void Tick(WorldState world, int year)
+    public Cadence Cadence => Cadence.Annual;
+
+    public void Tick(WorldState world, Stamp now)
     {
+        int year = now.Year;
+
         IRng rng = world.Root.Fork(Name, year);
 
         foreach (Civilization civilization in world.ActiveCivilizations())

@@ -5,7 +5,7 @@ using HistoryEngine.World;
 namespace HistoryEngine.Systems;
 
 /// <summary>
-/// Runs the yearly tick loop.
+/// Runs the tick loop.
 /// </summary>
 /// <remarks>
 /// <para><b>Strictly sequential, deliberately.</b> There is no parallelism in the tick loop and
@@ -18,12 +18,18 @@ namespace HistoryEngine.Systems;
 /// folded into the run's identity, because swapping two systems changes the resulting history
 /// exactly as much as changing the seed does — population growth before promotion produces a
 /// different chronicle than promotion before growth.</para>
+///
+/// <para><b>One step per year, and every system <see cref="Cadence.Annual"/>.</b> The loop below is
+/// still a year loop, which is the point of building the clock before anything runs on it: the
+/// stamp, the calendar and the docket are all in place and reviewable, and the fingerprint proves
+/// no history moved. Finer cadences change this loop and nothing else about the shape of the
+/// engine.</para>
 /// </remarks>
 public sealed class Simulator
 {
-    private readonly IReadOnlyList<IYearSystem> _systems;
+    private readonly IReadOnlyList<ISystem> _systems;
 
-    public Simulator(IReadOnlyList<IYearSystem>? systems = null) =>
+    public Simulator(IReadOnlyList<ISystem>? systems = null) =>
         _systems = systems ?? DefaultSystems();
 
     /// <summary>
@@ -76,8 +82,16 @@ public sealed class Simulator
     /// reason the chronicle can explain — which is as true of a king killed at a siege as of one
     /// who died in bed — and succession must precede the houses or a new king's brothers are still
     /// ranked as heirs on the day he is crowned, and marry accordingly.</para>
+    ///
+    /// <para><b>Every system here is annual.</b> Several of them are described above as if the year
+    /// had parts — "a war declared this spring is fought this summer", "a province taken in a
+    /// spring campaign", "a crown made in the reign of a ruler crowned this spring". None of those
+    /// springs exists yet: they are what the ordering <em>means</em>, written down before there was
+    /// a calendar to say it with. Giving <c>crown</c>, <c>war</c> and <c>expansion</c> their seasons
+    /// is a separate change, staged on its own so its calibration can be read without a mechanical
+    /// refactor underneath it.</para>
     /// </remarks>
-    public static IReadOnlyList<IYearSystem> DefaultSystems() => new IYearSystem[]
+    public static IReadOnlyList<ISystem> DefaultSystems() => new ISystem[]
     {
         new CrownSystem(),
         new PopulationSystem(),
@@ -98,7 +112,7 @@ public sealed class Simulator
         new ArtifactSystem(),
     };
 
-    public IReadOnlyList<IYearSystem> Systems => _systems;
+    public IReadOnlyList<ISystem> Systems => _systems;
 
     /// <summary>The system names in execution order. Contributes to a run's identity.</summary>
     public IReadOnlyList<string> SystemOrder
@@ -111,15 +125,39 @@ public sealed class Simulator
         }
     }
 
-    /// <summary>A stable hash of the system list and its order.</summary>
+    /// <summary>
+    /// A stable hash of the system list, its order, and how often each of them runs.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Cadence belongs in here alongside the name.</b> This hash exists because reordering
+    /// two systems changes the history as much as changing the seed does, and changing a system's
+    /// cadence does exactly the same thing — a war system rolling four times a year is not the same
+    /// engine as one rolling once, whatever the list order says.</para>
+    ///
+    /// <para>Folded in only when a system is not <see cref="Cadence.Annual"/>, following
+    /// <see cref="World.WorldConfig.ConfigHash"/>'s precedent and for its reason. Every system was
+    /// annual before cadences were declarable and every system is annual now, so hashing the
+    /// default unconditionally would restamp the identity of runs whose histories are byte for byte
+    /// what they always were — and this hash travels in the export, where a moved value is supposed
+    /// to mean something moved.</para>
+    /// </remarks>
     public string SystemOrderHash
     {
         get
         {
             ulong hash = Hash.OfString("systems");
-            foreach (string name in SystemOrder)
+            for (int i = 0; i < _systems.Count; i++)
             {
-                hash = Hash.Combine(hash, Hash.OfString(name));
+                hash = Hash.Combine(hash, Hash.OfString(_systems[i].Name));
+
+                Cadence cadence = _systems[i].Cadence;
+                if (cadence != Cadence.Annual)
+                {
+                    // The member's name rather than its number, so that renumbering the enum
+                    // cannot silently move every hash, and so a fingerprint that changed can be
+                    // grepped for.
+                    hash = Hash.Combine(hash, Hash.OfString(cadence.ToString()));
+                }
             }
 
             return hash.ToString("x16", System.Globalization.CultureInfo.InvariantCulture);
@@ -154,17 +192,20 @@ public sealed class Simulator
 
     private void Tick(WorldState world, int year)
     {
-        world.Year = year;
+        // Day zero, because an annual system has nowhere finer to claim it acted. Dating one to
+        // the middle of the year would be inventing a date the model has not earned.
+        Stamp now = Stamp.Opening(year);
+        world.Now = now;
 
         for (int i = 0; i < _systems.Count; i++)
         {
-            _systems[i].Tick(world, year);
+            _systems[i].Tick(world, now);
         }
 
         Observe(world, year);
 
         // Leave the clock on the next year to simulate, so Run and Advance can resume.
-        world.Year = year + 1;
+        world.Now = Stamp.Opening(year + 1);
     }
 
     /// <summary>

@@ -31,7 +31,7 @@ namespace HistoryEngine.Systems;
 ///
 /// <para>Samples no terrain.</para>
 /// </remarks>
-public sealed class ReligionSystem : IYearSystem
+public sealed class ReligionSystem : ISystem
 {
     /// <summary>Yearly chance a settlement with no faith at all founds one.</summary>
     private const double FoundingChance = 0.0016;
@@ -53,8 +53,12 @@ public sealed class ReligionSystem : IYearSystem
 
     public string Name => "religion";
 
-    public void Tick(WorldState world, int year)
+    public Cadence Cadence => Cadence.Annual;
+
+    public void Tick(WorldState world, Stamp now)
     {
+        int year = now.Year;
+
         IRng rng = world.Root.Fork(Name, year);
 
         List<DetMap<EntityId, double>> presence = Presence(world);

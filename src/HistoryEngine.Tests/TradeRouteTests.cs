@@ -78,7 +78,7 @@ public sealed class TradeRouteTests
         endpoint.AbandonedYear = year;
         int count = world.TradeRoutes.Count;
 
-        new TradeRouteSystem().Tick(world, year);
+        new TradeRouteSystem().Tick(world, Stamp.Opening(year));
 
         Assert.Equal(count, world.TradeRoutes.Count);
         Assert.Equal(year, route.EndedYear);

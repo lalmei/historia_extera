@@ -27,7 +27,7 @@ namespace HistoryEngine.Systems;
 /// a hundred and five simultaneous quarrels. An entry once made is kept, so two realms that have
 /// drifted apart still remember each other.</para>
 /// </remarks>
-public sealed class DiplomacySystem : IYearSystem
+public sealed class DiplomacySystem : ISystem
 {
     /// <summary>How far toward its natural level a relation moves each year.</summary>
     /// <remarks>
@@ -158,8 +158,12 @@ public sealed class DiplomacySystem : IYearSystem
 
     public string Name => "diplomacy";
 
-    public void Tick(WorldState world, int year)
+    public Cadence Cadence => Cadence.Annual;
+
+    public void Tick(WorldState world, Stamp now)
     {
+        int year = now.Year;
+
         IRng rng = world.Root.Fork(Name, year);
 
         // Who is within reach of whom, resolved once. Proximity is the most expensive thing this
