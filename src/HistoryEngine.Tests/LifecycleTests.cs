@@ -120,7 +120,10 @@ public sealed class HarvestModelTests
             geologicActivity: 0.2,
             isLand: true,
             hasRiver: false,
-            isCoastal: false);
+            isCoastal: false,
+            riverAccess: 0.0,
+            harbourQuality: 0.0,
+            ruggedness: 0.0);
 
     private static IEnumerable<Region> ManyRegions(int count)
     {

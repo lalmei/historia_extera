@@ -79,6 +79,13 @@ public sealed class SpecializationSystem : IYearSystem
         bool onRiver = hydrology.IsRiver(settlement.X, settlement.Z) || region.HasRiver;
         bool onCoast = hydrology.IsCoast(settlement.X, settlement.Z) || region.IsCoastal;
 
+        // How good the water is, not merely that there is some. A fishing village wants water it
+        // can put a boat back into, and the trades that grow at a river mouth or a meeting of two
+        // rivers are not the trades that grow on an ordinary reach.
+        double shelter = hydrology.ShelterAt(settlement.X, settlement.Z);
+        bool onJunction = hydrology.IsConfluence(settlement.X, settlement.Z)
+                          || hydrology.IsEstuary(settlement.X, settlement.Z);
+
         IRng jitter = rng.Fork("site", settlement.Id.ToDiscriminator());
 
         SettlementSpecialization best = SettlementSpecialization.Farming;
@@ -86,7 +93,7 @@ public sealed class SpecializationSystem : IYearSystem
 
         foreach (SettlementSpecialization candidate in Candidates)
         {
-            double score = Score(candidate, culture, region, site, onRiver, onCoast, settlement)
+            double score = Score(candidate, culture, region, site, onRiver, onCoast, shelter, onJunction, settlement)
                            + jitter.NextDouble(0.0, 0.18);
 
             // Strictly greater, so the fixed candidate order breaks exact ties.
@@ -119,6 +126,8 @@ public sealed class SpecializationSystem : IYearSystem
         TerrainSample site,
         bool onRiver,
         bool onCoast,
+        double shelter,
+        bool onJunction,
         Settlement settlement)
     {
         CultureValues values = culture.Values;
@@ -135,9 +144,14 @@ public sealed class SpecializationSystem : IYearSystem
                 + (DetMath.InverseLerp(0.55, 0.12, region.Fertility) * 0.55)
                 + (DetMath.InverseLerp(0.45, 0.12, region.Rainfall) * 0.30),
 
-            // Requires water. Without it, impossible rather than merely unlikely.
+            // Requires water. Without it, impossible rather than merely unlikely. Sheltered water
+            // makes the difference between a fleet and a few boats hauled up a beach.
             SettlementSpecialization.Fishing =>
-                onCoast ? 0.55 + (DetMath.InverseLerp(0.0, 0.6, region.Fertility) * 0.15) : -1.0,
+                onCoast
+                    ? 0.45
+                      + (shelter * 0.25)
+                      + (DetMath.InverseLerp(0.0, 0.6, region.Fertility) * 0.15)
+                    : -1.0,
 
             // Requires geology, and rewards the highlands nobody wants to farm.
             SettlementSpecialization.Mining =>
@@ -147,10 +161,16 @@ public sealed class SpecializationSystem : IYearSystem
                       + (region.GeologicActivity * 0.65)
                       + (DetMath.InverseLerp(500.0, 1900.0, site.Height) * 0.25),
 
-            // Wants to be on a route, and a mercantile culture makes more of one.
+            // Wants to be on a route, and a mercantile culture makes more of one. A river mouth or
+            // a meeting of two rivers is where a route becomes a junction rather than a passing
+            // place, which is what actually makes a market out of a town.
             SettlementSpecialization.Trade =>
                 (onRiver || onCoast)
-                    ? 0.22 + (values.Mercantile * 0.55) + (onRiver && onCoast ? 0.20 : 0.0)
+                    ? 0.22
+                      + (values.Mercantile * 0.55)
+                      + (onRiver && onCoast ? 0.20 : 0.0)
+                      + (onJunction ? 0.18 : 0.0)
+                      + (shelter * 0.12)
                     : -1.0,
 
             // Urban work. Needs a town's worth of people before it means anything.
