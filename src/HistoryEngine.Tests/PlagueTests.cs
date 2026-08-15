@@ -73,8 +73,19 @@ public sealed class PlagueTests
 
     /// <summary>Several worlds keep the intended frequency, reach and abandonment budget.</summary>
     /// <remarks>
-    /// The floor is a density budget, not a pin. Faith geography moves the contact network that
-    /// plagues travel, and a tenth of an outbreak per world is not a modelling error.
+    /// <para>The floor is a density budget, not a pin. Faith geography moves the contact network
+    /// that plagues travel, and a tenth of an outbreak per world is not a modelling error.</para>
+    ///
+    /// <para><b>The frequency band was widened when the ignition ceiling was raised.</b> It read
+    /// 3–7 against a <c>MaxIgnitionChance</c> of 0.030, which the world's exposure saturated within
+    /// its first century — so the band was really measuring the ceiling rather than the model
+    /// under it, and it held equally well for a world of 51 settlements and one of 301. Ignition
+    /// now scales with urban exposure across its whole range, so what this budget has to allow is a
+    /// three-century world that has genuinely urbanised by its end.</para>
+    ///
+    /// <para>Kept as a band rather than raised to a pin because that is the property worth
+    /// protecting: an epidemic model with no ceiling in practice is as wrong as one that is all
+    /// ceiling, and the failure this catches is either.</para>
     /// </remarks>
     [Fact]
     public void PlagueBurdenStaysWithinItsHistoricalBudget()
@@ -108,7 +119,7 @@ public sealed class PlagueTests
         double outbreaksPerWorld = began / (double)Seeds.Length;
         double settlementsPerCompletedOutbreak = reached / (double)ended;
 
-        Assert.InRange(outbreaksPerWorld, 3.0, 7.0);
+        Assert.InRange(outbreaksPerWorld, 4.0, 14.0);
         Assert.InRange(settlementsPerCompletedOutbreak, 2.0, 5.0);
         Assert.InRange(began - ended, 0, Seeds.Length * 2);
 
