@@ -4,12 +4,14 @@ A Dwarf Fortress-style world history generator for Vintage Story, plus a Legends
 viewer. This file is the running decision log: what was chosen, and why, so that a
 decision can be revisited on its merits rather than rediscovered.
 
-**Status:** Milestones 0–9 complete. Real naming languages, a settlement lifecycle that
+**Status:** Milestones 0–9 and 12 complete. Real naming languages, a settlement lifecycle that
 runs its full course rather than only ever growing, rulers who inherit from a family
 tree instead of appearing from nowhere, realms that fall to conquest as well as to the
 weather, faiths and pestilence that cross the borders those realms draw, a map that
-can be scrubbed to any year of the run to watch all of it happen — and, since M9, a
-world that can be built on terrain the engine did not generate.
+can be scrubbed to any year of the run to watch all of it happen, a world that can be
+built on terrain the engine did not generate, and — since M12 — realms whose decisions
+answer to whoever is governing them and to what has lately happened to them, rather
+than to a culture fixed at worldgen and never revisited.
 
 ---
 
@@ -896,8 +898,10 @@ it plainly now rather than in the shape some later feature might want.
 
 ### Rulers who react: a people, a person, and a recent past
 
-> **Designed, not built.** Depends on `Figure.Centralism` from *Offices* above; if the two land
-> in the other order, that field moves here.
+> **Built**, ahead of *Offices* above and against the order originally planned. `Centralism`
+> moved here with it: `Disposition` is the record both milestones read, so landing it once
+> avoided building the same field twice. What follows is the design as written; *What it cost*
+> at the end records where the build disagreed with it.
 
 Offices decide who holds what. This decides how the holder behaves, and it is the larger of the
 two. Today every decision a realm makes is read off its culture, which is fixed at worldgen and
@@ -1126,6 +1130,46 @@ Export goes with the offices bump: `ExportFigure` gains its disposition, `Export
 gains fortunes and the year's effective values. The viewer can then show a realm's dials as
 three numbers rather than one — *the people 0.78, the king 0.31, and 0.46 today* — which is
 probably the single most legible thing this design produces for a reader.
+
+#### What it cost, as built
+
+Landed in four steps, the first two of which changed no history at all. `Pcg32.Fork` derives a
+substream from the parent's immutable seed and consumes nothing from it, so both new rolls —
+`Learning` on the culture's own stream, a figure's disposition on their id — could be added with
+**all 3,590 events of seed 42, and its settlements, civilizations and dynasties, byte-identical**.
+That is worth stating because it inverts the usual order of work: the fork discipline that exists
+to stop unrelated changes perturbing each other also let the whole foundation be built and
+inspected before anything was allowed to move.
+
+Only the third step moved the world, and it moved it less than expected: **3,590 events to 3,645**
+on seed 42, no realm lost, nothing runaway. Measured across twelve seeds when the succession
+weighting landed on top: realms standing 81 → 84, houses standing 69 → 67, figures up 3.8%. Seed
+42 itself loses a realm it previously kept, which is inside that variance rather than a signal.
+
+Three places the build disagreed with the design:
+
+- **`Learning` had to redistribute artifact patronage rather than add to it.** Adding a sixth
+  positive term to `ArtifactSystem.Appetite` raised every realm's output by about a tenth, and
+  the tome-circulation calibration caught it: making more books late in a run lowers the share
+  that have had time to circulate. Lowering the floor by half of Learning's mean contribution
+  keeps world volume where it was, so the dial changes *who* commissions rather than *how much*
+  gets commissioned. A dial that silently doubles as a volume knob is not the dial it claims.
+- **The claim-dominance invariant is about the extremes, not adjacent places.** The first version
+  asserted that no claimant could be lifted over the one ahead of them, and it failed immediately
+  — correctly. Preference *must* be able to lift the second claimant over the first, or the model
+  cannot change the outcome it exists to change. What must never invert is the far ends: the best
+  claim in the realm, unwanted, still outweighs the remotest of the four who is everything the
+  realm hoped for. The test asserts it over the constants, so it holds for candidates no seed has
+  produced yet.
+- **A seed-pinned test went stale, as that kind of test does.** `FlavourTests` checked that a
+  faith can be forgotten on seed 11, which lost exactly one; the perturbation stopped it. Faith
+  fading is undiminished — five of twelve seeds lose one, seed 8 loses nine of sixteen — so the
+  check moved to seed 8. A seed chosen for having a single qualifying event is testing that one
+  history has not changed, not that a mechanism works.
+
+Of the four predicted calibration failures, none has yet appeared. That is not the same as their
+being wrong: reign-to-reign whiplash and convergence to the mean are both properties of a long
+run rather than of a 300-year one, and neither has been looked for over eight centuries.
 
 ### Diplomacy and war: reach, not borders
 
@@ -1511,12 +1555,14 @@ viewer reading it.
 | M9 | Phase 2 spike: raster-backed `ITerrainSampler` | done |
 | M10 | Phase 2 proper: site selection with teeth on real terrain | next |
 | M11 | Offices: appointments, governors, founding parties | designed |
-| M12 | Rulers who react: dispositions, realm fortunes, trait-aware elections | designed |
+| M12 | Rulers who react: dispositions, realm fortunes, trait-aware elections | **done** |
 
-M11 has no terrain dependency and M10 has no figure dependency, so they can land in either
-order. M12 depends on M11 only for `Figure.Centralism`, which moves with whichever lands
-first. See *Offices: what a court does with the people it already has* and *Rulers who react:
-a people, a person, and a recent past* above.
+M12 landed first. `Disposition` is the record both milestones read, so building it once — rather
+than landing `Centralism` alone with M11 and folding it in a milestone later — was the cheaper
+order, and the foundation went in without changing a single existing history. M11 and M10 remain
+independent of each other: no terrain dependency one way, no figure dependency the other.
+See *Offices: what a court does with the people it already has* and *Rulers who react: a people,
+a person, and a recent past* above.
 
 Unrest and cultural drift — a people that deposes a ruler it has diverged from, or slowly
 becomes what a long line of them wanted — are the two halves of the loop M12 leaves open, and
@@ -1524,7 +1570,10 @@ are not scheduled.
 
 ### As built
 
-Fifteen yearly systems, in order (the order is hashed): `population` → `plague` →
+Sixteen yearly systems, in order (the order is hashed). `crown` settles first — each realm's
+fortunes fade by a year and the values it will be governed by are fixed before anything reads
+them, so every judgement made within one year is made against the same ruler in the same mood.
+Then: `population` → `plague` →
 `disaster` → `settlement-lifecycle` → `specialization` → `expansion` → `religion` →
 `diplomacy` → `war` → `trade-routes` → `figure-incidents` → `figure-lifecycle` →
 `succession` → `houses` → `artifacts`. Reads as a causal chain: populations change against the
