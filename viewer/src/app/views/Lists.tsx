@@ -27,6 +27,7 @@ import {
   type HistoryEvent,
   type Region,
   type Religion,
+  type SettlementTier,
 } from '../types';
 import {
   ArtifactTable,
@@ -692,12 +693,84 @@ export function ArtifactList({ world }: { world: World }) {
 
 export function SettlementList({ world }: { world: World }) {
   return (
-    <div>
+    <div className="space-y-5">
       <PageTitle eyebrow="Index" title="Settlements" />
+      <SettlementHierarchy world={world} />
       <Panel>
         <SettlementTable world={world} settlements={world.export.settlements} />
       </Panel>
     </div>
+  );
+}
+
+/** Population at which each tier begins. Mirrors the engine's SettlementTiers ladder. */
+const TIER_FLOORS: { tier: SettlementTier; from: number; to?: number }[] = [
+  { tier: 'Hamlet', from: 0, to: 180 },
+  { tier: 'Village', from: 180, to: 900 },
+  { tier: 'Town', from: 900, to: 4000 },
+  { tier: 'City', from: 4000 },
+];
+
+/**
+ * The shape of the settlement hierarchy, as one row.
+ *
+ * <b>A property of the whole world that no per-settlement page can show.</b> A world where most
+ * places are cities has lost the tier ladder's meaning, and the table below — which is sorted,
+ * paged and filtered — is the last place anyone would notice. This was a real failure that
+ * survived for the model's whole life precisely because nothing in the viewer or the test suite
+ * ever asked what the distribution looked like; it had to be reconstructed from the export with
+ * a script before it could be seen at all.
+ *
+ * The counts are of settlements still standing, because abandoned ones are a different question
+ * and mixing them makes both harder to read.
+ */
+function SettlementHierarchy({ world }: { world: World }) {
+  const standing = world.export.settlements.filter((one) => one.abandonedYear === undefined);
+  if (standing.length === 0) return null;
+
+  const counts = new Map<SettlementTier, number>();
+  for (const settlement of standing) {
+    counts.set(settlement.tier, (counts.get(settlement.tier) ?? 0) + 1);
+  }
+
+  const largest = Math.max(1, ...TIER_FLOORS.map((band) => counts.get(band.tier) ?? 0));
+  const abandoned = world.export.settlements.length - standing.length;
+
+  return (
+    <Panel title="The hierarchy">
+      <div className="space-y-2">
+        {TIER_FLOORS.map((band) => {
+          const count = counts.get(band.tier) ?? 0;
+          const share = Math.round((count / standing.length) * 100);
+
+          return (
+            <div key={band.tier} className="flex items-center gap-3">
+              <div className="w-16 shrink-0 text-sm text-[var(--ink-faint)]">{band.tier}</div>
+              <div className="w-24 shrink-0 text-xs tabular-nums text-[var(--ink-faint)]">
+                {band.to === undefined
+                  ? `${band.from.toLocaleString()}+`
+                  : `${band.from.toLocaleString()}–${(band.to - 1).toLocaleString()}`}
+              </div>
+              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--rule)]">
+                <div
+                  className="h-full rounded-full bg-[var(--accent)]"
+                  style={{ width: `${(count / largest) * 100}%` }}
+                />
+              </div>
+              <div className="w-20 shrink-0 text-right text-xs tabular-nums text-[var(--ink-faint)]">
+                {count} · {share}%
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <p className="mt-3 text-xs text-[var(--ink-faint)]">
+        {standing.length.toLocaleString()} standing
+        {abandoned > 0 && <> · {abandoned.toLocaleString()} abandoned</>} · a hierarchy narrows
+        toward the top, and a world of mostly cities means something is feeding them that the land
+        and the roads did not.
+      </p>
+    </Panel>
   );
 }
 
