@@ -34,7 +34,7 @@ export function WorldList() {
       permanent
         ? `Permanently delete ${world.name}?\n\nThis cannot be undone. The file will not be moved to trash.`
         : `Move ${world.name} to trash?\n\n` +
-            'The file will be moved to viewer/public/worlds/.trash/ so it can be recovered.',
+            'The file will be moved to build/world-trash/ so it can be recovered.',
     );
     if (!confirmed) return;
 

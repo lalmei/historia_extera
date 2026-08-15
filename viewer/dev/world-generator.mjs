@@ -2,7 +2,7 @@
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { createReadStream } from 'node:fs';
-import { mkdir, open, readdir, rename, stat, unlink } from 'node:fs/promises';
+import { copyFile, mkdir, open, readdir, rename, stat, unlink } from 'node:fs/promises';
 import path from 'node:path';
 
 /**
@@ -41,6 +41,16 @@ const CLI_PROJECT = 'src/HistoryEngine.Cli';
 
 /** Where generated worlds land, relative to the repository root, and what the viewer serves. */
 const WORLD_DIR = ['viewer', 'public', 'worlds'];
+
+/**
+ * Where a trashed export goes, relative to the repository root.
+ *
+ * Outside `public/` deliberately. Astro copies `public/` into `dist/` wholesale, including
+ * dotfolders, so a recovery folder kept beside the worlds would put every world the user
+ * thought they had deleted back into the built site — the one place a deleted world must not
+ * be. `build/` is already the repository's home for regenerable scratch output, and ignored.
+ */
+const TRASH_DIR = ['build', 'world-trash'];
 
 /**
  * What the form may set, and the bounds each value is held to.
@@ -176,7 +186,7 @@ function generatorEndpoint() {
             return;
           }
 
-          removeWorld(worldDir, name, permanent)
+          removeWorld(root, worldDir, name, permanent)
             .then((deleted) => send(res, 200, deleted))
             .catch((cause) =>
               send(res, isNodeError(cause) && cause.code === 'ENOENT' ? 404 : 500, {
@@ -508,11 +518,12 @@ function permanentDeletion(value) {
 }
 
 /**
+ * @param {string} root
  * @param {string} worldDir
  * @param {string} name
  * @param {boolean} permanent
  */
-async function removeWorld(worldDir, name, permanent) {
+async function removeWorld(root, worldDir, name, permanent) {
   const source = await worldFile(worldDir, name);
 
   if (permanent) {
@@ -520,7 +531,7 @@ async function removeWorld(worldDir, name, permanent) {
     return { name, permanent: true };
   }
 
-  return trashWorld(worldDir, name, source);
+  return trashWorld(root, name, source);
 }
 
 /**
@@ -535,27 +546,37 @@ async function worldFile(worldDir, name) {
 }
 
 /**
- * Moves a generated export into a hidden recovery folder instead of unlinking it.
+ * Moves a generated export into a recovery folder outside `public/` instead of unlinking it.
  * The UUID keeps repeated deletions of the same regenerated filename from overwriting
  * an earlier recovery copy.
  *
- * @param {string} worldDir
+ * @param {string} root
  * @param {string} name
  * @param {string} source
  */
-async function trashWorld(worldDir, name, source) {
-  const trashDir = path.join(worldDir, '.trash');
+async function trashWorld(root, name, source) {
+  const trashDir = path.join(root, ...TRASH_DIR);
   await mkdir(trashDir, { recursive: true });
 
   const extension = path.extname(name);
   const stem = name.slice(0, -extension.length);
   const trashedName = `${stem}-${Date.now()}-${randomUUID().slice(0, 8)}${extension}`;
-  await rename(source, path.join(trashDir, trashedName));
+
+  // Across directories, so `rename` can fail with EXDEV where the repository straddles two
+  // filesystems. Copying and unlinking is the fallback that keeps the move atomic enough.
+  const target = path.join(trashDir, trashedName);
+  try {
+    await rename(source, target);
+  } catch (cause) {
+    if (!isNodeError(cause) || cause.code !== 'EXDEV') throw cause;
+    await copyFile(source, target);
+    await unlink(source);
+  }
 
   return {
     name,
     permanent: false,
-    recoveryPath: path.posix.join('viewer/public/worlds/.trash', trashedName),
+    recoveryPath: path.posix.join(...TRASH_DIR, trashedName),
   };
 }
 
