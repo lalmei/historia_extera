@@ -213,10 +213,12 @@ public static class Diplomacy
     /// <summary>How many fighting men a realm can raise this year.</summary>
     public static int Levy(WorldState world, Civilization civilization)
     {
-        Culture culture = world.CultureOf(civilization);
-
-        // A martial people puts a larger share of itself under arms, and keeps it there.
-        double share = LevyFraction * DetMath.Lerp(0.7, 1.4, culture.Values.Aggression);
+        // A martial people puts a larger share of itself under arms, and keeps it there — but how
+        // hard the crown actually squeezes is the crown's decision, so this reads the realm's
+        // effective aggression. A war-weary realm fields smaller armies, which is the negative
+        // half of a loop worth watching: see the fortunes design note.
+        double share = LevyFraction
+            * DetMath.Lerp(0.7, 1.4, world.ValuesFor(civilization).Aggression);
         return (int)(civilization.Population * share);
     }
 

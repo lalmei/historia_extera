@@ -200,6 +200,16 @@ export interface Culture {
   lexicon: Lexicon;
 }
 
+/** The six dials, as a culture holds them or as a realm is governed by them. */
+export interface Values {
+  aggression: number;
+  expansionism: number;
+  piety: number;
+  tradition: number;
+  mercantile: number;
+  learning: number;
+}
+
 /**
  * How a realm's recent past sat on it at the end of the run.
  *
@@ -262,6 +272,12 @@ export interface Civilization {
   peakPopulation: number;
   /** What the realm had lately been through, as of the last simulated year. */
   fortunes: Fortunes;
+  /**
+   * The dials it was actually governed by in that year: its culture moved toward whoever
+   * governed, then shifted by its recent past. Compare against its culture's own values —
+   * the gap is the reign.
+   */
+  effectiveValues: Values;
   rulerIds: EntityId[];
   settlementIds: EntityId[];
   territoryRegionIds: EntityId[];

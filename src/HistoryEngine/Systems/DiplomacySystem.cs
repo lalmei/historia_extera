@@ -427,7 +427,12 @@ public sealed class DiplomacySystem : IYearSystem
                 (relation - Diplomacy.HostilityThreshold)
                 / (-1.0 - Diplomacy.HostilityThreshold));
 
-            double chance = WarChance * hostility * DetMath.Lerp(0.3, 1.6, culture.Values.Aggression);
+            // The decision to declare, and the sharpest use of effective values in the engine: a
+            // realm that has just been beaten declares roughly a third fewer wars while the
+            // memory holds, and a king unlike his people moves it further still.
+            double chance = WarChance
+                * hostility
+                * DetMath.Lerp(0.3, 1.6, world.ValuesFor(civilization).Aggression);
             if (chance <= bestChance) continue;
 
             bestChance = chance;
@@ -481,11 +486,15 @@ public sealed class DiplomacySystem : IYearSystem
             return new WarCause(CasusBelli.Revanche);
         }
 
-        Culture culture = world.CultureOf(civilization);
+        // Which grievance a realm chooses to go to war over is the crown's reading of its own
+        // interests, so both religious causes take effective piety. A devout king finds a holy
+        // reason where his predecessor found none, and a realm lately visited by plague — which
+        // drives it to the temple — finds one where it would not have a decade ago.
+        CultureValues values = world.ValuesFor(civilization);
         EntityId ourFaith = world.FaithOf(civilization);
         EntityId theirFaith = world.FaithOf(other);
 
-        if (!ourFaith.IsNone && culture.Values.Piety >= RelicClaimPiety)
+        if (!ourFaith.IsNone && values.Piety >= RelicClaimPiety)
         {
             EntityId relicId = RelicHeldBy(world, other, ourFaith);
             if (!relicId.IsNone)
@@ -504,7 +513,7 @@ public sealed class DiplomacySystem : IYearSystem
             && ourFaith != theirFaith
             && world.Religions.Contains(ourFaith)
             && world.Religions.Contains(theirFaith)
-            && culture.Values.Piety >= ReligiousWarPiety
+            && values.Piety >= ReligiousWarPiety
             && world.Religions[ourFaith].Fervour >= ReligiousWarFervour)
         {
             return new WarCause(

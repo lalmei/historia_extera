@@ -475,6 +475,7 @@ public static class Warfare
         Culture culture = world.CultureOf(civilization);
         double chance = culture.Government switch
         {
+            // Government form is the people's constitution, not the ruler's mood.
             GovernmentForm.Chiefdom => 0.80,
             GovernmentForm.Monarchy => 0.60,
             GovernmentForm.Theocracy => 0.35,
@@ -482,7 +483,10 @@ public static class Warfare
             _ => 0.25,
         };
 
-        if (rng.Chance(chance * DetMath.Lerp(0.6, 1.3, culture.Values.Aggression)))
+        // Whether this particular ruler rides out is theirs to decide, so it takes the realm's
+        // effective aggression: a cautious king of a warlike people sends someone else, and so
+        // does a bold one whose realm has just been bled white.
+        if (rng.Chance(chance * DetMath.Lerp(0.6, 1.3, world.ValuesFor(civilization).Aggression)))
         {
             return ruler.Id;
         }
@@ -545,9 +549,10 @@ public static class Warfare
         if (AlreadySacked(world, war, target)) return;
 
         Civilization sacker = world.Civilizations[battle.AttackerId];
-        Culture culture = world.CultureOf(sacker);
 
-        double chance = DetMath.Lerp(0.30, 0.65, culture.Values.Aggression);
+        // Whether a taken town is put to the sack is the commanding realm's decision on the day,
+        // not a standing property of its people.
+        double chance = DetMath.Lerp(0.30, 0.65, world.ValuesFor(sacker).Aggression);
         if (!rng.Chance(chance)) return;
 
         int before = target.Population;

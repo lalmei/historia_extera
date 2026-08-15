@@ -128,6 +128,22 @@ public sealed class Civilization
     /// </remarks>
     public RealmFortunes Fortunes { get; } = new();
 
+    /// <summary>
+    /// The values this realm is actually governed by this year — its people, its ruler, and its
+    /// recent past, combined.
+    /// </summary>
+    /// <remarks>
+    /// <para>Written once a year by the crown system, which runs first, and read by every system
+    /// that makes a decision on the realm's behalf. Held here rather than computed on demand for
+    /// the reason <see cref="StateReligionId"/> is: every judgement made within one year should be
+    /// made against the same answer, and a value recomputed per call makes a system's result
+    /// depend on where in the tick it happened to ask.</para>
+    ///
+    /// <para>Initialised to the founding culture's own values, so that the founding year — which
+    /// happens before any tick — is governed by something real.</para>
+    /// </remarks>
+    public CultureValues EffectiveValues { get; set; } = Disposition.Neutral.Values;
+
     /// <summary>Total population across active settlements. Recomputed each tick.</summary>
     public int Population { get; set; }
 

@@ -166,7 +166,12 @@ public static class WorldBuilder
             civId,
             cultureId,
             world.Names.ForCivilization(civId, culture),
-            year);
+            year)
+        {
+            // The founding year runs before the first tick, so the crown system has not settled
+            // anything yet. A realm founded this morning is governed by its people and nothing else.
+            EffectiveValues = culture.Values,
+        };
         world.Civilizations.Add(civilization);
 
         Point2 site = SiteSelection.Best(world, homeland, SitesPerAxis);

@@ -32,6 +32,27 @@ public sealed class ArtifactSystem : IYearSystem
     /// <summary>How many objects one settlement can be famous for at once.</summary>
     private const int TreasuryLimit = 3;
 
+    /// <summary>
+    /// Baseline appetite, lowered from 0.6 by half of <see cref="ScholarlyAppetite"/>.
+    /// </summary>
+    /// <remarks>
+    /// Keeps the mean across a world's realms where it was before Learning existed, so the dial
+    /// changes who commissions and not how much gets commissioned.
+    /// </remarks>
+    private const double ScholarlyFloor = 0.475;
+
+    /// <summary>Extra appetite for commissioning anything at all, at full Learning.</summary>
+    /// <remarks>
+    /// Deliberately the smaller half of what Learning does. A scholarly court is not chiefly a
+    /// court that makes <em>more</em> things — it is one that makes different ones, which is
+    /// <see cref="Choose"/>'s business. Turning the dial into a volume knob would give a learned
+    /// realm more weapons and relics too, which is not what the dial means.
+    /// </remarks>
+    private const double ScholarlyAppetite = 0.25;
+
+    /// <summary>Odds a town with no particular craft produces a book anyway, at full Learning.</summary>
+    private const double ScholarlyBias = 0.5;
+
     public string Name => "artifacts";
 
     public void Tick(WorldState world, int year)
@@ -40,7 +61,10 @@ public sealed class ArtifactSystem : IYearSystem
 
         foreach (Civilization civilization in world.ActiveCivilizations())
         {
-            Culture culture = world.CultureOf(civilization);
+            // Patronage is a decision of the court, so this is the realm's effective values: a
+            // learned ruler commissions books his father would not have paid for, and a realm
+            // in the middle of a plague commissions rather less of anything.
+            CultureValues values = world.ValuesFor(civilization);
 
             foreach (Settlement settlement in world.ActiveSettlementsOf(civilization))
             {
@@ -48,14 +72,14 @@ public sealed class ArtifactSystem : IYearSystem
                 // that would have recorded it.
                 if (settlement.Tier < SettlementTier.Town) continue;
 
-                double chance = CreationChance * Appetite(settlement, culture);
+                double chance = CreationChance * Appetite(settlement, values);
                 if (chance <= 0.0 || !rng.Chance(chance)) continue;
 
                 // A treasury of twenty is a warehouse, not a legend. The cap is what keeps the
                 // handful of famous objects in a world actually famous.
                 if (Treasures.HeldBy(world, settlement.Id).Count >= TreasuryLimit) continue;
 
-                ArtifactKind kind = Choose(world, settlement, civilization, rng);
+                ArtifactKind kind = Choose(world, settlement, civilization, values, rng);
 
                 EntityId creator = kind == ArtifactKind.Regalia
                     ? civilization.CurrentRulerId
@@ -72,8 +96,8 @@ public sealed class ArtifactSystem : IYearSystem
         Tomes.Distribute(world, year);
     }
 
-    /// <summary>How much a settlement's character and culture incline it to make things.</summary>
-    private static double Appetite(Settlement settlement, Culture culture)
+    /// <summary>How much a settlement's character and its realm's inclinations incline it to make things.</summary>
+    private static double Appetite(Settlement settlement, CultureValues values)
     {
         double craft = settlement.Specialization switch
         {
@@ -87,10 +111,20 @@ public sealed class ArtifactSystem : IYearSystem
         double size = settlement.Tier == SettlementTier.City ? 1.7 : 1.0;
         double seat = settlement.IsCapital ? 1.5 : 1.0;
 
-        // Tradition makes a people keep and celebrate what it makes; piety pays for the rest.
-        double values = 0.6 + (culture.Values.Tradition * 0.6) + (culture.Values.Piety * 0.4);
+        // Tradition makes a people keep and celebrate what it makes; piety pays for the rest; and
+        // a learned court commissions work nobody had asked it for.
+        //
+        // The floor is lowered by half of Learning's mean contribution so that adding the dial
+        // redistributes appetite rather than inflating it. A learned realm should make more than
+        // an unlearned one, not more than the world used to make in total — the alternative
+        // quietly raises every realm's artifact volume by a tenth, which is a calibration change
+        // masquerading as a feature.
+        double inclination = ScholarlyFloor
+            + (values.Tradition * 0.6)
+            + (values.Piety * 0.4)
+            + (values.Learning * ScholarlyAppetite);
 
-        return craft * size * seat * values;
+        return craft * size * seat * inclination;
     }
 
     /// <summary>
@@ -101,7 +135,11 @@ public sealed class ArtifactSystem : IYearSystem
     /// from. The only randomness is between things a place could plausibly produce.
     /// </remarks>
     private static ArtifactKind Choose(
-        WorldState world, Settlement settlement, Civilization civilization, IRng rng)
+        WorldState world,
+        Settlement settlement,
+        Civilization civilization,
+        CultureValues values,
+        IRng rng)
     {
         bool devout = !settlement.ReligionId.IsNone && world.Religions.Contains(settlement.ReligionId);
 
@@ -120,12 +158,20 @@ public sealed class ArtifactSystem : IYearSystem
             return ArtifactKind.Regalia;
         }
 
+        // Where a place could make either a fine object or a book, how learned its realm is
+        // decides which. This is the larger half of what Learning does: a scholarly court is
+        // known for what it wrote, not for how much it commissioned.
+        double jewelOverTome = DetMath.Lerp(0.65, 0.30, values.Learning);
+
         return settlement.Specialization switch
         {
             SettlementSpecialization.Mining => rng.Chance(0.55) ? ArtifactKind.Weapon : ArtifactKind.Jewel,
-            SettlementSpecialization.Crafts => rng.Chance(0.5) ? ArtifactKind.Jewel : ArtifactKind.Tome,
-            SettlementSpecialization.Trade => rng.Chance(0.5) ? ArtifactKind.Jewel : ArtifactKind.Tome,
+            SettlementSpecialization.Crafts => rng.Chance(jewelOverTome) ? ArtifactKind.Jewel : ArtifactKind.Tome,
+            SettlementSpecialization.Trade => rng.Chance(jewelOverTome) ? ArtifactKind.Jewel : ArtifactKind.Tome,
             _ when devout && rng.Chance(0.35) => ArtifactKind.Relic,
+
+            // A learned realm writes things down even where there is no craft to speak of.
+            _ when rng.Chance(values.Learning * ScholarlyBias) => ArtifactKind.Tome,
 
             // Everywhere else spreads across the three things any town can produce. Falling
             // through to a single kind made half the objects in the world books, because most

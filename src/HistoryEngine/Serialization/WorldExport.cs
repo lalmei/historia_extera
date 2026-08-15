@@ -203,11 +203,28 @@ public sealed record ExportCivilization(
     int Population,
     int PeakPopulation,
     ExportFortunes Fortunes,
+    ExportValues EffectiveValues,
     IReadOnlyList<EntityId> RulerIds,
     IReadOnlyList<EntityId> SettlementIds,
     IReadOnlyList<EntityId> TerritoryRegionIds,
     IReadOnlyList<ExportRelation> Relations,
     IReadOnlyList<ExportAlliance> Allies);
+
+/// <summary>
+/// The dials a realm was actually governed by in the last simulated year.
+/// </summary>
+/// <remarks>
+/// Its culture's own values, moved toward whoever was governing and then shifted by what the
+/// realm had lately been through. Exported beside the culture's values rather than instead of
+/// them, because the interesting thing a reader wants is the gap between the two.
+/// </remarks>
+public sealed record ExportValues(
+    double Aggression,
+    double Expansionism,
+    double Piety,
+    double Tradition,
+    double Mercantile,
+    double Learning);
 
 /// <summary>
 /// How a realm's recent past sat on it at the end of the run, in four decaying measures.

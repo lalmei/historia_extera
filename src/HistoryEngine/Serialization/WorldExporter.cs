@@ -273,6 +273,13 @@ public static class WorldExporter
                     civilization.Fortunes.Calamity,
                     civilization.Fortunes.Triumph,
                     civilization.Fortunes.Grievance),
+                EffectiveValues: new ExportValues(
+                    civilization.EffectiveValues.Aggression,
+                    civilization.EffectiveValues.Expansionism,
+                    civilization.EffectiveValues.Piety,
+                    civilization.EffectiveValues.Tradition,
+                    civilization.EffectiveValues.Mercantile,
+                    civilization.EffectiveValues.Learning),
                 RulerIds: civilization.RulerIds.ToArray(),
                 SettlementIds: civilization.SettlementIds.ToArray(),
                 TerritoryRegionIds: civilization.TerritoryRegionIds.ToArray(),

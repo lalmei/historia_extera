@@ -146,6 +146,23 @@ public sealed class WorldState
     public Culture CultureOf(Figure figure) => Cultures[figure.CultureId];
 
     /// <summary>
+    /// The values a realm decides by: its people, whoever governs them, and its recent past.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Use this wherever a system rolls a decision the realm is taking</b> — declaring
+    /// war, sacking a town, founding a colony, raising walls, commissioning something. Use
+    /// <see cref="CultureOf(Civilization)"/> directly where the thing being modelled is a standing
+    /// property of the people instead: how they farm, how they resist conversion, how attached
+    /// they are to a dying town, and above all which succession law they follow.</para>
+    ///
+    /// <para>That line is not stylistic. A ruler who could move Tradition could change how their
+    /// own successor is chosen, mid-reign, by having opinions — agnatic one year and absolute the
+    /// next. Constitutional change is a real thing to model one day and it is not a side effect of
+    /// a personality.</para>
+    /// </remarks>
+    public CultureValues ValuesFor(Civilization civilization) => civilization.EffectiveValues;
+
+    /// <summary>
     /// Display name for any entity id. Backs <see cref="Narration.Render"/> and the CLI.
     /// </summary>
     /// <remarks>
