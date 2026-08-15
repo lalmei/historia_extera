@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { narrate } from '../narrate';
+import { narrate, unnarrated } from '../narrate';
 import type { World } from '../store';
 import type { HistoryEvent } from '../types';
 import { EntityLink } from './common';
@@ -52,6 +52,7 @@ export function EventList({
 }) {
   const [kind, setKind] = useState<string>('all');
   const [limit, setLimit] = useState(pageSize);
+  const [showRecord, setShowRecord] = useState(false);
 
   const kinds = useMemo(() => {
     const counts = new Map<string, number>();
@@ -72,29 +73,48 @@ export function EventList({
 
   return (
     <div>
-      {showFilters && kinds.length > 1 && (
-        <div className="mb-3 flex flex-wrap gap-1.5">
-          <FilterChip
-            label="All"
-            count={events.length}
-            active={kind === 'all'}
-            onClick={() => {
-              setKind('all');
-              setLimit(pageSize);
-            }}
-          />
-          {kinds.map(([name, count]) => (
-            <FilterChip
-              key={name}
-              label={humanise(name)}
-              count={count}
-              active={kind === name}
-              onClick={() => {
-                setKind(name);
-                setLimit(pageSize);
-              }}
-            />
-          ))}
+      {showFilters && (
+        <div className="mb-3 flex flex-wrap items-center gap-1.5">
+          {kinds.length > 1 && (
+            <>
+              <FilterChip
+                label="All"
+                count={events.length}
+                active={kind === 'all'}
+                onClick={() => {
+                  setKind('all');
+                  setLimit(pageSize);
+                }}
+              />
+              {kinds.map(([name, count]) => (
+                <FilterChip
+                  key={name}
+                  label={humanise(name)}
+                  count={count}
+                  active={kind === name}
+                  onClick={() => {
+                    setKind(name);
+                    setLimit(pageSize);
+                  }}
+                />
+              ))}
+            </>
+          )}
+
+          {/* Off by default: the prose is the point, and a chronicle with a payload under every
+              line is a log file. On, nothing the engine attached is hidden. */}
+          <button
+            type="button"
+            onClick={() => setShowRecord(!showRecord)}
+            title="Show what each event carries that its narration does not print"
+            className={`ml-auto rounded border px-2 py-0.5 text-xs transition-colors ${
+              showRecord
+                ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]'
+                : 'border-[var(--rule)] text-[var(--ink-soft)] hover:border-[var(--accent)]'
+            }`}
+          >
+            {showRecord ? 'Hide the record' : 'The record'}
+          </button>
         </div>
       )}
 
@@ -112,6 +132,7 @@ export function EventList({
             </span>
             <span className="min-w-0 text-sm leading-relaxed">
               <NarratedEvent world={world} event={event} />
+              {showRecord && <EventRecord world={world} event={event} />}
             </span>
           </li>
         ))}
@@ -127,6 +148,37 @@ export function EventList({
         </button>
       )}
     </div>
+  );
+}
+
+/**
+ * What an event carries that its narration does not print.
+ *
+ * Templates are prose and leave things out — a coronation reads better without the new king's
+ * age in it, and a battle without the id of the war it belongs to — but all of it is in the
+ * export, and none of it was reachable from any page until this. Kind-agnostic like everything
+ * else here: it prints whatever the template did not consume, so an event kind added later
+ * needs no change.
+ */
+function EventRecord({ world, event }: { world: World; event: HistoryEvent }) {
+  const { data, extra } = useMemo(
+    () => unnarrated(event, world.export.narration),
+    [event, world],
+  );
+
+  if (data.length === 0 && extra.length === 0) return null;
+
+  return (
+    <span className="mt-0.5 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-xs text-[var(--ink-faint)]">
+      {data.map(([key, value]) => (
+        <span key={key}>
+          <span className="tracking-wide uppercase">{key}</span> {value}
+        </span>
+      ))}
+      {extra.map((id) => (
+        <EntityLink key={id} world={world} id={id} />
+      ))}
+    </span>
   );
 }
 
