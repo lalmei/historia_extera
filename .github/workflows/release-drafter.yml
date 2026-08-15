@@ -22,17 +22,21 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7
 
-      - name: Read mod version
-        id: mod_version
+      - name: Read project version
+        id: project_version
         shell: bash
         run: |
-          version="$(jq -er '.version | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))' modinfo.json)"
+          version="$(sed -nE 's/^version = "([0-9]+\.[0-9]+\.[0-9]+)"$/\1/p' pyproject.toml | head -n1)"
+          if [[ -z "$version" ]]; then
+            echo "Could not read a semantic version from pyproject.toml." >&2
+            exit 1
+          fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Update release draft
         uses: release-drafter/release-drafter@v7
         with:
-          version: ${{ steps.mod_version.outputs.version }}
+          version: ${{ steps.project_version.outputs.version }}
           disable-autolabeler: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
