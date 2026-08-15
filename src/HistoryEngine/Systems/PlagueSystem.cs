@@ -18,11 +18,12 @@ namespace HistoryEngine.Systems;
 /// mechanism that reaches the succession machinery sideways: a plague year kills rulers of every
 /// age, which is how a throne passes to a child.</para>
 ///
-/// <para><b>Ignition scales with urbanisation.</b> Epidemics need density, so only towns and
-/// cities can start one and the world's yearly chance rises with how many of them there are. A
-/// world of hamlets in its first century has almost none; the same world at three hundred years
-/// has one every few decades. That gets the shape right for free — the plague years arrive once
-/// there is something to lose.</para>
+/// <para><b>Ignition scales with urban exposure.</b> Epidemics need density and movement, so only
+/// towns and cities can start one and each contributes according to its population and the live
+/// traffic on its trade routes. A world of hamlets in its first century has almost none; the same
+/// world at three hundred years has one every few decades, with the busiest cities the likeliest
+/// origins. That gets the shape right for free — the plague years arrive once there is something
+/// to lose.</para>
 ///
 /// <para><b>Arrival is recorded, presence is not.</b> One event when it reaches a place, with
 /// that year's toll, and one when the whole thing burns out. Writing a line for every infected
@@ -34,8 +35,8 @@ namespace HistoryEngine.Systems;
 /// </remarks>
 public sealed class PlagueSystem : IYearSystem
 {
-    /// <summary>Yearly ignition chance contributed by each town or city in the world.</summary>
-    private const double IgnitionPerUrbanSettlement = 0.0009;
+    /// <summary>Yearly ignition hazard contributed by one unit of urban exposure.</summary>
+    private const double IgnitionPerExposure = 0.0018;
 
     /// <summary>Ceiling on the yearly chance, however large the world grows.</summary>
     private const double MaxIgnitionChance = 0.030;
@@ -202,7 +203,7 @@ public sealed class PlagueSystem : IYearSystem
                     connection = Math.Max(connection, 0.15 + (route.Traffic * 0.50));
                 }
 
-                double chance = outbreak.Virulence * connection * Traffic(candidate) * wary;
+                double chance = outbreak.Virulence * connection * SpreadExposure(candidate) * wary;
 
                 if (!rng.Chance(DetMath.Clamp01(chance))) continue;
 
@@ -219,15 +220,9 @@ public sealed class PlagueSystem : IYearSystem
     /// prosperous coast rather than radiating evenly across the map, and what makes the places
     /// with the most to lose the likeliest to catch it.
     /// </remarks>
-    private static double Traffic(Settlement settlement)
+    private static double SpreadExposure(Settlement settlement)
     {
-        double size = settlement.Tier switch
-        {
-            SettlementTier.City => 1.0,
-            SettlementTier.Town => 0.78,
-            SettlementTier.Village => 0.5,
-            _ => 0.28,
-        };
+        double size = PopulationTraffic(settlement.Population);
 
         double trade = settlement.Specialization switch
         {
@@ -238,6 +233,36 @@ public sealed class PlagueSystem : IYearSystem
         };
 
         return size * trade;
+    }
+
+    /// <summary>
+    /// Continuous crowding proxy which preserves the old tier weights at their thresholds.
+    /// </summary>
+    /// <remarks>
+    /// Tier-only traffic made a settlement of 899 people abruptly less exposed than one of 900,
+    /// while cities of 4,000 and 9,000 were identical. Piecewise interpolation keeps the familiar
+    /// hamlet, village, town and city calibration without making population stop mattering between
+    /// thresholds. Very large cities gain only a modest final premium so size is not counted twice
+    /// through both exposure and absolute deaths.
+    /// </remarks>
+    internal static double PopulationTraffic(int population)
+    {
+        if (population < 180)
+        {
+            return DetMath.Lerp(0.28, 0.50, DetMath.InverseLerp(0.0, 180.0, population));
+        }
+
+        if (population < 900)
+        {
+            return DetMath.Lerp(0.50, 0.78, DetMath.InverseLerp(180.0, 900.0, population));
+        }
+
+        if (population < 4000)
+        {
+            return DetMath.Lerp(0.78, 1.0, DetMath.InverseLerp(900.0, 4000.0, population));
+        }
+
+        return DetMath.Lerp(1.0, 1.15, DetMath.InverseLerp(4000.0, 8000.0, population));
     }
 
     private static void Arrive(
@@ -349,19 +374,21 @@ public sealed class PlagueSystem : IYearSystem
 
         if (seats.Count == 0) return;
 
-        double chance = Math.Min(MaxIgnitionChance, IgnitionPerUrbanSettlement * seats.Count);
+        double totalExposure = 0.0;
+        foreach (Settlement seat in seats) totalExposure += IgnitionExposure(world, seat);
+
+        double rawHazard = IgnitionPerExposure * totalExposure;
+        double chance = SoftCap(rawHazard, MaxIgnitionChance);
         if (!rng.Chance(chance)) return;
 
-        // Weighted by traffic, so a plague begins where the ships and pilgrims are.
-        double total = 0.0;
-        foreach (Settlement seat in seats) total += Traffic(seat);
-
-        double roll = rng.NextDouble(0.0, total);
+        // The same exposure which creates the world hazard chooses its origin. This keeps the
+        // frequency and the geography of disease grounded in one model rather than two proxies.
+        double roll = rng.NextDouble(0.0, totalExposure);
         Settlement origin = seats[seats.Count - 1];
 
         foreach (Settlement seat in seats)
         {
-            roll -= Traffic(seat);
+            roll -= IgnitionExposure(world, seat);
             if (roll <= 0.0)
             {
                 origin = seat;
@@ -394,6 +421,40 @@ public sealed class PlagueSystem : IYearSystem
             obj: origin.CivilizationId,
             location: origin.RegionId,
             data: data);
+    }
+
+    /// <summary>Population and live commercial movement which can ignite an outbreak.</summary>
+    internal static double IgnitionExposure(WorldState world, Settlement settlement)
+    {
+        double population = DetMath.Clamp(
+            DetMath.Sqrt(settlement.Population / (double)MinimumSeatOfInfection), 1.0, 2.5);
+
+        double routeTraffic = 0.0;
+        foreach (TradeRoute route in TradeRoutes.From(world, settlement.Id))
+        {
+            routeTraffic += route.Traffic;
+        }
+
+        double network = 1.0 + (0.15 * Math.Min(routeTraffic, 4.0));
+        double specialization = settlement.Specialization switch
+        {
+            SettlementSpecialization.Trade => 1.15,
+            SettlementSpecialization.Fishing => 1.05,
+            SettlementSpecialization.Shrine => 1.10,
+            _ => 1.0,
+        };
+
+        return population * network * specialization;
+    }
+
+    /// <summary>
+    /// A deterministic soft ceiling: every extra exposure still matters, but by a diminishing
+    /// amount as the yearly probability approaches its maximum.
+    /// </summary>
+    internal static double SoftCap(double raw, double maximum)
+    {
+        if (raw <= 0.0 || maximum <= 0.0) return 0.0;
+        return maximum * raw / (maximum + raw);
     }
 }
 

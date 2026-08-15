@@ -27,4 +27,10 @@
     <EmbeddedResource Include="Naming\Corpora\*.txt" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Tests inspect deterministic scoring curves directly instead of inferring them through
+         a whole simulated history. The production API remains intentionally small. -->
+    <InternalsVisibleTo Include="HistoryEngine.Tests" />
+  </ItemGroup>
+
 </Project>

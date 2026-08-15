@@ -76,7 +76,8 @@ public sealed class TerritoryTests
     [Fact]
     public void NoLandIsHeldByARealmThatHasEnded()
     {
-        WorldExport export = HistoryRun.Execute(TestWorlds.Standard()).ToExport();
+        WorldExport export = HistoryRun.Execute(
+            TestWorlds.Standard() with { Years = 800 }).ToExport();
 
         var endedIn = new Dictionary<EntityId, int>();
         foreach (ExportCivilization civilization in export.Civilizations)
