@@ -46,11 +46,15 @@ public sealed record Disposition(CultureValues Values, double Centralism)
     /// Must be forked on the figure's own id, so a person's character cannot depend on how many
     /// people were born before them.
     /// </param>
-    public static Disposition Roll(Culture culture, IRng rng)
+    /// <param name="faith">
+    /// The teaching they were raised in, if any. Colours the roll without consuming it — see
+    /// <see cref="TintedBy"/>.
+    /// </param>
+    public static Disposition Roll(Culture culture, IRng rng, FaithCharacter? faith = null)
     {
         CultureValues theirs = culture.Values;
 
-        return new Disposition(
+        var rolled = new Disposition(
             new CultureValues(
                 Aggression: Dial(theirs.Aggression, rng),
                 Expansionism: Dial(theirs.Expansionism, rng),
@@ -61,6 +65,26 @@ public sealed record Disposition(CultureValues Values, double Centralism)
             Centralism: DetMath.Clamp01(
                 CentralismNorm(culture.Government)
                 + rng.NextDouble(-CentralismSpread, CentralismSpread)));
+
+        return faith is null ? rolled : rolled.TintedBy(faith);
+    }
+
+    /// <summary>
+    /// This person's inclinations as their faith leaves them.
+    /// </summary>
+    /// <remarks>
+    /// A thumb on the scale, not a replacement. The pull is weighted by the piety already
+    /// rolled, so a worldly person keeps more of their cultural character and a devout one is
+    /// shaped by what they were taught. No further dice: the faith's teaching is a fact of the
+    /// faith, and how far it takes this person is a fact of the person.
+    /// </remarks>
+    public Disposition TintedBy(FaithCharacter faith)
+    {
+        double pull = 0.16 + (Values.Piety * 0.24);
+
+        return new Disposition(
+            Values.BlendToward(faith.Inclines(), pull),
+            DetMath.Clamp01(DetMath.Lerp(Centralism, faith.OfficeInclination(), pull)));
     }
 
     private static double Dial(double cultural, IRng rng) =>

@@ -667,6 +667,13 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
           <Field label="Culture">
             <EntityLink world={world} id={figure.cultureId} />
           </Field>
+          <Field label="Faith">
+            {figure.religionId ? (
+              <EntityLink world={world} id={figure.religionId} />
+            ) : (
+              <span className="text-[var(--ink-faint)]">None recorded</span>
+            )}
+          </Field>
           <Field label="Born">
             {figure.birthYear}
             {figure.birthSettlementId && (
@@ -713,8 +720,14 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
             <>
               {' '}
               Ticks mark <EntityLink world={world} id={culture.id} />
-              &rsquo;s reading of each: everyone is rolled around the values they were born to, so
-              the gap is the person rather than the people.
+              &rsquo;s reading of each: everyone is rolled around the values they were born to
+              {figure.religionId ? (
+                <>
+                  , then pulled toward what <EntityLink world={world} id={figure.religionId} />{' '}
+                  teaches
+                </>
+              ) : null}
+              , so the gap is the person rather than the people.
             </>
           )}{' '}
           Centralism is rolled around what the office itself invites rather than around a culture,
@@ -1189,6 +1202,8 @@ export function ReligionPage({ world, religion }: { world: World; religion: Reli
     (s) => s.religionId === religion.id && s.abandonedYear === undefined,
   );
 
+  const faithful = world.export.figures.filter((f) => f.religionId === religion.id);
+  const notable = faithful.filter((f) => f.titles.length > 0);
   const offshoots = world.export.religions.filter((r) => r.parentId === religion.id);
   const relics = world.export.artifacts.filter((a) => a.religionId === religion.id);
   const holySites = world.export.holySites.filter((site) => site.religionId === religion.id);
@@ -1212,8 +1227,9 @@ export function ReligionPage({ world, religion }: { world: World; religion: Reli
         }
       />
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
         <Stat label="Settlements" value={following.length} hint="Following it now" />
+        <Stat label="Figures" value={faithful.length} hint={`${notable.length} held office`} />
         <Stat label="At its height" value={religion.peakSettlements} />
         <Stat
           label="Fervour"
@@ -1292,6 +1308,12 @@ export function ReligionPage({ world, religion }: { world: World; religion: Reli
       {holySites.length > 0 && (
         <Panel title={`Holy sites (${holySites.length})`}>
           <HolySiteTable world={world} sites={holySites} />
+        </Panel>
+      )}
+
+      {notable.length > 0 && (
+        <Panel title={`Notable faithful (${notable.length})`}>
+          <MemberTable world={world} members={notable} />
         </Panel>
       )}
 

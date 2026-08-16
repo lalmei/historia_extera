@@ -33,9 +33,17 @@ public static class Houses
         Civilization civilization,
         Culture culture,
         Sex sex,
-        int birthYear)
+        int birthYear,
+        EntityId birthSettlementId = default,
+        Figure? mother = null,
+        Figure? father = null)
     {
         EntityId id = world.Figures.NextId;
+        EntityId bornAt = birthSettlementId.IsNone ? civilization.CapitalId : birthSettlementId;
+        EntityId faithId = FaithFor(world, civilization, bornAt, mother, father);
+        FaithCharacter? teaching = world.Religions.Contains(faithId)
+            ? world.Religions[faithId].Character
+            : null;
 
         var figure = new Figure(
             id,
@@ -45,22 +53,54 @@ public static class Houses
             sex,
             birthYear)
         {
-            BirthSettlementId = civilization.CapitalId,
+            BirthSettlementId = bornAt,
 
-            // Everyone starts where their court is. Before this only office-holders had an
-            // address, so "resident at the capital" was inferred from the absence of one — which
-            // works until somebody needs to know where a figure with no office actually is.
-            ResidenceSettlementId = civilization.CapitalId,
+            // Everyone starts where they were born. Office-holders who serve elsewhere overwrite
+            // this; everyone else used to infer "at the capital" from the absence of an address,
+            // which works until somebody needs to know where a figure with no office actually is.
+            ResidenceSettlementId = bornAt,
+            ReligionId = faithId,
 
             // Forked on the figure's own id, so a person's character cannot depend on how many
             // people were born before them — and, because a fork consumes nothing from its
             // parent, adding this drew no number away from any stream that already existed.
+            // The faith tints the roll without consuming it, so a worldly sibling of a devout
+            // one still drew the same numbers.
             Disposition = Disposition.Roll(
-                culture, world.Root.Fork("disposition", id.ToDiscriminator())),
+                culture, world.Root.Fork("disposition", id.ToDiscriminator()), teaching),
         };
 
         world.Figures.Add(figure);
         return figure;
+    }
+
+    /// <summary>
+    /// The faith a new person is raised in: the birthplace first, then a parent, then the realm.
+    /// </summary>
+    /// <remarks>
+    /// Place before blood, because congregations are settlements. A child born in a converted
+    /// capital follows what that capital follows, even if a foreign parent kept another church;
+    /// a child born before any faith has reached the town can still inherit one from a parent
+    /// who already holds it. The realm is the last resort — the same answer
+    /// <see cref="WorldState.FaithOf(Civilization)"/> already gives everyone else.
+    /// </remarks>
+    public static EntityId FaithFor(
+        WorldState world,
+        Civilization civilization,
+        EntityId birthSettlementId,
+        Figure? mother = null,
+        Figure? father = null)
+    {
+        if (world.Settlements.Contains(birthSettlementId))
+        {
+            EntityId held = world.Settlements[birthSettlementId].ReligionId;
+            if (!held.IsNone) return held;
+        }
+
+        if (mother is not null && !mother.ReligionId.IsNone) return mother.ReligionId;
+        if (father is not null && !father.ReligionId.IsNone) return father.ReligionId;
+
+        return civilization.StateReligionId;
     }
 
     /// <summary>

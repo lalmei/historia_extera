@@ -92,6 +92,10 @@ public enum DogmaEmphasis
     Knowledge = 3,
     Dominion = 4,
     Hospitality = 5,
+    Power = 6,
+    Justice = 7,
+    Warfare = 8,
+    Wealth = 9,
 }
 
 /// <summary>How often the ordinary faithful are called to pray. Explicit values — part of the export format.</summary>
@@ -285,6 +289,10 @@ public sealed record FaithCharacter(
             (DogmaEmphasis.Knowledge, 1 + Weight(culture.Learning, 4)),
             (DogmaEmphasis.Dominion, 1 + Weight(culture.Expansionism, 3)),
             (DogmaEmphasis.Hospitality, 2 + Weight(culture.Mercantile, 3)),
+            (DogmaEmphasis.Power, 1 + Weight(culture.Expansionism, 3)),
+            (DogmaEmphasis.Justice, 1 + Weight(culture.Piety, 3)),
+            (DogmaEmphasis.Warfare, 1 + Weight(culture.Aggression, 3)),
+            (DogmaEmphasis.Wealth, 1 + Weight(culture.Mercantile, 3)),
         });
 
         PrayerCadence prayer = Weighted(rng, new[]
@@ -568,6 +576,95 @@ public sealed record FaithCharacter(
         _ => HolySiteDedicationKind.AncientGod,
     };
 
+    /// <summary>
+    /// The inclinations this faith teaches, on the same dials a person holds.
+    /// </summary>
+    /// <remarks>
+    /// What a doctrine argues for, not what any one believer is. A figure's own disposition is
+    /// rolled around their culture and then pulled toward this — see
+    /// <see cref="Disposition.TintedBy"/>. Stored nowhere; derived from the character that was
+    /// already rolled at founding, so a new consumer cannot disagree with conversion about what
+    /// this church is.
+    /// </remarks>
+    public CultureValues Inclines()
+    {
+        double aggression = 0.50;
+        double expansionism = 0.50;
+        double piety = 0.50;
+        double tradition = 0.50;
+        double mercantile = 0.50;
+        double learning = 0.50;
+
+        switch (Dogma)
+        {
+            case DogmaEmphasis.Honour:
+                aggression = 0.62;
+                tradition = 0.72;
+                break;
+            case DogmaEmphasis.Mercy:
+                aggression = 0.28;
+                piety = 0.68;
+                break;
+            case DogmaEmphasis.Purity:
+                piety = 0.78;
+                tradition = 0.72;
+                break;
+            case DogmaEmphasis.Knowledge:
+                learning = 0.82;
+                tradition = 0.38;
+                break;
+            case DogmaEmphasis.Dominion:
+                expansionism = 0.80;
+                aggression = 0.62;
+                break;
+            case DogmaEmphasis.Hospitality:
+                mercantile = 0.76;
+                aggression = 0.34;
+                break;
+            case DogmaEmphasis.Power:
+                expansionism = 0.74;
+                aggression = 0.70;
+                break;
+            case DogmaEmphasis.Justice:
+                piety = 0.70;
+                tradition = 0.62;
+                break;
+            case DogmaEmphasis.Warfare:
+                aggression = 0.84;
+                expansionism = 0.70;
+                break;
+            case DogmaEmphasis.Wealth:
+                mercantile = 0.84;
+                learning = 0.38;
+                break;
+        }
+
+        // How hard the teaching is pressed, not a second dogma. Tolerance cools a warlike
+        // church; a monastic one reads; a syncretic one trades.
+        piety = DetMath.Clamp01(piety + (Fervour * 0.12) + (Zealotry * 0.10));
+        aggression = DetMath.Clamp01(aggression - (Tolerance * 0.10));
+        tradition = DetMath.Clamp01(tradition + (Zealotry * 0.08) - (SchismProneness * 0.08));
+        learning = DetMath.Clamp01(learning + (Authority == AuthorityType.Monastic ? 0.12 : 0.0));
+        mercantile = DetMath.Clamp01(mercantile + (Syncretism * 0.08));
+
+        return new CultureValues(
+            aggression, expansionism, piety, tradition, mercantile, learning);
+    }
+
+    /// <summary>
+    /// How much this church's shape inclines a believer to decide things personally.
+    /// </summary>
+    /// <remarks>
+    /// Authority rather than dogma, because this is about who may speak for the faith, not
+    /// what they say. A ranked church has a centre; a faith of local holy people does not.
+    /// </remarks>
+    public double OfficeInclination() => Authority switch
+    {
+        AuthorityType.Hierarchical => 0.70,
+        AuthorityType.Monastic => 0.42,
+        _ => 0.28,
+    };
+
     /// <summary>Extra weight on a dedication kind, from what this faith actually worships.</summary>
     public int DedicationBias(HolySiteDedicationKind kind)
     {
@@ -695,6 +792,10 @@ public static class FaithCharacters
         DogmaEmphasis.Purity => "purity",
         DogmaEmphasis.Knowledge => "knowledge",
         DogmaEmphasis.Dominion => "dominion",
+        DogmaEmphasis.Power => "power",
+        DogmaEmphasis.Justice => "justice",
+        DogmaEmphasis.Warfare => "warfare",
+        DogmaEmphasis.Wealth => "wealth",
         _ => "hospitality",
     };
 

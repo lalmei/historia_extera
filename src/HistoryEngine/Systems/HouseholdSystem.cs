@@ -224,7 +224,9 @@ public sealed class HouseholdSystem : ISystem
         OfficeHolding? held = figure.OpenOffice(OfficeKind.HighPriest);
         if (held is null || !world.Civilizations.Contains(held.CivilizationId)) return false;
 
-        EntityId faithId = world.FaithOf(world.Civilizations[held.CivilizationId]);
+        EntityId faithId = held.ScopeId.IsNone
+            ? world.FaithOf(world.Civilizations[held.CivilizationId])
+            : held.ScopeId;
         return !faithId.IsNone
                && world.Religions.Contains(faithId)
                && world.Religions[faithId].Character.CelibateClergy;
@@ -445,7 +447,8 @@ public sealed class HouseholdSystem : ISystem
         Culture culture = world.CultureOf(heirOf);
 
         Sex sex = rng.Chance(0.5) ? Sex.Male : Sex.Female;
-        Figure child = Houses.NewFigure(world, civilization, culture, sex, year);
+        Figure child = Houses.NewFigure(
+            world, civilization, culture, sex, year, mother: mother, father: father);
 
         child.MotherId = mother.Id;
         child.FatherId = father.Id;

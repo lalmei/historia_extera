@@ -101,6 +101,13 @@ public static class Offices
             holder.ResidenceSettlementId = scope;
         }
 
+        // Taking holy office is entering the church. A faithless courtier who is named high
+        // priest does not stay faithless; a holder already of this faith is unchanged.
+        if (kind == OfficeKind.HighPriest && !scope.IsNone)
+        {
+            holder.ReligionId = scope;
+        }
+
         world.Chronicle.Record(
             year,
             EventKind.OfficeGranted,
@@ -207,23 +214,17 @@ public static class Offices
     {
         (int min, int max) = CareerAge(office);
 
+        EntityId bornAt = world.Settlements.Contains(residence) ? residence : civilization.CapitalId;
+
         Figure notable = Houses.NewFigure(
             world,
             civilization,
             culture,
             ClericSex(world, civilization, office, rng),
-            year - rng.NextInt(min, max + 1));
+            year - rng.NextInt(min, max + 1),
+            birthSettlementId: bornAt);
 
         notable.Origin = DoorInto(office);
-
-        // Born where they served, so far as the record goes. A governor is a figure of their own
-        // town and a marshal or a high priest of the realm's seat, which is where the army musters
-        // and the temple that matters stands.
-        if (world.Settlements.Contains(residence))
-        {
-            notable.BirthSettlementId = residence;
-            notable.ResidenceSettlementId = residence;
-        }
 
         return notable;
     }
@@ -256,7 +257,11 @@ public static class Offices
         EntityId faithId = world.FaithOf(civilization);
         if (faithId.IsNone || !world.Religions.Contains(faithId)) return true;
 
-        return world.Religions[faithId].Character.Admits(figure.Sex);
+        if (!world.Religions[faithId].Character.Admits(figure.Sex)) return false;
+
+        // A person of another church is not a candidate for this one's seat. The faithless
+        // still are — taking the office is how they enter it.
+        return figure.ReligionId.IsNone || figure.ReligionId == faithId;
     }
 
     /// <summary>Whether this figure is free to take an office.</summary>

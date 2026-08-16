@@ -66,7 +66,7 @@ public static class Succession
     /// <summary>Distance at or beyond which they are not what it wanted at all.</summary>
     private const double FarEnough = 0.45;
 
-    /// <summary>How devout a fervent establishment wants its ruler.</summary>
+    /// <summary>How far a fervent establishment pulls the wanted ruler toward its teaching.</summary>
     private const double FaithWantsPiety = 0.5;
 
     /// <summary>How much a realm in trouble wants a firm hand rather than a delegating one.</summary>
@@ -79,7 +79,8 @@ public static class Succession
     /// <para>Derived and stored nowhere. It is the realm's own culture as its recent past leaves
     /// it — the same shifts a reign is judged through, applied to what a people asks for rather
     /// than to what it does — plus two things that bear on a ruler specifically: an establishment
-    /// with a fervent faith wants a devout one, and a realm in crisis wants a firm hand.</para>
+    /// with a fervent faith wants someone who matches what that faith teaches, and a realm in
+    /// crisis wants a firm hand.</para>
     ///
     /// <para>Read by elective ballots and by disputed successions, so "the realm backed the
     /// brother who promised war" is available under primogeniture too, without a second system and
@@ -92,11 +93,9 @@ public static class Succession
         EntityId faithId = world.FaithOf(civilization);
         if (world.Religions.Contains(faithId))
         {
-            double fervour = world.Religions[faithId].Fervour;
-            values = values with
-            {
-                Piety = DetMath.Lerp(values.Piety, 1.0, fervour * FaithWantsPiety),
-            };
+            Religion faith = world.Religions[faithId];
+            values = values.BlendToward(
+                faith.Character.Inclines(), faith.Fervour * FaithWantsPiety);
         }
 
         // Weariness and calamity both argue for someone who will simply decide. Grievance does

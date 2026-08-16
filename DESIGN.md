@@ -2331,6 +2331,35 @@ was unsettled even after the simulation knows the victor. Rites and teachings ar
 invented part: they are derived from the faith's identity rather than from the individual
 book, so two codices of one religion agree about what its followers do.
 
+### A figure's own faith
+
+Congregations are still settlements. A person is not. Before this, the only faith a figure
+had was whichever church their town or their realm currently named — so a high priest of a
+fading church was indistinguishable from their neighbours, and a child raised after a
+conversion was rolled as if the sermon had never happened.
+
+**`Figure.ReligionId` is personal.** Assigned at birth from the birthplace, then a parent,
+then the realm. Living people born before any faith existed pick one up the year it reaches
+their residence, without rewriting the disposition already rolled. A town that converts does
+not convert its people: that is the whole reason the field exists. If it always matched the
+residence it would be denormalised data.
+
+**The faith tints the disposition, and does not consume the roll.** `Disposition.Roll` still
+draws around the culture from a fork on the figure's id. `FaithCharacter.Inclines` is the
+teaching — dogma onto the six cultural dials, authority onto centralism — and
+`Disposition.TintedBy` blends toward it by a piety-weighted pull. A worldly sibling of a
+devout one drew the same numbers; the devout one moved further. No further dice, so adding
+the tint cannot shift any other stream.
+
+The same teaching is the second consumer of `Inclines`: a fervent establishment's
+`Succession.Wanted` blends toward it, so a church of warfare asks for a warlike ruler and
+not merely a pious one.
+
+Holy office reads the person. A courtier of another church is not eligible for this one's
+seat; taking the seat is how a faithless one enters it.
+
+**Schema 16** carries `religionId` on each exported figure.
+
 ### Faith character: what a religion is, not only how hard it presses
 
 M8 gave every faith a name, a founder, a fervour, and a congregation. That was enough to

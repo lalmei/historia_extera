@@ -67,9 +67,11 @@ public sealed record WorldExport(
     /// deity structure, cosmology, church, clergy, observance, and the dials besides fervour.
     /// Version 15 added what feeds each standing settlement — its capacity itemised into the site,
     /// its share of the surrounding fields, and what the roads bring — so a reader can tell why a
-    /// place is the size it is rather than only how large it is.
+    /// place is the size it is rather than only how large it is. Version 16 added a figure's own
+    /// faith, distinct from the town they live in, so a person can follow a church their
+    /// residence no longer does.
     /// </remarks>
-    public const int CurrentSchemaVersion = 15;
+    public const int CurrentSchemaVersion = 16;
 }
 
 public sealed record ExportMeta(
@@ -555,6 +557,7 @@ public sealed record ExportFigure(
     Sex Sex,
     EntityId CivilizationId,
     EntityId CultureId,
+    EntityId? ReligionId,
     EntityId? DynastyId,
     int BirthYear,
     int? DeathYear,
