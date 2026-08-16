@@ -163,6 +163,32 @@ public sealed class Settlement
 
     public bool IsFortified { get; set; }
 
+    /// <summary>
+    /// The realm holding this place by force, or none while its owner actually holds it.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>The state a stormed town had no way to be in.</b> A carried siege used to set an
+    /// outcome on the battle, optionally sack the place, and change nothing else — so an army could
+    /// take the same walls in three consecutive years while the defender went on owning it
+    /// throughout, and the chronicle recorded a Second, Third and Fourth Siege of a town that had
+    /// already fallen. Occupation is what a storming actually produces, and it stops the campaign
+    /// from looping on ground it has already won.</para>
+    ///
+    /// <para><b>Not ownership.</b> <see cref="CivilizationId"/> stays with the realm that holds
+    /// the place in law, because that is what the peace negotiates over and what the chronicle
+    /// means by a cession. An occupation ends one of two ways: the treaty cedes the region and the
+    /// occupier becomes the owner, or the treaty does not and the place goes back. Conflating the
+    /// two would make every stormed town a permanent conquest and leave nothing for a peace to
+    /// decide.</para>
+    /// </remarks>
+    public EntityId OccupierId { get; set; } = EntityId.None;
+
+    /// <summary>True while a foreign army holds this place against its owner.</summary>
+    public bool IsOccupied => !OccupierId.IsNone;
+
+    /// <summary>The year the current occupation began, if there is one.</summary>
+    public int? OccupiedSinceYear { get; set; }
+
     /// <summary>The faith followed here, or none while the place keeps its own counsel.</summary>
     public EntityId ReligionId { get; set; } = EntityId.None;
 
