@@ -77,4 +77,25 @@ public static class Seasons
     /// <summary>Whether an army would take the field on this ground in this season.</summary>
     public static bool Campaigning(Region region, int season, int seasonsPerYear, int worldSize) =>
         Warmth(region, season, seasonsPerYear, worldSize) >= CampaignFloor;
+
+    /// <summary>
+    /// How many of the year's seasons this ground is open in. Zero for what never thaws.
+    /// </summary>
+    /// <remarks>
+    /// What lets a decision keep its yearly weight while only being taken in the seasons it can be.
+    /// A frontier open twice a year is offered half as many chances at twice the odds, so its
+    /// realm colonises as often as a tropical one and simply does it in summer — see
+    /// <c>ExpansionSystem</c> for why that is the right shape there and the wrong one for a war.
+    /// </remarks>
+    public static int OpenSeasons(Region region, int seasonsPerYear, int worldSize)
+    {
+        int open = 0;
+
+        for (int season = 0; season < seasonsPerYear; season++)
+        {
+            if (Campaigning(region, season, seasonsPerYear, worldSize)) open++;
+        }
+
+        return open;
+    }
 }

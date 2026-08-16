@@ -151,14 +151,20 @@ public sealed class Simulator
     /// who died in bed — and succession must precede the houses or a new king's brothers are still
     /// ranked as heirs on the day he is crowned, and marry accordingly.</para>
     ///
-    /// <para><b>One of these springs now exists.</b> Several systems are described above as if the
-    /// year had parts — "a war declared this spring is fought this summer", "a province taken in a
-    /// spring campaign", "a crown made in the reign of a ruler crowned this spring" — and they were
-    /// written down before there was a calendar to say it with. <c>war</c> is the first to get its
-    /// seasons, and it is deliberately the only one: each re-phasing changes every history in the
-    /// world, so moving several at once would present one fingerprint change with several
-    /// calibrations inside it and no way to read them apart. <c>crown</c> and <c>expansion</c>
-    /// follow separately.</para>
+    /// <para><b>Those springs now exist.</b> Several systems are described above as if the year had
+    /// parts — "a war declared this spring is fought this summer", "a province taken in a spring
+    /// campaign" — and they were written down before there was a calendar to say it with.
+    /// <c>war</c> and <c>expansion</c> have their seasons, landed one at a time because each
+    /// re-phasing changes every history in the world and moving several at once would present one
+    /// fingerprint change with several calibrations inside it.</para>
+    ///
+    /// <para><b><c>crown</c> was listed with them and should not have been.</b> It fades a realm's
+    /// memory by a year and settles the values that memory produces — a slow accumulator, which is
+    /// the case the three-tier argument explicitly reserves for the year: dividing a yearly fade
+    /// into four gives the same answer through four times the arithmetic and buys no decision that
+    /// a season could inform. "A crown made in the reign of a ruler crowned this spring" is a claim
+    /// about <c>artifacts</c> running after the houses, and it is already true of the ordering
+    /// without <c>crown</c> itself having a season. It stays annual on purpose.</para>
     /// </remarks>
     public static IReadOnlyList<ISystem> DefaultSystems() => new ISystem[]
     {

@@ -236,11 +236,11 @@ public sealed class CadenceTests
     /// inside it and no way to read them apart.
     /// </remarks>
     [Fact]
-    public void OnlyWarHasLeftTheYear()
+    public void OnlyWarAndExpansionHaveLeftTheYear()
     {
         foreach (ISystem system in Simulator.DefaultSystems())
         {
-            Cadence expected = system.Name == "war" ? Cadence.Seasonal : Cadence.Annual;
+            Cadence expected = system.Name is "war" or "expansion" ? Cadence.Seasonal : Cadence.Annual;
 
             Assert.Equal(expected, system.Cadence);
         }
