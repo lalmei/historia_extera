@@ -52,6 +52,21 @@ public sealed class OfficeSystem : ISystem
     /// <summary>How much more a realm at war insists on naming its own officers.</summary>
     private const double WartimeMandate = 1.3;
 
+    /// <summary>Odds a family keeps a seat it already held, at no <see cref="CultureValues.Tradition"/>.</summary>
+    private const double CustomaryFloor = 0.15;
+
+    /// <summary>The same, at full Tradition.</summary>
+    /// <remarks>
+    /// Well short of certainty, and deliberately. An office that always passes to the last holder's
+    /// child stops being a decision, and a realm whose every seat is hereditary has no appointments
+    /// left to read about — so Tradition weights the custom rather than deciding it, and the most
+    /// traditional people in the world still fills three seats in ten some other way.
+    /// </remarks>
+    private const double CustomaryCeiling = 0.70;
+
+    /// <summary>How far a wholly centralising ruler can push the custom down.</summary>
+    private const double CustomaryUnderTheCrown = 0.35;
+
     public string Name => "offices";
 
     public Cadence Cadence => Cadence.Annual;
@@ -290,10 +305,11 @@ public sealed class OfficeSystem : ISystem
         }
         else if (kind == OfficeKind.HighPriest && BloodlineFaith(world, civilization))
         {
-            // A bloodline clergy is the nearest thing this engine has to a hereditary priesthood:
-            // the court supplies a dynast, and the chronicle says the body chose. A true Customary
-            // succession — last holder's child takes the seat — is not wired; FillMode.Customary
-            // remains declared for that.
+            // A bloodline clergy draws its priests from the ruling house: the court supplies a
+            // dynast, and the chronicle says the body chose. That is a different claim from the
+            // Customary one below, which is a family keeping a seat it already held rather than a
+            // house holding every seat of its faith — so this branch runs first and a bloodline
+            // faith whose court has nobody to spare still falls through to the last priest's heir.
             List<Figure> candidates = Eligible(world, civilization, kind, Offices.Courtiers(world, civilization, year));
             holder = candidates.Count == 0 ? null : rng.Pick(candidates);
         }
@@ -302,9 +318,25 @@ public sealed class OfficeSystem : ISystem
             holder = null;
         }
 
-        // The court could not or would not supply anyone, so the body finds its own. That is the
-        // only path that creates a figure, and it creates one of no house — which is what stops
-        // invented notables from ever entering a nursery. See Offices.Notable.
+        // The family's claim, tried only where the crown did not name somebody. That ordering is
+        // what makes "the crown acquiesces" true of the model rather than only of the prose: a
+        // ruler who wanted this seat has already taken it, and what is left is a post the court
+        // was going to fill locally anyway.
+        if (holder is null)
+        {
+            Figure? heir = Offices.HeirTo(world, civilization, kind, scope, year);
+
+            if (heir is not null && rng.Chance(CustomaryOdds(culture, governing)))
+            {
+                holder = heir;
+                mode = FillMode.Customary;
+            }
+        }
+
+        // The court could not or would not supply anyone and no family had a claim on it, so the
+        // body finds its own. That is the only path that creates a figure, and it creates one of no
+        // house — which is what keeps a raised notable's household a level shift. See
+        // Offices.Notable.
         holder ??= Offices.Notable(
             world,
             civilization,
@@ -314,7 +346,10 @@ public sealed class OfficeSystem : ISystem
             year,
             rng);
 
-        if (grantedBy.IsNone) mode = FillMode.Internal;
+        // A grant with no grantor is one the crown did not make, which is Internal — unless a
+        // family's claim is what filled it. The third mode keeps its own name through here because
+        // "a body chose its own" and "a house kept what it held" are the same row otherwise.
+        if (grantedBy.IsNone && mode != FillMode.Customary) mode = FillMode.Internal;
 
         Offices.Grant(
             world, civilization, culture, holder, kind, scope, grantedBy,
@@ -384,6 +419,32 @@ public sealed class OfficeSystem : ISystem
         return rng.Chance(DetMath.Clamp01(mandate)) ? FillMode.Mandated : FillMode.Internal;
     }
 
+    /// <summary>
+    /// How likely a family is to keep a seat one of them already held.
+    /// </summary>
+    /// <remarks>
+    /// <para>Where a hereditary local gentry comes from, and the pressure a centralising ruler
+    /// eventually pushes against. Tradition is the people's attachment to their own customs, and an
+    /// office running in a family is the most concrete custom this engine has; Centralism is the
+    /// crown's appetite for deciding things itself, and it is read here from the same person and
+    /// the same year that <see cref="ChooseMode"/> read it from.</para>
+    ///
+    /// <para>A realm with no ruler applies the custom undiminished. There is nobody to acquiesce,
+    /// which is exactly the circumstance in which what a town has always done is what a town
+    /// does.</para>
+    /// </remarks>
+    private static double CustomaryOdds(Culture culture, Figure? governing)
+    {
+        double odds = DetMath.Lerp(CustomaryFloor, CustomaryCeiling, culture.Values.Tradition);
+
+        if (governing is not null)
+        {
+            odds *= DetMath.Lerp(1.0, CustomaryUnderTheCrown, governing.Disposition.Centralism);
+        }
+
+        return DetMath.Clamp01(odds);
+    }
+
     private static double PriestlyMandate(WorldState world, Civilization civilization)
     {
         EntityId faithId = world.FaithOf(civilization);
@@ -417,7 +478,7 @@ public sealed class OfficeSystem : ISystem
     private static string ClaimFor(FillMode mode, OfficeKind kind, Culture culture) => mode switch
     {
         FillMode.Mandated => "by the " + culture.RulerTitle.ToLowerInvariant() + "'s mandate",
-        FillMode.Customary => "as the office has long run in their family",
+        FillMode.Customary => Offices.CustomaryClaim,
         _ => kind switch
         {
             OfficeKind.Governor => "by the town's own council",
