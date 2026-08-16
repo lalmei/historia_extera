@@ -1758,10 +1758,21 @@ viewer reading it.
 >    when it closes, so system order and the calendar can disagree within a step and be
 >    reconciled by it. The seed-42 fingerprint is byte-identical across that change.
 >
-> What is left is the whole of the behavioural half: giving a system a cadence other than
-> `Annual`, scheduling the first episode on the docket, and the calibration that follows.
-> Measurements quoted from the current world are measurements; every number attached to the
-> part not yet built is an estimate and is marked as one.
+> 4. **War left the year.** The tick loop steps the year in seasons; `war` is `Seasonal` and
+>    every other system is still `Annual`, running in the opening season only. Campaigns are
+>    seasonal, peace is annual and settled in the closing season, and the campaigning season is
+>    read from the defender's ground rather than from a world clock. This is the first stage that
+>    moved a history, and it moved one system's worth of it: across five seeds, wars 71 → 70 and
+>    battles 290 → 240, the missing sixth being northern winters. No capital sits on ground shut
+>    all year; the 12% of land that is, is arctic.
+>
+> What is left is the rest of the re-phasing — `crown` and `expansion` have seasons written into
+> their ordering notes and have not been given them — and the docket, which is built, tested,
+> and still has nothing scheduled on it. `SiegeResolves`, `OutbreakStep` and `Arrival` are
+> declared against consumers that do not exist yet: a siege that lasts, an outbreak that peaks
+> and burns out inside a year, and a party in transit. Measurements quoted from the current world
+> are measurements; every number attached to the part not yet built is an estimate and is marked
+> as one.
 
 The year is the atom, and it is the last load-bearing choice in this engine that was never
 argued for. `IYearSystem.Tick(world, year)` is the only entry point a system has,
