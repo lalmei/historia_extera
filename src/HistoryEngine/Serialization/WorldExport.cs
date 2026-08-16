@@ -69,9 +69,11 @@ public sealed record WorldExport(
     /// its share of the surrounding fields, and what the roads bring — so a reader can tell why a
     /// place is the size it is rather than only how large it is. Version 16 added a figure's own
     /// faith, distinct from the town they live in, so a person can follow a church their
-    /// residence no longer does.
+    /// residence no longer does. Version 17 added the day an event fell on, alongside the year it
+    /// has always carried — additive on purpose, so the per-year index, the timeline slider and the
+    /// territory replay all keep reading exactly what they read before.
     /// </remarks>
-    public const int CurrentSchemaVersion = 16;
+    public const int CurrentSchemaVersion = 17;
 }
 
 public sealed record ExportMeta(
@@ -612,6 +614,7 @@ public sealed record ExportDisposition(
 public sealed record ExportEvent(
     int Id,
     int Year,
+    int Day,
     EventKind Kind,
     EntityId? Subject,
     EntityId? Object,

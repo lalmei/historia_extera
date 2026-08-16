@@ -56,13 +56,21 @@ public sealed class ExportTests
     }
 
     /// <summary>
-    /// Events must be written in non-decreasing year order.
+    /// Events must be written in non-decreasing <c>(year, day)</c> order.
     /// </summary>
     /// <remarks>
-    /// The timeline view and the per-year index both assume it, and it is easy to break by accident:
-    /// a system that back-dates an event — recording a ruler's birth in the year they were born
-    /// rather than the year they were crowned — would produce a log that jumps backwards. Cheaper to
-    /// assert than to discover from a timeline that renders out of sequence.
+    /// <para>The timeline view and the per-year index both assume it, and it is easy to break by
+    /// accident: a system that back-dates an event — recording a ruler's birth in the year they were
+    /// born rather than the year they were crowned — would produce a log that jumps backwards.
+    /// Cheaper to assert than to discover from a timeline that renders out of sequence.</para>
+    ///
+    /// <para><b>Now on the day as well, which is where it will actually break.</b> Every day in a
+    /// world is currently zero, so this is the same assertion it has always been — but the moment a
+    /// system runs on a season, the total order over systems and the calendar can disagree:
+    /// <c>succession</c> runs after <c>war</c> in the system list, so a king who died on day 40
+    /// would be appended after a battle fought on day 200. Asserting the pair now means that
+    /// disagreement is caught by a test that already exists, in the milestone that introduces it,
+    /// rather than found in a viewer.</para>
     /// </remarks>
     [Fact]
     public void EventsAreChronological()
@@ -71,10 +79,16 @@ public sealed class ExportTests
 
         for (int i = 1; i < export.Events.Count; i++)
         {
+            ExportEvent entry = export.Events[i];
+            ExportEvent before = export.Events[i - 1];
+
+            bool ordered = entry.Year > before.Year
+                           || (entry.Year == before.Year && entry.Day >= before.Day);
+
             Assert.True(
-                export.Events[i].Year >= export.Events[i - 1].Year,
-                $"Event {i} is dated {export.Events[i].Year}, before event {i - 1} at " +
-                $"{export.Events[i - 1].Year}. Events must be appended in chronological order.");
+                ordered,
+                $"Event {i} is dated {entry.Year}.{entry.Day}, before event {i - 1} at "
+                + $"{before.Year}.{before.Day}. Events must be appended in chronological order.");
         }
     }
 

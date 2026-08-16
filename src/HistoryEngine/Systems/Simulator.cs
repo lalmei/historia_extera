@@ -197,6 +197,10 @@ public sealed class Simulator
         Stamp now = Stamp.Opening(year);
         world.Now = now;
 
+        // The chronicle is told the same thing the systems are, so an event carries the step it was
+        // written in without every recording call having to name one. See IChronicle.OpenStep.
+        world.Chronicle.OpenStep(now);
+
         for (int i = 0; i < _systems.Count; i++)
         {
             _systems[i].Tick(world, now);
