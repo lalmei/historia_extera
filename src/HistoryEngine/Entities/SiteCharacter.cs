@@ -48,4 +48,24 @@ public static class SiteCharacters
         SiteCharacter.Pass => "astride the pass",
         _ => "on open ground",
     };
+
+    /// <summary>
+    /// Why a party was sent to ground of this character, where being sent is what put them there.
+    /// </summary>
+    /// <remarks>
+    /// <para>Null for every character a search arrives at rather than sets out for, which is most
+    /// of them: a town is not founded <em>in order to</em> be beside a river, it is founded where
+    /// people were going anyway and the river is why that spot won. Only the characters a
+    /// <see cref="World.FoundingNeed"/> produces have an errand behind them worth recording, and
+    /// the chronicle drops the clause for the rest rather than inventing a motive for ordinary
+    /// colonisation.</para>
+    ///
+    /// <para>A clause rather than a sentence, because it is substituted into the founding
+    /// template beside the settlers and where they came from.</para>
+    /// </remarks>
+    public static string? Purpose(SiteCharacter character) => character switch
+    {
+        SiteCharacter.Mine => "to work the ore",
+        _ => null,
+    };
 }

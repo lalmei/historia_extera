@@ -242,6 +242,12 @@ public static class WorldBuilder
             data["from"] = from.Name;
         }
 
+        // Read off the character rather than passed in beside it, because the character is already
+        // the answer: a site is recorded as a mine when the party sent for ore found ore, and a
+        // party that went for ore and settled on ordinary ground has nothing to claim about why.
+        string? purpose = SiteCharacters.Purpose(site.Character);
+        if (purpose is not null) data["purpose"] = purpose;
+
         world.Chronicle.Record(
             year,
             EventKind.SettlementFounded,

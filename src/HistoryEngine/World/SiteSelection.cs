@@ -76,6 +76,15 @@ public static class SiteSelection
     private const double SlopePenalty = 0.90;
     private const double ThinAirPenalty = 0.30;
 
+    // What changes when the party was sent for the deposit rather than for the soil. Four weights
+    // move and nothing else does: the water terms are untouched because miners drink, and the
+    // slope penalty stays a penalty because a town on a cliff is still a bad town — see
+    // FoundingNeed.Ore below.
+    private const double OreSoilWeight = 0.35;
+    private const double OreWeight = 0.85;
+    private const double OreSlopePenalty = 0.55;
+    private const double OreThinAirPenalty = 0.10;
+
     // There is no defensibility term, and that is a finding rather than an omission. See
     // "Defensibility was tried four ways and cut" below.
 
@@ -86,7 +95,12 @@ public static class SiteSelection
     /// Candidates per axis. Costs this squared in terrain samples on first evaluation of a
     /// region, and nothing thereafter.
     /// </param>
-    public static SiteChoice Best(WorldState world, Region region, int sitesPerAxis)
+    /// <param name="need">
+    /// What the party was sent for. <see cref="FoundingNeed.Land"/> is the ordinary case and the
+    /// default — the score below is the one the engine has always used.
+    /// </param>
+    public static SiteChoice Best(
+        WorldState world, Region region, int sitesPerAxis, FoundingNeed need = FoundingNeed.Land)
     {
         int stride = Math.Max(8, region.Bounds.Width / Math.Max(1, sitesPerAxis));
 
@@ -120,14 +134,14 @@ public static class SiteSelection
             if (sample.IsSubmerged || sample.Water != WaterKind.None) continue;
 
             double grade = SteepestGrade(candidates, at, sample, stride);
-            double score = Score(sample, at, grade, hydrology, landform);
+            double score = Score(sample, at, grade, hydrology, landform, need);
 
             // Strictly greater, so grid order breaks exact ties.
             if (score > bestScore)
             {
                 bestScore = score;
                 best = at;
-                bestCharacter = Characterise(at, hydrology, landform);
+                bestCharacter = Characterise(at, sample, hydrology, landform, need);
             }
         }
 
@@ -189,15 +203,37 @@ public static class SiteSelection
     private static readonly int[] OffsetZ = { 0, 1, 1, 1, 0, -1, -1, -1 };
 
     /// <summary>
-    /// How good a specific spot is to build on.
+    /// How good a specific spot is to build on, for what the party came to do.
     /// </summary>
     /// <remarks>
-    /// Polynomial only, per the determinism rules in <see cref="DetMath"/>.
+    /// <para>Polynomial only, per the determinism rules in <see cref="DetMath"/>.</para>
+    ///
+    /// <para><b>A party sent for ore reads the same ground with four weights moved.</b> Soil is
+    /// worth about a third of what it is worth to farmers, because they are not there to farm it,
+    /// and the geologic activity under the candidate is worth nearly what soil is worth to
+    /// everybody else. That measure comes from the refinement this decision already performs — the
+    /// deposit is scored at 16 units, four times finer than the region field that sent them here,
+    /// so the camp stands on the best of the ore rather than merely inside the patch containing
+    /// it.</para>
+    ///
+    /// <para><b>Slope stays buildability, and is never inverted.</b> Miners live on a terrace and
+    /// walk to the face; a camp on a cliff is as impossible as a town on one. The penalty is
+    /// relaxed rather than removed — from 0.90 to 0.55 — which lets a mine take ground a farming
+    /// party would have refused without letting it take ground nobody could stand on. Thin air is
+    /// relaxed much further, because altitude is a thing mining country simply is.</para>
     /// </remarks>
     private static double Score(
-        TerrainSample sample, Point2 at, double grade, Hydrology hydrology, Landform landform)
+        TerrainSample sample,
+        Point2 at,
+        double grade,
+        Hydrology hydrology,
+        Landform landform,
+        FoundingNeed need)
     {
-        double score = sample.Fertility * SoilWeight;
+        bool forOre = need == FoundingNeed.Ore;
+
+        double score = sample.Fertility * (forOre ? OreSoilWeight : SoilWeight);
+        if (forOre) score += sample.GeologicActivity * OreWeight;
 
         // Fresh water, graded by how far it is rather than whether the cell containing this
         // point happens to be flagged. A confluence is worth more than a reach because two
@@ -214,9 +250,10 @@ public static class SiteSelection
         if (landform.IsPass(at.X, at.Z)) score += PassBonus;
 
         double steepness = DetMath.InverseLerp(BuildableGrade, UnbuildableGrade, grade);
-        score -= steepness * steepness * SlopePenalty;
+        score -= steepness * steepness * (forOre ? OreSlopePenalty : SlopePenalty);
 
-        score -= DetMath.InverseLerp(900.0, 2200.0, sample.Height) * ThinAirPenalty;
+        score -= DetMath.InverseLerp(900.0, 2200.0, sample.Height)
+                 * (forOre ? OreThinAirPenalty : ThinAirPenalty);
 
         return score;
     }
@@ -225,14 +262,27 @@ public static class SiteSelection
     /// What the chosen ground is, in the order a chronicle would think of it.
     /// </summary>
     /// <remarks>
-    /// Rarest and most consequential first, so a town at a river mouth in a sheltered bay is
+    /// <para>Rarest and most consequential first, so a town at a river mouth in a sheltered bay is
     /// recorded as an estuary rather than as a harbour that also happens to have a river. The
     /// thresholds are read from the same measures the score used, so the character can never
-    /// describe a site the score did not actually pick for that reason.
+    /// describe a site the score did not actually pick for that reason.</para>
+    ///
+    /// <para><b>Why the errand comes first.</b> A camp put on a mountain for the ore under it is
+    /// remembered for the ore even when there is a river beside it, because that is what it was
+    /// for — the character is why they stood there, and for a purpose founding the reason is not in
+    /// doubt. It still has to be true: a party can be sent to a region for its geology and find
+    /// that the best ground in it is not over the deposit, and then the site is recorded as
+    /// whatever it actually is. That is the same rule as everything below it, applied to the one
+    /// character an errand rather than a search produces.</para>
     /// </remarks>
     private static SiteCharacter Characterise(
-        Point2 at, Hydrology hydrology, Landform landform)
+        Point2 at, TerrainSample sample, Hydrology hydrology, Landform landform, FoundingNeed need)
     {
+        if (need == FoundingNeed.Ore && sample.GeologicActivity >= Specializations.OreThreshold)
+        {
+            return SiteCharacter.Mine;
+        }
+
         bool nearRiver = hydrology.RiverDistance(at.X, at.Z) <= WaterAtHand;
         bool nearSea = hydrology.CoastDistance(at.X, at.Z) <= WaterAtHand;
 

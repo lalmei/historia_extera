@@ -30,6 +30,27 @@ namespace HistoryEngine.Systems;
 /// </remarks>
 public sealed class SpecializationSystem : ISystem
 {
+    /// <summary>
+    /// What being founded to work a deposit is worth when a village is asked what it does.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Without it the errand is invisible here, and that is measured rather than
+    /// assumed.</b> Across eight seeds, of the camps a realm sent out specifically for ore and
+    /// which lived to be asked, <b>5.8%</b> were recorded as mining towns and <b>81%</b> as farming
+    /// villages — because farming opens at 0.30 plus three quarters of the region's fertility and
+    /// mining has to climb there from geology alone. The scorer could not see the difference
+    /// between a mining camp and a farm, so the map said one thing and the chronicle said
+    /// another.</para>
+    ///
+    /// <para><b>A prior, not a lock, and the size is what makes it one.</b> At 0.35 the camps come
+    /// out 72% mining, 24% farming and 4% market towns; at 0.55 they come out 96% mining, which is
+    /// the character dictating the trade under another name. The two facts are deliberately kept
+    /// apart — <see cref="Entities.SiteCharacter"/> is why they stood there and specialization is
+    /// what the place became known for — and a seam that ran out while the valley turned out to
+    /// grow wheat is a history worth being able to have.</para>
+    /// </remarks>
+    private const double MineCampPrior = 0.35;
+
     public string Name => "specialization";
 
     public Cadence Cadence => Cadence.Annual;
@@ -157,13 +178,19 @@ public sealed class SpecializationSystem : ISystem
                       + (DetMath.InverseLerp(0.0, 0.6, region.Fertility) * 0.15)
                     : -1.0,
 
-            // Requires geology, and rewards the highlands nobody wants to farm.
+            // Requires geology, and rewards the highlands nobody wants to farm. A camp that was
+            // sent out for the deposit is already standing on it, and comes to the question with
+            // that behind it — a prior rather than a lock, because a mine camp that turns out to
+            // sit on a road is a market town with a mine, which is a better history than one
+            // decided at year zero. The gate stays where it is: geology the realm went looking for
+            // has to be geology specialization would recognise.
             SettlementSpecialization.Mining =>
-                region.GeologicActivity < 0.35
+                region.GeologicActivity < Specializations.OreThreshold
                     ? -1.0
                     : 0.25
                       + (region.GeologicActivity * 0.65)
-                      + (DetMath.InverseLerp(500.0, 1900.0, site.Height) * 0.25),
+                      + (DetMath.InverseLerp(500.0, 1900.0, site.Height) * 0.25)
+                      + (settlement.Site == SiteCharacter.Mine ? MineCampPrior : 0.0),
 
             // Wants to be on a route, and a mercantile culture makes more of one. A river mouth or
             // a meeting of two rivers is where a route becomes a junction rather than a passing

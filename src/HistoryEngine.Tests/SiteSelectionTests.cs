@@ -149,6 +149,16 @@ public sealed class SiteSelectionTests
                         Assert.True(
                             water.CoastDistance(s.X, s.Z) <= atHand, $"{where} is not on the coast.");
                         break;
+
+                    // The one character an errand produces rather than a search, and so the one
+                    // that could be written by intent instead of by measurement. A party sent for
+                    // ore that ends up sited off the deposit is recorded as ordinary ground.
+                    case SiteCharacter.Mine:
+                        Assert.True(
+                            world.Terrain.SampleExact(s.X, s.Z).GeologicActivity
+                                >= Specializations.OreThreshold,
+                            $"{where} is recorded as a mine site on ground with no ore under it.");
+                        break;
                 }
             }
         }
