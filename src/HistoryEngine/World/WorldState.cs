@@ -242,6 +242,36 @@ public sealed class WorldState
     /// <summary>Renders one event to prose using this world's names.</summary>
     public string Narrate(HistoryEvent entry) => Narration.Render(entry, NameOf);
 
+    /// <summary>
+    /// Writes a person's name into a narration payload under <paramref name="key"/>, if there is
+    /// a person. Reports whether it wrote, so a caller can index the event against them too.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Why a data string and not a slot.</b> The three entity slots on an event are the
+    /// three things a template can turn into a link, and on the events that most want an actor
+    /// they are already spent: a battle is subject, its victor is object, the town it was fought
+    /// over is location. Rather than displace one of those — every one of which the viewer's
+    /// filters and indices depend on — the actor's name goes in as text, which is what
+    /// <see cref="Events.EventKind.StateFaithChanged"/> has always done for the ruler who
+    /// converted a realm.</para>
+    ///
+    /// <para>Nothing is lost by it except a clickable word. Callers pass the same id into the
+    /// event's <c>extra</c>, which is what drives the per-entity index — so the battle still
+    /// appears on the commander's page, and the reader who wants them can get there from the
+    /// page rather than from the sentence.</para>
+    ///
+    /// <para>Absent people are absent rather than "unknown": an army that marched without its
+    /// king should read as though nobody in particular led it, and the optional segments in the
+    /// templates drop the clause entirely when this writes nothing.</para>
+    /// </remarks>
+    public bool NamePerson(DetMap<string, string> data, string key, EntityId figureId)
+    {
+        if (!Figures.Contains(figureId)) return false;
+
+        data[key] = Figures[figureId].FullName;
+        return true;
+    }
+
     /// <summary>Active civilizations, in id order.</summary>
     public IEnumerable<Civilization> ActiveCivilizations()
     {
