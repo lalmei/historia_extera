@@ -1421,7 +1421,7 @@ function HolySitePassage({
 }) {
   return (
     <article>
-      <h3 className="font-serif text-base font-semibold">{heading}</h3>
+      <h3 className="text-lg font-medium">{heading}</h3>
       <p className="mt-1 text-sm leading-relaxed text-[var(--ink-soft)]">{text}</p>
       {world && mention && (
         <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-xs text-[var(--ink-faint)]">
@@ -1570,7 +1570,7 @@ export function ArtifactPage({ world, artifact }: { world: World; artifact: Arti
             <div className="space-y-5">
               {sections.map((section, index) => (
                 <article key={`${section.heading}-${index}`}>
-                  <h3 className="font-serif text-base font-semibold">{section.heading}</h3>
+                  <h3 className="text-lg font-medium">{section.heading}</h3>
                   <p className="mt-1 text-sm leading-relaxed text-[var(--ink-soft)]">
                     {section.text}
                   </p>

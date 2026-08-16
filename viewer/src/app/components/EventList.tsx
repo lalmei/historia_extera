@@ -160,8 +160,8 @@ export function EventList({
             title="Show what each event carries that its narration does not print"
             className={`ml-auto rounded border px-2 py-0.5 text-xs transition-colors ${
               showRecord
-                ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]'
-                : 'border-[var(--rule)] text-[var(--ink-soft)] hover:border-[var(--accent)]'
+                ? 'border-[var(--primary)] text-[var(--primary)]'
+                : 'border-[var(--rule)] text-[var(--ink-soft)] hover:border-[var(--primary)]'
             }`}
           >
             {showRecord ? 'Hide the record' : 'The record'}
@@ -173,10 +173,10 @@ export function EventList({
         {visible.map((event) => (
           <li
             key={event.id}
-            className="flex gap-3 border-b border-[var(--rule)]/50 py-1.5 last:border-0"
+            className="-mx-2 flex gap-3 rounded px-2 py-1.5 hover:bg-[var(--hover)]"
           >
             <span
-              className="w-14 shrink-0 text-right text-sm tabular-nums text-[var(--ink-faint)]"
+              className="he-data w-14 shrink-0 text-right text-[var(--ink-faint)]"
               title={`Year ${event.year}`}
             >
               {event.year}
@@ -193,7 +193,7 @@ export function EventList({
         <button
           type="button"
           onClick={() => setLimit(limit + pageSize * 4)}
-          className="mt-3 w-full rounded border border-[var(--rule)] py-1.5 text-sm text-[var(--ink-soft)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
+          className="he-btn-secondary mt-3 w-full py-1.5 text-sm"
         >
           Show more ({(filtered.length - limit).toLocaleString()} remaining)
         </button>
@@ -250,12 +250,12 @@ function FilterChip({
       onClick={onClick}
       className={`rounded border px-2 py-0.5 text-xs transition-colors ${
         active
-          ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]'
-          : 'border-[var(--rule)] text-[var(--ink-soft)] hover:border-[var(--accent)]'
+          ? 'border-[var(--primary)] text-[var(--primary)]'
+          : 'border-[var(--rule)] text-[var(--ink-soft)] hover:border-[var(--primary)]'
       }`}
     >
       {label}
-      <span className="ml-1.5 tabular-nums opacity-60">{count.toLocaleString()}</span>
+      <span className="he-data ml-1.5 opacity-60">{count.toLocaleString()}</span>
     </button>
   );
 }

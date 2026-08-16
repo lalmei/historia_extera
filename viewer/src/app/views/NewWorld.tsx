@@ -196,7 +196,7 @@ export function NewWorld({
           onClick={() => setForm({ ...form, seed: String(randomSeed()) })}
           disabled={busy}
           title="Pick a seed at random"
-          className="mb-0.5 rounded border border-[var(--rule)] px-2 py-1.5 text-sm text-[var(--ink-soft)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:opacity-40"
+          className="he-btn-secondary mb-0.5 px-2 py-1.5 text-sm disabled:opacity-40"
         >
           Random
         </button>
@@ -244,7 +244,7 @@ export function NewWorld({
         <button
           type="submit"
           disabled={busy || tooSmall}
-          className="mb-0.5 rounded border border-[var(--accent)] bg-[var(--accent-soft)] px-3 py-1.5 text-sm font-medium text-[var(--accent)] transition-opacity disabled:opacity-40"
+          className="he-btn-primary mb-0.5 px-3 py-1.5 text-sm font-medium disabled:opacity-40"
         >
           {submitLabel}
         </button>
@@ -261,7 +261,7 @@ export function NewWorld({
 
       {source && (
         <p className="mt-3 text-xs text-[var(--ink-soft)]">
-          Settings taken from <code className="rounded bg-[var(--page)] px-1 py-0.5">{source}</code>.
+          Settings taken from <code className="rounded bg-[var(--input)] px-1 py-0.5">{source}</code>.
           Change a number and generate, or run them unchanged through the engine as it stands now.
           The first {baseline.years.toLocaleString()} years of a longer run are the same history —
           the seed is deterministic.
@@ -284,7 +284,7 @@ export function NewWorld({
           <button
             type="submit"
             disabled={busy || !continueReady}
-            className="mb-0.5 rounded border border-[var(--rule)] px-3 py-1.5 text-sm text-[var(--ink-soft)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:opacity-40"
+            className="he-btn-secondary mb-0.5 px-3 py-1.5 text-sm disabled:opacity-40"
           >
             Continue
           </button>
@@ -300,15 +300,15 @@ export function NewWorld({
           A seed worth keeping is worth writing down: the same settings always give the same
           history. A periodic world wraps terrain, rivers, travel, and expansion across its east and
           west edges. Each run lands in{' '}
-          <code className="rounded bg-[var(--page)] px-1 py-0.5">viewer/public/worlds/</code> and can
-          be reopened later with <code className="rounded bg-[var(--page)] px-1 py-0.5">?world=</code>
+          <code className="rounded bg-[var(--input)] px-1 py-0.5">viewer/public/worlds/</code> and can
+          be reopened later with <code className="rounded bg-[var(--input)] px-1 py-0.5">?world=</code>
           . Reusing a previous export from the list below fills these numbers so it can be run
           again, stretched, or pushed through a newer engine.
         </p>
       )}
 
       {error && (
-        <p className="mt-3 rounded border border-[var(--accent)] bg-[var(--accent-soft)] px-3 py-2 text-sm text-[var(--accent)]">
+        <p className="mt-3 rounded border border-[var(--error)] px-3 py-2 text-sm text-[var(--error)]">
           {error}
         </p>
       )}
@@ -345,7 +345,7 @@ function Progress({
   return (
     <div className="mt-4 border-t border-[var(--rule)] pt-3">
       <div className="flex flex-wrap items-center gap-3">
-        <span className="text-sm tabular-nums">{status}</span>
+        <span className="he-data text-sm">{status}</span>
 
         {run.status === 'running' && (
           <button
@@ -362,14 +362,19 @@ function Progress({
           how many realms stood, how many fell, how long it took. Newest lines at the bottom,
           scrolled to, so a long build log does not push the summary out of view. */}
       {run.log.length > 0 && (
-        <pre
+        <div
           ref={(node) => {
             if (node) node.scrollTop = node.scrollHeight;
           }}
-          className="mt-2 max-h-52 overflow-auto rounded border border-[var(--rule)] bg-[var(--page)] p-3 font-mono text-xs leading-relaxed text-[var(--ink-soft)]"
+          className="mt-2 max-h-52 overflow-auto rounded border border-[var(--rule)] bg-[var(--canvas)] p-3"
         >
-          {run.log.join('\n')}
-        </pre>
+          {run.log.map((line, index) => (
+            <div key={index} className="he-data flex items-start gap-2 text-[var(--ink-soft)]">
+              <span className={`he-pip mt-1.5 ${pipClass(line)}`} aria-hidden="true" />
+              <span className="min-w-0 whitespace-pre-wrap">{line}</span>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );
@@ -394,9 +399,7 @@ function NumberField({
 }) {
   return (
     <label className="block">
-      <span className="block text-[0.7rem] font-medium tracking-wide uppercase text-[var(--ink-faint)]">
-        {label}
-      </span>
+      <span className="he-label block">{label}</span>
       <input
         type="number"
         required
@@ -406,10 +409,18 @@ function NumberField({
         value={value}
         disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
-        className={`mt-1 rounded border border-[var(--rule)] bg-[var(--page)] px-2.5 py-1.5 text-sm tabular-nums outline-none focus:border-[var(--accent)] disabled:opacity-50 ${width}`}
+        className={`mt-1 rounded border border-[var(--rule)] bg-[var(--input)] px-2.5 py-1.5 text-sm tabular-nums outline-none focus:border-[var(--primary)] disabled:opacity-50 ${width}`}
       />
     </label>
   );
+}
+
+function pipClass(line: string): string {
+  const text = line.toLowerCase();
+  if (/\b(error|failed|exception|fatal)\b/.test(text)) return 'he-pip-error';
+  if (/\b(warn|warning|cancelled)\b/.test(text)) return 'he-pip-warn';
+  if (/\b(done|wrote|saved)\b/.test(text) || /took shape/.test(text)) return 'he-pip-ok';
+  return 'he-pip-note';
 }
 
 function toForm(params: RunParams) {

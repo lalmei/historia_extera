@@ -442,13 +442,12 @@ export function WorldMap({ world }: { world: World }) {
         }
       />
 
-      <Panel
-        actions={
-          <div className="flex flex-wrap items-center gap-3 text-xs">
+      <div className="he-map-viewport relative aspect-square w-full overflow-hidden rounded-lg border border-[var(--rule)] bg-[var(--canvas)]">
+          <div className="he-map-chrome absolute top-2 left-2 z-10 flex max-w-[min(100%-1rem,32rem)] flex-wrap items-center gap-2 p-2 text-xs">
             <select
               value={layer}
               onChange={(event) => setLayer(event.target.value as Layer)}
-              className="rounded border border-[var(--rule)] bg-[var(--page)] px-1.5 py-1 text-xs"
+              className="rounded border border-[var(--rule)] bg-[var(--surface-container-high)] px-1.5 py-1 text-xs"
             >
               <option value="biome">Biome</option>
               <option value="height">Elevation</option>
@@ -458,7 +457,7 @@ export function WorldMap({ world }: { world: World }) {
               value={colouring}
               onChange={(event) => setColouring(event.target.value as Colouring)}
               title="What the settlement dots are coloured by"
-              className="rounded border border-[var(--rule)] bg-[var(--page)] px-1.5 py-1 text-xs"
+              className="rounded border border-[var(--rule)] bg-[var(--surface-container-high)] px-1.5 py-1 text-xs"
             >
               <option value="realm">Dots: realm</option>
               <option value="faith">Dots: faith</option>
@@ -470,9 +469,6 @@ export function WorldMap({ world }: { world: World }) {
             <Toggle label="Holy sites" on={showHolySites} onChange={setShowHolySites} />
             <Toggle label="Territory" on={showTerritory} onChange={setShowTerritory} />
           </div>
-        }
-      >
-        <div className="relative mx-auto aspect-square w-full max-w-3xl overflow-hidden rounded border border-[var(--rule)]">
           <canvas
             ref={canvasRef}
             width={1024}
@@ -670,10 +666,10 @@ export function WorldMap({ world }: { world: World }) {
           </svg>
 
           {hovered && (
-            <div className="pointer-events-none absolute bottom-2 left-2 max-w-[85%] rounded border border-[var(--rule)] bg-[var(--panel)]/95 px-2.5 py-1.5 text-xs shadow-sm">
+            <div className="pointer-events-none absolute bottom-2 left-2 max-w-[85%] rounded border border-[var(--rule)] bg-[var(--input)] px-2.5 py-1.5 text-xs">
               {hovered.kind === 'settlement' ? (
                 <>
-                  <div className="font-serif text-sm">{hovered.standing.settlement.name}</div>
+                  <div className="text-sm font-medium">{hovered.standing.settlement.name}</div>
                   <div className="text-[var(--ink-faint)]">
                     {hovered.standing.isCapital ? 'Seat of ' : ''}
                     {hovered.standing.tier} · {world.nameOf(hovered.standing.civilizationId)}
@@ -683,7 +679,7 @@ export function WorldMap({ world }: { world: World }) {
                 </>
               ) : hovered.kind === 'ruin' ? (
                 <>
-                  <div className="font-serif text-sm">{hovered.settlement.name}</div>
+                  <div className="text-sm font-medium">{hovered.settlement.name}</div>
                   <div className="text-[var(--ink-faint)]">
                     Ruins · abandoned in {hovered.settlement.abandonedYear} · once{' '}
                     {hovered.settlement.peakPopulation.toLocaleString()} people
@@ -691,14 +687,14 @@ export function WorldMap({ world }: { world: World }) {
                 </>
               ) : hovered.kind === 'holy-site' ? (
                 <>
-                  <div className="font-serif text-sm">{hovered.site.name}</div>
+                  <div className="text-sm font-medium">{hovered.site.name}</div>
                   <div className="text-[var(--ink-faint)]">
                     {hovered.site.kind} · {world.nameOf(hovered.site.religionId)} · independent site
                   </div>
                 </>
               ) : (
                 <>
-                  <div className="font-serif text-sm">{hovered.region.name}</div>
+                  <div className="text-sm font-medium">{hovered.region.name}</div>
                   <div className="text-[var(--ink-faint)]">
                     {hovered.region.biome} ·{' '}
                     {hovered.owner ? world.nameOf(hovered.owner) : 'unclaimed'}
@@ -708,7 +704,7 @@ export function WorldMap({ world }: { world: World }) {
             </div>
           )}
 
-          <div className="pointer-events-none absolute top-2 right-2 rounded border border-[var(--rule)] bg-[var(--panel)]/95 px-2 py-1 font-serif text-lg tabular-nums shadow-sm">
+          <div className="he-data pointer-events-none absolute top-2 right-2 rounded border border-[var(--rule)] bg-[var(--input)] px-2 py-1 text-lg">
             {year}
           </div>
         </div>
@@ -736,7 +732,7 @@ export function WorldMap({ world }: { world: World }) {
         />
 
         {showTradeRoutes && (
-          <p className="mx-auto mt-2 max-w-3xl text-xs text-[var(--ink-faint)]">
+          <p className="mt-2 text-xs text-[var(--ink-faint)]">
             Trade overlay: dashed amber is overland demand, blue uses river access, and teal uses
             the coast. Line weight is the traffic the route carried in {year}. These are logical
             connections between markets; physical roads and paths are not modelled yet.
@@ -755,7 +751,6 @@ export function WorldMap({ world }: { world: World }) {
         {colouring === 'faith' && (
           <FaithLegend world={world} year={year} colours={faithColours} />
         )}
-      </Panel>
 
       {focused && (
         <Panel title={`${focused.name} in ${year}`}>
@@ -862,7 +857,7 @@ function MarkerKey({
   if (marks.length === 0) return null;
 
   return (
-    <div className="mx-auto mt-2 flex max-w-3xl flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[var(--ink-faint)]">
+    <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[var(--ink-faint)]">
       {marks.map((mark) => (
         <span key={mark.label} className="flex items-center gap-1.5">
           <svg viewBox="0 0 14 16" className="h-3.5 w-3.5 shrink-0" aria-hidden="true">
@@ -891,12 +886,12 @@ function YearScrubber({
   onPlay: () => void;
 }) {
   return (
-    <div className="mx-auto mt-4 flex max-w-3xl items-center gap-3">
+    <div className="mt-4 flex items-center gap-3">
       <button
         type="button"
         onClick={onPlay}
         title={playing ? 'Pause' : 'Play the history through'}
-        className="w-16 shrink-0 rounded border border-[var(--rule)] px-2 py-1 text-xs hover:border-[var(--accent)] hover:text-[var(--accent)]"
+        className="he-btn-secondary w-16 shrink-0 px-2 py-1 text-xs"
       >
         {playing ? '❚❚ Pause' : '▶ Play'}
       </button>
@@ -915,7 +910,7 @@ function YearScrubber({
         type="button"
         onClick={() => onYear(endYear)}
         disabled={year === endYear}
-        className="shrink-0 rounded border border-[var(--rule)] px-2 py-1 text-xs disabled:opacity-40 enabled:hover:border-[var(--accent)] enabled:hover:text-[var(--accent)]"
+        className="he-btn-secondary shrink-0 px-2 py-1 text-xs disabled:opacity-40"
       >
         End
       </button>
@@ -943,9 +938,9 @@ function Legend({
   const { timeline } = world;
 
   return (
-    <div className="mx-auto mt-4 max-w-3xl">
+    <div className="mt-4">
       <div className="mb-2 flex items-baseline justify-between">
-        <div className="text-[0.7rem] font-semibold tracking-wide uppercase text-[var(--ink-faint)]">
+        <div className="he-label">
           Realms
         </div>
         {focus && (
@@ -990,7 +985,7 @@ function Legend({
               />
               <span className={gone ? 'line-through' : ''}>{civ.name}</span>
               {!yet && !gone && (
-                <span className="tabular-nums text-[var(--ink-faint)]">{extent}</span>
+            <span className="he-data text-[var(--ink-faint)]">{extent}</span>
               )}
             </button>
           );
@@ -1022,8 +1017,8 @@ function FaithLegend({
     .sort((a, b) => b.following - a.following);
 
   return (
-    <div className="mx-auto mt-3 max-w-3xl">
-      <div className="mb-2 text-[0.7rem] font-semibold tracking-wide uppercase text-[var(--ink-faint)]">
+    <div className="mt-3">
+      <div className="he-label mb-2">
         Faiths
       </div>
 

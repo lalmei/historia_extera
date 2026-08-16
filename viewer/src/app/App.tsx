@@ -4,6 +4,7 @@ import { hashParams, href, useRoute } from './router';
 import { loadWorld, type World } from './store';
 import {
   kindOf,
+  WORLD_KIND_LABELS,
   type Artifact,
   type Battle,
   type Civilization,
@@ -122,11 +123,24 @@ export default function App() {
   if (error) return <LoadFailure message={error} />;
   if (!world) return <Loading />;
 
+  const isMap = route.path === '/map';
+  const isTimeline = route.path === '/timeline';
+  const isEntity = route.path.includes(':');
+  const mainWidth = isMap || isTimeline
+    ? 'w-full'
+    : isEntity
+      ? 'mx-auto w-full max-w-[720px]'
+      : 'mx-auto w-full max-w-6xl';
+
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
-      <Header world={world} activePath={route.path} />
-      <main className="mt-6">{renderRoute(world, route.path)}</main>
-      <Footer world={world} />
+    <div className="min-h-screen px-4 py-6 md:px-10 md:py-10">
+      <div className="mx-auto max-w-6xl">
+        <Header world={world} activePath={route.path} />
+      </div>
+      <main className={`mt-8 ${mainWidth}`}>{renderRoute(world, route.path)}</main>
+      <div className="mx-auto mt-10 max-w-6xl">
+        <Footer world={world} />
+      </div>
     </div>
   );
 }
@@ -211,16 +225,29 @@ function renderRoute(world: World, path: string) {
 
 function Header({ world, activePath }: { world: World; activePath: string }) {
   const { meta } = world.export;
+  const { designation, kind } = world.export.world;
 
   return (
     <header>
-      <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-[var(--rule)] pb-3">
-        <a href={href('/')} className="font-serif text-xl tracking-tight">
-          Historia Extera
-          <span className="ml-2 text-sm font-normal text-[var(--ink-faint)]">Legends</span>
-        </a>
-        <div className="flex items-center gap-3 text-xs tabular-nums text-[var(--ink-faint)]">
-          <span>
+      <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-[var(--rule)] pb-4">
+        <div>
+          <a href={href('/')} className="he-headline-md tracking-tight">
+            Historia Extera
+            <span className="he-label ml-3 inline align-middle">Legends</span>
+          </a>
+          {designation && (
+            <p className="mt-1 text-sm text-[var(--ink-soft)]">
+              {designation}
+              {kind && (
+                <span className="he-label ml-2 inline align-middle">
+                  {WORLD_KIND_LABELS[kind]}
+                </span>
+              )}
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-3 text-[var(--ink-faint)]">
+          <span className="he-data">
             seed {meta.seed} · {meta.eventCount.toLocaleString()} events · years {meta.startYear}–
             {meta.endYear}
           </span>
@@ -231,7 +258,7 @@ function Header({ world, activePath }: { world: World; activePath: string }) {
             <a
               href={GENERATOR}
               title="Run another seed"
-              className="rounded border border-[var(--rule)] px-2 py-0.5 transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
+              className="he-btn-secondary px-2 py-0.5"
             >
               New world
             </a>
@@ -239,7 +266,7 @@ function Header({ world, activePath }: { world: World; activePath: string }) {
         </div>
       </div>
 
-      <nav className="-mx-4 mt-3 overflow-x-auto px-4">
+      <nav className="-mx-4 mt-4 overflow-x-auto px-4">
         <ul className="flex gap-1 text-sm whitespace-nowrap">
           {NAV.map((item) => {
             const active =
@@ -249,10 +276,10 @@ function Header({ world, activePath }: { world: World; activePath: string }) {
               <li key={item.path}>
                 <a
                   href={href(item.path)}
-                  className={`inline-block rounded px-2.5 py-1 transition-colors ${
+                  className={`inline-block border-l-2 px-2.5 py-1 transition-colors ${
                     active
-                      ? 'bg-[var(--accent-soft)] font-medium text-[var(--accent)]'
-                      : 'text-[var(--ink-soft)] hover:text-[var(--accent)]'
+                      ? 'border-[var(--primary)] font-medium text-[var(--primary)]'
+                      : 'border-transparent text-[var(--ink-soft)] hover:text-[var(--primary)]'
                   }`}
                 >
                   {item.label}
@@ -270,8 +297,8 @@ function Footer({ world }: { world: World }) {
   const { meta } = world.export;
 
   return (
-    <footer className="mt-10 border-t border-[var(--rule)] pt-4 text-xs text-[var(--ink-faint)]">
-      <p>
+    <footer className="border-t border-[var(--rule)] pt-4 text-xs text-[var(--ink-faint)]">
+      <p className="he-data">
         Schema v{world.export.schemaVersion} · engine {meta.engineVersion} · config{' '}
         {meta.configHash} · systems {meta.systemOrder.join(' → ')}
       </p>
@@ -294,8 +321,8 @@ function Loading() {
 function LoadFailure({ message }: { message: string }) {
   return (
     <div className="mx-auto max-w-2xl px-4 py-16">
-      <h1 className="font-serif text-2xl">No world to show</h1>
-      <pre className="mt-4 overflow-x-auto rounded border border-[var(--rule)] bg-[var(--panel)] p-4 text-sm whitespace-pre-wrap">
+      <h1 className="he-headline-md">No world to show</h1>
+      <pre className="he-data mt-4 overflow-x-auto rounded-lg border border-[var(--rule)] bg-[var(--panel)] p-4 whitespace-pre-wrap">
         {message}
       </pre>
 
@@ -322,7 +349,7 @@ function LoadFailure({ message }: { message: string }) {
 function NotFound({ id }: { id: string }) {
   return (
     <div className="py-12 text-center">
-      <h1 className="font-serif text-2xl">Nothing here</h1>
+      <h1 className="he-headline-md">Nothing here</h1>
       <p className="mt-2 text-sm text-[var(--ink-soft)]">
         <code className="rounded bg-[var(--panel)] px-1.5 py-0.5">{id}</code> is not in this world
         file.

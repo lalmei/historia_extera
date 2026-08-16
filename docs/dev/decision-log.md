@@ -1695,8 +1695,8 @@ engine and viewer: no shared code, no server, no schema negotiation.
   navigation — fine at a thousand events, visibly slow at the 50k target. Values are
   integer indices into `events`, and event ids *are* their indices (asserted).
 - **Raster as raw byte planes**, base64, not PNG. A PNG would bake in a colour ramp;
-  the viewer wants its own, themed light and dark, with height/biome/rivers as
-  composable layers. The height range ships alongside so metres are recoverable.
+  the viewer wants its own ramp, with height/biome/rivers as composable layers. The
+  height range ships alongside so metres are recoverable.
 - **`schemaVersion`** is checked by the viewer, which refuses politely rather than
   misrendering a file it does not understand. **v5** records the particular relic and the
   two faiths behind religious causes of war; v3 added wars, battles, and the relations,

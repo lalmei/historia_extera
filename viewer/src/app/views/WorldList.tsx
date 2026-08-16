@@ -69,13 +69,13 @@ export function WorldList() {
         </p>
       )}
       {actionError && (
-        <p aria-live="assertive" className="mb-3 text-sm text-[var(--accent)]">
+        <p aria-live="assertive" className="mb-3 text-sm text-[var(--error)]">
           Could not delete world: {actionError}
         </p>
       )}
 
       {error ? (
-        <p className="text-sm text-[var(--accent)]">Could not list worlds: {error}</p>
+        <p className="text-sm text-[var(--error)]">Could not list worlds: {error}</p>
       ) : worlds === null ? (
         <p className="text-sm text-[var(--ink-faint)]">Looking for earlier exports…</p>
       ) : worlds.length === 0 ? (
@@ -85,14 +85,14 @@ export function WorldList() {
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-2xl border-collapse text-left text-sm">
-            <thead className="text-[0.7rem] font-medium tracking-wide uppercase text-[var(--ink-faint)]">
+            <thead>
               <tr>
-                <th className="border-b border-[var(--rule)] pb-2 font-medium">World</th>
-                <th className="border-b border-[var(--rule)] pb-2 font-medium">Settings</th>
-                <th className="border-b border-[var(--rule)] pb-2 font-medium">Modified</th>
-                <th className="border-b border-[var(--rule)] pb-2 text-right font-medium">Size</th>
-                <th className="border-b border-[var(--rule)] pb-2 pl-4 font-medium">Compatibility</th>
-                <th className="border-b border-[var(--rule)] pb-2 pl-4 text-right font-medium">
+                <th className="he-label border-b border-[var(--rule)] pb-2 text-left">World</th>
+                <th className="he-label border-b border-[var(--rule)] pb-2 text-left">Settings</th>
+                <th className="he-label border-b border-[var(--rule)] pb-2 text-left">Modified</th>
+                <th className="he-label border-b border-[var(--rule)] pb-2 text-right">Size</th>
+                <th className="he-label border-b border-[var(--rule)] pb-2 pl-4 text-left">Compatibility</th>
+                <th className="he-label border-b border-[var(--rule)] pb-2 pl-4 text-right">
                   Actions
                 </th>
               </tr>
@@ -130,13 +130,21 @@ function WorldRow({
   const params = worldParams(world);
 
   return (
-    <tr className="border-b border-[var(--rule)] last:border-0">
-      <td className="max-w-sm py-3 pr-4 font-mono text-xs break-all">{world.name}</td>
+    <tr className="border-b border-[var(--rule)] last:border-0 hover:bg-[var(--hover)]">
+      <td className="max-w-sm py-3 pr-4">
+        <div className="text-sm">
+          {world.designation || world.name}
+        </div>
+        {world.designation && (
+          <div className="he-data mt-0.5 break-all text-[var(--ink-faint)]">{world.name}</div>
+        )}
+      </td>
       <td className="py-3 pr-4 text-xs text-[var(--ink-soft)]">
         {params ? (
-          <span className="tabular-nums">
+          <span className="he-data">
             seed {params.seed} · {params.years}y · {params.civs} civs · {params.size}
             {params.eastWestPeriodic ? ' · periodic' : ''}
+            {world.kind ? ` · ${world.kind === 'Moon' ? 'moon' : 'planet'}` : ''}
             {world.engineVersion ? ` · engine ${world.engineVersion}` : ''}
           </span>
         ) : (
@@ -146,7 +154,7 @@ function WorldRow({
       <td className="py-3 pr-4 whitespace-nowrap text-[var(--ink-soft)]">
         {formatDate(world.modifiedAt)}
       </td>
-      <td className="py-3 text-right tabular-nums whitespace-nowrap text-[var(--ink-soft)]">
+      <td className="he-data py-3 text-right whitespace-nowrap text-[var(--ink-soft)]">
         {formatBytes(world.bytes)}
       </td>
       <td className="py-3 pl-4 whitespace-nowrap">
@@ -167,7 +175,7 @@ function WorldRow({
           {compatible ? (
             <a
               href={viewerUrl(world.world)}
-              className="rounded border border-[var(--accent)] bg-[var(--accent-soft)] px-2.5 py-1 text-xs font-medium text-[var(--accent)]"
+              className="he-btn-primary px-2.5 py-1 text-xs font-medium"
             >
               Open
             </a>
@@ -184,8 +192,8 @@ function WorldRow({
               }
               className={
                 compatible
-                  ? 'rounded border border-[var(--rule)] px-2.5 py-1 text-xs text-[var(--ink-soft)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]'
-                  : 'rounded border border-[var(--accent)] bg-[var(--accent-soft)] px-2.5 py-1 text-xs font-medium text-[var(--accent)]'
+                  ? 'he-btn-secondary px-2.5 py-1 text-xs'
+                  : 'he-btn-primary px-2.5 py-1 text-xs font-medium'
               }
             >
               {compatible ? 'Rerun…' : 'Regenerate…'}
@@ -195,7 +203,7 @@ function WorldRow({
             type="button"
             disabled={deleteDisabled}
             onClick={() => onDelete('trash')}
-            className="rounded border border-[var(--rule)] px-2.5 py-1 text-xs text-[var(--ink-soft)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:opacity-40"
+            className="he-btn-secondary px-2.5 py-1 text-xs disabled:opacity-40"
           >
             {deleting === 'trash' ? 'Moving…' : 'Move to trash'}
           </button>
@@ -203,7 +211,7 @@ function WorldRow({
             type="button"
             disabled={deleteDisabled}
             onClick={() => onDelete('permanent')}
-            className="rounded border border-[var(--accent)] px-2.5 py-1 text-xs text-[var(--accent)] transition-colors hover:bg-[var(--accent-soft)] disabled:opacity-40"
+            className="rounded border border-[var(--error)] px-2.5 py-1 text-xs text-[var(--error)] transition-colors hover:bg-[var(--error-container)] disabled:opacity-40"
           >
             {deleting === 'permanent' ? 'Deleting…' : 'Delete permanently'}
           </button>
