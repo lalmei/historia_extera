@@ -141,8 +141,12 @@ public sealed class Chronicle : IChronicle
 
         Array.Sort(order, (left, right) =>
         {
-            int byDay = _events[left].Day.CompareTo(_events[right].Day);
-            if (byDay != 0) return byDay;
+            // The whole stamp, not the day. A step's own writing all shares its year, so the day
+            // alone was enough until scheduled work started resolving in it: an entry due on the
+            // last day of one year comes off the queue in the first step of the next and is dated
+            // when it happened, so a step can hold two years at once and 281 must not sort after 0.
+            int byStamp = _events[left].At.CompareTo(_events[right].At);
+            if (byStamp != 0) return byStamp;
 
             int byWriter = _writers[left].CompareTo(_writers[right]);
             return byWriter != 0 ? byWriter : left.CompareTo(right);

@@ -332,7 +332,7 @@ public sealed class CadenceTests
 
         public Cadence Cadence => Cadence.Episodic;
 
-        public DocketKind Handles => DocketKind.Arrival;
+        public IReadOnlyList<DocketKind> Handles => new[] { DocketKind.Arrival };
 
         public void Tick(WorldState world, Stamp now)
         {
@@ -621,7 +621,7 @@ public sealed class EpisodicDispatchTests
 
         public Recorder(DocketKind handles, string name = "recorder", bool writes = false)
         {
-            Handles = handles;
+            Handles = new[] { handles };
             Name = name;
             _writes = writes;
         }
@@ -630,7 +630,7 @@ public sealed class EpisodicDispatchTests
 
         public Cadence Cadence => Cadence.Episodic;
 
-        public DocketKind Handles { get; }
+        public IReadOnlyList<DocketKind> Handles { get; }
 
         public int Ticks { get; private set; }
 

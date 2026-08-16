@@ -63,22 +63,31 @@ public sealed class Simulator
 
             if (system is IEpisodic episodic)
             {
-                if (episodic.Handles == DocketKind.None)
+                if (episodic.Handles.Count == 0)
                 {
                     throw new InvalidOperationException(
-                        $"System '{system.Name}' answers for scheduled work but names no kind. "
-                        + "DocketKind.None is the absence of an entry, never a claim on one.");
+                        $"System '{system.Name}' answers for scheduled work but names no kind.");
                 }
 
-                if (_episodic[(int)episodic.Handles].Handler is IEpisodic held)
+                foreach (DocketKind kind in episodic.Handles)
                 {
-                    throw new InvalidOperationException(
-                        $"Systems '{((ISystem)held).Name}' and '{system.Name}' both answer for "
-                        + $"{episodic.Handles}. One kind has one owner, or which of them resolves "
-                        + "an entry depends on the order they were listed in.");
-                }
+                    if (kind == DocketKind.None)
+                    {
+                        throw new InvalidOperationException(
+                            $"System '{system.Name}' claims DocketKind.None, which is the absence "
+                            + "of an entry and never a claim on one.");
+                    }
 
-                _episodic[(int)episodic.Handles] = (episodic, i);
+                    if (_episodic[(int)kind].Handler is IEpisodic held)
+                    {
+                        throw new InvalidOperationException(
+                            $"Systems '{((ISystem)held).Name}' and '{system.Name}' both answer for "
+                            + $"{kind}. One kind has one owner, or which of them resolves an entry "
+                            + "depends on the order they were listed in.");
+                    }
+
+                    _episodic[(int)kind] = (episodic, i);
+                }
             }
             else if (system.Cadence == Cadence.Episodic)
             {

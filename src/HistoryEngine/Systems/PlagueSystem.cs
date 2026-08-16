@@ -114,14 +114,15 @@ public sealed class PlagueSystem : ISystem, IEpisodic
 
         IRng rng = world.Root.Fork(Name, year);
 
-        // Existing outbreaks are advanced before a new one can ignite, so a plague that starts
-        // this year does not also get a year of killing out of the same tick.
-        Advance(world, year, rng);
+        // Outbreaks are no longer advanced here: each one steps on its own docket entry, at its
+        // own interval. All that is left on the year is whether a new plague begins, which is a
+        // question about the world's urban exposure rather than about any running epidemic.
         MaybeIgnite(world, year, rng);
     }
 
-    /// <summary>The kind of scheduled work this system answers for: a plague reaching a town.</summary>
-    public DocketKind Handles => DocketKind.Arrival;
+    /// <summary>A plague reaching a town, and a plague taking its next step.</summary>
+    public IReadOnlyList<DocketKind> Handles { get; } =
+        new[] { DocketKind.Arrival, DocketKind.OutbreakStep };
 
     /// <summary>
     /// Lands a plague that has been travelling, in the town it was travelling to.
@@ -139,6 +140,12 @@ public sealed class PlagueSystem : ISystem, IEpisodic
     /// </remarks>
     public void Resolve(WorldState world, DocketEntry entry, Stamp now)
     {
+        if (entry.Kind == DocketKind.OutbreakStep)
+        {
+            Step(world, entry);
+            return;
+        }
+
         foreach (Outbreak outbreak in world.Outbreaks)
         {
             for (int i = 0; i < outbreak.InTransit.Count; i++)
@@ -172,22 +179,66 @@ public sealed class PlagueSystem : ISystem, IEpisodic
     // Running outbreaks
     // -----------------------------------------------------------------------
 
-    private static void Advance(WorldState world, int year, IRng rng)
-    {
-        // Collected first: an outbreak that burns out is removed from the list being walked.
-        var finished = new List<Outbreak>();
+    /// <summary>Days between steps for a plague that barely travels.</summary>
+    private const int SlowestStep = 120;
 
+    /// <summary>Days between steps for the most virulent plague there is.</summary>
+    private const int FastestStep = 30;
+
+    /// <summary>How often this plague takes a step, from how readily it travels.</summary>
+    private static int StepFor(double virulence) =>
+        (int)DetMath.Lerp(SlowestStep, FastestStep, DetMath.Clamp01(virulence));
+
+    /// <summary>
+    /// Takes one outbreak one step forward, and reschedules it or ends it.
+    /// </summary>
+    /// <remarks>
+    /// <para>What used to be a year of every plague at once. Each outbreak now runs on its own
+    /// clock, so a virulent one goes through four steps in the time a mild one takes one, and the
+    /// duration of an epidemic is a property of the epidemic rather than of the tick it was granted.
+    /// An outbreak that arrives, peaks and burns out inside eight months can now do so; before, one
+    /// tick was all a year had.</para>
+    ///
+    /// <para><b>Every rate is scaled by the interval against the year</b>, so what the step changes
+    /// is granularity and never the annual total. A plague stepping monthly kills a twelfth as much
+    /// per step and steps twelve times; what differs is that it can finish between two harvests.</para>
+    ///
+    /// <para>Forked on the origin and the day. The origin alone would hand an outbreak the same
+    /// stream at every step it ever takes.</para>
+    /// </remarks>
+    private static void Step(WorldState world, DocketEntry entry)
+    {
         foreach (Outbreak outbreak in world.Outbreaks)
         {
-            Strike(world, outbreak, year, rng);
-            Spread(world, outbreak, year, rng);
-            Recover(world, outbreak, rng);
-            Cull(world, outbreak, year, rng);
+            if (outbreak.OriginId != entry.Subject || outbreak.NextStep != entry.Due) continue;
 
-            if (outbreak.IsBurningOut) finished.Add(outbreak);
+            double share = outbreak.StepDays / (double)world.Config.Calendar.DaysPerYear;
+
+            IRng rng = world.Root
+                .Fork("plague-step", outbreak.OriginId.ToDiscriminator())
+                .Fork("on", world.Config.Calendar.AbsoluteDay(entry.Due));
+
+            Strike(world, outbreak, entry.Due, share, rng);
+            Spread(world, outbreak, entry.Due.Year, share, rng);
+            Recover(world, outbreak, share, rng);
+            Cull(world, outbreak, entry.Due.Year, share, rng);
+
+            outbreak.LastStep = entry.Due;
+
+            if (!outbreak.IsBurningOut)
+            {
+                outbreak.NextStep = world.Config.Calendar.Plus(entry.Due, outbreak.StepDays);
+                world.Docket.Schedule(outbreak.NextStep, DocketKind.OutbreakStep, outbreak.OriginId);
+                return;
+            }
+
+            Finish(world, outbreak, entry.Due.Year);
+            return;
         }
+    }
 
-        foreach (Outbreak outbreak in finished)
+    private static void Finish(WorldState world, Outbreak outbreak, int year)
+    {
         {
             world.Outbreaks.Remove(outbreak);
 
@@ -205,29 +256,32 @@ public sealed class PlagueSystem : ISystem, IEpisodic
     }
 
     /// <summary>Kills, in every settlement the plague is currently in.</summary>
-    private static void Strike(WorldState world, Outbreak outbreak, int year, IRng rng)
+    private static void Strike(
+        WorldState world, Outbreak outbreak, Stamp now, double share, IRng rng)
     {
         foreach (Infection infection in outbreak.Infected)
         {
             Settlement settlement = world.Settlements[infection.SettlementId];
             if (!settlement.IsActive) continue;
 
-            // The arrival year's toll is written into the arrival event, so it is not counted
-            // again here — but every year after it is silent, which is why only the total is
-            // reported at the end.
-            if (infection.Since == year) continue;
+            // The arrival's own toll is written into the arrival event, so it is not counted again
+            // here — but every step after it is silent, which is why only the total is reported at
+            // the end. Measured against the last step rather than the year, since an infection that
+            // arrived in March has still earned its April.
+            if (infection.Since > outbreak.LastStep) continue;
 
-            Kill(world, outbreak, settlement, rng);
+            Kill(world, outbreak, settlement, share, rng);
         }
     }
 
     /// <summary>Applies one year of one plague to one settlement, and returns the dead.</summary>
-    private static int Kill(WorldState world, Outbreak outbreak, Settlement settlement, IRng rng)
+    private static int Kill(
+        WorldState world, Outbreak outbreak, Settlement settlement, double part, IRng rng)
     {
         int before = settlement.Population;
         if (before <= 0) return 0;
 
-        double share = outbreak.Lethality * rng.NextDouble(0.6, 1.35);
+        double share = outbreak.Lethality * part * rng.NextDouble(0.6, 1.35);
         int lost = (int)(before * DetMath.Clamp01(share));
         if (lost <= 0) return 0;
 
@@ -241,7 +295,8 @@ public sealed class PlagueSystem : ISystem, IEpisodic
     }
 
     /// <summary>Carries the plague to the next town.</summary>
-    private static void Spread(WorldState world, Outbreak outbreak, int year, IRng rng)
+    private static void Spread(
+        WorldState world, Outbreak outbreak, int year, double share, IRng rng)
     {
         // The sources are fixed before any arrival is added, so a plague cannot chain across five
         // towns within a single year by using its own new infections as fresh sources.
@@ -282,7 +337,8 @@ public sealed class PlagueSystem : ISystem, IEpisodic
                     connection = Math.Max(connection, 0.15 + (route.Traffic * 0.50));
                 }
 
-                double chance = outbreak.Virulence * connection * SpreadExposure(candidate) * wary;
+                double chance =
+                    outbreak.Virulence * share * connection * SpreadExposure(candidate) * wary;
 
                 if (!rng.Chance(DetMath.Clamp01(chance))) continue;
 
@@ -379,7 +435,7 @@ public sealed class PlagueSystem : ISystem, IEpisodic
         int days = Math.Clamp(
             TravelFloor + (int)(distance / TravelPerDay), TravelFloor, TravelCeiling);
 
-        var due = new Stamp(world.Now.Year, world.Now.Day + days);
+        Stamp due = world.Config.Calendar.Plus(world.Now, days);
 
         outbreak.InTransit.Add(new Passage(to.Id, from.Id, due));
         world.Docket.Schedule(due, DocketKind.Arrival, to.Id);
@@ -403,10 +459,12 @@ public sealed class PlagueSystem : ISystem, IEpisodic
         int year,
         IRng rng)
     {
-        outbreak.Infected.Add(new Infection(settlement.Id, year));
+        outbreak.Infected.Add(new Infection(settlement.Id, world.Chronicle.Now));
         outbreak.Reached++;
 
-        int lost = Kill(world, outbreak, settlement, rng);
+        int lost = Kill(
+            world, outbreak, settlement,
+            outbreak.StepDays / (double)world.Config.Calendar.DaysPerYear, rng);
         Realms.Suffered(world, settlement, lost);
 
         var data = Chronicle.Data(("name", outbreak.Name));
@@ -421,7 +479,7 @@ public sealed class PlagueSystem : ISystem, IEpisodic
             data: data);
     }
 
-    private static void Recover(WorldState world, Outbreak outbreak, IRng rng)
+    private static void Recover(WorldState world, Outbreak outbreak, double share, IRng rng)
     {
         var recovered = new List<Infection>();
 
@@ -430,7 +488,9 @@ public sealed class PlagueSystem : ISystem, IEpisodic
             Settlement settlement = world.Settlements[infection.SettlementId];
 
             // A place with nobody left in it has nothing more to give the plague.
-            if (!settlement.IsActive || settlement.Population <= 0 || rng.Chance(RecoveryChance))
+            if (!settlement.IsActive
+                || settlement.Population <= 0
+                || rng.Chance(RecoveryChance * share))
             {
                 recovered.Add(infection);
             }
@@ -447,7 +507,8 @@ public sealed class PlagueSystem : ISystem, IEpisodic
     /// engine: a ruler carried off at forty leaves a succession that the ordinary mortality curve
     /// would have produced a generation later, or not at all.
     /// </remarks>
-    private static void Cull(WorldState world, Outbreak outbreak, int year, IRng rng)
+    private static void Cull(
+        WorldState world, Outbreak outbreak, int year, double share, IRng rng)
     {
         var afflicted = new List<EntityId>();
 
@@ -459,7 +520,7 @@ public sealed class PlagueSystem : ISystem, IEpisodic
 
         if (afflicted.Count == 0) return;
 
-        double mortality = CourtMortality * outbreak.Lethality * 4.0;
+        double mortality = CourtMortality * outbreak.Lethality * 4.0 * share;
 
         // Id order, which is birth order, so who dies does not depend on where the plague is.
         foreach (Figure figure in world.Figures)
@@ -536,11 +597,20 @@ public sealed class PlagueSystem : ISystem, IEpisodic
             lethality: naming.NextDouble(0.07, 0.21),
             virulence: naming.NextDouble(0.12, 0.40));
 
-        outbreak.Infected.Add(new Infection(origin.Id, year));
+        // Its own clock starts here: how fast it travels is how often it steps, and the first
+        // step falls due one interval from the day it broke out.
+        outbreak.StepDays = StepFor(outbreak.Virulence);
+        outbreak.LastStep = world.Now;
+        outbreak.NextStep = world.Config.Calendar.Plus(world.Now, outbreak.StepDays);
+
+        outbreak.Infected.Add(new Infection(origin.Id, world.Now));
         outbreak.Reached = 1;
         world.Outbreaks.Add(outbreak);
+        world.Docket.Schedule(outbreak.NextStep, DocketKind.OutbreakStep, outbreak.OriginId);
 
-        int lost = Kill(world, outbreak, origin, rng);
+        int lost = Kill(
+            world, outbreak, origin,
+            outbreak.StepDays / (double)world.Config.Calendar.DaysPerYear, rng);
 
         var data = Chronicle.Data(("name", outbreak.Name));
         if (lost >= NotableLoss) data["lost"] = lost.ToString(CultureInfo.InvariantCulture);

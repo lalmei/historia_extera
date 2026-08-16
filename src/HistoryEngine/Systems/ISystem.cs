@@ -103,8 +103,16 @@ public interface ISystem
 /// </remarks>
 public interface IEpisodic
 {
-    /// <summary>The one kind of scheduled work this system answers for.</summary>
-    DocketKind Handles { get; }
+    /// <summary>
+    /// The kinds of scheduled work this system answers for.
+    /// </summary>
+    /// <remarks>
+    /// A list rather than one kind, because the second consumer wanted two the moment it existed:
+    /// a plague both travels to a town and steps the outbreak that sent it, and those are different
+    /// work on the same model. Splitting them across two systems to keep this singular would have
+    /// put one model's state behind two owners, which is a worse thing than a list.
+    /// </remarks>
+    IReadOnlyList<DocketKind> Handles { get; }
 
     /// <summary>
     /// Resolves one entry that has fallen due.
