@@ -25,8 +25,21 @@ namespace HistoryEngine.Systems;
 /// </remarks>
 public sealed class WarSystem : ISystem
 {
-    /// <summary>Chance a war sees a pitched engagement in any given year.</summary>
-    private const double CampaignChance = 0.55;
+    /// <summary>
+    /// Chance a war sees a pitched engagement in any one open season.
+    /// </summary>
+    /// <remarks>
+    /// <para>Derived from the 0.55 a year this used to be, rather than chosen afresh: a war whose
+    /// ground is open all four seasons should still see about the same number of engagements it saw
+    /// when the year was the tick. That is <c>1 − (1 − 0.55)^¼ = 0.1809</c>, written out as a
+    /// literal because the engine will not evaluate a transcendental on a decision path — and
+    /// because a constant whose derivation is in a comment is easier to check than a call.</para>
+    ///
+    /// <para>What changes is the north. A realm whose winter closes loses a quarter of its
+    /// campaigning year, and fights measurably less than an equatorial one for the first time. That
+    /// asymmetry is the point of the milestone rather than a side effect of it.</para>
+    /// </remarks>
+    private const double CampaignChance = 0.1809;
 
     /// <summary>
     /// Years a war must run before either side will treat.
@@ -71,13 +84,33 @@ public sealed class WarSystem : ISystem
 
     public string Name => "war";
 
-    public Cadence Cadence => Cadence.Annual;
+    public Cadence Cadence => Cadence.Seasonal;
 
+    /// <summary>
+    /// Campaigns are fought by the season; terms are agreed once a year.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>The split is the model, not a way of preserving arithmetic.</b> Taking the field is
+    /// exactly the decision a season governs — it is what the closed season closes — while whether
+    /// a realm has had enough of a war is a judgement about a year of it, and asking it four times
+    /// would end wars four times as readily for no reason anybody in them would recognise. Peace is
+    /// therefore settled in the closing season, between campaigns, which is also when it was
+    /// historically agreed.</para>
+    ///
+    /// <para>The stream forks on the absolute season rather than the year, per the fork rule for a
+    /// seasonal system: monotone, unique, and independent of how many steps any other system took.
+    /// An annual system's <c>Fork(Name, year)</c> is untouched, so nothing that kept its cadence
+    /// drew a different number because this one changed.</para>
+    /// </remarks>
     public void Tick(WorldState world, Stamp now)
     {
         int year = now.Year;
+        Calendar calendar = world.Config.Calendar;
 
-        IRng rng = world.Root.Fork(Name, year);
+        int season = now.Day / calendar.DaysPerSeason;
+        bool closing = season == calendar.SeasonsPerYear - 1;
+
+        IRng rng = world.Root.Fork(Name, calendar.AbsoluteDay(now) / calendar.DaysPerSeason);
 
         // Collected first: making peace does not change the war table, but ending one can end a
         // civilization, and iterating the table while a fall reshapes territory is asking for it.
@@ -92,10 +125,47 @@ public sealed class WarSystem : ISystem
                 continue;
             }
 
-            if (rng.Chance(CampaignChance)) Warfare.Fight(world, war, year, rng);
+            if (InSeason(world, war, season) && rng.Chance(CampaignChance))
+            {
+                Warfare.Fight(world, war, year, rng);
+            }
 
-            if (ShouldSettle(war, year, rng)) Warfare.MakePeace(world, war, year, rng);
+            if (closing && ShouldSettle(war, year, rng)) Warfare.MakePeace(world, war, year, rng);
         }
+    }
+
+    /// <summary>
+    /// Whether this war's ground is open to an army this season.
+    /// </summary>
+    /// <remarks>
+    /// <para>Read from the defender's seat, because that is the ground campaigned over: an army
+    /// marches into the territory it is trying to take, and its own winter is not what stops it. A
+    /// war whose defender cannot be located leaves the season open rather than closed — a war that
+    /// silently stopped being fought because a lookup failed is far worse than one fought in the
+    /// snow.</para>
+    ///
+    /// <para>The first defender rather than a poll of the coalition. A coalition's members are
+    /// usually neighbours, the answer is the same for all of them in the great majority of cases,
+    /// and a war fought across two hemispheres is a curiosity this does not need to resolve
+    /// correctly to be worth having.</para>
+    /// </remarks>
+    private static bool InSeason(WorldState world, War war, int season)
+    {
+        if (war.Defenders.Count == 0) return true;
+
+        EntityId defenderId = war.Defenders[0];
+        if (!world.Civilizations.Contains(defenderId)) return true;
+
+        Civilization defender = world.Civilizations[defenderId];
+        if (!world.Settlements.Contains(defender.CapitalId)) return true;
+
+        EntityId regionId = world.Settlements[defender.CapitalId].RegionId;
+        if (!world.Regions.Contains(regionId)) return true;
+
+        Calendar calendar = world.Config.Calendar;
+
+        return Seasons.Campaigning(
+            world.Regions[regionId], season, calendar.SeasonsPerYear, world.Config.WorldSize);
     }
 
     /// <summary>

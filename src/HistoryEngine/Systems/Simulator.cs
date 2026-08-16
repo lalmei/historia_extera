@@ -19,11 +19,15 @@ namespace HistoryEngine.Systems;
 /// exactly as much as changing the seed does — population growth before promotion produces a
 /// different chronicle than promotion before growth.</para>
 ///
-/// <para><b>One step per year, and every system <see cref="Cadence.Annual"/>.</b> The loop below is
-/// still a year loop, which is the point of building the clock before anything runs on it: the
-/// stamp, the calendar and the docket are all in place and reviewable, and the fingerprint proves
-/// no history moved. Finer cadences change this loop and nothing else about the shape of the
-/// engine.</para>
+/// <para><b>The year is stepped in seasons, and most systems run in the first of them.</b> An
+/// <see cref="Cadence.Annual"/> system ticks in the opening season and not the others, which is
+/// exactly what it did when the year was one step: it sees the world in the order it always saw it
+/// and cannot tell that three more steps follow. That is what lets systems be re-phased one at a
+/// time, each with its own readable calibration, instead of in one change that moves everything.</para>
+///
+/// <para>An <see cref="Cadence.Episodic"/> system is never reached by this loop at all — it is
+/// woken by the docket, so a system with nothing scheduled costs nothing. Nothing here iterates
+/// days, and nothing ever should.</para>
 /// </remarks>
 public sealed class Simulator
 {
@@ -83,13 +87,14 @@ public sealed class Simulator
     /// who died in bed — and succession must precede the houses or a new king's brothers are still
     /// ranked as heirs on the day he is crowned, and marry accordingly.</para>
     ///
-    /// <para><b>Every system here is annual.</b> Several of them are described above as if the year
-    /// had parts — "a war declared this spring is fought this summer", "a province taken in a
-    /// spring campaign", "a crown made in the reign of a ruler crowned this spring". None of those
-    /// springs exists yet: they are what the ordering <em>means</em>, written down before there was
-    /// a calendar to say it with. Giving <c>crown</c>, <c>war</c> and <c>expansion</c> their seasons
-    /// is a separate change, staged on its own so its calibration can be read without a mechanical
-    /// refactor underneath it.</para>
+    /// <para><b>One of these springs now exists.</b> Several systems are described above as if the
+    /// year had parts — "a war declared this spring is fought this summer", "a province taken in a
+    /// spring campaign", "a crown made in the reign of a ruler crowned this spring" — and they were
+    /// written down before there was a calendar to say it with. <c>war</c> is the first to get its
+    /// seasons, and it is deliberately the only one: each re-phasing changes every history in the
+    /// world, so moving several at once would present one fingerprint change with several
+    /// calibrations inside it and no way to read them apart. <c>crown</c> and <c>expansion</c>
+    /// follow separately.</para>
     /// </remarks>
     public static IReadOnlyList<ISystem> DefaultSystems() => new ISystem[]
     {
@@ -190,25 +195,54 @@ public sealed class Simulator
         }
     }
 
+    /// <summary>
+    /// Whether a system of this cadence runs in this season of the year.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>An annual system runs in the opening season and not the others</b>, which is what
+    /// makes the whole re-phasing safe to land one system at a time: an annual system sees the
+    /// world in the order it always saw it, at the step it always ran in, and cannot tell that
+    /// three more steps happen after it.</para>
+    ///
+    /// <para>An episodic system is never run by the clock at all. It is woken by the docket, and a
+    /// system with nothing scheduled costs nothing — the property that makes the day affordable
+    /// without ever being iterated.</para>
+    /// </remarks>
+    private static bool RunsIn(Cadence cadence, int season) => cadence switch
+    {
+        Cadence.Annual => season == 0,
+        Cadence.Seasonal => true,
+        _ => false,
+    };
+
     private void Tick(WorldState world, int year)
     {
-        // Day zero, because an annual system has nowhere finer to claim it acted. Dating one to
-        // the middle of the year would be inventing a date the model has not earned.
-        Stamp now = Stamp.Opening(year);
-        world.Now = now;
+        Calendar calendar = world.Config.Calendar;
 
-        // The chronicle is told the same thing the systems are, so an event carries the step it was
-        // written in without every recording call having to name one. See IChronicle.OpenStep.
-        world.Chronicle.OpenStep(now);
-
-        for (int i = 0; i < _systems.Count; i++)
+        for (int season = 0; season < calendar.SeasonsPerYear; season++)
         {
-            world.Chronicle.EnterSystem(i);
-            _systems[i].Tick(world, now);
-        }
+            // The step's day is the season's first, because a system ticking a season acts across
+            // it rather than on a particular morning of it. A system that earns a finer date says
+            // so by scheduling on the docket, which is the only thing in the engine that names a
+            // day the clock did not.
+            Stamp now = new Stamp(year, season * calendar.DaysPerSeason);
+            world.Now = now;
 
-        // Before Observe, so the step's log is settled before anything samples it.
-        world.Chronicle.CloseStep();
+            // The chronicle is told the same thing the systems are, so an event carries the step it
+            // was written in without every recording call having to name one. See OpenStep.
+            world.Chronicle.OpenStep(now);
+
+            for (int i = 0; i < _systems.Count; i++)
+            {
+                if (!RunsIn(_systems[i].Cadence, season)) continue;
+
+                world.Chronicle.EnterSystem(i);
+                _systems[i].Tick(world, now);
+            }
+
+            // Before the next step opens, so the log is settled while it is still this step's.
+            world.Chronicle.CloseStep();
+        }
 
         Observe(world, year);
 
