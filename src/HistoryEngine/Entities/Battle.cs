@@ -2,6 +2,26 @@ using HistoryEngine.Core;
 
 namespace HistoryEngine.Entities;
 
+/// <summary>How an invested settlement's siege ended.</summary>
+/// <remarks>
+/// Explicit values because this is exported. A field battle uses <see cref="NotSiege"/>; an
+/// invested settlement begins <see cref="Ongoing"/> and reaches exactly one terminal outcome.
+/// </remarks>
+public enum SiegeOutcome
+{
+    NotSiege = 0,
+    Ongoing = 1,
+
+    /// <summary>The investing army broke the defence and took the place.</summary>
+    Carried = 2,
+
+    /// <summary>A defending force defeated the investing army.</summary>
+    Relieved = 3,
+
+    /// <summary>The investment ended without a deciding engagement.</summary>
+    Lifted = 4,
+}
+
 /// <summary>
 /// One engagement in a war, named for where it was fought.
 /// </summary>
@@ -11,9 +31,10 @@ namespace HistoryEngine.Entities;
 /// lost its king at one, and the reader wants a page listing who fought and what it cost. A truce
 /// is a state of two realms and reads perfectly well as an event.</para>
 ///
-/// <para>A siege is not a separate kind. It is a battle whose <see cref="SettlementId"/> is set,
-/// which is what makes the walls count and what puts a town at risk of being sacked. Splitting
-/// them would duplicate the whole resolution for the sake of one adjective.</para>
+/// <para>A siege is not a separate entity kind. It is a battle episode whose
+/// <see cref="SettlementId"/> is set and whose <see cref="SiegeOutcome"/> begins ongoing. A field
+/// battle starts and ends on one stamp; a siege keeps the same participants and committed forces
+/// until its scheduled decision, relief, or lifting.</para>
 /// </remarks>
 public sealed class Battle
 {
@@ -21,13 +42,14 @@ public sealed class Battle
         EntityId id,
         string name,
         EntityId warId,
-        int year,
+        Stamp startedAt,
         EntityId regionId)
     {
         Id = id;
         Name = name;
         WarId = warId;
-        Year = year;
+        Year = startedAt.Year;
+        Day = startedAt.Day;
         RegionId = regionId;
     }
 
@@ -39,6 +61,14 @@ public sealed class Battle
     public EntityId WarId { get; }
 
     public int Year { get; }
+
+    /// <summary>Day within <see cref="Year"/> on which the engagement began.</summary>
+    public int Day { get; }
+
+    /// <summary>When a siege ended. A field battle ends where it began.</summary>
+    public int? EndYear { get; set; }
+
+    public int? EndDay { get; set; }
 
     /// <summary>Where it was fought. Always set: a battle without a place cannot be named.</summary>
     public EntityId RegionId { get; }
@@ -54,6 +84,14 @@ public sealed class Battle
 
     /// <summary>True if the settlement was actually invested rather than merely fought over.</summary>
     public bool IsSiege { get; set; }
+
+    public SiegeOutcome SiegeOutcome { get; set; } = SiegeOutcome.NotSiege;
+
+    public Stamp StartedAt => new(Year, Day);
+
+    public Stamp? EndedAt => EndYear is int year && EndDay is int day ? new Stamp(year, day) : null;
+
+    public bool IsResolved => !IsSiege || SiegeOutcome is not SiegeOutcome.Ongoing;
 
     /// <summary>The realm that took the field. Not necessarily the war's aggressor.</summary>
     public EntityId AttackerId { get; set; } = EntityId.None;
@@ -80,5 +118,5 @@ public sealed class Battle
 
     public int TotalLosses => AttackerLosses + DefenderLosses;
 
-    public override string ToString() => $"{Id} {Name} ({Year})";
+    public override string ToString() => $"{Id} {Name} ({StartedAt})";
 }

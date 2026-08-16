@@ -251,6 +251,12 @@ public sealed class WarTests
     public void EveryBattleIsWellFormed()
     {
         WorldState world = HistoryRun.Execute(TestWorlds.Standard()).World;
+        Calendar calendar = world.Config.Calendar;
+
+        int ongoing = 0;
+        int carried = 0;
+        int relieved = 0;
+        int lifted = 0;
 
         foreach (Battle battle in world.Battles)
         {
@@ -258,10 +264,6 @@ public sealed class WarTests
             Assert.True(world.Regions.Contains(battle.RegionId), $"{battle.Name} was fought nowhere.");
 
             Assert.NotEqual(battle.AttackerId, battle.DefenderId);
-            Assert.True(
-                battle.VictorId == battle.AttackerId || battle.VictorId == battle.DefenderId,
-                $"{battle.Name} was won by somebody who was not there.");
-
             Assert.True(
                 battle.AttackerLosses <= battle.AttackerStrength
                 && battle.DefenderLosses <= battle.DefenderStrength,
@@ -271,12 +273,84 @@ public sealed class WarTests
             if (battle.IsSiege) Assert.True(world.Settlements.Contains(battle.SettlementId));
             if (battle.Sacked) Assert.True(world.Settlements.Contains(battle.SettlementId));
 
+            if (!battle.IsSiege)
+            {
+                Assert.Equal(SiegeOutcome.NotSiege, battle.SiegeOutcome);
+                Assert.Equal(battle.StartedAt, battle.EndedAt);
+                Assert.True(
+                    battle.VictorId == battle.AttackerId || battle.VictorId == battle.DefenderId,
+                    $"{battle.Name} was won by somebody who was not there.");
+            }
+            else
+            {
+                ValidateSiege(world, calendar, battle);
+
+                switch (battle.SiegeOutcome)
+                {
+                    case SiegeOutcome.Ongoing:
+                        ongoing++;
+                        break;
+                    case SiegeOutcome.Carried:
+                        carried++;
+                        break;
+                    case SiegeOutcome.Relieved:
+                        relieved++;
+                        break;
+                    case SiegeOutcome.Lifted:
+                        lifted++;
+                        break;
+                }
+            }
+
             War war = world.Wars[battle.WarId];
             Assert.Contains(battle.Id, war.BattleIds);
             Assert.True(
                 war.Involves(battle.AttackerId) && war.Involves(battle.DefenderId),
                 $"{battle.Name} was fought by realms that were not at war.");
         }
+
+        Assert.True(carried > 0, "No siege was ever carried.");
+        Assert.True(relieved > 0, "No siege was ever relieved.");
+        Assert.True(lifted > 0, "No siege was ever lifted without a deciding battle.");
+        Assert.True(ongoing <= 1, $"The run ended with {ongoing} sieges still consuming campaigns.");
+
+        var episodic = Assert.IsAssignableFrom<IEpisodic>(new WarSystem());
+        Assert.Contains(DocketKind.SiegeResolves, episodic.Handles);
+    }
+
+    /// <summary>A siege is begun once and ends once, on its own stamp rather than a yearly tick.</summary>
+    private static void ValidateSiege(WorldState world, Calendar calendar, Battle battle)
+    {
+        HistoryEvent began = Assert.Single(
+            world.Chronicle.Events,
+            entry => entry.Kind == EventKind.SiegeBegan && entry.Subject == battle.Id);
+
+        Assert.Equal(battle.StartedAt, began.At);
+
+        if (battle.SiegeOutcome == SiegeOutcome.Ongoing)
+        {
+            Assert.Null(battle.EndedAt);
+            Assert.Equal(EntityId.None, battle.VictorId);
+            return;
+        }
+
+        Stamp ended = Assert.IsType<Stamp>(battle.EndedAt);
+        long duration = calendar.AbsoluteDay(ended) - calendar.AbsoluteDay(battle.StartedAt);
+
+        Assert.InRange(duration, 0, 150);
+        Assert.Equal(
+            battle.SiegeOutcome == SiegeOutcome.Carried ? battle.AttackerId : battle.DefenderId,
+            battle.VictorId);
+
+        EventKind ending = battle.SiegeOutcome == SiegeOutcome.Lifted
+            ? EventKind.SiegeLifted
+            : EventKind.BattleFought;
+
+        HistoryEvent resolved = Assert.Single(
+            world.Chronicle.Events,
+            entry => entry.Kind == ending && entry.Subject == battle.Id);
+
+        Assert.Equal(ended, resolved.At);
     }
 
     /// <summary>

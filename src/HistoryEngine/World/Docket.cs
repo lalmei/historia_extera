@@ -10,11 +10,10 @@ namespace HistoryEngine.World;
 /// due on the same day come off the docket in is a property of this enum's numbering, and a
 /// reordering of the declarations would be a change of history rather than a tidy-up.</para>
 ///
-/// <para><b>Declared ahead of its consumers, deliberately.</b> The docket's total order needs a
-/// stable domain before anything can be scheduled against it, and the clock is being built one
-/// stage before anything is allowed to use it — the whole point of that stage being that it can be
-/// reviewed against a fingerprint proving it changed nothing. Nothing schedules any of these
-/// yet.</para>
+/// <para><b>Declared ahead of its consumers, deliberately.</b> The docket's total order needed a
+/// stable domain before anything could be scheduled against it, so these names landed with the
+/// inert clock and were filled one at a time afterwards. All three now have consumers; their values
+/// retain the order fixed by that first stage.</para>
 /// </remarks>
 public enum DocketKind
 {

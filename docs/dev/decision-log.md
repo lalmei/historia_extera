@@ -1860,8 +1860,9 @@ viewer reading it.
 
 ### Time: seasons on the year, and days where they are earned
 
-> **In progress** as M13, and staged so that every part of it that can land without moving a
-> history does so first. Three stages are in, each of them inert and each verified as inert:
+> **Built** as M13, staged so that every part of it that could land without moving a history did
+> so first. The first three stages were inert and each was verified as inert before cadence or
+> scheduled work was allowed to change a world:
 >
 > 1. **The clock.** `Stamp`, `Calendar`, `Docket` and a `Cadence` on every system. Nothing used
 >    any of it; the fingerprint proved so.
@@ -1952,12 +1953,25 @@ viewer reading it.
 > in "a crown made in the reign of a ruler crowned this spring" belongs to `artifacts` running
 > after the houses, and is already true of the ordering.
 >
-> What is left is `SiegeResolves`, the last kind with no consumer. A siege is the
-> largest of the three and the only one that is not a re-phasing of something already modelled: it
-> needs state that does not exist, and it has to take its share of campaigns that are currently
-> all pitched battles, so `Warfare` is calibrated around a world in which no engagement lasts.
-> Measurements quoted from the current world are measurements; every number attached to the part
-> not yet built is an estimate and is marked as one.
+> 9. **A siege lasts.** `SiegeResolves`, the last declared docket kind, now has its consumer. A
+>    seasonal campaign at a walled or town-sized settlement begins an investment, commits its two
+>    forces and commanders, and schedules the decision forty-five to one hundred and fifty days
+>    out. The war spends no second campaign elsewhere while that army is invested: a later campaign
+>    is the relief force coming to meet it. A closed campaigning season or a peace can lift it first,
+>    and stale docket entries then do nothing rather than resolving the same siege twice.
+>
+> This is the stage that needed state rather than only a re-phasing. A battle now keeps its opening
+> and ending stamps and one explicit siege outcome — ongoing, carried, relieved, or lifted — and
+> schema 18 carries those facts to the viewer. The event log keeps both ends: `SiegeBegan`, then
+> either the deciding `BattleFought` or `SiegeLifted`; it never edits the beginning after learning
+> the end.
+>
+> Across seeds 2, 7, 11, 42 and 99, 73 wars produced 114 immediate field battles and 143 siege
+> episodes. Of the sieges, 53 were carried, 76 relieved, and 14 lifted without a deciding battle —
+> ten by the season and four by the peace. Their median span was 90 days and the longest 150. The
+> important calibration is what did *not* inflate: 243 engagements were actually fought, against
+> the 240 measured when war first became seasonal. The extra fourteen records are investments that
+> ended without pretending a pitched battle occurred.
 
 The year is the atom, and it is the last load-bearing choice in this engine that was never
 argued for. `IYearSystem.Tick(world, year)` is the only entry point a system has,

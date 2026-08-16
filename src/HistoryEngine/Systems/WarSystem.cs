@@ -5,12 +5,12 @@ using HistoryEngine.World;
 namespace HistoryEngine.Systems;
 
 /// <summary>
-/// Prosecutes the wars diplomacy declared: campaigns, and the peace that ends them.
+/// Prosecutes the wars diplomacy declared: campaigns, siege episodes, and the peace that ends them.
 /// </summary>
 /// <remarks>
 /// <para>Deliberately small. Everything that changes the world lives in <see cref="Warfare"/>;
-/// what is left here is the two decisions a year of war actually consists of — whether an army
-/// takes the field, and whether either side has had enough.</para>
+/// what is left here is when an army takes the field, what wakes an invested army, and whether
+/// either side has had enough.</para>
 ///
 /// <para><b>Runs before the figure lifecycle, and that ordering is load-bearing.</b> A ruler
 /// killed at a battle must be dead before the succession system runs in the same year, or the
@@ -23,7 +23,7 @@ namespace HistoryEngine.Systems;
 /// another. At roughly one year in two, wars produce campaigns with lulls in them, and the long
 /// grinding ones stand out from the short decisive ones.</para>
 /// </remarks>
-public sealed class WarSystem : ISystem
+public sealed class WarSystem : ISystem, IEpisodic
 {
     /// <summary>
     /// Chance a war sees a pitched engagement in any one open season.
@@ -86,6 +86,17 @@ public sealed class WarSystem : ISystem
 
     public Cadence Cadence => Cadence.Seasonal;
 
+    /// <summary>The scheduled decision of an invested settlement.</summary>
+    public IReadOnlyList<DocketKind> Handles { get; } = new[] { DocketKind.SiegeResolves };
+
+    /// <summary>Hands a siege its decision on the day it was due.</summary>
+    public void Resolve(WorldState world, DocketEntry entry, Stamp now)
+    {
+        if (entry.Kind != DocketKind.SiegeResolves || !world.Battles.Contains(entry.Subject)) return;
+
+        Warfare.ResolveSiege(world, world.Battles[entry.Subject], entry.Due);
+    }
+
     /// <summary>
     /// Campaigns are fought by the season; terms are agreed once a year.
     /// </summary>
@@ -121,16 +132,44 @@ public sealed class WarSystem : ISystem
         {
             if (Abandoned(world, war))
             {
+                if (Warfare.ActiveSiege(world, war) is Battle abandoned)
+                {
+                    Warfare.LiftSiege(world, abandoned, now, "one side could no longer keep the field");
+                }
+
                 Warfare.MakePeace(world, war, year, rng);
                 continue;
             }
 
-            if (InSeason(world, war, season) && rng.Chance(CampaignChance))
+            Battle? siege = Warfare.ActiveSiege(world, war);
+
+            if (siege is not null)
             {
-                Warfare.Fight(world, war, year, rng);
+                if (!InSeason(world, siege.RegionId, season))
+                {
+                    Warfare.LiftSiege(world, siege, now, "the campaigning season closed");
+                }
+                else if (rng.Chance(CampaignChance))
+                {
+                    // While an army is invested, the next campaign is the force coming to meet it,
+                    // not a second unrelated objective somewhere else in the war.
+                    Warfare.ResolveSiege(world, siege, now, relief: true);
+                }
+            }
+            else if (InSeason(world, war, season) && rng.Chance(CampaignChance))
+            {
+                Warfare.Fight(world, war, now, rng);
             }
 
-            if (closing && ShouldSettle(war, year, rng)) Warfare.MakePeace(world, war, year, rng);
+            if (closing && ShouldSettle(war, year, rng))
+            {
+                if (Warfare.ActiveSiege(world, war) is Battle overtaken)
+                {
+                    Warfare.LiftSiege(world, overtaken, now, "peace overtook the investment");
+                }
+
+                Warfare.MakePeace(world, war, year, rng);
+            }
         }
     }
 
@@ -159,7 +198,12 @@ public sealed class WarSystem : ISystem
         Civilization defender = world.Civilizations[defenderId];
         if (!world.Settlements.Contains(defender.CapitalId)) return true;
 
-        EntityId regionId = world.Settlements[defender.CapitalId].RegionId;
+        return InSeason(world, world.Settlements[defender.CapitalId].RegionId, season);
+    }
+
+    /// <summary>The season on the actual siege ground, rather than at either realm's seat.</summary>
+    private static bool InSeason(WorldState world, EntityId regionId, int season)
+    {
         if (!world.Regions.Contains(regionId)) return true;
 
         Calendar calendar = world.Config.Calendar;

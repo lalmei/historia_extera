@@ -114,7 +114,8 @@ episodes, not with calendar length.
 
 Most systems remain annual. `expansion` and `war` are seasonal in the current checkout;
 `plague` still performs its annual ignition work and also handles scheduled outbreak
-steps and arrivals.
+steps and arrivals, while `war` schedules a siege's decision instead of resolving an
+investment on the campaign day that began it.
 
 ### Entities and ownership
 
@@ -227,12 +228,12 @@ not a runtime architecture. A deployed viewer remains a reader of exported histo
 | M10 | Site selection driven by meaningful ground | Done |
 | M11 | Offices, appointments, governors, and founding parties | Done |
 | M12 | Ruler dispositions and realm fortunes | Done |
-| M13 | Seasons, dated events, and scheduled episodes | In progress |
+| M13 | Seasons, dated events, and scheduled episodes | Done |
 | M14 | Notable households and office succession | Done |
 
-The immediate active design is M13. It is being staged so mechanical clock changes,
-export changes, cadence changes, and episode scheduling can be reviewed and calibrated
-separately.
+M13 landed in independently reviewable stages: the clock and dated record first, seasonal
+war and expansion next, then plague travel and outbreak clocks, and finally sieges as
+scheduled episodes. The engine now has no declared docket kind without a consumer.
 
 Beyond the numbered milestones:
 

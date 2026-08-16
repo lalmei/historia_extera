@@ -107,6 +107,10 @@ public static class Narration
             "{subject} was sacked by {object}[, losing {data:lost} people].");
         Set(EventKind.WarEnded,
             "The {subject} ended[ after {data:years}][, {data:outcome}][ for {object}].");
+        Set(EventKind.SiegeBegan,
+            "{object} invested {location}. So began the {subject}.");
+        Set(EventKind.SiegeLifted,
+            "The {subject} was lifted[, {data:cause}].");
 
         Set(EventKind.ReligionFounded,
             "The {subject} was first preached[ by {object}][ at {location}].");
