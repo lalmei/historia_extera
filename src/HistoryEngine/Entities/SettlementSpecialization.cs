@@ -14,6 +14,8 @@ public enum SettlementSpecialization
     Trade = 5,
     Crafts = 6,
     Shrine = 7,
+    Military = 8,
+    Quarry = 9,
 }
 
 /// <summary>
@@ -58,6 +60,8 @@ public static class Specializations
         SettlementSpecialization.Trade => 0.65,
         SettlementSpecialization.Crafts => 0.80,
         SettlementSpecialization.Shrine => 0.60,
+        SettlementSpecialization.Military => 0.45,
+        SettlementSpecialization.Quarry => 0.35,
         _ => 1.0,
     };
 
@@ -93,6 +97,8 @@ public static class Specializations
         SettlementSpecialization.Trade => 240.0,
         SettlementSpecialization.Crafts => 260.0,
         SettlementSpecialization.Shrine => 300.0,
+        SettlementSpecialization.Military => 200.0,
+        SettlementSpecialization.Quarry => 300.0,
         _ => 110.0,
     };
 
@@ -125,6 +131,8 @@ public static class Specializations
         SettlementSpecialization.Trade => 900.0,
         SettlementSpecialization.Crafts => 700.0,
         SettlementSpecialization.Shrine => 480.0,
+        SettlementSpecialization.Military => 1000.0,
+        SettlementSpecialization.Quarry => 560.0,
         _ => 130.0,
     };
 
@@ -140,6 +148,8 @@ public static class Specializations
         SettlementSpecialization.Trade => 0.45,
         SettlementSpecialization.Crafts => 0.55,
         SettlementSpecialization.Shrine => 0.40,
+        SettlementSpecialization.Military => 0.85,
+        SettlementSpecialization.Quarry => 0.45,
         _ => 0.90,
     };
 
@@ -160,6 +170,8 @@ public static class Specializations
         SettlementSpecialization.Trade => 0.75,
         SettlementSpecialization.Crafts => 0.60,
         SettlementSpecialization.Shrine => 0.45,
+        SettlementSpecialization.Military => 0.85,
+        SettlementSpecialization.Quarry => 0.85,
         _ => 0.25,
     };
 
@@ -172,6 +184,8 @@ public static class Specializations
         SettlementSpecialization.Trade => "trade",
         SettlementSpecialization.Crafts => "craftwork",
         SettlementSpecialization.Shrine => "pilgrimage",
+        SettlementSpecialization.Military => "military",
+        SettlementSpecialization.Quarry => "quarry",
         _ => "nothing in particular",
     };
 }

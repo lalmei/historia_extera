@@ -54,6 +54,13 @@ public sealed class OfficeTests
 
         foreach (OfficeKind kind in Enum.GetValues<OfficeKind>())
         {
+            // Declared ahead of the systems that fill them. Reaching one here would mean a
+            // grant path landed before the office had a court, a candidate pool, or a title.
+            if (kind is OfficeKind.GuildMaster or OfficeKind.Merchant or OfficeKind.Noble)
+            {
+                continue;
+            }
+
             Assert.Contains(kind, kinds);
         }
 

@@ -31,9 +31,32 @@ public enum SiteCharacter
     /// <summary>The low way through high country.</summary>
     Pass = 6,
 
-    // There is no value for defensible high ground. M10 set out to add one and measured four
-    // formulations of it, each of which put more settlements on unbuildable ground than the label
-    // was worth — see SiteSelection.SteepestGrade.
+    /// <summary>A fortress on a defensible position.</summary>
+    Fortress = 7,
+
+    /// <summary>A mine site.</summary>
+    Mine = 8,
+
+    /// <summary>Within a trading route.</summary>
+    TradeRoute = 9,
+
+    /// <summary>A Holy Site.</summary>
+    HolySite = 10,
+
+    /// <summary>A quarry site.</summary>
+    Quarry = 11,
+
+    /// <summary>A strategic position.</summary>
+    Strategic = 12,
+
+    // Values 7-12 are declared ahead of the selection that would produce them. SiteSelection.
+    // CharacterAt returns nothing above Pass, so no settlement carries one of them yet and no
+    // reader should expect to see one.
+    //
+    // Fortress in particular is a name, not a decision that has been made: M10 set out to select
+    // for defensible high ground and measured four formulations of it, each of which put more
+    // settlements on unbuildable ground than the label was worth — see SiteSelection.SteepestGrade.
+    // Whatever eventually fills Fortress has to answer that measurement rather than repeat it.
 }
 
 public static class SiteCharacters
@@ -46,6 +69,12 @@ public static class SiteCharacters
         SiteCharacter.Harbour => "on sheltered water",
         SiteCharacter.Coastal => "on the coast",
         SiteCharacter.Pass => "astride the pass",
+        SiteCharacter.Fortress => "on a defensible position",
+        SiteCharacter.Mine => "by a mine site",
+        SiteCharacter.TradeRoute => "within a trading route",
+        SiteCharacter.HolySite => "a holy site",
+        SiteCharacter.Quarry => "a quarry site",
+        SiteCharacter.Strategic => "a strategic position",
         _ => "on open ground",
     };
 

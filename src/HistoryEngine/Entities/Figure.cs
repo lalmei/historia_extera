@@ -61,6 +61,12 @@ public enum FigureOrigin
 
     /// <summary>A standing figure of their own town.</summary>
     Townsfolk = 3,
+
+    /// <summary>Rose through a guild.</summary>
+    Guild = 4,
+
+    /// <summary>Rose through a merchant house.</summary>
+    Merchant = 5,
 }
 
 /// <summary>
@@ -85,6 +91,9 @@ public enum OfficeKind
     Marshal = 3,
     HighPriest = 4,
     Governor = 5,
+    GuildMaster = 6,
+    Merchant = 7,
+    Noble = 8,
 }
 
 /// <summary>An office held over a span of years.</summary>

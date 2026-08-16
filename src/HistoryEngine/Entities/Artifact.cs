@@ -11,6 +11,8 @@ public enum ArtifactKind
     Tome = 3,
     Idol = 4,
     Jewel = 5,
+    Clothing = 6,
+    Armor = 7,
 }
 
 /// <summary>The kind of account preserved inside a <see cref="ArtifactKind.Tome"/>.</summary>
@@ -121,6 +123,8 @@ public static class ArtifactKinds
         new[] { "Book", "Codex", "Chronicle", "Testament" },    // Tome
         new[] { "Idol", "Effigy", "Statue", "Icon" },           // Idol
         new[] { "Jewel", "Circlet", "Torc", "Ring" },           // Jewel
+        new[] { "Clothing", "Garment", "Garb", "Apparel" },     // Clothing
+        new[] { "Armor", "Plate", "Hauberk", "Cuirass" },       // Armor
     };
 
     /// <summary>The noun this artifact's name is built on: "the <b>Shroud</b> of Aigionanvos".</summary>
@@ -144,6 +148,8 @@ public static class ArtifactKinds
         ArtifactKind.Tome => "a book",
         ArtifactKind.Idol => "an idol",
         ArtifactKind.Jewel => "a jewel",
+        ArtifactKind.Clothing => "clothing",
+        ArtifactKind.Armor => "armor",
         _ => "a treasure",
     };
 }
