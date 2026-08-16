@@ -32,6 +32,7 @@ public sealed class WorldState
         Terrain = terrain;
         Root = root;
         Names = names;
+        Flavour = WorldFlavour.From(config.Seed, names);
 
         Cultures = new EntityTable<Culture>(EntityKind.Culture);
         Civilizations = new EntityTable<Civilization>(EntityKind.Civilization);
@@ -66,6 +67,16 @@ public sealed class WorldState
     public IRng Root { get; }
 
     public INameGenerator Names { get; }
+
+    /// <summary>
+    /// The world's own name, and whether it is a planet or a moon.
+    /// </summary>
+    /// <remarks>
+    /// Derived from the seed at construction, independently of <see cref="Root"/>, so adding
+    /// this flavour cannot shift a founding, a battle, or any other name. The seed remains the
+    /// thing you type to reproduce the history; this is the thing you read to recognise it.
+    /// </remarks>
+    public WorldFlavour Flavour { get; }
 
     public Chronicle Chronicle { get; }
 

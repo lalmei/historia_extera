@@ -110,14 +110,29 @@ public sealed record ExportSampleStats(
 /// <param name="EastWestPeriodic">
 /// Whether the east and west edges are the same meridian.
 /// </param>
+/// <param name="Designation">
+/// How the world is spoken of: "The planet Borion", "The 3rd moon of Endor". Unique to the
+/// seed, and what a list of histories is labelled by.
+/// </param>
 /// <remarks>
 /// <para><see cref="EastWestPeriodic"/> is carried because a viewer cannot infer it and draws the
 /// world wrong without it. The simulation already measures distance the short way round, so a
 /// trade route between a town at the western edge and one at the eastern edge is a neighbourly
 /// link — and a map that has not been told the world wraps draws it as a line clean across the
 /// continent, which is the one reading that is certainly false.</para>
+///
+/// <para>The name fields sit first so a catalog that only reads the file header — cutting at
+/// the raster payload — still learns what to call the world. They are flavour derived from the
+/// seed, not simulation inputs: two runs of the same seed with different year counts keep the
+/// same designation, and the seed itself remains in <see cref="ExportMeta"/> for reproduction.
+/// </para>
 /// </remarks>
 public sealed record ExportWorld(
+    string Name,
+    WorldKind Kind,
+    string Designation,
+    string? ParentName,
+    int? MoonIndex,
     int MinX,
     int MinZ,
     int Width,

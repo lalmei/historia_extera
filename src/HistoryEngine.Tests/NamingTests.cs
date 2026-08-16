@@ -411,6 +411,22 @@ public sealed class MarkovNameGeneratorTests
         Assert.True(names.Distinct().Count() > 25, "Region names are barely varying.");
     }
 
+    [Fact]
+    public void WorldBodyNamesDependOnlyOnTheSeedAndRole()
+    {
+        var forward = new MarkovNameGenerator(31);
+        var backward = new MarkovNameGenerator(31);
+
+        string body = forward.ForWorld(WorldNameRole.Body);
+        string parent = backward.ForWorld(WorldNameRole.Parent);
+        string bodyAgain = backward.ForWorld(WorldNameRole.Body);
+        string parentAgain = forward.ForWorld(WorldNameRole.Parent);
+
+        Assert.Equal(body, bodyAgain);
+        Assert.Equal(parent, parentAgain);
+        Assert.NotEqual(body, parent);
+    }
+
     private static Culture MakeCulture(MarkovNameGenerator generator)
     {
         EntityId id = EntityId.Culture(0);

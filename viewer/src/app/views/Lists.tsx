@@ -1349,9 +1349,11 @@ export function Overview({ world }: { world: World }) {
     <div className="space-y-5">
       <PageTitle
         eyebrow={`Seed ${meta.seed} · config ${meta.configHash}`}
-        title="A world, in brief"
+        title={world.export.world.designation || 'A world, in brief'}
         meta={
           <>
+            <Badge>{world.export.world.kind === 'Moon' ? 'Moon' : 'Planet'}</Badge>
+            <Badge>seed {meta.seed}</Badge>
             <Badge>
               years {meta.startYear}–{meta.endYear}
             </Badge>

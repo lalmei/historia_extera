@@ -101,7 +101,26 @@ export interface ExportMeta {
   };
 }
 
+export type WorldKind = 'Planet' | 'Moon';
+
+export const WORLD_KIND_LABELS: Record<WorldKind, string> = {
+  Planet: 'Planet',
+  Moon: 'Moon',
+};
+
 export interface ExportWorld {
+  /** The world's own proper name: the planet, or the moon this history is set on. */
+  name: string;
+  kind: WorldKind;
+  /**
+   * How the world is spoken of — "The planet Borion", "The 3rd moon of Endor".
+   * Unique to the seed; the seed itself stays on `meta` for reproduction.
+   */
+  designation: string;
+  /** The planet a moon orbits. Absent when the world is itself a planet. */
+  parentName?: string;
+  /** 1-based index among the parent's moons. Absent for planets. */
+  moonIndex?: number;
   minX: number;
   minZ: number;
   width: number;

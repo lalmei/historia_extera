@@ -47,7 +47,7 @@ public static class Narration
 
         void Set(EventKind kind, string template) => map[kind.ToString()] = template;
 
-        Set(EventKind.WorldCreated, "The world took shape.");
+        Set(EventKind.WorldCreated, "{data:designation} took shape.");
 
         Set(EventKind.CivilizationFounded, "{subject} was founded[, with its seat at {location}].");
         Set(EventKind.CivilizationFell,

@@ -27,16 +27,20 @@ back to the same history.
 
 A world already open in the viewer has the same generator on its **Overview**: change a
 parameter, run the current engine over the same settings, or continue through a later year.
+The overview titles the history by the world's designation and shows the seed next to it.
 `--raster` stays at the CLI's default.
 
 The same page lists every JSON export already in `viewer/public/worlds/`, newest first.
-It reads the schema number, seed, years and engine from each file header and enables **Open**
-only when the schema matches the viewer's current one; older exports remain visible so it is
-clear which worlds need to be regenerated. **Rerun…** (or **Regenerate…** on an incompatible
-file) fills the form with that world's settings so it can be run again with different
-parameters, through the current engine, or continued for more years. Continuing writes a new
-file — the shorter history stays on disk — because the engine always starts from year one, and
-the same seed is deterministic through the years already simulated.
+It reads the schema number, world designation, seed, years and engine from each file header
+and enables **Open** only when the schema matches the viewer's current one; older exports
+remain visible so it is clear which worlds need to be regenerated. The list is labelled by
+the world's own name — "The planet Borion", "The 3rd moon of Endor" — with the seed kept
+beside it so a history can be recognised at a glance and still reproduced. **Rerun…** (or
+**Regenerate…** on an incompatible file) fills the form with that world's settings so it
+can be run again with different parameters, through the current engine, or continued for
+more years. Continuing writes a new file — the shorter history stays on disk — because the
+engine always starts from year one, and the same seed is deterministic through the years
+already simulated.
 
 **Move to trash** asks for confirmation, then moves the export into
 `build/world-trash/`; the page shows the exact recovery path after it disappears from the
