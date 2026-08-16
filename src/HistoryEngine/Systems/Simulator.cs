@@ -33,8 +33,63 @@ public sealed class Simulator
 {
     private readonly IReadOnlyList<ISystem> _systems;
 
-    public Simulator(IReadOnlyList<ISystem>? systems = null) =>
+    /// <summary>
+    /// Who answers for each kind of scheduled work, indexed by the kind itself.
+    /// </summary>
+    /// <remarks>
+    /// An array rather than a dictionary, and not only to satisfy the determinism guard that
+    /// rejects one. <see cref="DocketKind"/> is a small dense enum whose values are already fixed
+    /// and numbered because they are part of the docket's ordering key — so the kind <em>is</em> an
+    /// index, and a hash lookup would be a slower way of reaching the same slot through a structure
+    /// with an iteration order nobody should ever be tempted to walk.
+    /// </remarks>
+    private readonly (IEpisodic? Handler, int Index)[] _episodic;
+
+    public Simulator(IReadOnlyList<ISystem>? systems = null)
+    {
         _systems = systems ?? DefaultSystems();
+
+        int kinds = 0;
+        foreach (DocketKind kind in Enum.GetValues<DocketKind>())
+        {
+            kinds = Math.Max(kinds, (int)kind + 1);
+        }
+
+        _episodic = new (IEpisodic?, int)[kinds];
+
+        for (int i = 0; i < _systems.Count; i++)
+        {
+            ISystem system = _systems[i];
+
+            if (system is IEpisodic episodic)
+            {
+                if (episodic.Handles == DocketKind.None)
+                {
+                    throw new InvalidOperationException(
+                        $"System '{system.Name}' answers for scheduled work but names no kind. "
+                        + "DocketKind.None is the absence of an entry, never a claim on one.");
+                }
+
+                if (_episodic[(int)episodic.Handles].Handler is IEpisodic held)
+                {
+                    throw new InvalidOperationException(
+                        $"Systems '{((ISystem)held).Name}' and '{system.Name}' both answer for "
+                        + $"{episodic.Handles}. One kind has one owner, or which of them resolves "
+                        + "an entry depends on the order they were listed in.");
+                }
+
+                _episodic[(int)episodic.Handles] = (episodic, i);
+            }
+            else if (system.Cadence == Cadence.Episodic)
+            {
+                // Nothing would ever run it: the clock skips an episodic system by definition, and
+                // without a declared kind the docket cannot wake it either.
+                throw new InvalidOperationException(
+                    $"System '{system.Name}' is Episodic but implements no IEpisodic, so nothing "
+                    + "would ever run it.");
+            }
+        }
+    }
 
     /// <summary>
     /// The system order as of the persistent trade-route model.
@@ -215,6 +270,45 @@ public sealed class Simulator
         _ => false,
     };
 
+    /// <summary>
+    /// Hands every entry that has fallen due to whoever answers for its kind.
+    /// </summary>
+    /// <remarks>
+    /// <para>Drained in the docket's own order, which is a total order over
+    /// <c>(absolute day, kind, subject, sequence)</c> — so what resolves first is a property of what
+    /// was scheduled and never of which system asked. That is the whole reason this loop is here
+    /// rather than in the systems.</para>
+    ///
+    /// <para>An entry whose kind nobody owns throws rather than being dropped. A silently discarded
+    /// entry is a siege that never lifts or a party that never arrives, and it would present as a
+    /// war that would not end — a long way from the line that caused it.</para>
+    ///
+    /// <para>Each entry is stamped at its own due day and attributed to its handler's place in the
+    /// system order, so the step's sort puts it where it belongs among that step's own writing.</para>
+    /// </remarks>
+    private void ResolveDue(WorldState world, Stamp now)
+    {
+        while (world.Docket.TryTakeDue(now, out DocketEntry entry))
+        {
+            (IEpisodic? handler, int index) = _episodic[(int)entry.Kind];
+
+            if (handler is null)
+            {
+                throw new InvalidOperationException(
+                    $"Nothing answers for {entry.Kind}, but an entry of it came due at {entry.Due}.");
+            }
+
+            world.Chronicle.EnterSystem(index);
+            world.Chronicle.StampAt(entry.Due);
+
+            handler.Resolve(world, entry, now);
+        }
+
+        // Back to the step's own day, so a system that writes after this is dated by the clock
+        // rather than by whatever happened to be last off the queue.
+        world.Chronicle.StampAt(now);
+    }
+
     private void Tick(WorldState world, int year)
     {
         Calendar calendar = world.Config.Calendar;
@@ -231,6 +325,12 @@ public sealed class Simulator
             // The chronicle is told the same thing the systems are, so an event carries the step it
             // was written in without every recording call having to name one. See OpenStep.
             world.Chronicle.OpenStep(now);
+
+            // Work that fell due since the last step is resolved before this one's systems run.
+            // It already happened — the docket only hands back what is owed at or before now — so
+            // the systems should see a world it has been applied to rather than one it is about to
+            // be.
+            ResolveDue(world, now);
 
             for (int i = 0; i < _systems.Count; i++)
             {
