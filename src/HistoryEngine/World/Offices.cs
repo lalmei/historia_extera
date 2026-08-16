@@ -37,6 +37,69 @@ public static class Offices
     public const int ServiceAge = Succession.MajorityAge;
 
     /// <summary>
+    /// How long a household is followed after the office that raised it ends.
+    /// </summary>
+    /// <remarks>
+    /// Twenty-five years is a child growing up, and that is the whole of the argument. Following a
+    /// family only while the seat is held would make them vanish the year the holder dies, which is
+    /// both wrong and useless: a local family's standing outlives the post that gave it to them,
+    /// and the interval worth modelling is exactly the one in which the next holder could come from
+    /// the same household. The same number therefore bounds <see cref="HeirTo"/>.
+    /// </remarks>
+    public const int GraceYears = 25;
+
+    /// <summary>The claim recorded when a family keeps a seat it already held.</summary>
+    /// <remarks>
+    /// A constant because it is the only trace <see cref="FillMode.Customary"/> leaves in the
+    /// export: a customary grant and an internal one both have no grantor, and the prose is what
+    /// distinguishes a family keeping a seat from a body choosing its own.
+    /// </remarks>
+    public const string CustomaryClaim = "as the office has long run in their family";
+
+    /// <summary>
+    /// Whether this is an office somebody can be raised out of the population into.
+    /// </summary>
+    /// <remarks>
+    /// A crown is inherited, a regency is delegated and a consort's style comes with a marriage.
+    /// These three are the ones a court actually appoints to, and so the three that can raise a
+    /// household that was not there before.
+    /// </remarks>
+    public static bool IsAppointed(OfficeKind kind) =>
+        kind is OfficeKind.Marshal or OfficeKind.HighPriest or OfficeKind.Governor;
+
+    /// <summary>
+    /// Whether the chronicle is currently following this figure's household.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>One window, read by both halves of the model</b>, which is why it lives here rather
+    /// than in either caller. <c>HouseholdSystem</c> asks it to decide whose marriages and children
+    /// are worth recording; <see cref="HeirTo"/> asks it, through the same
+    /// <see cref="GraceYears"/>, to decide whether a vacant seat still has a family attached to it.
+    /// Two separate numbers would eventually disagree, and the disagreement has a definite shape: a
+    /// person simultaneously too remote for the chronicle to marry off and close enough to inherit
+    /// a governorship.</para>
+    ///
+    /// <para><b>Only those of no house.</b> A cadet made marshal is already followed, at whatever
+    /// distance from the throne their birth put them, and promoting them to the head of a household
+    /// would let an office pull a remote branch of a dynasty back into the nursery. That is a
+    /// growth rate rather than a level shift, and it is the thing the attention budget exists to
+    /// refuse.</para>
+    /// </remarks>
+    public static bool HeadsAHousehold(Figure figure, int year)
+    {
+        if (!figure.IsAlive || !figure.DynastyId.IsNone) return false;
+
+        foreach (OfficeHolding held in figure.Offices)
+        {
+            if (!IsAppointed(held.Kind)) continue;
+            if (held.ToYear is not int ended) return true;
+            if (year - ended <= GraceYears) return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// The age at which someone raised from the ordinary population takes each office.
     /// </summary>
     /// <remarks>
@@ -190,13 +253,22 @@ public static class Offices
     /// Invents somebody local to fill a seat the court cannot.
     /// </summary>
     /// <remarks>
-    /// <para>Of no house, deliberately, and that is what bounds them. <c>HouseholdSystem</c> refuses
-    /// to match anyone whose <see cref="Figure.DynastyId"/> is none, so an invented notable holds
-    /// their office, dies, and is replaced without ever entering a nursery. The guard already
-    /// existed for consorts married in from outside; this only has to avoid reaching around it.</para>
+    /// <para>Of no house, deliberately, and that is still what bounds them — but the bound moved.
+    /// A notable used to hold their office, die, and be replaced without ever entering a nursery,
+    /// because <c>HouseholdSystem</c> refused to match anyone whose <see cref="Figure.DynastyId"/>
+    /// is none. They now marry and have children, and what stops that compounding is
+    /// <see cref="HeadsAHousehold"/>: the household is followed while the seat is held and for
+    /// <see cref="GraceYears"/> after, and the children are recorded without being extended in
+    /// turn. One spouse and a few children per seat is a level shift. A family that went on
+    /// breeding families would be a growth rate.</para>
+    ///
+    /// <para>Staying out of the houses is what keeps that true. A notable married into a dynasty
+    /// would put their children in a line of succession, and the line is ranked by proximity to a
+    /// throne rather than by this window — so the bound would pass out of this file's hands.</para>
     ///
     /// <para>One per seat, so their number tracks the settlements above the governor threshold and
-    /// the faiths in the world — neither of which compounds.</para>
+    /// the faiths in the world — neither of which compounds. Fewer than that, now: a seat with an
+    /// heir is filled by <see cref="HeirTo"/> without inventing anybody at all.</para>
     ///
     /// <para><b>They arrive with a life behind them.</b> The birth year is worked back from an age
     /// the office could plausibly be reached at, and the origin says which ladder they climbed, so
@@ -303,6 +375,87 @@ public static class Offices
         }
 
         return candidates;
+    }
+
+    /// <summary>
+    /// The child of this seat's last holder who is free to take it, if there is one.
+    /// </summary>
+    /// <remarks>
+    /// <para>What makes <see cref="FillMode.Customary"/> reachable. It was unbuildable for as long
+    /// as raised notables had no heirs — the third fill mode was designed, declared, and produced
+    /// by nothing, because the people who filled most seats died childless by construction. A seat
+    /// whose last holder left a grown child is a seat a local family expects to keep.</para>
+    ///
+    /// <para><b>Not the realm's succession law.</b> There is no crown here to partition and nobody
+    /// to contest it, so the eldest who is grown and free takes it — which also means no number is
+    /// drawn to decide who, and adding a child cannot shift an unrelated appointment.</para>
+    ///
+    /// <para>Walks the figure table for the same reason <see cref="HolderOf"/> does: office holders
+    /// are a handful per realm, this is asked once per vacancy rather than once per year, and an
+    /// index of former holders is a second place for the answer to be wrong.</para>
+    /// </remarks>
+    public static Figure? HeirTo(
+        WorldState world, Civilization civilization, OfficeKind kind, EntityId scope, int year)
+    {
+        Figure? last = LastHolder(world, civilization, kind, scope, year);
+        if (last is null) return null;
+
+        Figure? heir = null;
+
+        foreach (EntityId childId in last.ChildIds)
+        {
+            if (!world.Figures.Contains(childId)) continue;
+
+            Figure child = world.Figures[childId];
+            if (!Available(world, child, civilization, year)) continue;
+            if (kind == OfficeKind.HighPriest && !EligibleCleric(world, civilization, child)) continue;
+
+            if (heir is null || child.BirthYear < heir.BirthYear) heir = child;
+        }
+
+        return heir;
+    }
+
+    /// <summary>
+    /// Whoever last held this exact seat, within living memory of it.
+    /// </summary>
+    /// <remarks>
+    /// Bounded by <see cref="GraceYears"/>, so a seat empty for a century is not still owed to
+    /// somebody's great-grandchild — and so that this and the household window can never disagree
+    /// about whether a family is still attached to a post.
+    /// </remarks>
+    private static Figure? LastHolder(
+        WorldState world, Civilization civilization, OfficeKind kind, EntityId scope, int year)
+    {
+        Figure? last = null;
+        int latest = int.MinValue;
+
+        foreach (Figure figure in world.Figures)
+        {
+            foreach (OfficeHolding held in figure.Offices)
+            {
+                if (held.Kind != kind || held.CivilizationId != civilization.Id) continue;
+                if (held.ScopeId != scope) continue;
+                if (held.ToYear is not int ended) continue;
+                if (ended > year || year - ended > GraceYears) continue;
+
+                // A family stripped of a seat does not keep it. Disgrace is the one ending that
+                // says the court thought again about this household, and a dismissed governor's
+                // son inheriting the post the following year would read as the model not noticing
+                // what it had just recorded.
+                if (figure.DisgracedYear == ended) continue;
+
+                // Id breaks a tie, so two seats ended in one year cannot be ordered by however the
+                // figure table happened to be walked.
+                if (ended < latest) continue;
+                if (ended == latest && last is not null && figure.Id.CompareTo(last.Id) >= 0) continue;
+
+                latest = ended;
+                last = figure;
+            }
+        }
+
+        return last;
     }
 
     /// <summary>

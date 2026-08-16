@@ -18,17 +18,20 @@ public sealed class OfficeTests
 {
     private static readonly ulong[] Seeds = { 2, 7, 11, 42, 99 };
 
-    /// <summary>Every office is reached, and by both routes into one.</summary>
+    /// <summary>Every office is reached, and by all three routes into one.</summary>
     /// <remarks>
     /// A world where every seat is filled by crown appointment has its culture inputs wired to
-    /// nothing, and one where none is has the same bug from the other side.
+    /// nothing, and one where none is has the same bug from the other side. The third mode is the
+    /// one that went two milestones declared and unreachable, so it is counted separately from the
+    /// grantorless mode it otherwise looks exactly like in the export.
     /// </remarks>
     [Fact]
-    public void EveryOfficeAndBothFillModesAreReached()
+    public void EveryOfficeAndAllThreeFillModesAreReached()
     {
         var kinds = new HashSet<OfficeKind>();
         int mandated = 0;
         int internally = 0;
+        int customary = 0;
 
         foreach (ulong seed in Seeds)
         {
@@ -42,8 +45,9 @@ public sealed class OfficeTests
 
                     if (held.Kind is OfficeKind.Ruler or OfficeKind.Regent) continue;
 
-                    if (held.GrantedBy.IsNone) internally++;
-                    else mandated++;
+                    if (!held.GrantedBy.IsNone) mandated++;
+                    else if (held.Claim == Offices.CustomaryClaim) customary++;
+                    else internally++;
                 }
             }
         }
@@ -55,6 +59,13 @@ public sealed class OfficeTests
 
         Assert.True(mandated > 20, $"Only {mandated} offices were filled by a crown.");
         Assert.True(internally > 20, $"Only {internally} offices were filled by the body itself.");
+        Assert.True(customary > 20, $"Only {customary} offices were kept in a family.");
+
+        // Tradition weights the custom rather than deciding it. A world where inheriting a seat is
+        // the ordinary way to get one has no appointments left to read about, which is the failure
+        // the design named in advance and the reason the ceiling sits where it does.
+        double share = (double)customary / (mandated + internally + customary);
+        Assert.True(share < 0.25, $"{share:P0} of offices were inherited rather than granted.");
     }
 
     /// <summary>
@@ -182,56 +193,194 @@ public sealed class OfficeTests
     }
 
     /// <summary>
-    /// Invented notables hold offices and never enter a nursery.
+    /// A raised notable has a household, and it goes no further than their own children.
     /// </summary>
     /// <remarks>
-    /// This is the bound on the whole system. A body that cannot find a courtier invents a local,
-    /// and a local who could marry and breed would make the figure table grow with the number of
-    /// seats times the number of generations. The guard already existed — <c>HouseholdSystem</c>
-    /// refuses to match anyone of no house — and this asserts the office path has not reached
-    /// around it.
+    /// <para>This is the bound on the whole system, and M14 moved it rather than removed it. It
+    /// used to be that a notable never entered a nursery at all: <c>HouseholdSystem</c> refused to
+    /// match anyone of no house, so a local invented for a seat held it, died, and was replaced.
+    /// That is what made <see cref="FillMode.Customary"/> unbuildable — an office cannot run in a
+    /// family that was never allowed to exist.</para>
+    ///
+    /// <para>The bound is now a generation deep instead of zero. A notable marries and has
+    /// children; those children are recorded and are <em>not</em> themselves extended. So a
+    /// household of no house that breeds must have an office at the head of it — either the
+    /// figure's own or their spouse's — and a notable's grandchildren exist only where one of the
+    /// children took a seat and started the count again. Without that second half the growth is one
+    /// spouse and a few children per <em>generation</em> rather than per seat, which is the
+    /// exponential the attention budget exists to refuse.</para>
     /// </remarks>
     [Fact]
-    public void InventedNotablesNeverBreed()
+    public void ANotableHouseholdStopsAtTheirOwnChildren()
     {
+        int withFamilies = 0;
+
         foreach (ulong seed in Seeds)
         {
             WorldState world = HistoryRun.Execute(TestWorlds.Standard(seed)).World;
 
             foreach (Figure figure in world.Figures)
             {
+                // Someone married into a house has no house of their own, and their children are
+                // their dynast spouse's — followed by the line, not by any office.
                 if (!figure.DynastyId.IsNone) continue;
+                if (figure.ChildIds.Count == 0) continue;
+                if (MarriedIntoAHouse(world, figure)) continue;
 
-                // Only the three appointed offices. Someone married into a house has no house of
-                // their own, and legitimately holds two others: a consort's style, and a regency
-                // for their own child — the queen mother, whom ChooseRegent prefers precisely
-                // because her interest in the reign is not also a claim to replace it.
-                bool appointed = false;
-                foreach (OfficeHolding held in figure.Offices)
+                bool raised = WasAppointed(figure);
+                bool wedToTheOffice = false;
+
+                foreach (EntityId spouseId in figure.SpouseIds)
                 {
-                    if (held.Kind is OfficeKind.Marshal
-                        or OfficeKind.HighPriest
-                        or OfficeKind.Governor)
-                    {
-                        appointed = true;
-                    }
+                    if (!world.Figures.Contains(spouseId)) continue;
+                    if (WasAppointed(world.Figures[spouseId])) wedToTheOffice = true;
                 }
 
-                if (!appointed) continue;
+                Assert.True(
+                    raised || wedToTheOffice,
+                    $"{figure.Name} ({figure.Id}) of seed {seed} is of no house, holds no office "
+                    + $"and married none, yet has {figure.ChildIds.Count} recorded children.");
 
-                Assert.Empty(figure.ChildIds);
-                Assert.Equal(EntityId.None, figure.SpouseId);
+                if (raised) withFamilies++;
             }
         }
+
+        Assert.True(
+            withFamilies > 50,
+            $"Only {withFamilies} raised notables ever had a family; the households are not forming.");
+    }
+
+    /// <summary>
+    /// Whether this figure ever held one of the three offices a court appoints to.
+    /// </summary>
+    /// <remarks>
+    /// Not every office. Someone married into a house legitimately holds two others — a consort's
+    /// style, and a regency for their own child, the queen mother whom <c>ChooseRegent</c> prefers
+    /// precisely because her interest in the reign is not also a claim to replace it.
+    /// </remarks>
+    private static bool WasAppointed(Figure figure)
+    {
+        foreach (OfficeHolding held in figure.Offices)
+        {
+            if (Offices.IsAppointed(held.Kind)) return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>Whether any of this figure's marriages was to a member of a recorded house.</summary>
+    private static bool MarriedIntoAHouse(WorldState world, Figure figure)
+    {
+        foreach (EntityId spouseId in figure.SpouseIds)
+        {
+            if (world.Figures.Contains(spouseId) && !world.Figures[spouseId].DynastyId.IsNone)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// An office can run in a family, and the family it runs in is the last holder's.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="FillMode.Customary"/> was declared with the other two and produced by nothing for
+    /// two milestones, because the people who filled most seats were forbidden to have heirs. This
+    /// asserts the third mode is reached, and — the part worth more than the count — that the
+    /// person who reached it is the child of whoever held the same seat before them, rather than
+    /// somebody handed a prose claim that happens to mention a family.
+    /// </remarks>
+    [Fact]
+    public void AnOfficeCanRunInAFamily()
+    {
+        int inherited = 0;
+
+        foreach (ulong seed in Seeds)
+        {
+            WorldState world = HistoryRun.Execute(TestWorlds.Standard(seed)).World;
+
+            foreach (Figure figure in world.Figures)
+            {
+                foreach (OfficeHolding held in figure.Offices)
+                {
+                    if (held.Claim != Offices.CustomaryClaim) continue;
+
+                    inherited++;
+
+                    // Nobody granted it: the crown's part in a customary succession is to
+                    // acquiesce, which is the whole difference between this and a mandate.
+                    Assert.True(held.GrantedBy.IsNone, $"{figure.Name} was granted a family office.");
+
+                    Figure? parent = PreviousHolder(world, figure, held);
+
+                    Assert.True(
+                        parent is not null,
+                        $"{figure.Name} of seed {seed} holds {held.Title} by family custom, but no "
+                        + "parent of theirs ever held that seat.");
+
+                    Assert.True(
+                        held.FromYear - figure.BirthYear >= Offices.ServiceAge,
+                        $"{figure.Name} inherited {held.Title} at {held.FromYear - figure.BirthYear}.");
+                }
+            }
+        }
+
+        Assert.True(inherited > 20, $"Only {inherited} offices ever ran in a family.");
+    }
+
+    /// <summary>
+    /// The holder's own parent who held this same seat, within the window that let it pass.
+    /// </summary>
+    /// <remarks>
+    /// Walks up from the child rather than searching the table for a family, because the claim
+    /// being checked is a parent's: the same <see cref="Offices.GraceYears"/> that keeps the
+    /// household followed is what makes the seat still theirs to hand on.
+    /// </remarks>
+    private static Figure? PreviousHolder(WorldState world, Figure holder, OfficeHolding held)
+    {
+        foreach (EntityId parentId in holder.Parents())
+        {
+            if (!world.Figures.Contains(parentId)) continue;
+
+            Figure parent = world.Figures[parentId];
+
+            foreach (OfficeHolding earlier in parent.Offices)
+            {
+                if (earlier.Kind != held.Kind) continue;
+                if (earlier.CivilizationId != held.CivilizationId) continue;
+                if (earlier.ScopeId != held.ScopeId) continue;
+                if (earlier.ToYear is not int ended) continue;
+                if (ended > held.FromYear || held.FromYear - ended > Offices.GraceYears) continue;
+
+                return parent;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
     /// The figure table still grows with the number of reigns, not with the number of seats.
     /// </summary>
     /// <remarks>
-    /// Offices raise the population of the record once — every seat needs somebody — and must not
-    /// change its growth rate. Doubling the run should roughly double the count, as it did before
-    /// offices existed.
+    /// <para>Offices raise the population of the record once — every seat needs somebody — and must
+    /// not change its growth rate. Doubling the run should roughly double the count, as it did
+    /// before offices existed.</para>
+    ///
+    /// <para><b>The band moved for M14, and what it cost is worth writing down rather than
+    /// rediscovering.</b> Households make each seat about three and a half times more expensive
+    /// than a lone invented notable, and the notables themselves scale with seats rather than with
+    /// realms — so the shift lands unevenly across a run's length. Measured on seed 42 against the
+    /// same seed without households: +17.7% at 300 years, +40.5% at 600, +56.8% at 1200, against
+    /// the ~56% the design budgeted for exactly this feature.</para>
+    ///
+    /// <para>That is a level shift arriving slowly, not a bent curve, and the doubling ratios say
+    /// so: 2.23 at 150→300, 2.57 at 300→600, 2.42 at 600→1200. It rises while the households fill
+    /// in against a world that is itself still founding towns, then falls back. A compounding
+    /// household — children extending children — climbs instead of turning over, which is what this
+    /// still fails on.</para>
     /// </remarks>
     [Fact]
     public void OfficesRaiseTheFigureCountWithoutBendingItsCurve()
@@ -242,7 +391,7 @@ public sealed class OfficeTests
         double ratio = (double)longRun / shortRun;
 
         Assert.True(
-            ratio is > 1.6 and < 2.6,
+            ratio is > 1.6 and < 2.9,
             $"Twice the years produced {ratio:F2}x the figures ({shortRun} then {longRun}).");
     }
 
@@ -359,6 +508,13 @@ public sealed class OfficeTests
                 }
 
                 if (figure.Origin != FigureOrigin.Unrecorded) withOrigin++;
+
+                // A child of a notable's household who inherits their parent's seat came through
+                // the other door M14 opened: they were born into the record rather than raised
+                // into it, and took the office at whatever age the vacancy found them. Their age
+                // measures a death, not a career, and averaging it in would flatten the very bands
+                // this exists to keep apart.
+                if (figure.Origin == FigureOrigin.Unrecorded) continue;
 
                 foreach (OfficeHolding held in figure.Offices)
                 {

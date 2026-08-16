@@ -59,6 +59,22 @@ public sealed class HouseholdSystem : ISystem
     /// </remarks>
     private const int DormantHouseRank = 5;
 
+    /// <summary>
+    /// Rank given to the head of a household an office raised.
+    /// </summary>
+    /// <remarks>
+    /// <para>Zero, because they are the head of their own household and there is nothing above them
+    /// to be ranked behind. The map is a distance from whoever a line is followed <em>from</em>,
+    /// which for a dynasty is its throne and for a raised notable is themself.</para>
+    ///
+    /// <para><b>Only the head is ranked, and that is the entire bound.</b> Their spouse needs no
+    /// rank — <see cref="Bear"/> asks whether either parent is near enough — and their children get
+    /// none, so a notable's children are recorded, grow up, and are not themselves extended. A
+    /// child who takes an office becomes the head of a household in their own right and is ranked
+    /// here for it, which is the one door out of that and the one the design named.</para>
+    /// </remarks>
+    private const int NotableHeadRank = 0;
+
     /// <summary>Yearly chance an eligible unmarried figure is matched.</summary>
     private const double MarriageChance = 0.34;
 
@@ -86,7 +102,7 @@ public sealed class HouseholdSystem : ISystem
         int year = now.Year;
 
         IRng rng = world.Root.Fork(Name, year);
-        DetMap<EntityId, int> ranks = RankEveryHouse(world);
+        DetMap<EntityId, int> ranks = RankEveryHouse(world, year);
 
         Marry(world, ranks, year, rng);
         Bear(world, ranks, year, rng);
@@ -113,8 +129,13 @@ public sealed class HouseholdSystem : ISystem
     /// wherever they overlap. A house that rules somewhere is therefore never penalised for also
     /// being out of power somewhere else, and the second pass needs no test for which houses the
     /// first one already covered.</para>
+    ///
+    /// <para><b>Households an office raised are ranked in the same map</b>, and that is what keeps
+    /// the two attention budgets from contradicting each other. They are one budget: a person is
+    /// followed, or is not, and the same lookup answers it for a king's fourth son and for a
+    /// governor raised out of a provincial town.</para>
     /// </remarks>
-    private static DetMap<EntityId, int> RankEveryHouse(WorldState world)
+    private static DetMap<EntityId, int> RankEveryHouse(WorldState world, int year)
     {
         var ranks = new DetMap<EntityId, int>();
 
@@ -130,7 +151,26 @@ public sealed class HouseholdSystem : ISystem
             Rank(ranks, Succession.Kin(world, house), DormantHouseRank);
         }
 
+        RankNotables(world, ranks, year);
+
         return ranks;
+    }
+
+    /// <summary>
+    /// The heads of the households the offices raised.
+    /// </summary>
+    /// <remarks>
+    /// Assigned rather than merged, because <see cref="Offices.HeadsAHousehold"/> admits nobody who
+    /// belongs to a house and the two passes above reach nobody who does not — the sets are
+    /// disjoint by construction, and a notable who could also be ranked as a dynast would be a bug
+    /// in that predicate rather than a tie for this one to break.
+    /// </remarks>
+    private static void RankNotables(WorldState world, DetMap<EntityId, int> ranks, int year)
+    {
+        foreach (Figure figure in world.Figures)
+        {
+            if (Offices.HeadsAHousehold(figure, year)) ranks[figure.Id] = NotableHeadRank;
+        }
     }
 
     private static void Rank(DetMap<EntityId, int> ranks, List<Figure> line, int offset)
@@ -175,9 +215,11 @@ public sealed class HouseholdSystem : ISystem
         if (!figure.IsAlive || figure.IsMarried) return false;
         if (figure.AgeIn(year) < MarriageAge) return false;
 
-        // Only dynasts are matched. A consort's own remarriage would need a second house to be
-        // interested in them, and by then the chronicle is following their children instead.
-        if (figure.DynastyId.IsNone) return false;
+        // Dynasts, and the heads of the households an office raised. A consort's own remarriage
+        // would need a second house to be interested in them, and by then the chronicle is
+        // following their children instead — which is also why a notable's spouse and children are
+        // refused here and their household ends with the window that opened it.
+        if (figure.DynastyId.IsNone && !Offices.HeadsAHousehold(figure, year)) return false;
         if (!InAStandingRealm(world, figure)) return false;
         if (VowedToCelibacy(world, figure)) return false;
 
@@ -249,6 +291,14 @@ public sealed class HouseholdSystem : ISystem
     private static Figure? FindPartner(
         WorldState world, Figure figure, Culture culture, int year, IRng rng)
     {
+        // A household of no house looks no further than home, and this is the guard that keeps the
+        // raised path bounded. Every candidate below is a member of a dynasty, so matching a
+        // notable here would put their children in a line of succession — after which they are
+        // ranked by proximity to a throne rather than by the window that raised them, and the level
+        // shift the design bought becomes a growth rate. Refused before the roll, so a notable's
+        // marriage costs the stream nothing a dynast's would not.
+        if (figure.DynastyId.IsNone) return null;
+
         double abroad = ForeignMatchFloor + ForeignMatchFromTrade * culture.Values.Mercantile;
         if (!rng.Chance(abroad)) return null;
 
@@ -446,9 +496,17 @@ public sealed class HouseholdSystem : ISystem
         Civilization civilization = world.Civilizations[mother.CivilizationId];
         Culture culture = world.CultureOf(heirOf);
 
+        // Born where their mother lives, not where the court sits. It resolves to the capital for
+        // everyone who is at it, so this changes nothing for a dynasty — but a governor's household
+        // lives in the town they govern, and a child of it recorded as born at the capital would
+        // take the capital's faith as well as its name. Households an office raised are mostly
+        // provincial, which is what makes the distinction start to matter here.
+        EntityId home = world.ResidenceOf(mother);
+
         Sex sex = rng.Chance(0.5) ? Sex.Male : Sex.Female;
         Figure child = Houses.NewFigure(
-            world, civilization, culture, sex, year, mother: mother, father: father);
+            world, civilization, culture, sex, year,
+            birthSettlementId: home, mother: mother, father: father);
 
         child.MotherId = mother.Id;
         child.FatherId = father.Id;
@@ -467,7 +525,7 @@ public sealed class HouseholdSystem : ISystem
             EventKind.FigureBorn,
             child.Id,
             obj: father.Id,
-            location: civilization.CapitalId,
+            location: home,
             extra: child.DynastyId.IsNone
                 ? new[] { mother.Id }
                 : new[] { mother.Id, child.DynastyId });

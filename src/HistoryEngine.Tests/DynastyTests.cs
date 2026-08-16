@@ -468,7 +468,16 @@ public sealed class FamilyTreeTests
                 b.DeathYear is null || b.DeathYear.Value >= entry.Year, $"{b.Name} married after dying.");
             Assert.False(
                 Succession.AreCloseKin(world, a, b), $"{a.Name} married their near kin {b.Name}.");
-            Assert.NotEqual(a.DynastyId, b.DynastyId);
+
+            // No house is not a house. Same-house matches are refused because they would put both
+            // partners in one line of succession; two people of none are in no line at all, which
+            // is what a household raised by an office is made of — the notable and the partner they
+            // matched at home. Asserting on the raw pair would fail on exactly the marriages M14
+            // exists to make.
+            if (!a.DynastyId.IsNone || !b.DynastyId.IsNone)
+            {
+                Assert.NotEqual(a.DynastyId, b.DynastyId);
+            }
 
             marriages++;
             if (!a.DynastyId.IsNone && !b.DynastyId.IsNone) betweenHouses++;
