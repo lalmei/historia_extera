@@ -195,12 +195,28 @@ public static class Houses
         Number(world, civilization, ruler);
 
         // A crown supersedes whatever lesser office its holder was in. A governor who inherits
-        // does not go on governing his town from the capital, and a marshal who is crowned hands
-        // the army to somebody else — leaving them open would have one person holding two posts
-        // the appointment system would then decline to refill.
+        // does not go on governing his town from the capital, a marshal who is crowned hands
+        // the army to somebody else, and a regent who takes a throne of their own — especially
+        // a foreign one — cannot keep governing a child in the realm they just left. Leaving
+        // any of them open would have one person holding two posts the appointment system
+        // would then decline to refill, and an office whose realm no longer matches its holder.
         ruler.EndOffice(OfficeKind.Marshal, year);
         ruler.EndOffice(OfficeKind.Governor, year);
         ruler.EndOffice(OfficeKind.Consort, year);
+        ruler.EndOffice(OfficeKind.HighPriest, year);
+
+        if (ruler.Holds(OfficeKind.Regent))
+        {
+            foreach (Civilization realm in world.Civilizations)
+            {
+                if (realm.RegentId != ruler.Id) continue;
+
+                realm.RegentId = EntityId.None;
+                break;
+            }
+
+            ruler.EndOffice(OfficeKind.Regent, year);
+        }
 
         ruler.Offices.Add(
             new OfficeHolding(OfficeKind.Ruler, culture.RulerTitle, civilization.Id, year, null)

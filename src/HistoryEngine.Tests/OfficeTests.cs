@@ -98,7 +98,11 @@ public sealed class OfficeTests
                     // The office belongs to the realm its holder lives in. An office that could
                     // move someone across a border would reintroduce the M5 class of bug that left
                     // three realms governed by a corpse.
-                    Assert.Equal(figure.CivilizationId, held.CivilizationId);
+                    Assert.True(
+                        figure.CivilizationId == held.CivilizationId,
+                        $"{figure.Name} ({figure.Id}) lives in {figure.CivilizationId} but holds "
+                        + $"{held.Kind} {held.Title} of {held.CivilizationId} "
+                        + $"(scope {held.ScopeId}, from {held.FromYear}).");
 
                     string seat = held.Kind + ":" + held.CivilizationId + ":" + held.ScopeId;
                     Assert.True(seats.Add(seat), $"Two holders of {seat} in seed {seed}.");
