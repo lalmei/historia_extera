@@ -74,6 +74,13 @@ public enum EventKind
     SiegeBegan = 507,
     SiegeLifted = 508,
 
+    // A storming and the peace that undoes it. Both are recorded because an occupation is a state
+    // the world is in for years at a time — it decides what the war can attack next and what the
+    // treaty has to settle — and a state whose beginning is written but whose end is not leaves a
+    // reader with towns that are still occupied centuries after the war that took them.
+    SettlementOccupied = 509,
+    SettlementRestored = 510,
+
     // ---- Religion (600) ----
     ReligionFounded = 600,
     ReligionAdopted = 601,
