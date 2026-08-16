@@ -149,14 +149,28 @@ public static class Warfare
 
         world.Wars.Add(war);
 
+        // Somebody decided this. Until now the chronicle recorded that one realm attacked another
+        // and left out the person whose ambition, grievance or piety the war system had just
+        // finished reading — so three centuries of wars read as weather. The declaring ruler goes
+        // in by name, and into the references so the war lands on their page.
+        var declaration = Chronicle.Data(("cause", DeclarationCause(world, war)));
+        var references = new List<EntityId>(
+            CauseReferences(claimedRelicId, aggressorReligionId, defenderReligionId)
+            ?? Array.Empty<EntityId>());
+
+        if (world.NamePerson(declaration, "ruler", aggressor.CurrentRulerId))
+        {
+            references.Add(aggressor.CurrentRulerId);
+        }
+
         world.Chronicle.Record(
             year,
             EventKind.WarDeclared,
             aggressor.Id,
             obj: defender.Id,
             location: war.Id,
-            extra: CauseReferences(claimedRelicId, aggressorReligionId, defenderReligionId),
-            data: Chronicle.Data(("cause", DeclarationCause(world, war))));
+            extra: references.Count == 0 ? null : references,
+            data: declaration);
 
         return war;
     }
@@ -234,15 +248,20 @@ public static class Warfare
 
         Settlement? contested = SettlementIn(world, field!, holder!);
 
+        // Decided once, because the name depends on it and so does the battle: a place this army
+        // already holds is fought over in the open rather than invested, and it must not be called
+        // a siege in one line and resolved as a field action in the next.
+        bool isSiege = IsSiege(contested, invader!.Id);
+
         var battle = new Battle(
             world.Battles.NextId,
-            NameBattle(world, field!, contested),
+            NameBattle(world, field!, contested, isSiege),
             war.Id,
             now,
             field!.Id)
         {
             SettlementId = contested?.Id ?? EntityId.None,
-            IsSiege = IsSiege(contested),
+            IsSiege = isSiege,
             AttackerId = invader!.Id,
             DefenderId = holder!.Id,
         };
@@ -381,7 +400,7 @@ public static class Warfare
 
         double defenderPower = battle.DefenderStrength
             * HomeGroundBonus
-            * DefenceOf(field, contested)
+            * DefenceOf(field, contested, battle.IsSiege)
             * (Commands(world, battle.DefenderCommanderId) ? CommanderBonus : 1.0);
 
         // Both sides being nothing is possible when a realm has been reduced to hamlets; a coin
@@ -435,6 +454,17 @@ public static class Warfare
             record["losses"] = battle.TotalLosses.ToString(CultureInfo.InvariantCulture);
         }
 
+        // The winning commander was already in the event's references and had been since sieges
+        // learned to keep one — it was only the sentence that left them out, so every battle in
+        // the history was won by a realm and by nobody. Named only when they led in person; an
+        // army sent without its king reads as the realm's victory, which is what it was.
+        world.NamePerson(
+            record,
+            "victor",
+            battle.VictorId == battle.AttackerId
+                ? battle.AttackerCommanderId
+                : battle.DefenderCommanderId);
+
         world.Chronicle.Record(
             at.Year,
             EventKind.BattleFought,
@@ -455,7 +485,97 @@ public static class Warfare
         if (attackerWins && contested is not null)
         {
             MaybeSack(world, war, battle, contested, at.Year, rng);
+
+            // Storming a place is how an army comes to hold it, and until this the chronicle had
+            // no way to say so: the outcome was written on the battle and the town went on
+            // answering to the realm that had just lost it, which is why the same walls could be
+            // carried three years running. Recorded after the sack, so a town that was put to the
+            // sack reads as sacked and then garrisoned rather than the other way round.
+            if (battle.SiegeOutcome == SiegeOutcome.Carried) Occupy(world, battle, contested, at.Year);
         }
+
+        // A garrison holds a town only until somebody throws it out. Winning at a place one owns
+        // in law and does not hold in fact is what retaking it means, and without this the only
+        // way an occupation could end was a treaty — so the counterattacks that replaced the old
+        // repeat sieges would all have been fought for nothing.
+        if (contested is not null
+            && contested.IsOccupied
+            && battle.VictorId == contested.CivilizationId)
+        {
+            EndOccupation(world, contested, at.Year, ceded: false, retaken: true);
+        }
+    }
+
+    /// <summary>Puts a stormed settlement under the storming realm's garrison.</summary>
+    /// <remarks>
+    /// A place already held by this army is not taken again — the guard matters because relief and
+    /// the scheduled decision can both resolve the same investment, and because a town retaken by
+    /// its owner and stormed a second time is a real sequence that should read as two occupations
+    /// rather than as one that never ended.
+    /// </remarks>
+    private static void Occupy(WorldState world, Battle battle, Settlement contested, int year)
+    {
+        if (contested.OccupierId == battle.AttackerId) return;
+
+        contested.OccupierId = battle.AttackerId;
+        contested.OccupiedSinceYear = year;
+        contested.Fortunes.LandLost();
+
+        var data = new DetMap<string, string>();
+        world.NamePerson(data, "captain", battle.AttackerCommanderId);
+
+        world.Chronicle.Record(
+            year,
+            EventKind.SettlementOccupied,
+            contested.Id,
+            obj: battle.AttackerId,
+            location: contested.RegionId,
+            extra: new[] { battle.WarId, battle.Id, battle.DefenderId },
+            data: data.Count == 0 ? null : data);
+    }
+
+    /// <summary>
+    /// Ends an occupation, either because a treaty confirmed it or because it gave the place back.
+    /// </summary>
+    /// <remarks>
+    /// <para><paramref name="ceded"/> is the difference between the two endings and deliberately
+    /// writes nothing when true: the region changing hands is already recorded by
+    /// <see cref="Realms.Cede"/>, and a town that has just become its occupier's by treaty has not
+    /// been "given up" by anyone. Only a garrison that left is news.</para>
+    ///
+    /// <para><paramref name="retaken"/> changes the wording rather than the effect. A town fought
+    /// back into its owner's hands and one handed over at a conference table are the same state
+    /// afterwards and were not the same event, and a chronicle that calls a storming a negotiated
+    /// withdrawal is worse than one that says nothing.</para>
+    /// </remarks>
+    public static void EndOccupation(
+        WorldState world, Settlement held, int year, bool ceded, bool retaken = false)
+    {
+        if (!held.IsOccupied) return;
+
+        EntityId occupier = held.OccupierId;
+        int? since = held.OccupiedSinceYear;
+
+        held.OccupierId = EntityId.None;
+        held.OccupiedSinceYear = null;
+
+        if (ceded) return;
+
+        // The garrison marched home: the place has its walls back, which is the relief
+        // LandTaken records, and not a conquest of anyone else's.
+        held.Fortunes.LandTaken();
+
+        var data = new DetMap<string, string>();
+        if (since is int from && year > from) data["years"] = Chronicle.Years(year - from);
+        if (retaken) data["manner"] = "by force of arms";
+
+        world.Chronicle.Record(
+            year,
+            EventKind.SettlementRestored,
+            held.Id,
+            obj: occupier,
+            location: held.CivilizationId,
+            data: data.Count == 0 ? null : data);
     }
 
     private static bool Commands(WorldState world, EntityId figureId) =>
@@ -594,23 +714,36 @@ public static class Warfare
     /// A settlement is besieged rather than merely fought over once it is worth investing.
     /// </summary>
     /// <remarks>
-    /// A hamlet has nothing to stand behind, so a battle in its region is a field battle that
+    /// <para>A hamlet has nothing to stand behind, so a battle in its region is a field battle that
     /// happens to be near it. Gating on walls or on a town keeps sieges meaning something and
-    /// keeps the fortification bonus from applying to open ground.
+    /// keeps the fortification bonus from applying to open ground.</para>
+    ///
+    /// <para>A place this army already garrisons is not invested either, whatever its walls: there
+    /// is nothing to besiege in a town one is standing in, and without the test a campaign will
+    /// find the same fallen town year after year and produce a Second, Third and Fourth Siege of
+    /// somewhere it took the first time. Fighting can still happen in the region — the owner
+    /// marching back to retake it is exactly the field battle this leaves available.</para>
     /// </remarks>
-    private static bool IsSiege(Settlement? settlement) =>
+    private static bool IsSiege(Settlement? settlement, EntityId invader) =>
         settlement is not null
+        && settlement.OccupierId != invader
         && (settlement.IsFortified || settlement.Tier >= SettlementTier.Town);
 
     /// <summary>Terrain and walls, as a multiplier on the defender.</summary>
-    private static double DefenceOf(Region region, Settlement? contested)
+    /// <remarks>
+    /// Takes the battle's own answer to whether this is a siege rather than asking the settlement
+    /// again. The two used to be the same question; once an army can be standing inside the place
+    /// it is fighting over, they are not, and walls should count for the defence only when
+    /// somebody is actually behind them.
+    /// </remarks>
+    private static double DefenceOf(Region region, Settlement? contested, bool isSiege)
     {
         // High ground and broken country, both read straight off the region's cached statistics.
         double terrain = 1.0 + (0.25 * DetMath.InverseLerp(400.0, 2000.0, region.MeanHeight));
         if (region.HasRiver) terrain += 0.08;
         if (region.Biome == Biome.Wetland) terrain += 0.10;
 
-        if (IsSiege(contested) && contested!.IsFortified) terrain *= FortificationBonus;
+        if (isSiege && contested!.IsFortified) terrain *= FortificationBonus;
 
         return terrain;
     }
@@ -757,7 +890,7 @@ public static class Warfare
             obj: sacker.Id,
             location: target.RegionId,
             extra: Sacked(war, battle, owner, fallen),
-            data: Chronicle.Data(("lost", lost.ToString(CultureInfo.InvariantCulture))));
+            data: Sacking(world, battle, lost));
 
         // The cause precedes its named casualties, as a disaster's does.
         foreach (Figure figure in fallen)
@@ -916,6 +1049,12 @@ public static class Warfare
             }
         }
 
+        // After the cessions, because the cessions are what decide which occupations were made
+        // permanent. A garrison whose treaty gave it the province stays as the owner; every other
+        // garrison in this war marches home, which is the half of a conquest the engine used to
+        // leave standing for ever.
+        ResolveOccupations(world, war, year);
+
         Settle(world, war, winners, losers, outcome, year, rng);
 
         var data = Chronicle.Data(
@@ -944,6 +1083,30 @@ public static class Warfare
             {
                 Realms.Fall(world, loser, year, "its last holdings taken in war", victor);
             }
+        }
+    }
+
+    /// <summary>
+    /// Hands back every town this war's armies were holding, except the ones the peace gave them.
+    /// </summary>
+    /// <remarks>
+    /// <para>Whether an occupation was confirmed is read from the settlement rather than tracked
+    /// through the peace: <see cref="Realms.Cede"/> has already moved the towns of a ceded region
+    /// to the taker, so a place whose owner is now its occupier is one the treaty granted, and
+    /// everything else is a garrison with no title to be there. Deriving it means the two cannot
+    /// disagree, which a parallel list of "what we decided to keep" eventually would.</para>
+    ///
+    /// <para>Scoped to this war's belligerents. A town held by a third realm out of a different war
+    /// running at the same time is not this treaty's to give back, and a world with two wars in it
+    /// would otherwise end both of them every time either one finished.</para>
+    /// </remarks>
+    private static void ResolveOccupations(WorldState world, War war, int year)
+    {
+        foreach (Settlement held in world.Settlements)
+        {
+            if (!held.IsOccupied || !war.Involves(held.OccupierId)) continue;
+
+            EndOccupation(world, held, year, ceded: held.CivilizationId == held.OccupierId);
         }
     }
 
@@ -1160,10 +1323,11 @@ public static class Warfare
     /// wording, so a field battle at a town already besieged twice is the third of its name —
     /// which is how a chronicle numbers them.</para>
     /// </remarks>
-    private static string NameBattle(WorldState world, Region field, Settlement? contested)
+    private static string NameBattle(
+        WorldState world, Region field, Settlement? contested, bool isSiege)
     {
         string place = contested?.Name ?? world.NameOf(field.Id);
-        string stem = (IsSiege(contested) ? "Siege of " : "Battle of ") + place;
+        string stem = (isSiege ? "Siege of " : "Battle of ") + place;
 
         int prior = 0;
         foreach (Battle past in world.Battles)
@@ -1272,6 +1436,22 @@ public static class Warfare
     };
 
     /// <summary>Everyone a battle should appear on the page of.</summary>
+    /// <summary>
+    /// What a sacking cost, and who was standing over it.
+    /// </summary>
+    /// <remarks>
+    /// The commander is the attacker's, whatever the sack's arithmetic: a town is put to the sack
+    /// by the army that took it, and that army's leader is the one the record has to name. They are
+    /// already among the event's references through <see cref="Sacked"/>'s battle, so this adds a
+    /// name to the sentence rather than a fact to the log.
+    /// </remarks>
+    private static DetMap<string, string> Sacking(WorldState world, Battle battle, int lost)
+    {
+        var data = Chronicle.Data(("lost", lost.ToString(CultureInfo.InvariantCulture)));
+        world.NamePerson(data, "captain", battle.AttackerCommanderId);
+        return data;
+    }
+
     private static EntityId[] Participants(War war, Battle battle)
     {
         var ids = new List<EntityId>(5) { war.Id, battle.AttackerId, battle.DefenderId };
