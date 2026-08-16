@@ -1766,13 +1766,28 @@ viewer reading it.
 >    battles 290 → 240, the missing sixth being northern winters. No capital sits on ground shut
 >    all year; the 12% of land that is, is arctic.
 >
+> 5. **The docket can wake a system.** `IEpisodic` declares which `DocketKind` a system answers
+>    for; the simulator drains due work in the docket's own order and routes each entry to its
+>    owner. Inert again — nothing schedules anything yet, so the fingerprint did not move.
+>
+> **Why the simulator dispatches rather than each system draining for itself**, since this was
+> the one architectural decision the milestone had left: `Docket.TryTakeDue` hands back whatever
+> is due, of *any* kind, so a system draining for its own work would take everybody else's out of
+> the queue on the way past. Filtering by kind at the call site fixes that and puts the same total
+> order at the mercy of which system happened to ask first. One drainer, dispatching by a declared
+> owner, is the only arrangement in which the queue's order remains a property of the queue.
+> Ownership is declared by the interface rather than by cadence, because a system may legitimately
+> do both — a plague igniting once a year and stepping its outbreaks on their own schedule is
+> exactly that shape — so `Cadence.Episodic` now means only that the clock never ticks it.
+>
 > What is left is the rest of the re-phasing — `crown` and `expansion` have seasons written into
-> their ordering notes and have not been given them — and the docket, which is built, tested,
-> and still has nothing scheduled on it. `SiegeResolves`, `OutbreakStep` and `Arrival` are
-> declared against consumers that do not exist yet: a siege that lasts, an outbreak that peaks
-> and burns out inside a year, and a party in transit. Measurements quoted from the current world
-> are measurements; every number attached to the part not yet built is an estimate and is marked
-> as one.
+> their ordering notes and have not been given them, and expansion was tried and reverted (see
+> `Seasons.OpenFloor`) — and the first producer. `SiegeResolves`, `OutbreakStep` and `Arrival`
+> are declared against consumers that do not exist: a siege that lasts, an outbreak that peaks and
+> burns out inside a year, and a party in transit. The machinery to run all three is now in place
+> and tested; what none of them has yet is a model. Measurements quoted from the current world are
+> measurements; every number attached to the part not yet built is an estimate and is marked as
+> one.
 
 The year is the atom, and it is the last load-bearing choice in this engine that was never
 argued for. `IYearSystem.Tick(world, year)` is the only entry point a system has,
