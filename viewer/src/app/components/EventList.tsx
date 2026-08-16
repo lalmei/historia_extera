@@ -36,33 +36,60 @@ export function NarratedEvent({ world, event }: { world: World; event: HistoryEv
  *
  * Kind filters are built from what is actually present rather than from a fixed
  * list, so they extend themselves as the engine gains event kinds.
+ *
+ * `separateRegister` is for the world chronicle and deliberately not for entity pages.
+ * Reading three centuries of a world, the ordinary births and deaths outnumber the
+ * history four to one and there is nothing to be gained from scrolling past them; reading
+ * one person, those same events are their life and hiding them would show someone who
+ * arrives in the world fully grown. Same log, two questions.
  */
 export function EventList({
   world,
   events,
   emptyMessage = 'No events recorded.',
   showFilters = true,
+  separateRegister = false,
   pageSize = 150,
 }: {
   world: World;
   events: HistoryEvent[];
   emptyMessage?: string;
   showFilters?: boolean;
+  separateRegister?: boolean;
   pageSize?: number;
 }) {
   const [kind, setKind] = useState<string>('all');
   const [limit, setLimit] = useState(pageSize);
   const [showRecord, setShowRecord] = useState(false);
+  const [showRegister, setShowRegister] = useState(false);
 
+  const spine = useMemo(
+    () =>
+      separateRegister && !showRegister
+        ? events.filter((event) => event.significance !== 'Routine')
+        : events,
+    [events, separateRegister, showRegister],
+  );
+
+  const registerCount = useMemo(
+    () =>
+      separateRegister
+        ? events.reduce((count, event) => count + (event.significance === 'Routine' ? 1 : 0), 0)
+        : 0,
+    [events, separateRegister],
+  );
+
+  // Counted over the spine rather than the whole log, so a chip's number matches what
+  // clicking it will actually show.
   const kinds = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const event of events) counts.set(event.kind, (counts.get(event.kind) ?? 0) + 1);
+    for (const event of spine) counts.set(event.kind, (counts.get(event.kind) ?? 0) + 1);
     return [...counts.entries()].sort((a, b) => b[1] - a[1]);
-  }, [events]);
+  }, [spine]);
 
   const filtered = useMemo(
-    () => (kind === 'all' ? events : events.filter((event) => event.kind === kind)),
-    [events, kind],
+    () => (kind === 'all' ? spine : spine.filter((event) => event.kind === kind)),
+    [spine, kind],
   );
 
   const visible = filtered.slice(0, limit);
@@ -79,7 +106,7 @@ export function EventList({
             <>
               <FilterChip
                 label="All"
-                count={events.length}
+                count={spine.length}
                 active={kind === 'all'}
                 onClick={() => {
                   setKind('all');
@@ -99,6 +126,30 @@ export function EventList({
                 />
               ))}
             </>
+          )}
+
+          {/* Off by default, which is the whole point of the significance field: the register is
+              most of the log by volume and almost none of it by meaning. On, the chronicle is
+              every event the engine wrote, in order, exactly as before. */}
+          {separateRegister && registerCount > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                setShowRegister(!showRegister);
+                setKind('all');
+                setLimit(pageSize);
+              }}
+              title="Ordinary births, deaths, marriages and consort appointments — true, and not the history"
+              className={`rounded border px-2 py-0.5 text-xs transition-colors ${
+                showRegister
+                  ? 'border-[var(--primary)] text-[var(--primary)]'
+                  : 'border-[var(--rule)] text-[var(--ink-soft)] hover:border-[var(--primary)]'
+              }`}
+            >
+              {showRegister
+                ? 'Hide the register'
+                : `The register (${registerCount.toLocaleString()})`}
+            </button>
           )}
 
           {/* Off by default: the prose is the point, and a chronicle with a payload under every
