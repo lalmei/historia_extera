@@ -1,52 +1,233 @@
 @import 'tailwindcss';
 
-/* Tailwind v4 is CSS-first: design tokens are declared here, not in a JS config. */
+/*
+  Historia Extera — archival viewer.
+
+  Dark-only, tonal rather than shadowed, IBM Plex for reading and JetBrains Mono
+  for numbers. Tokens below are the design system; --ink/--page/--panel/--rule/--accent
+  are compatibility aliases so existing components pick the new palette up without a
+  rewrite of every class.
+*/
+
 @theme {
-  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
-  --font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
+  --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-serif: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --radius-sm: 0.125rem;
+  --radius-DEFAULT: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
 }
 
 :root {
-  color-scheme: light dark;
+  color-scheme: dark;
 
-  /* Parchment and ink, muted enough to read for a long time. */
-  --ink: oklch(0.24 0.02 60);
-  --ink-soft: oklch(0.46 0.02 60);
-  --ink-faint: oklch(0.62 0.015 60);
-  --page: oklch(0.97 0.012 85);
-  --panel: oklch(0.99 0.008 85);
-  --rule: oklch(0.87 0.015 75);
-  --accent: oklch(0.48 0.11 25);
-  --accent-soft: oklch(0.93 0.03 40);
-}
+  --surface: #121316;
+  --surface-dim: #121316;
+  --surface-bright: #38393c;
+  --surface-container-lowest: #0d0e11;
+  --surface-container-low: #1a1c1e;
+  --surface-container: #1e2023;
+  --surface-container-high: #282a2d;
+  --surface-container-highest: #333538;
+  --on-surface: #e2e2e6;
+  --on-surface-variant: #c3c6cf;
+  --inverse-surface: #e2e2e6;
+  --inverse-on-surface: #2f3033;
+  --outline: #8d9199;
+  --outline-variant: #43474e;
+  --surface-tint: #a6c9f8;
+  --primary: #a6c9f8;
+  --on-primary: #033258;
+  --primary-container: #7093bf;
+  --on-primary-container: #002b4e;
+  --inverse-primary: #3d608a;
+  --secondary: #bcc7de;
+  --on-secondary: #273143;
+  --secondary-container: #3f495d;
+  --on-secondary-container: #aeb8d0;
+  --tertiary: #eebf76;
+  --on-tertiary: #432c00;
+  --tertiary-container: #b38a46;
+  --error: #ffb4ab;
+  --on-error: #690005;
+  --error-container: #93000a;
+  --background: #121316;
+  --on-background: #e2e2e6;
+  --canvas: #0d0e11;
+  --input: #141518;
+  --hover: #1c1e22;
+  --hairline: #26282c;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --ink: oklch(0.91 0.012 80);
-    --ink-soft: oklch(0.72 0.015 80);
-    --ink-faint: oklch(0.56 0.015 80);
-    --page: oklch(0.19 0.012 60);
-    --panel: oklch(0.23 0.014 60);
-    --rule: oklch(0.33 0.015 60);
-    --accent: oklch(0.74 0.11 45);
-    --accent-soft: oklch(0.3 0.03 40);
-  }
+  --ink: var(--on-surface);
+  --ink-soft: var(--on-surface-variant);
+  --ink-faint: var(--outline);
+  --page: var(--background);
+  --panel: var(--surface-container);
+  --rule: var(--hairline);
+  --accent: var(--primary);
+  --accent-soft: color-mix(in srgb, var(--primary) 14%, transparent);
 }
 
 html,
 body {
-  background: var(--page);
+  background: var(--canvas);
   color: var(--ink);
   font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Wide content scrolls inside its own container; the page never scrolls sideways. */
 body {
   overflow-x: hidden;
 }
 
+::selection {
+  background: color-mix(in srgb, var(--primary) 32%, transparent);
+  color: var(--on-surface);
+}
+
 a {
   color: inherit;
+}
+
+h1,
+h2,
+h3 {
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+code,
+kbd,
+samp,
+pre {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+  background: var(--input);
+  border: 1px solid var(--hairline);
+  border-radius: 0.25rem;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+button {
+  font: inherit;
+}
+
+.he-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  line-height: 16px;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.he-data {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  font-variant-numeric: tabular-nums;
+}
+
+.he-headline {
+  font-size: 32px;
+  font-weight: 500;
+  line-height: 40px;
+  letter-spacing: -0.01em;
+}
+
+.he-headline-md {
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 32px;
+  letter-spacing: -0.01em;
+}
+
+.he-btn-primary {
+  background: var(--primary);
+  color: var(--on-primary);
+  border: 1px solid var(--primary);
+  border-radius: 0.25rem;
+}
+
+.he-btn-primary:hover:not(:disabled) {
+  background: var(--primary-container);
+  border-color: var(--primary-container);
+  color: var(--on-primary-container);
+}
+
+.he-btn-secondary {
+  background: transparent;
+  color: var(--ink-soft);
+  border: 1px solid var(--hairline);
+  border-radius: 0.25rem;
+}
+
+.he-btn-secondary:hover:not(:disabled) {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.he-map-chrome {
+  background: var(--input);
+  border: 1px solid var(--hairline);
+  border-radius: 0.25rem;
+  opacity: 0.42;
+  transition: opacity 0.15s ease;
+}
+
+.he-map-viewport:hover .he-map-chrome,
+.he-map-chrome:focus-within {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .he-map-chrome {
+    opacity: 1;
+  }
+}
+
+.he-pip {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  flex-shrink: 0;
+}
+
+.he-pip-note {
+  background: var(--outline-variant);
+}
+
+.he-pip-ok {
+  background: var(--primary);
+}
+
+.he-pip-warn {
+  background: var(--tertiary);
+}
+
+.he-pip-error {
+  background: var(--error);
 }

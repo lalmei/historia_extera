@@ -1282,7 +1282,7 @@ export function Timeline({ world }: { world: World }) {
             <select
               value={civ}
               onChange={(event) => setCiv(event.target.value)}
-              className="rounded border border-[var(--rule)] bg-[var(--page)] px-1.5 py-1 text-xs"
+              className="rounded border border-[var(--rule)] bg-[var(--input)] px-1.5 py-1 text-xs"
             >
               <option value="all">All civilizations</option>
               {world.export.civilizations.map((c) => (
@@ -1299,7 +1299,7 @@ export function Timeline({ world }: { world: World }) {
                 min={meta.startYear}
                 max={meta.endYear}
                 onChange={(event) => setFrom(Number(event.target.value))}
-                className="w-20 rounded border border-[var(--rule)] bg-[var(--page)] px-1.5 py-1 tabular-nums"
+                className="w-20 rounded border border-[var(--rule)] bg-[var(--input)] px-1.5 py-1 tabular-nums"
               />
               <span className="text-[var(--ink-faint)]">to</span>
               <input
@@ -1308,13 +1308,13 @@ export function Timeline({ world }: { world: World }) {
                 min={meta.startYear}
                 max={meta.endYear}
                 onChange={(event) => setTo(Number(event.target.value))}
-                className="w-20 rounded border border-[var(--rule)] bg-[var(--page)] px-1.5 py-1 tabular-nums"
+                className="w-20 rounded border border-[var(--rule)] bg-[var(--input)] px-1.5 py-1 tabular-nums"
               />
             </label>
           </div>
         }
       >
-        <EventList world={world} events={filtered} pageSize={200} />
+        <EventList world={world} events={filtered} pageSize={200} separateRegister />
       </Panel>
     </div>
   );

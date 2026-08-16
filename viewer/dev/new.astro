@@ -32,25 +32,29 @@ const viewer = import.meta.env.BASE_URL;
     <title>New world — Historia Extera</title>
     <meta name="robots" content="noindex" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
   </head>
   <body>
-    <div class="mx-auto max-w-5xl px-4 py-6 sm:px-6">
+    <div class="mx-auto max-w-6xl px-4 py-6 md:px-10 md:py-10">
       <header
-        class="flex flex-wrap items-baseline justify-between gap-3 border-b border-[var(--rule)] pb-3"
+        class="flex flex-wrap items-baseline justify-between gap-3 border-b border-[var(--rule)] pb-4"
       >
-        <a href={viewer} class="font-serif text-xl tracking-tight">
+        <a href={viewer} class="he-headline-md tracking-tight">
           Historia Extera
-          <span class="ml-2 text-sm font-normal text-[var(--ink-faint)]">Legends</span>
+          <span class="he-label ml-3 inline align-middle">Legends</span>
         </a>
-        <span class="text-xs text-[var(--ink-faint)]">Development only</span>
+        <span class="he-label">Development only</span>
       </header>
 
-      <main class="mt-6">
-        <div class="text-xs font-medium tracking-widest uppercase text-[var(--ink-faint)]">
-          Generator
-        </div>
-        <h1 class="mt-1 font-serif text-3xl">New world</h1>
-        <p class="mt-2 max-w-prose text-sm text-[var(--ink-soft)]">
+      <main class="mt-8">
+        <div class="he-label">Generator</div>
+        <h1 class="he-headline mt-2">New world</h1>
+        <p class="mt-3 max-w-prose text-[var(--ink-soft)]">
           Runs the engine over a seed and opens the history it writes. Pick a previous
           export from the list to rerun it with new parameters, through the current engine,
           or for more years.

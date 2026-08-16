@@ -60,13 +60,7 @@ export function Panel({
     <section className="rounded-lg border border-[var(--rule)] bg-[var(--panel)]">
       {(title || actions) && (
         <header className="flex flex-wrap items-baseline justify-between gap-4 border-b border-[var(--rule)] px-4 py-2.5">
-          {title ? (
-            <h2 className="font-serif text-sm font-semibold tracking-wide uppercase text-[var(--ink-soft)]">
-              {title}
-            </h2>
-          ) : (
-            <span />
-          )}
+          {title ? <h2 className="he-label">{title}</h2> : <span />}
           {actions}
         </header>
       )}
@@ -86,10 +80,8 @@ export function Stat({
 }) {
   return (
     <div title={hint}>
-      <div className="text-[0.7rem] font-medium tracking-wide uppercase text-[var(--ink-faint)]">
-        {label}
-      </div>
-      <div className="mt-0.5 font-serif text-lg tabular-nums">{value}</div>
+      <div className="he-label">{label}</div>
+      <div className="he-data mt-1 text-lg text-[var(--ink)]">{value}</div>
     </div>
   );
 }
@@ -112,7 +104,7 @@ export function Badge({
 }) {
   const tones = {
     neutral: 'border-[var(--rule)] text-[var(--ink-soft)]',
-    accent: 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]',
+    accent: 'border-[var(--primary)] text-[var(--primary)]',
     muted: 'border-[var(--rule)] text-[var(--ink-faint)]',
   };
 
@@ -162,11 +154,11 @@ export function Dials({ dials }: { dials: Dial[] }) {
                 />
               )}
             </div>
-            <span className="w-9 shrink-0 text-right text-xs tabular-nums text-[var(--ink-faint)]">
+            <span className="he-data w-9 shrink-0 text-right text-[var(--ink-faint)]">
               {dial.value.toFixed(2)}
             </span>
             {dial.against !== undefined && (
-              <span className="w-11 shrink-0 text-right text-xs tabular-nums text-[var(--ink-faint)]">
+              <span className="he-data w-11 shrink-0 text-right text-[var(--ink-faint)]">
                 {signed(dial.value - dial.against)}
               </span>
             )}
@@ -197,12 +189,10 @@ export function PageTitle({
   meta?: React.ReactNode;
 }) {
   return (
-    <header className="mb-6">
-      <div className="text-xs font-medium tracking-widest uppercase text-[var(--ink-faint)]">
-        {eyebrow}
-      </div>
-      <h1 className="mt-1 font-serif text-3xl">{title}</h1>
-      {meta && <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">{meta}</div>}
+    <header className="mb-8">
+      <div className="he-label">{eyebrow}</div>
+      <h1 className="he-headline mt-2">{title}</h1>
+      {meta && <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">{meta}</div>}
     </header>
   );
 }
@@ -320,7 +310,7 @@ export function DataTable<T>({
             setLimit(pageSize);
           }}
           placeholder={placeholder}
-          className="w-full max-w-xs rounded border border-[var(--rule)] bg-[var(--page)] px-2.5 py-1.5 text-sm outline-none focus:border-[var(--accent)]"
+          className="w-full max-w-xs rounded border border-[var(--rule)] bg-[var(--input)] px-2.5 py-1.5 text-sm outline-none focus:border-[var(--primary)]"
         />
 
         {(facets ?? []).map((facet) => {
@@ -342,9 +332,9 @@ export function DataTable<T>({
                 setLimit(pageSize);
               }}
               title={facet.label}
-              className={`rounded border bg-[var(--page)] px-1.5 py-1.5 text-xs ${
+              className={`rounded border bg-[var(--input)] px-1.5 py-1.5 text-xs ${
                 chosen[facet.key]
-                  ? 'border-[var(--accent)] text-[var(--accent)]'
+                  ? 'border-[var(--primary)] text-[var(--primary)]'
                   : 'border-[var(--rule)]'
               }`}
             >
@@ -386,7 +376,7 @@ export function DataTable<T>({
               {columns.map((column) => (
                 <th
                   key={column.key}
-                  className={`py-2 pr-4 text-left text-[0.7rem] font-semibold tracking-wide uppercase text-[var(--ink-faint)] ${
+                  className={`he-label py-2 pr-4 text-left ${
                     column.align === 'right' ? 'text-right' : ''
                   }`}
                 >
@@ -416,12 +406,12 @@ export function DataTable<T>({
             {visible.map((row, index) => (
               <tr
                 key={index}
-                className="border-b border-[var(--rule)]/50 last:border-0 hover:bg-[var(--accent-soft)]/40"
+                className="border-b border-[var(--rule)] last:border-0 hover:bg-[var(--hover)]"
               >
                 {columns.map((column) => (
                   <td
                     key={column.key}
-                    className={`py-1.5 pr-4 ${column.align === 'right' ? 'text-right tabular-nums' : ''} ${column.className ?? ''}`}
+                    className={`py-1.5 pr-4 ${column.align === 'right' ? 'he-data text-right' : ''} ${column.className ?? ''}`}
                   >
                     {column.cell(row)}
                   </td>
