@@ -618,11 +618,17 @@ public sealed record ExportDisposition(
     double Learning,
     double Centralism);
 
+/// <param name="Significance">
+/// Whether this belongs to the narrative spine or the vital register. The viewer hides
+/// <see cref="Events.Significance.Routine"/> from the chronicle by default and keeps it on entity
+/// pages, so a person's own history stays complete while the world's stays readable.
+/// </param>
 public sealed record ExportEvent(
     int Id,
     int Year,
     int Day,
     EventKind Kind,
+    Significance Significance,
     EntityId? Subject,
     EntityId? Object,
     EntityId? Location,

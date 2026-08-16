@@ -711,6 +711,7 @@ public static class WorldExporter
                 Year: entry.Year,
                 Day: entry.Day,
                 Kind: entry.Kind,
+                Significance: entry.Significance,
                 Subject: OrNull(entry.Subject),
                 Object: OrNull(entry.Object),
                 Location: OrNull(entry.Location),
