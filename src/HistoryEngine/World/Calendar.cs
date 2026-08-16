@@ -52,6 +52,29 @@ public sealed record Calendar(int DaysPerYear = 360, int SeasonsPerYear = 4)
     /// </remarks>
     public long AbsoluteDay(Stamp stamp) => ((long)stamp.Year * DaysPerYear) + stamp.Day;
 
+    /// <summary>
+    /// The stamp <paramref name="days"/> after <paramref name="from"/>, with the year carried.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Scheduling arithmetic must go through here rather than adding to
+    /// <see cref="Stamp.Day"/>.</b> <see cref="AbsoluteDay"/> deliberately answers a day past the
+    /// end of its year honestly, so a docket sorts <c>(year 3, day 400)</c> where its days put it —
+    /// but that tolerance is for the queue's ordering, not for the record. An event stamped
+    /// <c>(3, 400)</c> claims to have happened in year three when it happened in year four, and the
+    /// chronicle then appends it after year four's events while saying it is older than them.</para>
+    ///
+    /// <para>Found exactly that way: chaining a plague's next step off the last one overflowed the
+    /// day within a couple of years, and six tests failed on consequences of the wrong year rather
+    /// than on the arithmetic — a reign outlasting its holder, land held by a realm that had ended.
+    /// </para>
+    /// </remarks>
+    public Stamp Plus(Stamp from, int days)
+    {
+        long absolute = AbsoluteDay(from) + days;
+
+        return new Stamp((int)(absolute / DaysPerYear), (int)(absolute % DaysPerYear));
+    }
+
     public void Validate()
     {
         if (DaysPerYear <= 0)

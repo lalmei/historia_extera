@@ -57,6 +57,28 @@ public sealed class Outbreak
     /// </remarks>
     public List<Passage> InTransit { get; }
 
+    /// <summary>
+    /// Days between this plague's steps, from how readily it travels.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>The shape of an outbreak stops being a calibration constant here.</b> A year gave
+    /// every epidemic one tick to arrive, peak and burn out in, so how long a plague lasted was
+    /// whatever the recovery rate said and nothing about the plague itself. A virulent one now
+    /// steps every few weeks and a mild one seasonally, and both spend the same force per year —
+    /// what differs is how finely, which is what lets a fast plague run its course inside a single
+    /// year and a slow one grind through several.</para>
+    ///
+    /// <para>Every per-year rate the step applies is scaled by this against the calendar, so the
+    /// interval decides the granularity and never the total.</para>
+    /// </remarks>
+    public int StepDays { get; set; }
+
+    /// <summary>When it last stepped. What arrived since has already had its arrival toll.</summary>
+    public Stamp LastStep { get; set; }
+
+    /// <summary>When it steps next. Also the key its docket entry is found by.</summary>
+    public Stamp NextStep { get; set; }
+
     public int Dead { get; set; }
 
     /// <summary>Settlements it has ever reached, including those that have since recovered.</summary>
@@ -80,7 +102,7 @@ public sealed record Passage(EntityId SettlementId, EntityId FromId, Stamp Due);
 /// <summary>One settlement's bout of one plague.</summary>
 public sealed class Infection
 {
-    public Infection(EntityId settlementId, int since)
+    public Infection(EntityId settlementId, Stamp since)
     {
         SettlementId = settlementId;
         Since = since;
@@ -88,5 +110,6 @@ public sealed class Infection
 
     public EntityId SettlementId { get; }
 
-    public int Since { get; }
+    /// <summary>When the plague reached this town, to the day.</summary>
+    public Stamp Since { get; }
 }
