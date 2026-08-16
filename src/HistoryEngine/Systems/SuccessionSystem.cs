@@ -398,6 +398,28 @@ public sealed class SuccessionSystem : ISystem
         if (regent is null) return;
 
         civilization.RegentId = regent.Id;
+
+        // A regent governs from the child's court. A parent living abroad — the usual case,
+        // a mother who married out — is the person the walk prefers, and leaving them where
+        // they are would put the office in one realm and its holder in another.
+        regent.CivilizationId = civilization.Id;
+        if (world.Settlements.Contains(civilization.CapitalId))
+        {
+            regent.ResidenceSettlementId = civilization.CapitalId;
+        }
+
+        if (world.Figures.Contains(regent.SpouseId))
+        {
+            Figure consort = world.Figures[regent.SpouseId];
+            OfficeHolding? held = consort.CurrentOffice;
+            if (!Succession.HoldsAThrone(world, consort)
+                && (held is null || held.Kind == OfficeKind.Consort))
+            {
+                consort.CivilizationId = civilization.Id;
+                consort.ResidenceSettlementId = regent.ResidenceSettlementId;
+            }
+        }
+
         regent.Offices.Add(
             new OfficeHolding(OfficeKind.Regent, "Regent", civilization.Id, year, null)
             {
@@ -425,11 +447,19 @@ public sealed class SuccessionSystem : ISystem
     private static Figure? ChooseRegent(
         WorldState world, Civilization civilization, Figure ruler, int year)
     {
-        bool Eligible(Figure candidate) =>
-            candidate.IsAlive
-            && candidate.Id != ruler.Id
-            && candidate.AgeIn(year) >= Succession.MajorityAge
-            && !Succession.HoldsAThrone(world, candidate);
+        bool Eligible(Figure candidate)
+        {
+            if (!candidate.IsAlive || candidate.Id == ruler.Id) return false;
+            if (candidate.AgeIn(year) < Succession.MajorityAge) return false;
+            if (Succession.HoldsAThrone(world, candidate)) return false;
+
+            // A sitting officer of another realm cannot come to govern here without taking
+            // their post with them. A consort may: that office moves with the person.
+            OfficeHolding? held = candidate.CurrentOffice;
+            return held is null
+                   || held.Kind == OfficeKind.Consort
+                   || held.CivilizationId == civilization.Id;
+        }
 
         foreach (EntityId parentId in ruler.Parents())
         {
