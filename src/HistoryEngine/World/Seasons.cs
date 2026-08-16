@@ -60,10 +60,17 @@ public static class Seasons
     /// Below which an army does not take the field on this ground.
     /// </summary>
     /// <remarks>
-    /// Not a claim that fighting in the cold is impossible — armies have always managed it — but
-    /// that a campaign is not <em>opened</em> in it. The number is deliberately low: it should close
-    /// a northern winter and leave everything temperate and warmer open all year, so that the closed
-    /// season is a fact about a few realms rather than a tax on all of them.
+    /// <para>Not a claim that fighting in the cold is impossible — armies have always managed it —
+    /// but that a campaign is not <em>opened</em> in it. The number is deliberately low: it should
+    /// close a northern winter and leave everything temperate and warmer open all year, so that the
+    /// closed season is a fact about a few realms rather than a tax on all of them.</para>
+    ///
+    /// <para><b>Whoever else comes to ask this question should share the threshold rather than
+    /// bring their own.</b> A settling party wants the same fact about the same ground — whether it
+    /// can be crossed and camped on — and two numbers would drift apart without either ever being
+    /// wrong enough to notice. Expansion is the obvious next caller, and is not one yet: making it
+    /// seasonal measurably changed the settlement size distribution over long runs, which wants a
+    /// calibration pass of its own rather than a rate divided by four.</para>
     /// </remarks>
     public const double CampaignFloor = 2.0;
 
