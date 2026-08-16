@@ -978,15 +978,16 @@ a recalled governor takes his household back with him. Reading it goes through
 a town can be abandoned or taken with people living in it, and making every system that moves a
 settlement chase its residents is the coupling the resolver exists to avoid.
 
-**What is still open, and known:** `FillMode.Customary` remains a value nothing produces. It needs
-the households of M14 below, because an office cannot run in a family until raised notables have
-one.
+**What was still open, and is not now:** `FillMode.Customary` was a value nothing produced, because
+an office cannot run in a family until raised notables have one. M14 gave them one, and the third
+mode is produced by `Offices.HeirTo` — see the section below.
 
 ### Notable households: what an office raises out of the population
 
-> **Half built.** The careers are in; the families are designed and not built. `FillMode.Customary`
-> is currently a value of an enum that nothing ever produces — three fill modes were designed and
-> two shipped — and the families are what would make the third reachable.
+> **Built**, in M14. The careers landed with M11; the families and `FillMode.Customary` landed
+> together, because neither is worth anything without the other — an office cannot run in a family
+> that was never allowed to exist. What the build changed about the plan is recorded at the end of
+> this section.
 
 **An office is filled from a house or from the ordinary population, and the population is the
 larger door.** Of 279 appointed office-holders on seed 42, 104 came from a house and 175 were
@@ -1050,6 +1051,56 @@ gentry comes from, and eventually the pressure a centralising ruler pushes again
 - **Two attention budgets that disagree.** The rank map and the office-proximity rule will both
   be walked every year and must not contradict each other, or a person will be simultaneously too
   remote for the chronicle to marry off and close enough to inherit a governorship.
+
+#### As built, and the three places the build disagreed
+
+**One window, not two.** The design's sharpest warning was that the rank map and the office-proximity
+rule would be walked every year and could contradict each other — "a person simultaneously too remote
+for the chronicle to marry off and close enough to inherit a governorship". The build removes the
+possibility rather than testing for it: `Offices.GraceYears` is one constant, `Offices.HeadsAHousehold`
+is one predicate, and notable heads are ranked **into the same `DetMap` the houses are ranked into**.
+There is one attention budget, and the same lookup answers for a king's fourth son and for a governor
+raised out of a provincial town.
+
+**Only the head is ranked, and that is the whole bound.** The spouse needs no rank, because `Bear`
+already asks whether *either* parent is near enough; the children get none, so they are recorded, grow
+up, and are not themselves extended. A child who takes an office becomes the head of a household in
+their own right — the one door out, and the one the design named. The second guard is
+`FindPartner`, which now refuses anyone of no house outright: a notable married into a dynasty would
+put their children in a line of succession, after which they are ranked by proximity to a throne
+rather than by the window that raised them, and the bound passes out of the office system's hands.
+
+`FillMode.Customary` is tried only where the crown did not name somebody, which is what makes "the
+crown acquiesces" true of the model rather than only of the prose — a ruler who wanted the seat has
+already taken it. Tradition weights it from 0.15 to 0.70 and the governing person's Centralism scales
+it down to as little as 0.35 of that.
+
+Where the build disagreed with the plan:
+
+- **The cost estimate was right, and arrives far more slowly than a level shift should.** The design
+  budgeted "about 56%" more figures. Measured on seed 42 against the same seed without households:
+  **+17.7% at 300 years, +40.5% at 600, +56.8% at 1200.** The reason is that notables scale with
+  *seats* while dynasts scale with *realms*, and a world is still founding towns for most of a run —
+  so the shift lands as the map fills rather than at once. The doubling ratios say it is a shift and
+  not a bend: 2.23 at 150→300, 2.57 at 300→600, 2.42 at 600→1200, rising while the households fill in
+  and then falling back. `OfficesRaiseTheFigureCountWithoutBendingItsCurve` moved its ceiling from
+  2.6 to 2.9 for that transient, and still fails on a household that compounds.
+
+- **The dial the design reached for first was not needed.** "If the figure count runs hot the first
+  lever is the balance between `Courtiers` and `Notable`." It ran hot and the lever stayed where it
+  was, because `HeirTo` turned out to be the same lever from the other end: a seat filled by an heir
+  continues a household instead of minting one. The raised share fell from 175 of 279 appointments to
+  154 of 301 without anything being tuned.
+
+- **Ossification was the wrong thing to fear.** The design worried that an office always passing to
+  the last holder's child stops being a decision. The measured share of appointments that run in a
+  family is **2.8%** (45 of 1,617 across five seeds) — a rarity rather than a gentry, and the ceiling
+  never binds. The limit is heir supply, not the roll: a notable enters the record *at* their
+  appointment, at 30–62, so they marry late and their children are usually still short of sixteen when
+  the seat next falls vacant. Giving a raised notable a family on arrival — which the same argument
+  supports that gave them a career, since a marshal of forty-five with no wife and no children is the
+  placeholder problem in a different place — would make the third mode ordinary rather than rare. It
+  is not built, because it spends the figure budget this milestone has already spent.
 
 ### Rulers who react: a people, a person, and a recent past
 
@@ -2043,7 +2094,7 @@ clock is a different project that this one should not pre-empt.
 | M11 | Offices: appointments, governors, founding parties | **done** |
 | M12 | Rulers who react: dispositions, realm fortunes, trait-aware elections | **done** |
 | M13 | Sub-year time: seasons, dated events, scheduled episodes | planned |
-| M14 | Notable households: families for the figures an office raises | designed |
+| M14 | Notable households: families for the figures an office raises | **done** |
 
 M12 landed first. `Disposition` is the record both milestones read, so building it once — rather
 than landing `Centralism` alone with M11 and folding it in a milestone later — was the cheaper
@@ -2422,7 +2473,7 @@ None of them should grow a parallel "religion flavour" table.
 | Tithes / landed wealth as an economic fact | `PopulationSystem` / harvest | A tithe that moved carrying capacity would be the first religion term to change M4's demography. Measure it the way the M8 faith-in-diplomacy coefficient was measured, or do not add it. |
 | Festival as a yearly gathering | a calendar tick; then trade and opinion | Would boost traffic on routes into a holy site's region in that season, and perhaps standing between co-religionists. Needs a seasonal pass that does not currently exist — the year is the tick. |
 | Daily prayer / dress / diet as settlement modifiers | population happiness, if that ever exists | Observance is currently chronicle-facing. A happiness dial would be a new system, not a new religion field. |
-| Hereditary priesthood as true office succession | `OfficeSystem` / `FillMode.Customary` | `Customary` is declared and the claim string is written, but `ChooseMode` never returns it. Bloodline clergy currently prefers a dynast from court. Wiring `Customary` means the last holder's child takes the seat, which is a succession model of its own. |
+| Hereditary priesthood as true office succession | `OfficeSystem` / `FillMode.Customary` | **Built in M14.** `Offices.HeirTo` gives the last holder's child the seat, weighted by Tradition and pushed down by the ruler's Centralism. Bloodline clergy still prefers a dynast from court and is tried first: drawing every priest from the ruling house is a different claim from one family keeping one seat. |
 | Tolerance as a diplomatic standing term | `DiplomacySystem.NaturalStanding` | Faith-divide is still the measured M8 coefficient (piety × same/different). Replacing "different" with a tolerance-weighted distance would rewrite war volumes. Measure it before substituting. Tolerance currently only gates whether a fervent faith will *name* the war religious. |
 | Syncretism absorbing neighbour traits in place | religion tick | Absorbing would mutate a living faith, which this model forbids: change is schism. A later "local rite" overlay on a settlement is the honest version — the faith stays, the town's observance drifts. |
 | Holy sites as pilgrimage magnets | conversion pull / trade | Sites already exist as geography. Weighting conversion pull by a nearby shrine, or founding a seasonal fair, is the next use of that geography. |
