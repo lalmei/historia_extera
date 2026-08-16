@@ -1,4 +1,5 @@
 using HistoryEngine.Core;
+using HistoryEngine.Events;
 using HistoryEngine.Systems;
 using HistoryEngine.World;
 using Xunit;
@@ -289,5 +290,136 @@ public sealed class CadenceTests
         public void Tick(WorldState world, Stamp now)
         {
         }
+    }
+}
+
+/// <summary>
+/// The rule that keeps the log readable once system order and the calendar disagree.
+/// </summary>
+/// <remarks>
+/// Every system in the engine is annual and stamps day zero, so nothing in a real world exercises
+/// this yet — which is exactly why it is worth asserting directly rather than waiting for the first
+/// seasonal system to be both the thing under test and the thing that proves the test works.
+/// </remarks>
+public sealed class ChronicleOrderTests
+{
+    private static readonly EntityId Someone = new(EntityKind.Figure, 1);
+
+    /// <summary>A step's events come out in day order, whatever order the systems wrote them in.</summary>
+    [Fact]
+    public void AStepsEventsAreOrderedByDayNotBySystem()
+    {
+        var chronicle = new Chronicle();
+        chronicle.OpenStep(Stamp.Opening(7));
+
+        // War runs before succession in the system list, and here it writes the later day.
+        chronicle.EnterSystem(3);
+        chronicle.Record(7, EventKind.BattleFought, Someone);
+
+        chronicle.EnterSystem(9);
+        chronicle.Record(7, EventKind.FigureDied, Someone);
+
+        // Restamp them as a seasonal pair would: the death on day 40, the battle on day 200.
+        Restamp(chronicle, 0, day: 200);
+        Restamp(chronicle, 1, day: 40);
+
+        chronicle.CloseStep();
+
+        Assert.Equal(EventKind.FigureDied, chronicle.Events[0].Kind);
+        Assert.Equal(40, chronicle.Events[0].Day);
+        Assert.Equal(EventKind.BattleFought, chronicle.Events[1].Kind);
+        Assert.Equal(200, chronicle.Events[1].Day);
+    }
+
+    /// <summary>An id still encodes position in the log after the step is put in order.</summary>
+    /// <remarks>
+    /// The property the export's indices are plain integer arrays because of. Reordering is only
+    /// safe while it holds, and it only holds because the ids are reassigned rather than carried.
+    /// </remarks>
+    [Fact]
+    public void IdsStillEncodePositionAfterReordering()
+    {
+        var chronicle = new Chronicle();
+        chronicle.OpenStep(Stamp.Opening(2));
+
+        for (int i = 0; i < 5; i++)
+        {
+            chronicle.EnterSystem(i);
+            chronicle.Record(2, EventKind.FigureBorn, Someone);
+            Restamp(chronicle, i, day: 100 - (i * 10));
+        }
+
+        chronicle.CloseStep();
+
+        for (int i = 0; i < chronicle.Count; i++)
+        {
+            Assert.Equal(i, chronicle.Events[i].Id);
+        }
+
+        Assert.Equal(60, chronicle.Events[0].Day);
+        Assert.Equal(100, chronicle.Events[4].Day);
+    }
+
+    /// <summary>
+    /// Two events of one day and one system keep the order they were written in.
+    /// </summary>
+    /// <remarks>
+    /// Sequence is the last term of the key, which makes the order total — so the sort has no
+    /// freedom to express an opinion, and a step in which nothing claimed a day is left exactly as
+    /// it was. That is what lets this land without moving a single existing history.
+    /// </remarks>
+    [Fact]
+    public void EqualStampsKeepTheOrderTheyWereWrittenIn()
+    {
+        var chronicle = new Chronicle();
+        chronicle.OpenStep(Stamp.Opening(1));
+        chronicle.EnterSystem(0);
+
+        chronicle.Record(1, EventKind.SettlementFounded, Someone);
+        chronicle.Record(1, EventKind.CivilizationFounded, Someone);
+        chronicle.Record(1, EventKind.DynastyFounded, Someone);
+
+        chronicle.CloseStep();
+
+        Assert.Equal(EventKind.SettlementFounded, chronicle.Events[0].Kind);
+        Assert.Equal(EventKind.CivilizationFounded, chronicle.Events[1].Kind);
+        Assert.Equal(EventKind.DynastyFounded, chronicle.Events[2].Kind);
+    }
+
+    /// <summary>Events written before any step began are left where they are.</summary>
+    /// <remarks>
+    /// The world builder writes foundings before the first step opens. They belong to no step, so
+    /// no step may reorder them.
+    /// </remarks>
+    [Fact]
+    public void WhatWasWrittenBeforeTheFirstStepIsNotReordered()
+    {
+        var chronicle = new Chronicle();
+
+        chronicle.Record(1, EventKind.WorldCreated, Someone);
+        chronicle.Record(1, EventKind.SettlementFounded, Someone);
+
+        chronicle.OpenStep(Stamp.Opening(1));
+        chronicle.EnterSystem(0);
+        chronicle.Record(1, EventKind.FigureBorn, Someone);
+        Restamp(chronicle, 2, day: 5);
+        chronicle.CloseStep();
+
+        Assert.Equal(EventKind.WorldCreated, chronicle.Events[0].Kind);
+        Assert.Equal(EventKind.SettlementFounded, chronicle.Events[1].Kind);
+        Assert.Equal(EventKind.FigureBorn, chronicle.Events[2].Kind);
+    }
+
+    /// <summary>
+    /// Gives an already-written event a day, standing in for the seasonal step that will.
+    /// </summary>
+    /// <remarks>
+    /// Reaching into the list rather than opening four steps, because what is under test is the
+    /// ordering within one step and no system can yet produce two days inside one.
+    /// </remarks>
+    private static void Restamp(Chronicle chronicle, int index, int day)
+    {
+        var events = (List<HistoryEvent>)chronicle.Events;
+        events[index] = events[index] with { Day = day };
     }
 }

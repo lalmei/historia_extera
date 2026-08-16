@@ -21,6 +21,20 @@ public interface IChronicle
     /// </remarks>
     void OpenStep(Stamp now);
 
+    /// <summary>Declares which system is writing, for the ordering <see cref="CloseStep"/> applies.</summary>
+    void EnterSystem(int index);
+
+    /// <summary>
+    /// Ends the step, putting the events it wrote into stamp order.
+    /// </summary>
+    /// <remarks>
+    /// The second of the two rules that keep the log readable in order once events carry days. The
+    /// first is a discipline — a system stamps only inside the step it is running in — and this is
+    /// its enforcement: system order and the calendar are allowed to disagree within a step, and
+    /// the step is what reconciles them.
+    /// </remarks>
+    void CloseStep();
+
     HistoryEvent Record(
         int year,
         EventKind kind,
@@ -52,6 +66,19 @@ public sealed class Chronicle : IChronicle
 
     public IReadOnlyList<HistoryEvent> Events => _events;
 
+    /// <summary>Which system wrote each event, parallel to <see cref="_events"/>.</summary>
+    /// <remarks>
+    /// Beside the log rather than on <see cref="HistoryEvent"/>, because it is bookkeeping for one
+    /// sort and not a fact about the event. Nothing outside this class asks which system wrote
+    /// something, and putting it on the record would export it and invite something to.
+    /// </remarks>
+    private readonly List<int> _writers = new();
+
+    /// <summary>Where in the log the open step began.</summary>
+    private int _stepStart;
+
+    private int _writer;
+
     /// <summary>The step currently running, or the opening of year zero before one has been.</summary>
     /// <remarks>
     /// Not part of the world's state and never exported: it is scaffolding for the writer, and a
@@ -59,7 +86,69 @@ public sealed class Chronicle : IChronicle
     /// </remarks>
     public Stamp Now { get; private set; }
 
-    public void OpenStep(Stamp now) => Now = now;
+    public void OpenStep(Stamp now)
+    {
+        Now = now;
+        _stepStart = _events.Count;
+        _writer = 0;
+    }
+
+    public void EnterSystem(int index) => _writer = index;
+
+    /// <summary>
+    /// Sorts the step's own events into <c>(day, system index, sequence)</c> order.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Sorted in place rather than buffered and flushed</b>, which is the one place this
+    /// departs from the shape the design sketched, and it departs for a reason the design did not
+    /// have in front of it: <see cref="World.Tomes"/> reads the log <em>during</em> a step to write
+    /// a settlement's annals. Holding a step's events back until it ended would hide the year's own
+    /// entries from the tome being written in it, which is a change of history rather than of
+    /// plumbing. Appending as before and reordering afterwards leaves every mid-step read seeing
+    /// exactly what it sees today.</para>
+    ///
+    /// <para><b>Reassigning ids is safe, and is the reason the design checked.</b> An event's id
+    /// encodes its position in the log and nothing else — nothing in the engine stores one on an
+    /// entity, a tome's passages carry entity ids — so a reordering within a step keeps the
+    /// property the export depends on rather than breaking a reference.</para>
+    ///
+    /// <para>Sequence is the last term of the key, so the order is total and an unstable sort
+    /// cannot express an opinion. Two events of the same day written by the same system come out in
+    /// the order they were written, which is what makes this a no-op for a step in which nothing
+    /// claimed a day — every step in the engine today.</para>
+    /// </remarks>
+    public void CloseStep()
+    {
+        int count = _events.Count - _stepStart;
+        if (count < 2) return;
+
+        var order = new int[count];
+        for (int i = 0; i < count; i++) order[i] = _stepStart + i;
+
+        Array.Sort(order, (left, right) =>
+        {
+            int byDay = _events[left].Day.CompareTo(_events[right].Day);
+            if (byDay != 0) return byDay;
+
+            int byWriter = _writers[left].CompareTo(_writers[right]);
+            return byWriter != 0 ? byWriter : left.CompareTo(right);
+        });
+
+        var sorted = new HistoryEvent[count];
+        var writers = new int[count];
+
+        for (int i = 0; i < count; i++)
+        {
+            sorted[i] = _events[order[i]] with { Id = _stepStart + i };
+            writers[i] = _writers[order[i]];
+        }
+
+        for (int i = 0; i < count; i++)
+        {
+            _events[_stepStart + i] = sorted[i];
+            _writers[_stepStart + i] = writers[i];
+        }
+    }
 
     public HistoryEvent Record(
         int year,
@@ -89,6 +178,7 @@ public sealed class Chronicle : IChronicle
         };
 
         _events.Add(entry);
+        _writers.Add(_writer);
         return entry;
     }
 

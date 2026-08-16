@@ -203,8 +203,12 @@ public sealed class Simulator
 
         for (int i = 0; i < _systems.Count; i++)
         {
+            world.Chronicle.EnterSystem(i);
             _systems[i].Tick(world, now);
         }
+
+        // Before Observe, so the step's log is settled before anything samples it.
+        world.Chronicle.CloseStep();
 
         Observe(world, year);
 
