@@ -7,7 +7,7 @@
  * stops moving.
  */
 
-export const SCHEMA_VERSION = 16;
+export const SCHEMA_VERSION = 17;
 
 /** `"civ:3"`, `"fig:1204"` — readable, greppable, and directly usable as a route. */
 export type EntityId = string;
@@ -997,6 +997,12 @@ export interface Figure {
 export interface HistoryEvent {
   id: number;
   year: number;
+  /**
+   * Day within the year. Zero for everything an annual system records, which is
+   * currently everything — read it only where a finer date would actually be shown,
+   * and keep filtering and indexing on `year`, which is what they have always used.
+   */
+  day: number;
   kind: string;
   subject?: EntityId;
   object?: EntityId;

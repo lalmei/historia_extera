@@ -34,6 +34,27 @@ public sealed record HistoryEvent(
     IReadOnlyList<EntityId>? Extra = null,
     DetMap<string, string>? Data = null)
 {
+    /// <summary>
+    /// The day within <see cref="Year"/> this happened on.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>The year is kept, and that is the migration decision.</b> Every existing read
+    /// survives untouched: the per-year index, the viewer's timeline slider, the year filters and
+    /// the territory replay all continue to work, and the day is additive detail they adopt when
+    /// they have a reason to. It is the same choice schema 9 made when <c>ExportTitle</c> gained
+    /// four fields and kept <c>civilizationId</c>.</para>
+    ///
+    /// <para>Init-only with a default of zero rather than a positional member, so that an event
+    /// recorded by a system with nothing finer to say than a year is spelled the way it is
+    /// meant — the opening of the year — instead of forcing several hundred call sites to name a
+    /// day none of them has yet. Every system in the engine is still
+    /// <see cref="Systems.Cadence.Annual"/>, so every day in a world today is zero.</para>
+    /// </remarks>
+    public int Day { get; init; }
+
+    /// <summary>When this happened, as one comparable value.</summary>
+    public Stamp At => new(Year, Day);
+
     /// <summary>Every entity this event mentions, in slot order. Drives the export's per-entity index.</summary>
     public IEnumerable<EntityId> References()
     {
@@ -68,7 +89,8 @@ public sealed record HistoryEvent(
         if (other is null) return false;
         if (ReferenceEquals(this, other)) return true;
 
-        if (Id != other.Id || Year != other.Year || Kind != other.Kind) return false;
+        if (Id != other.Id || Year != other.Year || Day != other.Day) return false;
+        if (Kind != other.Kind) return false;
         if (Subject != other.Subject || Object != other.Object || Location != other.Location) return false;
         if (!Equals(Data, other.Data)) return false;
 
@@ -88,6 +110,7 @@ public sealed record HistoryEvent(
         var hash = new HashCode();
         hash.Add(Id);
         hash.Add(Year);
+        hash.Add(Day);
         hash.Add(Kind);
         hash.Add(Subject);
         hash.Add(Object);
@@ -114,6 +137,7 @@ public sealed record HistoryEvent(
         var parts = new List<string>(8)
         {
             Year.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            Day.ToString(System.Globalization.CultureInfo.InvariantCulture),
             Kind.ToString(),
             Subject.ToString(),
             Object.ToString(),
@@ -136,5 +160,5 @@ public sealed record HistoryEvent(
         return string.Join("|", parts);
     }
 
-    public override string ToString() => $"[{Year}] {Kind} {Subject}";
+    public override string ToString() => $"[{At}] {Kind} {Subject}";
 }

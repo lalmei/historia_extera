@@ -8,6 +8,19 @@ public interface IChronicle
 {
     int Count { get; }
 
+    /// <summary>
+    /// Declares which step is now running, so events written in it can be dated.
+    /// </summary>
+    /// <remarks>
+    /// Called by the simulator, never by a system. It is what lets <see cref="Record"/> keep the
+    /// signature several hundred call sites already use while events gain a day: a system says what
+    /// happened and in which year, and the step it is running in says when within that year. The
+    /// alternative — threading a <see cref="Stamp"/> through every recording call — would make the
+    /// day a parameter that every caller has to get right, when only one caller in the engine
+    /// actually knows it.
+    /// </remarks>
+    void OpenStep(Stamp now);
+
     HistoryEvent Record(
         int year,
         EventKind kind,
@@ -39,6 +52,15 @@ public sealed class Chronicle : IChronicle
 
     public IReadOnlyList<HistoryEvent> Events => _events;
 
+    /// <summary>The step currently running, or the opening of year zero before one has been.</summary>
+    /// <remarks>
+    /// Not part of the world's state and never exported: it is scaffolding for the writer, and a
+    /// run that resumed mid-year would set it from the step it resumed into rather than restore it.
+    /// </remarks>
+    public Stamp Now { get; private set; }
+
+    public void OpenStep(Stamp now) => Now = now;
+
     public HistoryEvent Record(
         int year,
         EventKind kind,
@@ -56,7 +78,15 @@ public sealed class Chronicle : IChronicle
             Object: obj,
             Location: location,
             Extra: extra,
-            Data: data);
+            Data: data)
+        {
+            // The open step dates the event, but only where the caller is writing about the year it
+            // is standing in. A year named that is not the open one is the world being built before
+            // any step has run, or a system reaching outside the step it belongs to — and neither
+            // has a day to offer, so both get the opening of the year they named rather than a day
+            // borrowed from a different one.
+            Day = Now.Year == year ? Now.Day : 0,
+        };
 
         _events.Add(entry);
         return entry;

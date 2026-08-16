@@ -705,6 +705,7 @@ public static class WorldExporter
             list.Add(new ExportEvent(
                 Id: entry.Id,
                 Year: entry.Year,
+                Day: entry.Day,
                 Kind: entry.Kind,
                 Subject: OrNull(entry.Subject),
                 Object: OrNull(entry.Object),
