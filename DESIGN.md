@@ -1812,9 +1812,32 @@ viewer reading it.
 > something that happened in year four. And the step sort compares the whole stamp rather than the
 > day, because scheduled work means a step can now hold two years at once.
 >
-> What is left is the rest of the re-phasing — `crown` and `expansion` have seasons written into
-> their ordering notes and have not been given them, and expansion was tried and reverted (see
-> `Seasons.OpenFloor`) — and `SiegeResolves`, the last kind with no consumer. A siege is the
+> 8. **Expansion left the year, on the second attempt.** A settling party sets out for ground it
+>    can arrive on, read from the region being settled rather than the realm settling it.
+>
+> **The season decides when, not how often, and that is the difference from war.** A war runs
+> continuously and a closed season genuinely removes chances to fight, so the north fights less
+> over a year — battles fell a sixth and that was the point. Colonising is a decision of state
+> taken when pressure builds, and pressure does not evaporate over the winter: the settlers wait
+> for spring. So a frontier open two seasons in four gets half as many chances at twice the odds,
+> the yearly weight is preserved, and only the timing moves.
+>
+> The first attempt was reverted, and what it got wrong was not the rate. Gating on the season
+> alone stalled any realm whose best frontier was frozen the year round — it waited for a spring
+> that never came. Seed 7 lost 22% of its colonies and the population that should have gone to them
+> concentrated into cities until a third of its settlements were one; compensating the rate fixed
+> that and then failed the same test from the other side on long runs. Ground with no open season
+> has no better season to wait for, so it is now settled whenever it is settled, and the long-run
+> size distribution holds without a constant being tuned to make it.
+>
+> **`crown` was listed for a season and should not have been.** It fades a realm's memory by a year
+> and settles the values that memory produces — a slow accumulator, which is the case the
+> three-tier argument explicitly reserves for the year. Dividing a yearly fade by four gives the
+> same answer through four times the arithmetic and informs no decision a season could. The spring
+> in "a crown made in the reign of a ruler crowned this spring" belongs to `artifacts` running
+> after the houses, and is already true of the ordering.
+>
+> What is left is `SiegeResolves`, the last kind with no consumer. A siege is the
 > largest of the three and the only one that is not a re-phasing of something already modelled: it
 > needs state that does not exist, and it has to take its share of campaigns that are currently
 > all pitched battles, so `Warfare` is calibrated around a world in which no engagement lasts.
