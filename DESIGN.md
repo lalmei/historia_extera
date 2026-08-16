@@ -1793,16 +1793,33 @@ viewer reading it.
 > plague is travelling *toward* alongside what it has reached restores the budget, and is the
 > truer model: a town closes its gates on the news, not on the disease.
 >
+> 7. **Every plague keeps its own clock.** `OutbreakStep`'s consumer. An outbreak steps on its own
+>    docket entry at its own interval — thirty days for the most virulent, a hundred and twenty for
+>    the mildest — and every per-year rate the step applies is scaled by that interval against the
+>    calendar, so the change buys granularity and never the annual total. The annual tick keeps
+>    only ignition, which is a question about the world rather than about any running epidemic.
+>
+> This is the row that "what a year cannot say" opened with, and the measurement is the shape
+> rather than the budget: on seed 42 the Wasting Fever begins on 157.0 and is over by 157.89 — an
+> epidemic that arrives, peaks and burns out inside one year — while the Summer Contagion still
+> grinds through seven. Durations are continuous instead of quantised to whole years, and the
+> plague budgets held without a constant being touched.
+>
+> **Two ordering bugs came out of it, both found by tests rather than by reasoning.**
+> `Calendar.Plus` now carries the year: adding to `Stamp.Day` overflowed once steps chained off
+> each other, and `AbsoluteDay`'s deliberate tolerance for a day past the end of its year — which
+> the docket needs in order to sort — is not a licence for the *record* to claim year three for
+> something that happened in year four. And the step sort compares the whole stamp rather than the
+> day, because scheduled work means a step can now hold two years at once.
+>
 > What is left is the rest of the re-phasing — `crown` and `expansion` have seasons written into
 > their ordering notes and have not been given them, and expansion was tried and reverted (see
-> `Seasons.OpenFloor`) — and the two remaining docket kinds. `SiegeResolves` and `OutbreakStep`
-> are still declared against consumers that do not exist: a siege that lasts, is lifted or is
-> relieved, and an outbreak that peaks and burns out inside a year. Both are model-building rather
-> than plumbing, and unlike the plague's road neither is additive — a siege has to take its share
-> of the campaigns that are currently all pitched battles, and an outbreak stepping on its own
-> schedule has to convert every rate the annual advance holds. Measurements quoted from the
-> current world are measurements; every number attached to the part not yet built is an estimate
-> and is marked as one.
+> `Seasons.OpenFloor`) — and `SiegeResolves`, the last kind with no consumer. A siege is the
+> largest of the three and the only one that is not a re-phasing of something already modelled: it
+> needs state that does not exist, and it has to take its share of campaigns that are currently
+> all pitched battles, so `Warfare` is calibrated around a world in which no engagement lasts.
+> Measurements quoted from the current world are measurements; every number attached to the part
+> not yet built is an estimate and is marked as one.
 
 The year is the atom, and it is the last load-bearing choice in this engine that was never
 argued for. `IYearSystem.Tick(world, year)` is the only entry point a system has,
