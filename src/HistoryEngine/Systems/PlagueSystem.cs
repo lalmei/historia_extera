@@ -33,7 +33,7 @@ namespace HistoryEngine.Systems;
 /// <para>Samples no terrain: spread is decided by distance between settlements the simulation
 /// already knows the coordinates of.</para>
 /// </remarks>
-public sealed class PlagueSystem : ISystem
+public sealed class PlagueSystem : ISystem, IEpisodic
 {
     /// <summary>Yearly ignition hazard contributed by one unit of urban exposure.</summary>
     private const double IgnitionPerExposure = 0.0018;
@@ -118,6 +118,54 @@ public sealed class PlagueSystem : ISystem
         // this year does not also get a year of killing out of the same tick.
         Advance(world, year, rng);
         MaybeIgnite(world, year, rng);
+    }
+
+    /// <summary>The kind of scheduled work this system answers for: a plague reaching a town.</summary>
+    public DocketKind Handles => DocketKind.Arrival;
+
+    /// <summary>
+    /// Lands a plague that has been travelling, in the town it was travelling to.
+    /// </summary>
+    /// <remarks>
+    /// <para>Forked on the destination and the day rather than on either alone. The design's rule
+    /// for a scheduled episode is that its dice must not depend on how many other episodes were
+    /// queued before it — the subject alone would satisfy that and then hand every arrival this
+    /// town ever suffers the same stream, so the day it landed on distinguishes them.</para>
+    ///
+    /// <para>Three ways an arrival comes to nothing, all of them silent: the passage has already
+    /// been landed, the town was abandoned or taken while the carriers were on the road, or the
+    /// plague reached it by another road first. None is an error — a plague that arrives somewhere
+    /// there is no longer anybody to infect has simply failed, which is a thing plagues do.</para>
+    /// </remarks>
+    public void Resolve(WorldState world, DocketEntry entry, Stamp now)
+    {
+        foreach (Outbreak outbreak in world.Outbreaks)
+        {
+            for (int i = 0; i < outbreak.InTransit.Count; i++)
+            {
+                Passage passage = outbreak.InTransit[i];
+                if (passage.SettlementId != entry.Subject || passage.Due != entry.Due) continue;
+
+                outbreak.InTransit.RemoveAt(i);
+
+                if (!world.Settlements.Contains(passage.SettlementId)) return;
+                if (!world.Settlements.Contains(passage.FromId)) return;
+
+                Settlement destination = world.Settlements[passage.SettlementId];
+                if (!destination.IsActive || destination.Population <= 0) return;
+                if (IsInfected(outbreak, destination.Id)) return;
+
+                IRng rng = world.Root
+                    .Fork(Name + "-arrival", destination.Id.ToDiscriminator())
+                    .Fork("on", world.Config.Calendar.AbsoluteDay(entry.Due));
+
+                Arrive(
+                    world, outbreak, destination, world.Settlements[passage.FromId],
+                    entry.Due.Year, rng);
+
+                return;
+            }
+        }
     }
 
     // -----------------------------------------------------------------------
@@ -209,13 +257,21 @@ public sealed class PlagueSystem : ISystem
             {
                 if (!candidate.IsActive || candidate.Id == sourceId) continue;
                 if (IsInfected(outbreak, candidate.Id)) continue;
+                if (IsOnItsWayTo(outbreak, candidate.Id)) continue;
 
                 double distance = world.Distance(source.X, source.Z, candidate.X, candidate.Z);
                 TradeRoute? route = TradeRoutes.Between(world, source.Id, candidate.Id);
                 if (distance > SpreadRange && route is null) continue;
 
                 double nearness = 1.0 - DetMath.InverseLerp(0.0, SpreadRange, distance);
-                double wary = 1.0 / (1.0 + (outbreak.Reached * QuarantineDecay));
+                // Counted against what the plague is known to have reached *and* what it is on its
+                // way to, because a town closes its gates on the news rather than on the disease.
+                // Without the second term the damping arrives too late to do its job: several
+                // carriers now set out before any of them lands, so each of them reads a reach that
+                // the others have already made out of date, and an outbreak travels further than
+                // the same wariness used to allow.
+                double spreading = outbreak.Reached + outbreak.InTransit.Count;
+                double wary = 1.0 / (1.0 + (spreading * QuarantineDecay));
                 double connection = nearness * nearness;
 
                 // An established route can carry infection beyond an ordinary local jump. The
@@ -230,7 +286,7 @@ public sealed class PlagueSystem : ISystem
 
                 if (!rng.Chance(DetMath.Clamp01(chance))) continue;
 
-                Arrive(world, outbreak, candidate, source, year, rng);
+                SetOut(world, outbreak, candidate, source, distance);
             }
         }
     }
@@ -286,6 +342,57 @@ public sealed class PlagueSystem : ISystem
         }
 
         return DetMath.Lerp(1.0, 1.15, DetMath.InverseLerp(4000.0, 8000.0, population));
+    }
+
+    /// <summary>Days a carrier takes to cover the first unit of ground, before distance is counted.</summary>
+    /// <remarks>
+    /// Nothing is next door. Even a neighbouring village is a few days of somebody walking there
+    /// with it, and a floor keeps the shortest jumps from resolving in the step that scheduled them
+    /// — which would be the old instantaneous model wearing a due date.
+    /// </remarks>
+    private const int TravelFloor = 6;
+
+    /// <summary>Distance a carrier covers in a day.</summary>
+    /// <remarks>
+    /// Set so the longest ordinary jump — <see cref="SpreadRange"/>, 950 units — takes about seven
+    /// weeks, and a jump between neighbouring towns a week or two. A trade route can carry
+    /// infection further than <see cref="SpreadRange"/>, and then it takes proportionately longer:
+    /// a plague crossing the map on a merchant's ship arrives seasons after it left, which is the
+    /// arithmetic the year could not do.
+    /// </remarks>
+    private const double TravelPerDay = 22.0;
+
+    /// <summary>Longest a plague can be on the road before it is written off.</summary>
+    private const int TravelCeiling = 300;
+
+    /// <summary>
+    /// Sends the plague toward a town, to arrive when the people carrying it get there.
+    /// </summary>
+    /// <remarks>
+    /// The docket keeps the date and the outbreak keeps the passage, because an entry names one
+    /// subject and the subject is the destination. What is scheduled is a fact about the world; the
+    /// roll that decided it has already happened, so no dice travel with it.
+    /// </remarks>
+    private static void SetOut(
+        WorldState world, Outbreak outbreak, Settlement to, Settlement from, double distance)
+    {
+        int days = Math.Clamp(
+            TravelFloor + (int)(distance / TravelPerDay), TravelFloor, TravelCeiling);
+
+        var due = new Stamp(world.Now.Year, world.Now.Day + days);
+
+        outbreak.InTransit.Add(new Passage(to.Id, from.Id, due));
+        world.Docket.Schedule(due, DocketKind.Arrival, to.Id);
+    }
+
+    private static bool IsOnItsWayTo(Outbreak outbreak, EntityId settlementId)
+    {
+        foreach (Passage passage in outbreak.InTransit)
+        {
+            if (passage.SettlementId == settlementId) return true;
+        }
+
+        return false;
     }
 
     private static void Arrive(
