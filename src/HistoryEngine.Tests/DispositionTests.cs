@@ -1,3 +1,4 @@
+using HistoryEngine.Core;
 using HistoryEngine.Entities;
 using HistoryEngine.World;
 using Xunit;
@@ -366,4 +367,108 @@ public sealed class DispositionTests
         Assert.True(above > 100 && below > 100, $"above {above}, below {below}");
         Assert.True(widest > 0.4, $"widest divergence from culture was only {widest:F2}");
     }
+
+    /// <summary>
+    /// A faith colours the person, and the same roll without one does not.
+    /// </summary>
+    /// <remarks>
+    /// The inertness test for the tint. A faith that teaches warfare and one that teaches mercy
+    /// must move aggression in opposite directions from the un-tinted roll, or the mapping is
+    /// present and doing nothing. Same seed on both sides, so the cultural draw is identical
+    /// and the only difference is the teaching.
+    /// </remarks>
+    [Fact]
+    public void AFaithTintsTheDispositionItWasRolledAround()
+    {
+        Culture culture = NeutralPeople(GovernmentForm.Monarchy);
+        var seed = new Pcg32(11);
+
+        Disposition plain = Disposition.Roll(culture, new Pcg32(seed.Seed));
+        Disposition warlike = Disposition.Roll(
+            culture, new Pcg32(seed.Seed), Teaching(DogmaEmphasis.Warfare));
+        Disposition merciful = Disposition.Roll(
+            culture, new Pcg32(seed.Seed), Teaching(DogmaEmphasis.Mercy));
+
+        Assert.True(
+            warlike.Values.Aggression > plain.Values.Aggression,
+            "A church of warfare should leave its faithful more aggressive than their culture alone.");
+        Assert.True(
+            merciful.Values.Aggression < plain.Values.Aggression,
+            "A church of mercy should leave its faithful less aggressive than their culture alone.");
+        Assert.True(warlike.Values.Aggression > merciful.Values.Aggression);
+    }
+
+    /// <summary>A ranked church pulls a republican toward deciding things personally.</summary>
+    [Fact]
+    public void AHierarchicalFaithPullsCentralismUp()
+    {
+        Culture culture = NeutralPeople(GovernmentForm.Republic);
+
+        Disposition plain = Disposition.Roll(culture, new Pcg32(3));
+        Disposition faithful = Disposition.Roll(
+            culture,
+            new Pcg32(3),
+            Teaching(DogmaEmphasis.Justice, AuthorityType.Hierarchical));
+
+        Assert.True(
+            faithful.Centralism > plain.Centralism,
+            "A hierarchical church should incline a believer to decide things themselves.");
+    }
+
+    /// <summary>Living people in a world that has faiths usually follow one.</summary>
+    [Fact]
+    public void FiguresInAFaithfulWorldHaveAReligion()
+    {
+        WorldState world = HistoryRun.Execute(TestWorlds.Standard(42)).World;
+
+        Assert.NotEmpty(world.Religions);
+
+        int living = 0;
+        int faithful = 0;
+
+        foreach (Figure figure in world.Figures)
+        {
+            if (!figure.IsAlive) continue;
+
+            living++;
+            if (!figure.ReligionId.IsNone)
+            {
+                faithful++;
+                Assert.True(world.Religions.Contains(figure.ReligionId));
+            }
+        }
+
+        Assert.True(
+            faithful * 2 > living,
+            $"Only {faithful} of {living} living figures follow a faith. Catch-up is not landing.");
+    }
+
+    private static Culture NeutralPeople(GovernmentForm government) =>
+        new(
+            EntityId.Culture(0),
+            "test",
+            1,
+            new CultureValues(0.5, 0.5, 0.5, 0.5, 0.5, 0.5),
+            government);
+
+    private static FaithCharacter Teaching(
+        DogmaEmphasis dogma, AuthorityType authority = AuthorityType.Hierarchical) =>
+        new(
+            DeityStructure.Monotheistic,
+            Afterlife.Judgement,
+            SoulDoctrine.ImmortalSpark,
+            authority,
+            ClergyAdmission.Open,
+            false,
+            WealthPractice.Tithes,
+            dogma,
+            PrayerCadence.Weekly,
+            DietaryRule.None,
+            DressCode.None,
+            FestivalSeason.Spring,
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            0.5);
 }

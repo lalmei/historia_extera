@@ -289,6 +289,9 @@ public sealed class WorldState
     /// </remarks>
     public EntityId FaithOf(Civilization civilization) => civilization.StateReligionId;
 
+    /// <summary>The faith a figure holds, or <see cref="EntityId.None"/> if none has reached them.</summary>
+    public EntityId FaithOf(Figure figure) => figure.ReligionId;
+
     /// <summary>
     /// Where a figure actually is: their recorded residence, or their realm's seat.
     /// </summary>

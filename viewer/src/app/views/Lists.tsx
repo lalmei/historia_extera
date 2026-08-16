@@ -903,6 +903,17 @@ export function FigureList({ world }: { world: World }) {
       sort: (figure) => world.nameOf(figure.civilizationId),
     },
     {
+      key: 'faith',
+      header: 'Faith',
+      cell: (figure) =>
+        figure.religionId ? (
+          <EntityLink world={world} id={figure.religionId} />
+        ) : (
+          <span className="text-[var(--ink-faint)]">—</span>
+        ),
+      sort: (figure) => (figure.religionId ? world.nameOf(figure.religionId) : ''),
+    },
+    {
       key: 'lived',
       header: 'Lived',
       cell: (figure) => yearRange(figure.birthYear, figure.deathYear),
@@ -982,6 +993,18 @@ export function FigureList({ world }: { world: World }) {
         match: (f: Figure) => f.civilizationId === civ.id,
       })),
     },
+    {
+      key: 'faith',
+      label: 'Faith',
+      options: [
+        { value: 'none', label: 'None recorded', match: (f: Figure) => f.religionId === undefined },
+        ...world.export.religions.map((faith) => ({
+          value: faith.id,
+          label: faith.name,
+          match: (f: Figure) => f.religionId === faith.id,
+        })),
+      ],
+    },
   ];
 
   return (
@@ -995,7 +1018,8 @@ export function FigureList({ world }: { world: World }) {
           searchText={(figure) =>
             `${figure.name} ${figure.titles[0]?.title ?? ''} ` +
             `${figure.dynastyId ? world.nameOf(figure.dynastyId) : ''} ` +
-            `${world.nameOf(figure.civilizationId)}`
+            `${world.nameOf(figure.civilizationId)} ` +
+            `${figure.religionId ? world.nameOf(figure.religionId) : ''}`
           }
           placeholder="Search figures…"
           initialSort={{ key: 'lived' }}

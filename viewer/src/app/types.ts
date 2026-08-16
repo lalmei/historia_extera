@@ -7,7 +7,7 @@
  * stops moving.
  */
 
-export const SCHEMA_VERSION = 15;
+export const SCHEMA_VERSION = 16;
 
 /** `"civ:3"`, `"fig:1204"` — readable, greppable, and directly usable as a route. */
 export type EntityId = string;
@@ -968,6 +968,8 @@ export interface Figure {
   sex: Sex;
   civilizationId: EntityId;
   cultureId: EntityId;
+  /** The faith they hold. Absent if none has reached them. Distinct from their town's. */
+  religionId?: EntityId;
   /** The house this figure belongs to by blood. Absent for someone married in from outside. */
   dynastyId?: EntityId;
   birthYear: number;

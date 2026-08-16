@@ -669,6 +669,7 @@ public static class WorldExporter
                 Sex: figure.Sex,
                 CivilizationId: figure.CivilizationId,
                 CultureId: figure.CultureId,
+                ReligionId: OrNull(figure.ReligionId),
                 DynastyId: OrNull(figure.DynastyId),
                 BirthYear: figure.BirthYear,
                 DeathYear: figure.DeathYear,

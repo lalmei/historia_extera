@@ -75,6 +75,7 @@ public sealed class ReligionSystem : ISystem
         Schism(world, year, rng);
         Fade(world, year);
         SyncStateFaiths(world, year);
+        ConvertTheFaithless(world);
     }
 
     // -----------------------------------------------------------------------
@@ -662,6 +663,40 @@ public sealed class ReligionSystem : ISystem
                 obj: seatFaith,
                 location: civilization.CapitalId,
                 data: data);
+        }
+    }
+
+    /// <summary>
+    /// Gives a faith to living people who have never had one, once one reaches them.
+    /// </summary>
+    /// <remarks>
+    /// Founding rulers, and everyone born before the first sermon, were raised with nothing to
+    /// follow. Their disposition was already rolled, and converting a town does not rewrite a
+    /// person — but leaving them faithless forever would make personal religion a property of
+    /// the late-born only. Residence first, then the realm: the same order a newborn uses,
+    /// without walking parents, because a grown figure's parents are not who they live among.
+    /// </remarks>
+    private static void ConvertTheFaithless(WorldState world)
+    {
+        foreach (Figure figure in world.Figures)
+        {
+            if (!figure.IsAlive || !figure.ReligionId.IsNone) continue;
+
+            EntityId home = world.ResidenceOf(figure);
+            if (world.Settlements.Contains(home))
+            {
+                EntityId held = world.Settlements[home].ReligionId;
+                if (!held.IsNone)
+                {
+                    figure.ReligionId = held;
+                    continue;
+                }
+            }
+
+            if (!world.Civilizations.Contains(figure.CivilizationId)) continue;
+
+            EntityId state = world.Civilizations[figure.CivilizationId].StateReligionId;
+            if (!state.IsNone) figure.ReligionId = state;
         }
     }
 }

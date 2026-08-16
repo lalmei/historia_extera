@@ -179,6 +179,35 @@ public sealed class FlavourTests
         }
     }
 
+    /// <summary>
+    /// A figure's faith is their own, and when they have one it is a real church.
+    /// </summary>
+    /// <remarks>
+    /// Personal rather than a lookup of the town they live in. The assertion is the weaker of
+    /// the two interesting properties — that the field is populated and resolvable — because
+    /// divergence from the residence is real but not guaranteed in every seed. The stronger
+    /// one, that the faith colours their disposition, lives in <c>DispositionTests</c>.
+    /// </remarks>
+    [Fact]
+    public void FiguresFollowARealFaith()
+    {
+        WorldState world = HistoryRun.Execute(TestWorlds.Standard()).World;
+
+        int faithful = 0;
+
+        foreach (Figure figure in world.Figures)
+        {
+            if (figure.ReligionId.IsNone) continue;
+
+            faithful++;
+            Assert.True(
+                world.Religions.Contains(figure.ReligionId),
+                $"{figure.Id} follows {figure.ReligionId}, which is not a faith in this world.");
+        }
+
+        Assert.True(faithful > 0, "No figure in a standard world followed any faith.");
+    }
+
     /// <summary>Faiths spread beyond the town that first preached them, and some are forgotten.</summary>
     [Fact]
     public void FaithsSpreadAndCanBeForgotten()

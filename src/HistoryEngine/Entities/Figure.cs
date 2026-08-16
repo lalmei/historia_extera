@@ -172,6 +172,23 @@ public sealed class Figure
 
     public EntityId CultureId { get; }
 
+    /// <summary>
+    /// The faith this figure holds, or <see cref="EntityId.None"/> if none has reached them yet.
+    /// </summary>
+    /// <remarks>
+    /// <para>Personal, not congregational. A settlement converts as a body; a person keeps what
+    /// they were raised in, and may follow something their town no longer does. That is the
+    /// whole reason this is a field rather than a lookup: if it always matched the residence,
+    /// it would be denormalised data, and a high priest of a fading church would be
+    /// indistinguishable from their neighbours.</para>
+    ///
+    /// <para>Assigned in <see cref="World.Houses.NewFigure"/> from the birthplace, then the
+    /// parents, then the realm. Figures born before any faith existed pick one up later, when
+    /// their residence first has one — see the religion tick — without rewriting the
+    /// disposition already rolled. Conversion of a town does not convert its people.</para>
+    /// </remarks>
+    public EntityId ReligionId { get; set; } = EntityId.None;
+
     /// <summary>The personal name. See <see cref="FullName"/> for how a ruler is styled.</summary>
     public string Name { get; set; }
 
