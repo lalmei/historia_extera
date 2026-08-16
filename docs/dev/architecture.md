@@ -12,31 +12,37 @@
 CLI and tests share `HistoryRun` so they cannot drift into different assembly
 sequences.
 
-## Yearly systems
+## Simulation systems
 
-Order is part of the run's identity (hashed into the export). As built:
+Order and cadence are part of the run's identity (hashed into the export). As built:
 
-1. `population`
-2. `plague`
-3. `disaster`
-4. `settlement-lifecycle`
-5. `specialization`
-6. `expansion`
-7. `religion`
-8. `diplomacy`
-9. `war`
-10. `trade-routes`
-11. `figure-incidents`
-12. `figure-lifecycle`
-13. `succession`
-14. `houses`
-15. `artifacts`
+1. `crown`
+2. `population`
+3. `plague`
+4. `disaster`
+5. `settlement-lifecycle`
+6. `specialization`
+7. `expansion`
+8. `religion`
+9. `diplomacy`
+10. `war`
+11. `trade-routes`
+12. `figure-incidents`
+13. `figure-lifecycle`
+14. `succession`
+15. `houses`
+16. `offices`
+17. `artifacts`
 
-Causal chain: harvest → pestilence and the land taking their share → settlement change →
-character → pressure → borders → faiths across them → opinion of the neighbours by both
-→ the wars that follow → commerce responding to the resulting peace → exceptional incidents →
-biological mortality → thrones filled → marriage / heirs against the line as it now stands → what
-the survivors made.
+Most systems are annual. `expansion` and `war` are seasonal. `plague` also answers for
+scheduled outbreak steps and arrivals through the docket, so an active outbreak can keep its own
+clock without creating a daily global loop.
+
+Causal chain: the crown settles the values governing this step → harvest and population →
+pestilence and the land taking their share → settlement change → character → pressure → borders
+→ faiths across them → opinion of the neighbours by both → the wars that follow → commerce
+responding to the resulting peace → exceptional incidents → biological mortality → thrones
+filled → households and offices against the line as it now stands → what the survivors made.
 
 Diplomacy follows expansion so opinions are formed about the frontier that exists rather
 than last year's, and religion precedes diplomacy for the same reason. War precedes
@@ -44,7 +50,7 @@ than last year's, and religion precedes diplomacy for the same reason. War prece
 siege must be dead before the throne is filled, or the realm spends a year vacant for no
 reason the chronicle can explain.
 
-Plague and disaster follow `population` rather than preceding it, so a year's growth is
+Plague and disaster follow `population` rather than preceding it, so a step's growth is
 applied before its mortality — the other order lets a town regrow inside the tick that
 emptied it. They precede the lifecycle so a settlement gutted this year is judged this
 year, which is what lets a plague finish a place.
@@ -84,7 +90,7 @@ religion tick. Deity structure, authority, clergy admission and wealth practice 
 form, who may hold a temple, and whether a high priest marries. Cosmology, dogma and observance
 are what two codices of one religion agree about.
 
-See `DESIGN.md` for the terms deliberately *not* wired yet (tithes on the harvest, festival
+See the [decision log](decision-log.md) for the terms deliberately *not* wired yet (tithes on the harvest, festival
 trade, hereditary priesthood as true office succession, tolerance as a diplomatic standing
 term). Those belong to other systems; the character stores them so those systems can read a
 single vocabulary.

@@ -25,12 +25,14 @@ A Dwarf Fortress-style **world history generator** aimed at a Medival like world
 
 ## Status
 
-Milestones 0–9 are complete: real naming languages, a settlement lifecycle that can
+Milestones 0–12 and 14 are complete, while M13's sub-year clock is in progress: real naming
+languages, a settlement lifecycle that can
 decline and abandon, dynastic succession, diplomacy and war — named battles, sackings,
 territory changing hands at the peace table, and realms conquered out of existence — a
 map that replays to any year of the run, faiths that differ in gods, church and temper rather
 than only in fervour, plagues, disasters and treasures that cross the borders the wars draw,
-and terrain that can come from somewhere else.
+terrain that can come from somewhere else, rulers shaped by disposition and recent fortune,
+and offices that raise notable households from the simulated population.
 
 M9 built the first backend behind `ITerrainSampler` that the interface was not written
 alongside. Worlds are still noise by default; pointing `--terrain` at a set of heightmap
@@ -45,8 +47,8 @@ bare heightmap reports which of its measurements were measured.
 | 2     | Open-source 2D terrain generator | **available** via raster interchange |
 | 3     | Vintage Story worldgen           | designed for, not built              |
 
-See [the CLI guide](guide/cli.md) for the raster route and `DESIGN.md` for what M9 proved
-about the terrain boundary.
+See [the CLI guide](guide/cli.md) for the raster route and the
+[decision log](dev/decision-log.md) for what M9 proved about the terrain boundary.
 
 ## Quick start
 
@@ -73,5 +75,6 @@ make docs-serve  # this site
 - [Architecture](dev/architecture.md) — engine, CLI, viewer boundaries
 - [Determinism](dev/determinism.md) — contracts and escapes
 - [Testing](dev/testing.md) — suite and golden fingerprints
+- [Decision log](dev/decision-log.md) — detailed rationale and milestone history
 
-The long decision log lives in the repo root as `DESIGN.md`.
+The concise living design lives in the repo root as `DESIGN.md`.
