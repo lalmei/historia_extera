@@ -8,7 +8,8 @@ src/HistoryEngine.Cli/     console runner (`legends`)
 src/HistoryEngine.Tests/   xunit — determinism, discipline, serialization
 viewer/                    Astro + React + Tailwind Legends UI
 docs/                      ProperDocs sources
-DESIGN.md                  decision log (why, not just what)
+DESIGN.md                  concise living design
+docs/dev/decision-log.md   detailed rationale and milestone history
 Makefile                   CLI + viewer + docs shortcuts
 pyproject.toml / uv.lock   docs toolchain (ProperDocs)
 ```
@@ -37,4 +38,5 @@ make generate && make viewer
 - [Architecture](architecture.md)
 - [Determinism](determinism.md)
 - [Testing](testing.md)
-- Repo `DESIGN.md` for the full decision history
+- Repository-root `DESIGN.md` for the current design
+- [Decision log](decision-log.md) for the full rationale and milestone history
