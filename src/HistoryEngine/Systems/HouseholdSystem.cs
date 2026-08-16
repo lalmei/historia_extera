@@ -361,6 +361,11 @@ public sealed class HouseholdSystem : ISystem
     private static void Wed(
         WorldState world, Figure figure, Figure partner, DetMap<EntityId, int> ranks, int year)
     {
+        // Read before the move below rewrites one of them. A match made across a frontier is a
+        // fact about two realms and belongs in both their histories; the same wedding read after
+        // the bride or groom has changed allegiance looks domestic.
+        bool crossedRealms = figure.CivilizationId != partner.CivilizationId;
+
         figure.SpouseId = partner.Id;
         partner.SpouseId = figure.Id;
         figure.SpouseIds.Add(partner.Id);
@@ -385,7 +390,32 @@ public sealed class HouseholdSystem : ISystem
             figure.Id,
             obj: partner.Id,
             location: seat,
-            extra: HousesJoined(figure, partner));
+            extra: HousesJoined(figure, partner),
+            significance:
+                Houses.HeldPower(figure) || Houses.HeldPower(partner)
+                || (crossedRealms && (ReignsIn(world, figure) || ReignsIn(world, partner)))
+                    ? Significance.Notable
+                    : Significance.Routine);
+    }
+
+    /// <summary>
+    /// Whether a figure belongs to the house currently sitting on their realm's throne.
+    /// </summary>
+    /// <remarks>
+    /// The test that makes a marriage across a frontier diplomacy rather than migration. Two
+    /// commoners of different realms marrying is a household moving; a reigning house marrying
+    /// into a neighbour is the kind of match that later gives someone a claim, and the succession
+    /// system will read exactly this relationship when it does. Everyone marries somebody, so
+    /// without the reigning-house test a third of every chronicle is weddings.
+    /// </remarks>
+    private static bool ReignsIn(WorldState world, Figure figure)
+    {
+        if (figure.DynastyId.IsNone) return false;
+        if (!world.Civilizations.Contains(figure.CivilizationId)) return false;
+
+        Civilization realm = world.Civilizations[figure.CivilizationId];
+        return world.Figures.Contains(realm.CurrentRulerId)
+            && world.Figures[realm.CurrentRulerId].DynastyId == figure.DynastyId;
     }
 
     /// <summary>
@@ -520,6 +550,16 @@ public sealed class HouseholdSystem : ISystem
             world.Dynasties[child.DynastyId].MemberIds.Add(child.Id);
         }
 
+        // A birth is history when it lands in the line of succession, and only then. Nothing is
+        // known about a newborn except who their parents are, so the crown is the one thing about
+        // them that can matter on the day: an heir changes what happens when a throne next falls
+        // vacant. A governor's child does not, and there are far more of those — extending this to
+        // every office put four hundred nurseries back into the chronicle and buried the wars
+        // again. The child's own page carries the birth either way.
+        bool bornToThrone =
+            father.Holds(OfficeKind.Ruler) || father.Holds(OfficeKind.Regent)
+            || mother.Holds(OfficeKind.Ruler) || mother.Holds(OfficeKind.Regent);
+
         world.Chronicle.Record(
             year,
             EventKind.FigureBorn,
@@ -528,7 +568,8 @@ public sealed class HouseholdSystem : ISystem
             location: home,
             extra: child.DynastyId.IsNone
                 ? new[] { mother.Id }
-                : new[] { mother.Id, child.DynastyId });
+                : new[] { mother.Id, child.DynastyId },
+            significance: bornToThrone ? Significance.Notable : Significance.Routine);
 
         if (rng.Chance(ChildbedRisk))
         {

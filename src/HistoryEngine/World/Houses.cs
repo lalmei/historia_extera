@@ -298,6 +298,14 @@ public static class Houses
         figure.DeathYear = year;
         figure.DeathCause = cause;
         figure.DeathDetail = detail;
+
+        // Asked before the offices are closed, because closing them is what death does to them and
+        // the question is what this person was when it happened. Someone who governed a province
+        // thirty years ago and died in bed a private citizen is a vital record; the marshal who
+        // died in office left a vacancy, which is the next thing the chronicle has to explain.
+        bool inPower = HeldPower(figure);
+        string? style = inPower ? StyleOf(world, figure) : null;
+
         figure.EndAllOffices(year);
 
         if (world.Figures.Contains(figure.SpouseId))
@@ -318,7 +326,18 @@ public static class Houses
         // governed get it, because with dynasties the overwhelming majority of deaths are infants,
         // and indexing every one against the realm buries three centuries of its actual history
         // under its nurseries. A child's death belongs to their house's page and their own.
-        EntityId realm = figure.Offices.Count > 0 ? figure.CivilizationId : EntityId.None;
+        bool governed = figure.Offices.Count > 0;
+        EntityId realm = governed ? figure.CivilizationId : EntityId.None;
+
+        var obituary = Chronicle.Data(
+            ("age", figure.AgeIn(year).ToString(CultureInfo.InvariantCulture)),
+            ("cause", detail ?? CauseLabel(cause)));
+
+        // What they were when they died, so that the deaths kept in the chronicle explain
+        // themselves. "Thorgill died at the age of 78" is a line a reader skips; "Thorgill,
+        // Warden of Karay, died at the age of 78" is the line before the one appointing his
+        // successor, and the two now read as the sequence they always were.
+        if (style is not null) obituary["office"] = style;
 
         world.Chronicle.Record(
             year,
@@ -326,9 +345,10 @@ public static class Houses
             figure.Id,
             obj: realm,
             extra: figure.DynastyId.IsNone ? null : new[] { figure.DynastyId },
-            data: Chronicle.Data(
-                ("age", figure.AgeIn(year).ToString(CultureInfo.InvariantCulture)),
-                ("cause", detail ?? CauseLabel(cause))));
+            data: obituary,
+            significance: inPower || IsExceptional(cause)
+                ? Significance.Notable
+                : Significance.Routine);
 
         CloseHouseIfLast(world, figure, year);
     }
@@ -368,6 +388,77 @@ public static class Houses
         world.Chronicle.Record(
             year, EventKind.DynastyEnded, house.Id, obj: figure.CivilizationId, data: data);
     }
+
+    /// <summary>
+    /// How a sitting officer is styled: "Warden of Karay", "Archon of Calatates".
+    /// </summary>
+    /// <remarks>
+    /// Composed against the office's scope where it has one and its realm where it does not, which
+    /// is the same distinction <see cref="Offices"/> draws when it grants the thing — a governorship
+    /// is over a town, a marshalcy is over a realm. Returns null rather than a bare title for an
+    /// office whose scope has since been destroyed, because "Warden of" is worse than nothing.
+    /// </remarks>
+    private static string? StyleOf(WorldState world, Figure figure)
+    {
+        for (int i = 0; i < figure.Offices.Count; i++)
+        {
+            OfficeHolding held = figure.Offices[i];
+            if (held.ToYear is not null || held.Kind == OfficeKind.Consort) continue;
+
+            EntityId over = held.ScopeId.IsNone ? held.CivilizationId : held.ScopeId;
+            if (over.IsNone) return null;
+
+            string name = world.NameOf(over);
+            return string.IsNullOrEmpty(name) ? null : held.Title + " of " + name;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Whether a figure holds an office that governs something, right now.
+    /// </summary>
+    /// <remarks>
+    /// <para>Consort is excluded, and that exclusion is the whole reason this is not simply
+    /// <see cref="Figure.CurrentOffice"/>. A consort holds a title rather than a power: they are
+    /// made one by a wedding that the chronicle has already recorded, they decide nothing, and
+    /// counting them makes every royal marriage promote a second household's worth of births,
+    /// deaths and matches into the narrative. Every other office is someone a ruler had to choose
+    /// and whose vacancy the realm has to fill.</para>
+    ///
+    /// <para>Used for significance only. Nothing about the simulation reads it, and the realm slot
+    /// on a death deliberately asks the wider question — whether they ever governed — because that
+    /// one decides which page the record files under rather than whether it is history.</para>
+    /// </remarks>
+    public static bool HeldPower(Figure figure)
+    {
+        for (int i = 0; i < figure.Offices.Count; i++)
+        {
+            if (figure.Offices[i].ToYear is null && figure.Offices[i].Kind != OfficeKind.Consort)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Whether a death is history rather than a vital record, on cause alone.
+    /// </summary>
+    /// <remarks>
+    /// <para>Age and illness carry off the overwhelming majority of everyone and say nothing about
+    /// the world: the figure's own record already holds the year and the cause, so the chronicle
+    /// line is a duplicate. Everything else here is either violence or misfortune specific enough
+    /// to be worth a line — an assassination, an execution, a death in childbed, a named pestilence
+    /// reaching a named person.</para>
+    ///
+    /// <para>Deliberately not a judgement about who died. A ruler's death in bed is notable because
+    /// they held office, which <see cref="Die"/> checks separately; a cadet's death by assassin is
+    /// notable because someone killed them. Both tests are needed and neither subsumes the other.</para>
+    /// </remarks>
+    private static bool IsExceptional(DeathCause cause) =>
+        cause is not (DeathCause.OldAge or DeathCause.Illness or DeathCause.Unknown);
 
     public static string CauseLabel(DeathCause cause) => cause switch
     {

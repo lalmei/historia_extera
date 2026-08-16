@@ -55,6 +55,17 @@ public sealed record HistoryEvent(
     /// <summary>When this happened, as one comparable value.</summary>
     public Stamp At => new(Year, Day);
 
+    /// <summary>
+    /// Whether this belongs to the narrative spine or to the vital register.
+    /// </summary>
+    /// <remarks>
+    /// Init-only with a default of <see cref="Significance.Notable"/>, for the same reason
+    /// <see cref="Day"/> is: it is additive detail on a record several hundred call sites already
+    /// build, and all but four of them are writing spine. See <see cref="Significance"/> for what
+    /// the distinction is for and why the emitting system is what decides it.
+    /// </remarks>
+    public Significance Significance { get; init; }
+
     /// <summary>Every entity this event mentions, in slot order. Drives the export's per-entity index.</summary>
     public IEnumerable<EntityId> References()
     {
@@ -90,7 +101,7 @@ public sealed record HistoryEvent(
         if (ReferenceEquals(this, other)) return true;
 
         if (Id != other.Id || Year != other.Year || Day != other.Day) return false;
-        if (Kind != other.Kind) return false;
+        if (Kind != other.Kind || Significance != other.Significance) return false;
         if (Subject != other.Subject || Object != other.Object || Location != other.Location) return false;
         if (!Equals(Data, other.Data)) return false;
 
@@ -112,6 +123,7 @@ public sealed record HistoryEvent(
         hash.Add(Year);
         hash.Add(Day);
         hash.Add(Kind);
+        hash.Add(Significance);
         hash.Add(Subject);
         hash.Add(Object);
         hash.Add(Location);
@@ -139,6 +151,7 @@ public sealed record HistoryEvent(
             Year.ToString(System.Globalization.CultureInfo.InvariantCulture),
             Day.ToString(System.Globalization.CultureInfo.InvariantCulture),
             Kind.ToString(),
+            Significance.ToString(),
             Subject.ToString(),
             Object.ToString(),
             Location.ToString(),
