@@ -47,6 +47,11 @@ public interface IChronicle
     /// </remarks>
     void CloseStep();
 
+    /// <param name="significance">
+    /// Whether this is history or a vital record. Defaults to <see cref="Significance.Notable"/>,
+    /// which is what all but the four sites writing births, deaths, marriages and appointments
+    /// want; see <see cref="Significance"/> for why the caller is what decides.
+    /// </param>
     HistoryEvent Record(
         int year,
         EventKind kind,
@@ -54,7 +59,8 @@ public interface IChronicle
         EntityId obj = default,
         EntityId location = default,
         IReadOnlyList<EntityId>? extra = null,
-        DetMap<string, string>? data = null);
+        DetMap<string, string>? data = null,
+        Significance significance = Significance.Notable);
 }
 
 /// <summary>
@@ -175,7 +181,8 @@ public sealed class Chronicle : IChronicle
         EntityId obj = default,
         EntityId location = default,
         IReadOnlyList<EntityId>? extra = null,
-        DetMap<string, string>? data = null)
+        DetMap<string, string>? data = null,
+        Significance significance = Significance.Notable)
     {
         var entry = new HistoryEvent(
             Id: _events.Count,
@@ -187,6 +194,8 @@ public sealed class Chronicle : IChronicle
             Extra: extra,
             Data: data)
         {
+            Significance = significance,
+
             // The open step dates the event, but only where the caller is writing about the year it
             // is standing in. A year named that is not the open one is the world being built before
             // any step has run, or a system reaching outside the step it belongs to — and neither

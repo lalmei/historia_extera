@@ -182,8 +182,20 @@ public sealed class ExpansionSystem : ISystem
         target.Owner = civilization.Id;
         civilization.TerritoryRegionIds.Add(target.Id);
 
+        // Under whose rule the frontier moved. Expansion is the one thing in the engine a ruler's
+        // disposition drives most directly and the event said least about — a realm simply reached
+        // further, in no one's reign. Naming them lets a reader see an expansionist's decades as
+        // the shape they are, rather than as a border that drifted on its own.
+        var claim = new DetMap<string, string>();
+        bool named = world.NamePerson(claim, "ruler", civilization.CurrentRulerId);
+
         world.Chronicle.Record(
-            year, EventKind.RegionClaimed, target.Id, obj: civilization.Id);
+            year,
+            EventKind.RegionClaimed,
+            target.Id,
+            obj: civilization.Id,
+            extra: named ? new[] { civilization.CurrentRulerId } : null,
+            data: claim.Count == 0 ? null : claim);
 
         SiteChoice site = SiteSelection.Best(world, target, SitesPerAxis, frontier.Need);
 

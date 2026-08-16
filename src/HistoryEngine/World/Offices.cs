@@ -171,6 +171,11 @@ public static class Offices
             holder.ReligionId = scope;
         }
 
+        // A consort is made by the wedding, and the wedding has already been recorded a moment
+        // earlier by the household system — so this line says nothing the one above it did not,
+        // and there are as many of them as there are marriages into a crown. The appointments
+        // that carry political weight are the ones a ruler had to decide: marshals, governors,
+        // high priests. Those stay.
         world.Chronicle.Record(
             year,
             EventKind.OfficeGranted,
@@ -178,7 +183,10 @@ public static class Offices
             obj: Subject(kind, civilization, scope),
             location: Seat(world, civilization, kind, scope),
             extra: Sidelight(kind, civilization, scope),
-            data: Chronicle.Data(("office", title), ("claim", claim)));
+            data: Chronicle.Data(("office", title), ("claim", claim)),
+            significance: kind == OfficeKind.Consort
+                ? Significance.Routine
+                : Significance.Notable);
     }
 
     /// <summary>
