@@ -291,7 +291,9 @@ public sealed class CadenceTests
     {
         var annual = new Simulator(new ISystem[] { new StubSystem(Cadence.Annual) });
         var seasonal = new Simulator(new ISystem[] { new StubSystem(Cadence.Seasonal) });
-        var episodic = new Simulator(new ISystem[] { new StubSystem(Cadence.Episodic) });
+        // Episodic through a stub that can actually be woken, since a system with that cadence and
+        // nothing to wake it is now rejected where it is written.
+        var episodic = new Simulator(new ISystem[] { new StubEpisodic() });
 
         Assert.NotEqual(annual.SystemOrderHash, seasonal.SystemOrderHash);
         Assert.NotEqual(seasonal.SystemOrderHash, episodic.SystemOrderHash);
@@ -321,6 +323,24 @@ public sealed class CadenceTests
         Assert.Equal(
             hash.ToString("x16", System.Globalization.CultureInfo.InvariantCulture),
             simulator.SystemOrderHash);
+    }
+
+    /// <summary>An episodic stub that declares a kind, so the simulator will accept it.</summary>
+    private sealed class StubEpisodic : ISystem, IEpisodic
+    {
+        public string Name => "stub";
+
+        public Cadence Cadence => Cadence.Episodic;
+
+        public DocketKind Handles => DocketKind.Arrival;
+
+        public void Tick(WorldState world, Stamp now)
+        {
+        }
+
+        public void Resolve(WorldState world, DocketEntry entry, Stamp now)
+        {
+        }
     }
 
     private sealed class StubSystem : ISystem
@@ -469,5 +489,163 @@ public sealed class ChronicleOrderTests
     {
         var events = (List<HistoryEvent>)chronicle.Events;
         events[index] = events[index] with { Day = day };
+    }
+}
+
+/// <summary>
+/// The docket wakes the system that answers for a kind, and nothing else.
+/// </summary>
+/// <remarks>
+/// The queue was built, ordered and tested a milestone before anything could be woken by it. These
+/// cover the dispatch that makes it more than a sorted list.
+/// </remarks>
+public sealed class EpisodicDispatchTests
+{
+    private static readonly EntityId Subject = new(EntityKind.Battle, 3);
+
+    /// <summary>Due work reaches its owner, once, carrying the stamp it was due at.</summary>
+    [Fact]
+    public void DueWorkIsHandedToItsOwner()
+    {
+        var handler = new Recorder(DocketKind.SiegeResolves);
+        WorldState world = WorldBuilder.Create(TestWorlds.Small());
+
+        var due = new Stamp(world.StartYear, 40);
+        world.Docket.Schedule(due, DocketKind.SiegeResolves, Subject);
+
+        new Simulator(new ISystem[] { handler }).Advance(world, 2);
+
+        Assert.Single(handler.Resolved);
+        Assert.Equal(due, handler.Resolved[0].Entry.Due);
+        Assert.Equal(0, world.Docket.Count);
+    }
+
+    /// <summary>
+    /// An episodic system is never woken by the clock, only by the queue.
+    /// </summary>
+    /// <remarks>
+    /// The property that makes the day affordable: a system with nothing scheduled costs nothing,
+    /// however many steps the year is divided into.
+    /// </remarks>
+    [Fact]
+    public void AnEpisodicSystemWithNothingScheduledIsNeverRun()
+    {
+        var handler = new Recorder(DocketKind.Arrival);
+        WorldState world = WorldBuilder.Create(TestWorlds.Small());
+
+        new Simulator(new ISystem[] { handler }).Advance(world, 5);
+
+        Assert.Equal(0, handler.Ticks);
+        Assert.Empty(handler.Resolved);
+    }
+
+    /// <summary>
+    /// An episode is recorded on the day it was due, not the day it was noticed.
+    /// </summary>
+    /// <remarks>
+    /// The whole of what the docket buys. Nothing iterates toward day 40 — the step that opens on
+    /// day 90 finds it owed and resolves it — and the chronicle still says day 40, because that is
+    /// when it happened.
+    /// </remarks>
+    [Fact]
+    public void AnEpisodeIsDatedWhenItWasDueNotWhenItWasNoticed()
+    {
+        var handler = new Recorder(DocketKind.SiegeResolves, writes: true);
+        WorldState world = WorldBuilder.Create(TestWorlds.Small());
+
+        world.Docket.Schedule(new Stamp(world.StartYear, 40), DocketKind.SiegeResolves, Subject);
+
+        new Simulator(new ISystem[] { handler }).Advance(world, 2);
+
+        HistoryEvent written = Assert.Single(
+            world.Chronicle.Events.Where(e => e.Kind == EventKind.BattleFought).ToList());
+
+        Assert.Equal(40, written.Day);
+        Assert.Equal(world.StartYear, written.Year);
+
+        // Noticed at the step that opens on day 90, which is after the day it is dated.
+        Assert.Equal(new Stamp(world.StartYear, 90), handler.Resolved[0].Now);
+    }
+
+    /// <summary>Two owners for one kind is rejected where it is written, not where it bites.</summary>
+    [Fact]
+    public void OneKindMayNotHaveTwoOwners()
+    {
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(
+            () => new Simulator(new ISystem[]
+            {
+                new Recorder(DocketKind.Arrival),
+                new Recorder(DocketKind.Arrival, name: "other"),
+            }));
+
+        Assert.Contains("both answer", error.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>A system nothing could ever run is rejected rather than quietly idle.</summary>
+    [Fact]
+    public void AnEpisodicSystemThatNothingCouldWakeIsRejected()
+    {
+        Assert.Throws<InvalidOperationException>(
+            () => new Simulator(new ISystem[] { new Plain(Cadence.Episodic) }));
+    }
+
+    /// <summary>An entry nobody owns is a loud failure, not a dropped siege.</summary>
+    [Fact]
+    public void WorkNobodyAnswersForIsNotSilentlyDropped()
+    {
+        WorldState world = WorldBuilder.Create(TestWorlds.Small());
+        world.Docket.Schedule(Stamp.Opening(world.StartYear), DocketKind.OutbreakStep, Subject);
+
+        var simulator = new Simulator(new ISystem[] { new Recorder(DocketKind.Arrival) });
+
+        Assert.Throws<InvalidOperationException>(() => simulator.Advance(world, 1));
+    }
+
+    /// <summary>A system with a cadence and no way to be woken.</summary>
+    private sealed class Plain : ISystem
+    {
+        public Plain(Cadence cadence) => Cadence = cadence;
+
+        public string Name => "plain";
+
+        public Cadence Cadence { get; }
+
+        public void Tick(WorldState world, Stamp now)
+        {
+        }
+    }
+
+    private sealed class Recorder : ISystem, IEpisodic
+    {
+        private readonly bool _writes;
+
+        public Recorder(DocketKind handles, string name = "recorder", bool writes = false)
+        {
+            Handles = handles;
+            Name = name;
+            _writes = writes;
+        }
+
+        public string Name { get; }
+
+        public Cadence Cadence => Cadence.Episodic;
+
+        public DocketKind Handles { get; }
+
+        public int Ticks { get; private set; }
+
+        public List<(DocketEntry Entry, Stamp Now)> Resolved { get; } = new();
+
+        public void Tick(WorldState world, Stamp now) => Ticks++;
+
+        public void Resolve(WorldState world, DocketEntry entry, Stamp now)
+        {
+            Resolved.Add((entry, now));
+
+            if (_writes)
+            {
+                world.Chronicle.Record(entry.Due.Year, EventKind.BattleFought, entry.Subject);
+            }
+        }
     }
 }

@@ -25,6 +25,18 @@ public interface IChronicle
     void EnterSystem(int index);
 
     /// <summary>
+    /// Dates what is written next, within the open step.
+    /// </summary>
+    /// <remarks>
+    /// For scheduled work, which is the one thing in the engine that knows a finer day than the step
+    /// it is resolved in: an episode due on day 40 is noticed at the step that opens on day 90 and
+    /// is still recorded as having happened on day 40. The step is not reopened, so the entry sorts
+    /// with the step that resolved it — ahead of that step's own events, which is where a day of 40
+    /// belongs among a step's worth of 90s.
+    /// </remarks>
+    void StampAt(Stamp when);
+
+    /// <summary>
     /// Ends the step, putting the events it wrote into stamp order.
     /// </summary>
     /// <remarks>
@@ -94,6 +106,8 @@ public sealed class Chronicle : IChronicle
     }
 
     public void EnterSystem(int index) => _writer = index;
+
+    public void StampAt(Stamp when) => Now = when;
 
     /// <summary>
     /// Sorts the step's own events into <c>(day, system index, sequence)</c> order.

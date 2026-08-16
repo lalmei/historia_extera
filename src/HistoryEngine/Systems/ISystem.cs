@@ -79,3 +79,47 @@ public interface ISystem
     /// </remarks>
     void Tick(WorldState world, Stamp now);
 }
+
+/// <summary>
+/// A system that also answers for one kind of scheduled work.
+/// </summary>
+/// <remarks>
+/// <para><b>Why the simulator dispatches rather than each system draining for itself.</b>
+/// <see cref="World.Docket.TryTakeDue"/> hands back whatever is due, of any kind — so a system that
+/// drained the queue looking for its own work would take everybody else's out of it on the way
+/// past. Filtering by kind at the call site would fix that and put the same total order at the
+/// mercy of which system happened to ask first. One drainer, dispatching by a declared owner, is
+/// the only arrangement in which the queue's order is a property of the queue.</para>
+///
+/// <para><b>Ownership is declared here, not by cadence.</b> A system is free to keep a clock
+/// cadence and also answer for scheduled work — a plague that ignites once a year and steps its
+/// outbreaks on their own schedule is exactly that shape, and forcing it to be one or the other
+/// would split a model across two systems to satisfy an enum. <see cref="Cadence.Episodic"/> means
+/// only that the clock never ticks this system; it says nothing about what wakes it.</para>
+///
+/// <para>Two systems claiming one kind, or an <see cref="Cadence.Episodic"/> system that implements
+/// nothing to be woken by, are both rejected when the simulator is built rather than discovered as
+/// a siege that never resolves.</para>
+/// </remarks>
+public interface IEpisodic
+{
+    /// <summary>The one kind of scheduled work this system answers for.</summary>
+    DocketKind Handles { get; }
+
+    /// <summary>
+    /// Resolves one entry that has fallen due.
+    /// </summary>
+    /// <param name="entry">The work, carrying the stamp it was due at.</param>
+    /// <param name="now">The step it is being resolved in, which is at or after the due stamp.</param>
+    /// <remarks>
+    /// <para>Handed one entry at a time rather than a list, because the fork rule for a scheduled
+    /// episode is on its own subject's id: a siege's dice must not depend on how many other sieges
+    /// were queued before it, and a method given the whole batch would have to be trusted to
+    /// remember that.</para>
+    ///
+    /// <para>Events written here are dated at the entry's own due stamp, not the step's. That is
+    /// the whole of what the docket buys — a day reached as a due date rather than by iterating
+    /// toward it.</para>
+    /// </remarks>
+    void Resolve(WorldState world, DocketEntry entry, Stamp now);
+}
