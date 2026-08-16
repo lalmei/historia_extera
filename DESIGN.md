@@ -1745,8 +1745,23 @@ viewer reading it.
 
 ### Time: seasons on the year, and days where they are earned
 
-> **Planned** for M13. Measurements quoted from the current world are measurements; every
-> number attached to the proposal is an estimate and is marked as one.
+> **In progress** as M13, and staged so that every part of it that can land without moving a
+> history does so first. Three stages are in, each of them inert and each verified as inert:
+>
+> 1. **The clock.** `Stamp`, `Calendar`, `Docket` and a `Cadence` on every system. Nothing used
+>    any of it; the fingerprint proved so.
+> 2. **The record learns a day.** `HistoryEvent` gained `Day` and kept `Year`, and the chronicle
+>    is told which step is open so that several hundred recording calls did not have to name a
+>    day none of them has. Every system is still `Annual`, so every day in every world is zero.
+>    The export moved to schema 17 and the fingerprint with it; the history did not.
+> 3. **Step ordering.** A step's events are sorted into `(day, system index, sequence)` order
+>    when it closes, so system order and the calendar can disagree within a step and be
+>    reconciled by it. The seed-42 fingerprint is byte-identical across that change.
+>
+> What is left is the whole of the behavioural half: giving a system a cadence other than
+> `Annual`, scheduling the first episode on the docket, and the calibration that follows.
+> Measurements quoted from the current world are measurements; every number attached to the
+> part not yet built is an estimate and is marked as one.
 
 The year is the atom, and it is the last load-bearing choice in this engine that was never
 argued for. `IYearSystem.Tick(world, year)` is the only entry point a system has,
@@ -1854,8 +1869,17 @@ Two rules keep the invariant, and both are cheap:
 
 - **A system may only stamp inside the step it is running in.** A seasonal system ticking the
   summer step stamps days within that summer. It is a discipline, and it is checkable.
-- **A step's events are flushed in stamp order**, sorted on `(day, system index, sequence)` — a
-  total order, so it is deterministic. One sort of a short list per step.
+- **A step's events are put into stamp order when it closes**, sorted on
+  `(day, system index, sequence)` — a total order, so it is deterministic. One sort of a short
+  list per step.
+
+  *Built as a sort in place rather than the buffer-and-flush this originally said, and the
+  difference matters.* `Tomes.Annals` reads the log **during** a step to write a settlement's
+  annals, so holding a step's events back until it ended would hide the year's own entries from
+  the tome being written in it — a change of history rather than of plumbing, and one that would
+  have arrived disguised as a refactor. Appending as before and reordering afterwards leaves
+  every mid-step read seeing exactly what it sees today, which is what let the change land
+  against a byte-identical fingerprint.
 
 Nothing in the engine stores an event id on an entity — a tome's passages carry entity ids, not
 event ids — so reordering within a step is safe, and ids go on encoding position in the log.
@@ -2093,7 +2117,7 @@ clock is a different project that this one should not pre-empt.
 | M10 | Phase 2 proper: site selection with teeth on real terrain | **done** |
 | M11 | Offices: appointments, governors, founding parties | **done** |
 | M12 | Rulers who react: dispositions, realm fortunes, trait-aware elections | **done** |
-| M13 | Sub-year time: seasons, dated events, scheduled episodes | planned |
+| M13 | Sub-year time: seasons, dated events, scheduled episodes | in progress |
 | M14 | Notable households: families for the figures an office raises | **done** |
 
 M12 landed first. `Disposition` is the record both milestones read, so building it once — rather
