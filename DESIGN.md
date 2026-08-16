@@ -1780,14 +1780,29 @@ viewer reading it.
 > do both — a plague igniting once a year and stepping its outbreaks on their own schedule is
 > exactly that shape — so `Cadence.Episodic` now means only that the clock never ticks it.
 >
+> 6. **The plague travels.** `DocketKind.Arrival`'s first consumer, and the first model that
+>    needed a day rather than merely being able to carry one. Infection now takes days to reach
+>    the next town — six plus one per twenty-two units — so a jump along a trade route lands
+>    seasons after it left, where a year made every jump simultaneous however far it went.
+>
+> It was chosen over a siege or a settling party because it is the only one of the three that is
+> *additive*: the same arrivals happen and no rate is converted, they are merely displaced in
+> time. One consequence still had to be answered. Reach per outbreak left its 2–5 budget for 5.46,
+> because several carriers now set out before any of them lands and each reads a `Reached` the
+> others have already made stale — so the quarantine damping arrived too late. Counting what the
+> plague is travelling *toward* alongside what it has reached restores the budget, and is the
+> truer model: a town closes its gates on the news, not on the disease.
+>
 > What is left is the rest of the re-phasing — `crown` and `expansion` have seasons written into
 > their ordering notes and have not been given them, and expansion was tried and reverted (see
-> `Seasons.OpenFloor`) — and the first producer. `SiegeResolves`, `OutbreakStep` and `Arrival`
-> are declared against consumers that do not exist: a siege that lasts, an outbreak that peaks and
-> burns out inside a year, and a party in transit. The machinery to run all three is now in place
-> and tested; what none of them has yet is a model. Measurements quoted from the current world are
-> measurements; every number attached to the part not yet built is an estimate and is marked as
-> one.
+> `Seasons.OpenFloor`) — and the two remaining docket kinds. `SiegeResolves` and `OutbreakStep`
+> are still declared against consumers that do not exist: a siege that lasts, is lifted or is
+> relieved, and an outbreak that peaks and burns out inside a year. Both are model-building rather
+> than plumbing, and unlike the plague's road neither is additive — a siege has to take its share
+> of the campaigns that are currently all pitched battles, and an outbreak stepping on its own
+> schedule has to convert every rate the annual advance holds. Measurements quoted from the
+> current world are measurements; every number attached to the part not yet built is an estimate
+> and is marked as one.
 
 The year is the atom, and it is the last load-bearing choice in this engine that was never
 argued for. `IYearSystem.Tick(world, year)` is the only entry point a system has,
