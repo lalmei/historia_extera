@@ -7,7 +7,16 @@
  * stops moving.
  */
 
-export const SCHEMA_VERSION = 18;
+export const SCHEMA_VERSION = 21;
+
+/**
+ * Whether an event carries the history or merely records a life.
+ *
+ * Better than three quarters of a run's events are ordinary births, deaths, marriages
+ * and consort appointments, which is why this exists: the wars and schisms were never
+ * missing from the chronicle, they were outnumbered four to one.
+ */
+export type Significance = 'Notable' | 'Routine';
 
 /** `"civ:3"`, `"fig:1204"` — readable, greppable, and directly usable as a route. */
 export type EntityId = string;
@@ -246,10 +255,10 @@ export interface Values {
 }
 
 /**
- * How a realm's recent past sat on it at the end of the run.
+ * How a recent past sat on a realm or a place at the end of the run.
  *
  * Weariness and grievance are separate on purpose and pull opposite ways: being beaten
- * exhausts a realm, being humiliated angers it. Grievance also fades far more slowly.
+ * exhausts, being humiliated angers. Grievance also fades far more slowly.
  */
 export interface Fortunes {
   weariness: number;
@@ -850,6 +859,11 @@ export interface Settlement {
   /** What the ground was chosen for. */
   site: SiteCharacter;
   /**
+   * What the last years left here, as of the last simulated year. The same four
+   * decaying measures a realm carries; the year-by-year track is in the series.
+   */
+  fortunes: Fortunes;
+  /**
    * What was feeding the place when the chronicle closed. Absent for abandoned settlements,
    * and for any export written before schema 15.
    */
@@ -1014,6 +1028,15 @@ export interface HistoryEvent {
    */
   day: number;
   kind: string;
+  /**
+   * Whether this belongs to the narrative spine or to the vital register.
+   *
+   * The chronicle hides `Routine` by default and entity pages never do: a person's
+   * own page is built from the events that mention them, so suppressing their birth
+   * there would leave someone who appears in the world fully grown. It is a display
+   * decision about the world's history, not a claim that the fact is unimportant.
+   */
+  significance: Significance;
   subject?: EntityId;
   object?: EntityId;
   location?: EntityId;
