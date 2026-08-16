@@ -226,13 +226,61 @@ public sealed class DocketTests
 /// </summary>
 public sealed class CadenceTests
 {
+    /// <summary>
+    /// War runs on the season; everything else still runs on the year.
+    /// </summary>
+    /// <remarks>
+    /// The re-phasing is deliberately one system at a time, and this is the record of how far it
+    /// has got. Each system that moves changes every history in the world, so a milestone that
+    /// moved four of them at once would present one fingerprint change with four calibrations
+    /// inside it and no way to read them apart.
+    /// </remarks>
     [Fact]
-    public void EverySystemIsAnnualForNow()
+    public void OnlyWarHasLeftTheYear()
     {
         foreach (ISystem system in Simulator.DefaultSystems())
         {
-            Assert.Equal(Cadence.Annual, system.Cadence);
+            Cadence expected = system.Name == "war" ? Cadence.Seasonal : Cadence.Annual;
+
+            Assert.Equal(expected, system.Cadence);
         }
+    }
+
+    /// <summary>
+    /// An annual system runs once a year, whatever the calendar divides the year into.
+    /// </summary>
+    /// <remarks>
+    /// The property that made it safe to turn the seasonal loop on under sixteen annual systems:
+    /// they see the world at the step they always saw it and cannot tell that three more follow.
+    /// </remarks>
+    [Fact]
+    public void AnAnnualSystemStillTicksOncePerYear()
+    {
+        var counter = new CountingSystem(Cadence.Annual);
+        var seasonal = new CountingSystem(Cadence.Seasonal, "seasonal");
+
+        WorldState world = WorldBuilder.Create(TestWorlds.Small());
+        new Simulator(new ISystem[] { counter, seasonal }).Advance(world, 3);
+
+        Assert.Equal(3, counter.Ticks);
+        Assert.Equal(3 * world.Config.Calendar.SeasonsPerYear, seasonal.Ticks);
+    }
+
+    private sealed class CountingSystem : ISystem
+    {
+        public CountingSystem(Cadence cadence, string name = "counting")
+        {
+            Cadence = cadence;
+            Name = name;
+        }
+
+        public string Name { get; }
+
+        public Cadence Cadence { get; }
+
+        public int Ticks { get; private set; }
+
+        public void Tick(WorldState world, Stamp now) => Ticks++;
     }
 
     /// <summary>
