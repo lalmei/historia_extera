@@ -326,6 +326,120 @@ garrisons and fortification are a settlement's own doing and belong to whatever 
 Every history changes, so the seed-42 golden is regenerated. That is the intended consequence of
 altering a scoring curve, not a bug — see *Working notes*.
 
+### Founding as a need: why a party was sent, not only where it stood
+
+> **Built** for the ore, and only for the ore. The four other needs sketched below are designed and
+> deliberately not built — see *What is not built, and why that is the point* at the end.
+
+M10 gave the engine a score that could describe a site. It left untouched the question one step
+above it: **which country a realm wants, and what for.** Expansion ranked unclaimed neighbours by
+`Region.Habitability`, habitability is fertility with water and footing on it, so every settling
+party ever sent out was a farming party. Nothing failed. The map simply had no reason in it — ore
+was a thing settlements were retrospectively found to be *near*, never a thing anybody went
+anywhere *for*.
+
+**The shape is need first, then search, with farming as the usual need.** The crown's effective
+values and fortunes pick the need; the search then looks for what that need wants, at a distance
+that need justifies. The named founding leader is who gets *sent*, not who decided the realm was
+short of metal.
+
+| Need | When the realm wants it | What it searches for | Distance |
+|---|---|---|---|
+| **Land** (default) | people packed, empty neighbour, ordinary expansion | fertility, water, buildable ground | adjacent |
+| **Ore** | few mines, a mercantile crown, geology sitting unused | geologic activity, height, ruggedness | worth walking past a farm cell — 3 hops |
+| *Quarry* | walls going up, little stone, mountains unused | height and ruggedness, not ore | as above |
+| *Harbour* | mercantile realm with no port, coast in reach | shelter, estuary, confluence | adjacent |
+| *Frontier post* | hostile neighbour, recent war, high aggression | a pass, the border region, not the nicest farm | close to the threat |
+
+Mining was built first because it is the case the habitability sort is most wrong about, the
+geology is already on the region, and `SiteCharacter.Mine` was already reserved.
+
+#### The need reaches the ground twice
+
+Once in the **search**, which is the part a habitability sort cannot do: a breadth-first walk out to
+three regions, ranking on the deposit rather than the soil, crossing its own ground and empty ground
+but never a neighbour's. Adjacency-only would have made an ore need nothing but a re-ranking of the
+same candidates.
+
+Once in the **siting**, where four weights move and nothing else does. Soil drops to a third,
+per-candidate geologic activity comes in at nearly what soil is worth to everybody else, and the
+thin-air penalty is cut to a third because altitude is a thing mining country simply is. **Slope
+stays a penalty and is never inverted** — relaxed from 0.90 to 0.55, because miners live on a
+terrace and walk to the face, and a camp on a cliff is as impossible as a town on one. That is the
+M10 finding held to: use slope as buildability, never as a mining magnet.
+
+The geology the site is scored on comes from the refinement the decision already performs, so a camp
+stands on the best of the ore rather than merely inside the patch containing it — and **the sample
+budget does not move**, because both searches read region fields derived once from the primed
+lattice. 8,766 samples per run before, 8,722 after, against a 12,000 ceiling.
+
+#### What it produced
+
+Eight seeds, 300 years, against the same eight with the need switched off:
+
+| | before | after |
+|---|---|---|
+| settlements | 532 | 541 |
+| founded for a stated purpose | 0 | **58 (10.7%)** |
+| settlements known for mining | 17 (3.7% of specialised) | **51 (10.8%)** |
+| median region habitability under a mine | — | **0.568**, against 0.688 elsewhere |
+| median geologic activity under a settlement | 0.452 | 0.461 |
+| settlements on a grade steeper than 1-in-2 | 0.9% | 2.6% |
+| terrain samples per run | 8,766 | 8,722 |
+
+The habitability row is the one that matters: mine sites stand on measurably worse land than
+everything else, which is the whole claim of a purpose founding and the one thing a ranking could
+never produce. The steepness row is the price, and it is the relaxed penalty doing exactly what it
+was relaxed to do — 14% of mine camps sit on 1-in-2 ground against 1.3% of everything else, and the
+world figure stays well inside the 12% ceiling `SiteSelectionTests` guards.
+
+#### Where the build found something
+
+**A camp founded to work ore was being recorded as a farming village, and nothing noticed.**
+Specialization scores soil and geology and has no idea anybody was sent anywhere, and farming opens
+at 0.30 plus three quarters of the region's fertility — a lead mining has to climb to from geology
+alone. With no prior, **5.8%** of ore camps were later known for mining and **81%** became farms. The
+map said *mine* and the chronicle said *farming*, which is worse than either alone.
+
+A prior of 0.35 at the specialization decision takes that to 72% mining, 24% farming, 4% market
+town. It is deliberately not larger: at 0.55 it reaches 96%, which is `SiteCharacter` dictating
+`Specialization` under another name. **The two are kept apart on purpose** — one is why they stood
+there, the other is what the place became known for — and a seam that ran out while the valley
+turned out to grow wheat is a history worth being able to have.
+
+**Every realm that becomes a state gets its first mine; the crown decides the rest.** The appetite
+is a share of the realm's own settlements, so below one whole settlement's worth it compares against
+zero and any realm past three settlements with ore in reach will plant one. What the crown actually
+decides is the second and the third: realms of eight settlements or more holding two or more mines
+have a median mercantile value of **0.75**, against **0.51** for those holding fewer. That is the
+measurement `ColonisationTests` pins, because it is the difference between the need being the
+crown's decision and being a rule of the map.
+
+#### What is not built, and why that is the point
+
+- **The farming search is untouched.** Adjacent is correct for it: a party walking to the next
+  valley for the soil has no reason to pass good ground to reach other good ground. Skipping cells
+  already served by a neighbour's hinterland is a real improvement and a separate measurement —
+  it moves every ordinary founding in the world, where this moved one in ten.
+- **No separate deposit map.** `Region.GeologicActivity` above `Specializations.OreThreshold` is
+  what "there is ore here" means, and that constant is now shared by all three decisions that ask —
+  the search, the site's character, and the trade. Three copies of 0.35 would eventually drift into
+  camps founded to work ore that can never be known for it.
+- **No single minimum distance for all needs.** Farms want unused hinterland, forts want the border,
+  mines want the deposit even when it is awkward. What going far costs a mine is already paid by
+  supply: a camp beyond the roads is fed by `ImportReliance` and fails when the routes do.
+- **Quarry, harbour and frontier post wait** for evidence that purpose search actually moves the
+  map. One in ten foundings is the whole budget for *all* purposes if ordinary colonisation is to
+  stay ordinary, and mining has taken it.
+
+**Numbers still to sweep.** These were set by argument and one round of measurement, not by a sweep,
+and each is a candidate for tuning later without redesigning anything: the ore appetite band
+(0.03–0.14 of a realm's settlements), the three-hop reach and its 0.10-per-hop falloff, the four ore
+siting weights, and the 0.35 specialization prior. The measured effects above are what a sweep would
+have to beat.
+
+Every history changes, so the seed-42 golden is regenerated.
+
 ### Settlement lifecycle: what made decline possible
 
 The M4 deliverable was specialization and abandonment. Specialization was easy; making
