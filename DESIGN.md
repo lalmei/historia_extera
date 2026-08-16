@@ -215,7 +215,9 @@ plague movement consume the same network. Physical roads and paths remain future
 
 The viewer reads a world export and derives presentation state client-side. It replays
 territory and settlement existence for a selected year, then layers maps, timelines,
-filters, summaries, and entity histories over the same facts.
+filters, summaries, and entity histories over the same facts. The overview titles the
+history by the world's own designation and keeps the seed next to it, so a list of
+exports is recognisable without opening a file and still reproducible from the number.
 
 Development may invoke the CLI to generate a world for the viewer, but that is tooling,
 not a runtime architecture. A deployed viewer remains a reader of exported histories.

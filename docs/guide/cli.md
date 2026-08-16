@@ -29,7 +29,10 @@ Pass `--help` for the built-in usage text.
 | `--emit-terrain <dir>` | — | Bake this seed's noise world into a raster set and exit |
 | `--terrain-res <n>` | `512` | Resolution per axis when baking |
 
-Identical `--seed` and config always produce an identical file.
+Identical `--seed` and config always produce an identical file. The world's own name —
+planet or moon, unique to that seed — is printed as the run starts, and again in the
+summary, so a history can be recognised without opening the export. The seed remains the
+input that reproduces it.
 
 ## Terrain from another generator
 

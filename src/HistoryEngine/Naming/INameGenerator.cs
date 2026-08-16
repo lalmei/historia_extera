@@ -76,6 +76,27 @@ public interface INameGenerator
     /// also the more truthful model: a river valley has a name older than the realm that holds it.
     /// </remarks>
     string ForRegion(EntityId id, Biome biome);
+
+    /// <summary>
+    /// A proper name for the world itself, or for the planet a moon orbits.
+    /// </summary>
+    /// <remarks>
+    /// Derived from the world seed and <paramref name="role"/> alone — the same independence
+    /// entity names have from call order, so stretching a run or founding one more civilization
+    /// cannot rename the world. <see cref="World.WorldFlavour"/> composes those nouns into the
+    /// designation the overview prints.
+    /// </remarks>
+    string ForWorld(WorldNameRole role);
+}
+
+/// <summary>Which body a <see cref="INameGenerator.ForWorld"/> call is naming.</summary>
+public enum WorldNameRole
+{
+    /// <summary>The world this history is set on: the planet, or the moon.</summary>
+    Body = 0,
+
+    /// <summary>The planet a moon orbits. Unused when the world is itself a planet.</summary>
+    Parent = 1,
 }
 
 /// <summary>
@@ -107,6 +128,12 @@ public sealed class PlaceholderNameGenerator : INameGenerator
 
     public string ForRegion(EntityId id, Biome biome) =>
         biome.ToString() + " " + id.Index.ToString(CultureInfo.InvariantCulture);
+
+    public string ForWorld(WorldNameRole role) => role switch
+    {
+        WorldNameRole.Parent => "Host",
+        _ => "World",
+    };
 
     private static string Label(string prefix, EntityId id) =>
         prefix + " " + id.Index.ToString(CultureInfo.InvariantCulture);

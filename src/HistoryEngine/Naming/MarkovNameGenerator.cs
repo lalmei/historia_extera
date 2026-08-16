@@ -31,6 +31,7 @@ public sealed class MarkovNameGenerator : INameGenerator
     private readonly ulong _worldSeed;
     private readonly Dictionary<ulong, NamingLanguage> _languages = new();
     private readonly Dictionary<EntityId, string> _names = new();
+    private readonly Dictionary<WorldNameRole, string> _worldNames = new();
 
     /// <summary>
     /// The language geography is named in.
@@ -105,6 +106,25 @@ public sealed class MarkovNameGenerator : INameGenerator
             NamingLanguage language = _worldLanguage.Value;
             return language.Place(StreamFor(language.Seed, "region", id));
         });
+
+    /// <summary>
+    /// A body name in the same tongue the geography is named in.
+    /// </summary>
+    /// <remarks>
+    /// The world language is older than every culture, so the planet a history is set on sounds
+    /// like its river valleys rather than like whoever founds the first city. Forked by role
+    /// rather than by an entity id, because the world is not an entity — there is one of it.
+    /// </remarks>
+    public string ForWorld(WorldNameRole role)
+    {
+        if (_worldNames.TryGetValue(role, out string? cached)) return cached;
+
+        NamingLanguage language = _worldLanguage.Value;
+        IRng stream = new Pcg32(language.Seed).Fork("name.world." + role);
+        string name = language.Place(stream);
+        _worldNames[role] = name;
+        return name;
+    }
 
     public string ForDynasty(EntityId id, Culture culture) =>
         Memoise(id, () =>

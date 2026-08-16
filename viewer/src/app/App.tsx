@@ -100,6 +100,19 @@ export default function App() {
       .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)));
   }, []);
 
+  useEffect(() => {
+    if (!world) return;
+
+    const designation = world.export.world.designation;
+    const previous = document.title;
+    document.title = designation
+      ? `${designation} — Historia Extera`
+      : 'Historia Extera — Legends';
+    return () => {
+      document.title = previous;
+    };
+  }, [world]);
+
   // Scroll to the top on navigation — a deep chronicle otherwise leaves the next
   // page opening halfway down.
   useEffect(() => {

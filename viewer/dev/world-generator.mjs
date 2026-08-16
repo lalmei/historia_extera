@@ -457,6 +457,8 @@ async function inspectWorld(file, name) {
       modifiedAt: info.mtime.toISOString(),
       schemaVersion: header.schemaVersion,
       engineVersion: header.engineVersion,
+      designation: header.designation,
+      kind: header.kind,
       params: paramsFor(name, header),
     };
   } catch (cause) {
@@ -503,6 +505,8 @@ async function readWorldHeader(file) {
       size: readIntField(prefix, 'width'),
       eastWestPeriodic: readBoolField(prefix, 'eastWestPeriodic'),
       engineVersion: readStringField(prefix, 'engineVersion'),
+      designation: readStringField(prefix, 'designation'),
+      kind: readWorldKind(prefix),
     };
   } finally {
     await handle.close();
@@ -581,6 +585,15 @@ function readBoolField(text, name) {
  */
 function readStringField(text, name) {
   const match = new RegExp(`"${name}"\\s*:\\s*"([^"]*)"`).exec(text);
+  return match ? match[1] : null;
+}
+
+/**
+ * @param {string} text
+ * @returns {'Planet' | 'Moon' | null}
+ */
+function readWorldKind(text) {
+  const match = /"kind"\s*:\s*"(Planet|Moon)"/.exec(text);
   return match ? match[1] : null;
 }
 

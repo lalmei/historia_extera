@@ -1777,6 +1777,49 @@ shipping the trained tables would be large and unreadable, whereas the recipe pl
 sample output is what actually answers "why do this culture's names look like that".
 The viewer renders it, so `slavic + semitic, b→p` sits next to `Ekallatograd`.
 
+### World identity: a name for the history, unique to the seed
+
+The chronicle used to open on an unnamed world. A list of exports was a list of filenames
+and seed numbers, which is how you reproduce a history and not how you remember one.
+
+The world is now named once from the seed, in the same world-level language as its
+regions, and composed into a designation:
+
+- a planet: "The planet Borion", or "The planet Borion of the Vathri system" when a
+  second draw gives the world a system of its own
+- a moon: "Ithil, the 3rd moon of Endor"
+
+Two proper nouns is what keeps two seeds from sharing a label: a single Markov place
+name repeats, and "The planet Vratislavl" was the first collision the uniqueness test
+caught. The short form "the 3rd moon of Endor" was tempting and is exactly the shape
+the feature asked for, but parent-plus-ordinal collides the same way; the moon's own
+name is what makes that phrase a unique history rather than a class of them.
+
+That roll is flavour. It does not feed terrain, founding, or any later system. The
+stream is forked from the seed under `world.flavour`, never from `WorldState.Root`, so
+adding it cannot shift a civilization's traits or a battle's outcome. The proper nouns
+come from `INameGenerator.ForWorld`, which depends on the seed and a role (`Body` /
+`Parent`) the same way a region name depends on its id — stretching a run, or asking for
+more civilizations, cannot rename the world.
+
+The designation is unique to the seed across the sampled range; collisions would make two
+histories share a label, which is the failure the test is watching for. The seed still
+travels in `ExportMeta` and in the overview, because that is what you type to get the
+same history again. Schema 20 carries the identity at the front of `ExportWorld` so a
+catalog that only reads the file header — cutting before the raster — still knows what
+to call the world.
+
+Rejected: putting the seed inside the designation ("Borion-42"). That would make every
+name unique by construction and would also make the flavour a serial number. The seed
+already sits next to the name wherever the name is shown.
+
+Rejected: drawing the name from `WorldState.Root`. Cheaper, and it would have renamed
+every founding the moment this shipped.
+
+`WorldFlavourTests` pins seed-stability, uniqueness across 256 seeds, that both planet
+and moon forms arise, and that the `WorldCreated` event and the export agree with the
+world in memory.
+
 ### Viewer: Astro shell, React island, client routing
 
 Astro **could** read `world.json` at build time and statically emit a page per entity —

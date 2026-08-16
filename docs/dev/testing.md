@@ -22,7 +22,7 @@ the engine.
 | Territory | The event log alone replays to the exported map, across seeds — what the viewer's year slider depends on |
 | Trade routes | Endpoints and modes are valid; active pairs are unique; closure preserves historical entities; split runs preserve the network |
 | Flavour | Plague, disaster, faith and artifacts each fire; no plague takes the world; disasters match the ground they struck; provenance agrees with where a thing is |
-| Naming / narration | Stable names and chronicle wording |
+| Naming / narration | Stable names and chronicle wording; world designation unique to the seed |
 | Export / goldens | Fingerprint for the standard seed-42 config |
 
 ## Regenerating the golden

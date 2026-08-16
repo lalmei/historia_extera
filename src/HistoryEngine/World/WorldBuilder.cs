@@ -59,7 +59,14 @@ public static class WorldBuilder
 
         RegionGrid.Build(atlas, config.RegionSize, world.Regions);
 
-        world.Chronicle.Record(config.StartYear, EventKind.WorldCreated, EntityId.None);
+        world.Chronicle.Record(
+            config.StartYear,
+            EventKind.WorldCreated,
+            EntityId.None,
+            data: Chronicle.Data(
+                ("name", world.Flavour.Name),
+                ("kind", world.Flavour.Kind.ToString()),
+                ("designation", world.Flavour.Designation)));
 
         FoundInitialCivilizations(world);
         return world;

@@ -8,6 +8,9 @@ export interface SavedWorld {
   bytes: number;
   modifiedAt?: string;
   schemaVersion: number | null;
+  /** How the history names itself, when the file header carried it. */
+  designation?: string | null;
+  kind?: 'Planet' | 'Moon' | null;
   /** Settings reconstructed from the file header and, for civs, the filename. */
   params?: {
     seed: number;

@@ -2,6 +2,7 @@ using System.Globalization;
 using HistoryEngine;
 using HistoryEngine.Entities;
 using HistoryEngine.Events;
+using HistoryEngine.Naming;
 using HistoryEngine.Serialization;
 using HistoryEngine.Terrain;
 using HistoryEngine.World;
@@ -78,7 +79,9 @@ internal static class Program
             return 0;
         }
 
-        Console.WriteLine($"Generating {config.Years} years, seed {config.Seed}, config {config.ConfigHash}");
+        var flavour = WorldFlavour.From(config.Seed, new MarkovNameGenerator(config.Seed));
+        Console.WriteLine(
+            $"Generating {flavour.Designation} — {config.Years} years, seed {config.Seed}, config {config.ConfigHash}");
 
         HistoryRun run = HistoryRun.Execute(config, raster);
         WorldExport export = run.ToExport();
@@ -174,6 +177,13 @@ internal static class Program
         }
 
         ExportSampleStats sampling = export.Meta.TerrainSampling;
+
+        Console.WriteLine();
+        Console.WriteLine("── World ────────────────────────────────");
+        Console.WriteLine($"  name           {world.Flavour.Designation}");
+        Console.WriteLine($"  seed           {world.Config.Seed}");
+        Console.WriteLine(
+            $"  kind           {(world.Flavour.Kind == WorldKind.Moon ? "moon" : "planet")}");
 
         Console.WriteLine();
         Console.WriteLine("── Terrain ──────────────────────────────");
