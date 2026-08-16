@@ -67,7 +67,8 @@ public static class Narration
         Set(EventKind.SettlementFamine, "{subject} suffered {data:severity}[, losing {data:lost} people].");
 
         Set(EventKind.FigureBorn, "{subject} was born[ to {object}][ in {location}].");
-        Set(EventKind.FigureDied, "{subject} died[ at the age of {data:age}][, of {data:cause}].");
+        Set(EventKind.FigureDied,
+            "{subject}[, {data:office},] died[ at the age of {data:age}][, of {data:cause}].");
         Set(EventKind.RulerCrowned,
             "{subject} became {data:title} of {object}[ at {location}][, {data:claim}].");
         Set(EventKind.RulerDeposed, "{subject} was deposed as {data:title} of {object}.");
@@ -89,28 +90,37 @@ public static class Narration
         Set(EventKind.DynastyEnded, "The {subject} died out[ after {data:years}].");
         Set(EventKind.DynastyAscended, "The {subject} took the throne of {object}.");
 
-        Set(EventKind.RegionClaimed, "{object} extended its reach into {subject}.");
+        Set(EventKind.RegionClaimed,
+            "{object} extended its reach into {subject}[ under {data:ruler}].");
         Set(EventKind.RegionCeded,
-            "{subject} was ceded to {object}[, and with it {location}].");
+            "{subject} was ceded[ by {data:from}] to {object}[, and with it {location}]"
+            + "[, in the peace that ended the {data:war}].");
         Set(EventKind.RegionReleased, "{subject} passed out of the reach of {object}.");
 
         Set(EventKind.AllianceFormed, "{subject} and {object} swore an alliance.");
         Set(EventKind.AllianceBroken,
             "The alliance between {subject} and {object} was broken[ after {data:years}].");
         Set(EventKind.WarDeclared,
-            "{subject} declared war on {object}[, {data:cause}]. So began the {location}.");
+            "[{data:ruler} of ]{subject} declared war on {object}[, {data:cause}]. "
+            + "So began the {location}.");
         Set(EventKind.WarJoined,
             "{subject} entered the {object} alongside {location}.");
         Set(EventKind.BattleFought,
-            "{object} prevailed at the {subject}[, at a cost of {data:losses} dead].");
+            "{object} prevailed at the {subject}[ under {data:victor}]"
+            + "[, at a cost of {data:losses} dead].");
         Set(EventKind.SettlementSacked,
-            "{subject} was sacked by {object}[, losing {data:lost} people].");
+            "{subject} was sacked by {object}[ under {data:captain}][, losing {data:lost} people].");
         Set(EventKind.WarEnded,
             "The {subject} ended[ after {data:years}][, {data:outcome}][ for {object}].");
         Set(EventKind.SiegeBegan,
             "{object} invested {location}. So began the {subject}.");
         Set(EventKind.SiegeLifted,
             "The {subject} was lifted[, {data:cause}].");
+        Set(EventKind.SettlementOccupied,
+            "{subject} fell to {object}[ under {data:captain}] and was held under arms.");
+        Set(EventKind.SettlementRestored,
+            "{subject} was recovered from {object}[ {data:manner}] and returned to {location}"
+            + "[, after {data:years} under occupation].");
 
         Set(EventKind.ReligionFounded,
             "The {subject} was first preached[ by {object}][ at {location}].");
