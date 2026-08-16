@@ -803,7 +803,8 @@ export type SiteCharacter =
   | 'Estuary'
   | 'Harbour'
   | 'Coastal'
-  | 'Pass';
+  | 'Pass'
+  | 'Mine';
 
 export const SITE_LABELS: Record<SiteCharacter, string> = {
   Plain: 'Open ground',
@@ -813,6 +814,9 @@ export const SITE_LABELS: Record<SiteCharacter, string> = {
   Harbour: 'On sheltered water',
   Coastal: 'On the coast',
   Pass: 'Astride the pass',
+  // A noun phrase rather than a place, like the Plain case in EntityPages: the others answer
+  // "built here for" with where the town stands, and this one answers it with what it came for.
+  Mine: 'The ore under it',
 };
 
 export interface Settlement {

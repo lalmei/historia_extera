@@ -32,6 +32,22 @@ public enum SettlementSpecialization
 /// </remarks>
 public static class Specializations
 {
+    /// <summary>
+    /// Geologic activity at which there is ore worth working, in [0, 1].
+    /// </summary>
+    /// <remarks>
+    /// <para>The one line in the engine between rock and a mine, and it is shared on purpose. Three
+    /// decisions ask the question — whether a realm should send a party for a deposit, whether the
+    /// ground it stood on can be recorded as a mine site, and whether a village may be known for
+    /// mining — and if any of them drew the line somewhere else the chronicle would contain camps
+    /// founded to work ore that can never be known for it.</para>
+    ///
+    /// <para>There is no deposit map under this, and there should not be one until something needs
+    /// what a map would add. <see cref="World.Region.GeologicActivity"/> above this threshold is
+    /// what "there is ore here" means.</para>
+    /// </remarks>
+    public const double OreThreshold = 0.35;
+
     /// <summary>Multiplier on the fertility-derived component of carrying capacity.</summary>
     public static double FertilityWeight(SettlementSpecialization specialization) => specialization switch
     {

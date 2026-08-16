@@ -55,7 +55,8 @@ public static class Narration
         Set(EventKind.CapitalMoved, "{subject} moved its seat of government to {location}.");
 
         Set(EventKind.SettlementFounded,
-            "{subject} was founded[ by {object}][, {data:settlers} of them out of {data:from}].");
+            "{subject} was founded[ by {object}][, {data:settlers} of them out of {data:from}]"
+            + "[, {data:purpose}].");
         Set(EventKind.SettlementPromoted, "{subject} grew into a {data:tier}.");
         Set(EventKind.SettlementDeclined, "{subject} dwindled to a {data:tier}.");
         Set(EventKind.SettlementAbandoned,

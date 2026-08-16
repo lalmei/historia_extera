@@ -35,9 +35,6 @@ public sealed class ExpansionSystem : ISystem
     /// <summary>Population per existing settlement at which pressure is considered full.</summary>
     private const double PressureReference = 2200.0;
 
-    /// <summary>A new region must be at least this habitable to be worth claiming.</summary>
-    private const double MinHabitability = 0.15;
-
     /// <summary>Starting population of a new settlement.</summary>
     private const int SettlerCount = 70;
 
@@ -116,9 +113,12 @@ public sealed class ExpansionSystem : ISystem
             Culture culture = world.CultureOf(civilization);
 
             // Found before the roll rather than after it, because how open the target is decides
-            // what the roll has to be. It draws no numbers, so nothing else moves for asking early.
-            Region? target = FindFrontierRegion(world, civilization);
-            if (target is null) continue;
+            // what the roll has to be. It draws no numbers, so nothing else moves for asking early
+            // — which is also what lets the need be decided here rather than after the roll.
+            FrontierChoice? frontier = Colonisation.Frontier(world, civilization);
+            if (frontier is null) continue;
+
+            Region target = frontier.Value.Region;
 
             int open = Seasons.OpenSeasons(target, calendar.SeasonsPerYear, world.Config.WorldSize);
 
@@ -148,7 +148,7 @@ public sealed class ExpansionSystem : ISystem
                 * pressure;
             if (!rng.Chance(chance)) continue;
 
-            Claim(world, civilization, culture, target, year, rng);
+            Claim(world, civilization, culture, frontier.Value, year, rng);
         }
     }
 
@@ -163,61 +163,29 @@ public sealed class ExpansionSystem : ISystem
         return count;
     }
 
-    /// <summary>
-    /// The most habitable unclaimed region adjacent to this civilization's territory.
-    /// </summary>
     /// <remarks>
-    /// Candidates are gathered by walking owned regions in id order and their neighbours in
-    /// the fixed order <see cref="RegionGrid"/> linked them, so discovery order is
-    /// reproducible. The final choice breaks ties on region id, since <see cref="List{T}.Sort"/>
-    /// is unstable and equal habitability scores are common on uniform terrain.
+    /// Which region, and what for, is <see cref="Colonisation"/>'s decision — this claims what it
+    /// named. The need reaches the ground twice: once in <see cref="SiteSelection"/>, which scores
+    /// the candidates for what the party came to do, and once in the character the site keeps, which
+    /// is what lets the chronicle say why they went.
     /// </remarks>
-    private static Region? FindFrontierRegion(WorldState world, Civilization civilization)
-    {
-        Region? best = null;
-        double bestScore = double.NegativeInfinity;
-
-        foreach (EntityId ownedId in civilization.TerritoryRegionIds)
-        {
-            Region owned = world.Regions[ownedId];
-
-            foreach (EntityId neighbourId in owned.AdjacentRegions)
-            {
-                Region neighbour = world.Regions[neighbourId];
-
-                if (!neighbour.Owner.IsNone) continue;
-                if (!neighbour.IsLand) continue;
-
-                double score = neighbour.Habitability;
-                if (score < MinHabitability) continue;
-
-                if (score > bestScore ||
-                    (score == bestScore && best is not null && neighbour.Id.CompareTo(best.Id) < 0))
-                {
-                    bestScore = score;
-                    best = neighbour;
-                }
-            }
-        }
-
-        return best;
-    }
-
     private static void Claim(
         WorldState world,
         Civilization civilization,
         Culture culture,
-        Region target,
+        FrontierChoice frontier,
         int year,
         IRng rng)
     {
+        Region target = frontier.Region;
+
         target.Owner = civilization.Id;
         civilization.TerritoryRegionIds.Add(target.Id);
 
         world.Chronicle.Record(
             year, EventKind.RegionClaimed, target.Id, obj: civilization.Id);
 
-        SiteChoice site = SiteSelection.Best(world, target, SitesPerAxis);
+        SiteChoice site = SiteSelection.Best(world, target, SitesPerAxis, frontier.Need);
 
         // Settlers come out of somewhere. Conjuring them made expansion free, so a realm could
         // seed a continent without ever feeling it; taking them from the nearest town means a
