@@ -2239,6 +2239,33 @@ function present<T extends string>(values: T[]): T[] {
 // Wars and battles
 // ---------------------------------------------------------------------------
 
+function battleStamp(year: number, day: number): string {
+  return day === 0 ? `${year}` : `${year}.${day}`;
+}
+
+function battleSpan(battle: Battle): string {
+  const began = battleStamp(battle.year, battle.day);
+  if (battle.endYear === undefined || battle.endDay === undefined) return `${began}–`;
+
+  const ended = battleStamp(battle.endYear, battle.endDay);
+  return began === ended ? began : `${began}–${ended}`;
+}
+
+function battleOutcome(world: World, battle: Battle): string {
+  if (!battle.wasSiege) return `${world.nameOf(battle.victorId)} prevailed`;
+
+  switch (battle.siegeOutcome) {
+    case 'Carried':
+      return `${world.nameOf(battle.attackerId)} carried the siege`;
+    case 'Relieved':
+      return `${world.nameOf(battle.defenderId)} relieved the siege`;
+    case 'Lifted':
+      return 'Siege lifted';
+    default:
+      return 'Siege ongoing';
+  }
+}
+
 /**
  * A war: who fought it, where it was decided, and what it moved.
  *
@@ -2379,10 +2406,12 @@ export function BattlePage({ world, battle }: { world: World; battle: Battle }) 
         title={battle.name}
         meta={
           <>
-            <Badge tone="accent">{world.nameOf(battle.victorId)} prevailed</Badge>
+            <Badge tone={battle.siegeOutcome === 'Ongoing' ? 'accent' : 'muted'}>
+              {battleOutcome(world, battle)}
+            </Badge>
             {battle.wasSiege && <Badge>Siege</Badge>}
             {battle.sacked && <Badge tone="muted">Sacked</Badge>}
-            <span className="text-[var(--ink-faint)]">{battle.year}</span>
+            <span className="text-[var(--ink-faint)]">{battleSpan(battle)}</span>
           </>
         }
       />
@@ -2399,7 +2428,7 @@ export function BattlePage({ world, battle }: { world: World; battle: Battle }) 
           hint={`${world.nameOf(battle.defenderId)} · ${battle.defenderLosses.toLocaleString()} lost`}
         />
         <Stat label="Dead" value={(battle.attackerLosses + battle.defenderLosses).toLocaleString()} />
-        <Stat label="Year" value={battle.year} />
+        <Stat label="When" value={battleSpan(battle)} />
       </div>
 
       <Panel title="Details">
@@ -2413,6 +2442,7 @@ export function BattlePage({ world, battle }: { world: World; battle: Battle }) 
           <Field label="Defender">
             <EntityLink world={world} id={battle.defenderId} />
           </Field>
+          {battle.wasSiege && <Field label="Outcome">{battleOutcome(world, battle)}</Field>}
           <Field label="Ground">
             <EntityLink world={world} id={battle.regionId} />
           </Field>
@@ -2455,12 +2485,18 @@ export function BattleTable({ world, battles }: { world: World; battles: Battle[
       ),
       sort: (b) => b.name,
     },
-    { key: 'year', header: 'Year', cell: (b) => b.year, sort: (b) => b.year, align: 'right' },
+    {
+      key: 'year',
+      header: 'When',
+      cell: (b) => battleSpan(b),
+      sort: (b) => b.year * 1000 + b.day,
+      align: 'right',
+    },
     {
       key: 'victor',
-      header: 'Carried by',
-      cell: (b) => <EntityLink world={world} id={b.victorId} />,
-      sort: (b) => world.nameOf(b.victorId),
+      header: 'Outcome',
+      cell: (b) => battleOutcome(world, b),
+      sort: (b) => battleOutcome(world, b),
     },
     {
       key: 'strength',
@@ -2497,8 +2533,18 @@ export function BattleTable({ world, battles }: { world: World; battles: Battle[
       key: 'side',
       label: 'Decided for',
       options: [
-        { value: 'attacker', label: 'The attacker', match: (b) => b.victorId === b.attackerId },
-        { value: 'defender', label: 'The defender', match: (b) => b.victorId === b.defenderId },
+        {
+          value: 'attacker',
+          label: 'The attacker',
+          match: (b) =>
+            b.wasSiege ? b.siegeOutcome === 'Carried' : b.victorId === b.attackerId,
+        },
+        {
+          value: 'defender',
+          label: 'The defender',
+          match: (b) =>
+            b.wasSiege ? b.siegeOutcome === 'Relieved' : b.victorId === b.defenderId,
+        },
       ],
     },
     ...realmFacet(world, battles, (b) => [b.attackerId, b.defenderId], 'Fought by'),

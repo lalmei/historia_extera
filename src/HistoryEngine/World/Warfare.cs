@@ -194,6 +194,20 @@ public static class Warfare
     /// </remarks>
     private const double InitiativeSwing = 1.0;
 
+    /// <summary>How long an investment runs before it reaches a decision of its own.</summary>
+    /// <remarks>
+    /// Forty-five to one hundred and twenty days for an open town, thirty days more behind real
+    /// walls. The lower end lets a siege finish inside the season that opened it; the upper end
+    /// deliberately crosses a season boundary, where weather or a relief campaign gets a chance to
+    /// end it first. These are the first timing constants, and are measured with the rest of M13
+    /// rather than disguised as historical precision.
+    /// </remarks>
+    private const int MinSiegeDays = 45;
+
+    private const int MaxSiegeDaysExclusive = 121;
+
+    private const int FortifiedSiegeDays = 30;
+
     /// <summary>
     /// Fights one engagement, or does nothing if the two sides cannot reach each other.
     /// </summary>
@@ -203,8 +217,9 @@ public static class Warfare
     /// the most legible thing a war that turned can do, and the only way a defender ever takes
     /// ground.
     /// </remarks>
-    public static Battle? Fight(WorldState world, War war, int year, IRng rng)
+    public static Battle? Fight(WorldState world, War war, Stamp now, IRng rng)
     {
+        int year = now.Year;
         bool attackersHaveInitiative = war.Score > -InitiativeSwing;
 
         IReadOnlyList<EntityId> attacking = attackersHaveInitiative ? war.Attackers : war.Defenders;
@@ -223,7 +238,7 @@ public static class Warfare
             world.Battles.NextId,
             NameBattle(world, field!, contested),
             war.Id,
-            year,
+            now,
             field!.Id)
         {
             SettlementId = contested?.Id ?? EntityId.None,
@@ -241,13 +256,133 @@ public static class Warfare
         battle.AttackerCommanderId = Commander(world, invader, year, rng);
         battle.DefenderCommanderId = Commander(world, holder, year, rng);
 
-        double attackerPower = attackerForce
-            * (battle.AttackerCommanderId.IsNone ? 1.0 : CommanderBonus);
+        world.Battles.Add(battle);
+        war.BattleIds.Add(battle.Id);
 
-        double defenderPower = defenderForce
+        if (battle.IsSiege)
+        {
+            battle.SiegeOutcome = SiegeOutcome.Ongoing;
+
+            int duration = rng.NextInt(MinSiegeDays, MaxSiegeDaysExclusive);
+            if (contested!.IsFortified) duration += FortifiedSiegeDays;
+
+            Stamp due = world.Config.Calendar.Plus(now, duration);
+            world.Docket.Schedule(due, DocketKind.SiegeResolves, battle.Id);
+
+            world.Chronicle.Record(
+                year,
+                EventKind.SiegeBegan,
+                battle.Id,
+                obj: battle.AttackerId,
+                location: battle.SettlementId,
+                extra: Participants(war, battle),
+                data: Chronicle.Data(("days", duration.ToString(CultureInfo.InvariantCulture))));
+
+            return battle;
+        }
+
+        ResolveBattle(world, war, battle, contested, now, rng);
+        return battle;
+    }
+
+    /// <summary>The unresolved investment currently consuming this war's campaign, if any.</summary>
+    public static Battle? ActiveSiege(WorldState world, War war)
+    {
+        for (int i = war.BattleIds.Count - 1; i >= 0; i--)
+        {
+            Battle battle = world.Battles[war.BattleIds[i]];
+            if (battle.IsSiege && battle.SiegeOutcome == SiegeOutcome.Ongoing) return battle;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Resolves an investment at its scheduled decision, or when a relief campaign reaches it first.
+    /// </summary>
+    /// <remarks>
+    /// The stream is forked on the siege and the day, never on queue position. Scheduling an
+    /// unrelated episode before this one therefore cannot move its outcome — the docket contract
+    /// applied to the first war episode that uses it.
+    /// </remarks>
+    public static void ResolveSiege(WorldState world, Battle battle, Stamp at, bool relief = false)
+    {
+        if (!battle.IsSiege || battle.SiegeOutcome != SiegeOutcome.Ongoing) return;
+
+        if (!world.Wars.Contains(battle.WarId)) return;
+        War war = world.Wars[battle.WarId];
+
+        if (!war.IsActive
+            || !world.Civilizations.Contains(battle.AttackerId)
+            || !world.Civilizations.Contains(battle.DefenderId)
+            || !world.Civilizations[battle.AttackerId].IsActive
+            || !world.Civilizations[battle.DefenderId].IsActive)
+        {
+            LiftSiege(world, battle, at, "the war had passed it by");
+            return;
+        }
+
+        if (!world.Settlements.Contains(battle.SettlementId))
+        {
+            LiftSiege(world, battle, at, "there was no place left to invest");
+            return;
+        }
+
+        Settlement contested = world.Settlements[battle.SettlementId];
+        if (!contested.IsActive || contested.CivilizationId != battle.DefenderId)
+        {
+            LiftSiege(world, battle, at, "the place no longer answered to its defender");
+            return;
+        }
+
+        IRng rng = world.Root
+            .Fork(relief ? "war-siege-relief" : "war-siege-decision", battle.Id.ToDiscriminator())
+            .Fork("on", world.Config.Calendar.AbsoluteDay(at));
+
+        ResolveBattle(world, war, battle, contested, at, rng);
+    }
+
+    /// <summary>Ends an investment without an engagement deciding it.</summary>
+    public static void LiftSiege(WorldState world, Battle battle, Stamp at, string cause)
+    {
+        if (!battle.IsSiege || battle.SiegeOutcome != SiegeOutcome.Ongoing) return;
+
+        battle.SiegeOutcome = SiegeOutcome.Lifted;
+        battle.EndYear = at.Year;
+        battle.EndDay = at.Day;
+        battle.VictorId = battle.DefenderId;
+
+        if (!world.Wars.Contains(battle.WarId)) return;
+
+        War war = world.Wars[battle.WarId];
+        world.Chronicle.Record(
+            at.Year,
+            EventKind.SiegeLifted,
+            battle.Id,
+            obj: battle.DefenderId,
+            location: battle.SettlementId,
+            extra: Participants(war, battle),
+            data: Chronicle.Data(("cause", cause)));
+    }
+
+    /// <summary>Applies the decision shared by an immediate field battle and a siege's last day.</summary>
+    private static void ResolveBattle(
+        WorldState world,
+        War war,
+        Battle battle,
+        Settlement? contested,
+        Stamp at,
+        IRng rng)
+    {
+        Region field = world.Regions[battle.RegionId];
+
+        double attackerPower = battle.AttackerStrength
+            * (Commands(world, battle.AttackerCommanderId) ? CommanderBonus : 1.0);
+
+        double defenderPower = battle.DefenderStrength
             * HomeGroundBonus
             * DefenceOf(field, contested)
-            * (battle.DefenderCommanderId.IsNone ? 1.0 : CommanderBonus);
+            * (Commands(world, battle.DefenderCommanderId) ? CommanderBonus : 1.0);
 
         // Both sides being nothing is possible when a realm has been reduced to hamlets; a coin
         // toss is the honest answer, and the levies are too small for the result to matter.
@@ -256,27 +391,40 @@ public static class Warfare
             ? rng.Chance(0.5)
             : rng.Chance(attackerPower / total);
 
+        Civilization invader = world.Civilizations[battle.AttackerId];
+        Civilization holder = world.Civilizations[battle.DefenderId];
+
         battle.VictorId = attackerWins ? invader.Id : holder.Id;
+
+        if (battle.IsSiege)
+        {
+            battle.SiegeOutcome = attackerWins ? SiegeOutcome.Carried : SiegeOutcome.Relieved;
+        }
+
+        battle.EndYear = at.Year;
+        battle.EndDay = at.Day;
 
         // Only the two realms that actually met on the field carry the memory of it. A coalition
         // partner that sent no levy to this battle is not marked by a day it did not have.
         (attackerWins ? invader : holder).Fortunes.WonABattle();
         (attackerWins ? holder : invader).Fortunes.LostABattle();
 
-        int contestedForce = Math.Max(1, Math.Min(attackerForce, defenderForce));
+        int contestedForce = Math.Max(1, Math.Min(battle.AttackerStrength, battle.DefenderStrength));
         int victorLosses = (int)(contestedForce * rng.NextDouble(MinVictorLosses, MaxVictorLosses));
         int loserLosses = (int)(contestedForce * rng.NextDouble(MinLoserLosses, MaxLoserLosses));
 
         battle.AttackerLosses = attackerWins ? victorLosses : loserLosses;
         battle.DefenderLosses = attackerWins ? loserLosses : victorLosses;
 
+        bool invaderIsWarAttacker = war.IsAttacker(battle.AttackerId);
+        IReadOnlyList<EntityId> attacking = invaderIsWarAttacker ? war.Attackers : war.Defenders;
+        IReadOnlyList<EntityId> defending = invaderIsWarAttacker ? war.Defenders : war.Attackers;
+
         TakeCasualties(world, attacking, battle.AttackerLosses);
         TakeCasualties(world, defending, battle.DefenderLosses);
 
-        world.Battles.Add(battle);
-        war.BattleIds.Add(battle.Id);
-        war.AttackerLosses += attackersHaveInitiative ? battle.AttackerLosses : battle.DefenderLosses;
-        war.DefenderLosses += attackersHaveInitiative ? battle.DefenderLosses : battle.AttackerLosses;
+        war.AttackerLosses += invaderIsWarAttacker ? battle.AttackerLosses : battle.DefenderLosses;
+        war.DefenderLosses += invaderIsWarAttacker ? battle.DefenderLosses : battle.AttackerLosses;
 
         // The butcher's bill is stated only when there was one. A rout that cost three men reads
         // far better as "Heraanes prevailed at the Battle of Vikrastad" than with the figure
@@ -288,7 +436,7 @@ public static class Warfare
         }
 
         world.Chronicle.Record(
-            year,
+            at.Year,
             EventKind.BattleFought,
             battle.Id,
             obj: battle.VictorId,
@@ -299,15 +447,19 @@ public static class Warfare
         // Score is kept from the war aggressor's point of view whoever holds the initiative, so
         // the peace can read it without asking who was attacking in which year.
         double swing = Swing(battle, contestedForce);
-        bool warAttackersWon = attackersHaveInitiative == attackerWins;
+        bool warAttackersWon = war.IsAttacker(battle.VictorId);
         war.Score += warAttackersWon ? swing : -swing;
 
-        Casualty(world, battle, attackerWins, year, rng);
+        Casualty(world, battle, attackerWins, at.Year, rng);
 
-        if (attackerWins && contested is not null) MaybeSack(world, war, battle, contested, year, rng);
-
-        return battle;
+        if (attackerWins && contested is not null)
+        {
+            MaybeSack(world, war, battle, contested, at.Year, rng);
+        }
     }
+
+    private static bool Commands(WorldState world, EntityId figureId) =>
+        !figureId.IsNone && world.Figures.Contains(figureId) && world.Figures[figureId].IsAlive;
 
     /// <summary>
     /// How much one battle moves the war.

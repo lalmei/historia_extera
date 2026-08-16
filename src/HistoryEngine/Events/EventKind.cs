@@ -71,6 +71,8 @@ public enum EventKind
     BattleFought = 504,
     SettlementSacked = 505,
     WarEnded = 506,
+    SiegeBegan = 507,
+    SiegeLifted = 508,
 
     // ---- Religion (600) ----
     ReligionFounded = 600,

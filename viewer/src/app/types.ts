@@ -7,7 +7,7 @@
  * stops moving.
  */
 
-export const SCHEMA_VERSION = 17;
+export const SCHEMA_VERSION = 18;
 
 /** `"civ:3"`, `"fig:1204"` — readable, greppable, and directly usable as a route. */
 export type EntityId = string;
@@ -431,9 +431,13 @@ export interface Battle {
   name: string;
   warId: EntityId;
   year: number;
+  day: number;
+  endYear?: number;
+  endDay?: number;
   regionId: EntityId;
   settlementId?: EntityId;
   wasSiege: boolean;
+  siegeOutcome: SiegeOutcome;
   attackerId: EntityId;
   defenderId: EntityId;
   victorId: EntityId;
@@ -446,6 +450,8 @@ export interface Battle {
   defenderLosses: number;
   sacked: boolean;
 }
+
+export type SiegeOutcome = 'NotSiege' | 'Ongoing' | 'Carried' | 'Relieved' | 'Lifted';
 
 /**
  * A faith, and the settlements that follow it.

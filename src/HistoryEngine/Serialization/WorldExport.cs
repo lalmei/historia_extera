@@ -71,9 +71,11 @@ public sealed record WorldExport(
     /// faith, distinct from the town they live in, so a person can follow a church their
     /// residence no longer does. Version 17 added the day an event fell on, alongside the year it
     /// has always carried — additive on purpose, so the per-year index, the timeline slider and the
-    /// territory replay all keep reading exactly what they read before.
+    /// territory replay all keep reading exactly what they read before. Version 18 records when a
+    /// battle began and ended and how a siege ended, so an investment that lasted into another
+    /// season is not flattened back into an instantaneous victory at export.
     /// </remarks>
-    public const int CurrentSchemaVersion = 17;
+    public const int CurrentSchemaVersion = 18;
 }
 
 public sealed record ExportMeta(
@@ -315,18 +317,23 @@ public sealed record ExportWar(
 /// One engagement, named for where it was fought.
 /// </summary>
 /// <remarks>
-/// A siege is a battle with a <see cref="SettlementId"/>, not a kind of its own. Strengths are the
-/// forces actually committed rather than either realm's total levy, since the difference between
-/// the two is most of why a smaller realm sometimes wins.
+/// A siege is a battle with <see cref="WasSiege"/> set, not a separate entity kind; an unwalled
+/// settlement may still be the location of a field battle. Strengths are the forces actually
+/// committed rather than either realm's total levy, since the difference between the two is most
+/// of why a smaller realm sometimes wins.
 /// </remarks>
 public sealed record ExportBattle(
     EntityId Id,
     string Name,
     EntityId WarId,
     int Year,
+    int Day,
+    int? EndYear,
+    int? EndDay,
     EntityId RegionId,
     EntityId? SettlementId,
     bool WasSiege,
+    SiegeOutcome SiegeOutcome,
     EntityId AttackerId,
     EntityId DefenderId,
     EntityId VictorId,
