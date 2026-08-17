@@ -170,6 +170,15 @@ public static class Narration
             "The {subject} began to decline[ as traffic fell to {data:traffic}].");
         Set(EventKind.TradeRouteClosed, "The {subject} closed[, {data:cause}].");
 
+        Set(EventKind.BrigandageWorsened,
+            "Brigands took to the roads around {subject}[, {data:cause}].");
+        Set(EventKind.RevoltBroke,
+            "{subject} rose in revolt against {object}[, {data:cause}].");
+        Set(EventKind.RevoltCrushed,
+            "The rising in {subject} was put down by {object}[, at a cost of {data:lost} dead].");
+        Set(EventKind.RevoltPrevailed,
+            "{subject} threw off {object}[ and passed to {location}][, losing {data:lost} people in the rising].");
+
         Set(EventKind.Unknown, "Something happened.");
 
         return map;

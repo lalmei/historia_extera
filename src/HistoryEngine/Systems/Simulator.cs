@@ -178,6 +178,7 @@ public sealed class Simulator
         new ReligionSystem(),
         new DiplomacySystem(),
         new WarSystem(),
+        new UnrestSystem(),
         new TradeRouteSystem(),
         new FigureIncidentSystem(),
         new FigureLifecycleSystem(),

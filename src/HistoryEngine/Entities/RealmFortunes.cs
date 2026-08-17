@@ -106,6 +106,18 @@ public sealed class RealmFortunes
         Calamity = Raise(Calamity, DetMath.Clamp01(share) * CalamityPerShare);
     }
 
+    /// <summary>
+    /// Lets grievance off at a stroke, the way venting it in a rising does.
+    /// </summary>
+    /// <remarks>
+    /// The one thing that empties grievance faster than its slow fade. A revolt put down — or one
+    /// that won what it rose for — spends the anger that fed it, and without a way to say so the same
+    /// grievance would raise the same rising every year until the memory dimmed on its own, which is
+    /// the looping failure occupation was just taught not to have. Clamped at zero: catharsis cannot
+    /// run a grievance into credit.
+    /// </remarks>
+    public void Ease(double amount) => Grievance = Math.Max(0.0, Grievance - amount);
+
     /// <summary>A year passes and the memory dims. Called once a year, before anything reads it.</summary>
     public void Fade()
     {

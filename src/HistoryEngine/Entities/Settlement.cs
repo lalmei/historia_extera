@@ -189,6 +189,23 @@ public sealed class Settlement
     /// <summary>The year the current occupation began, if there is one.</summary>
     public int? OccupiedSinceYear { get; set; }
 
+    /// <summary>
+    /// How unsafe the country around this place has become, in [0, 1].
+    /// </summary>
+    /// <remarks>
+    /// <para>The standing residue of unrest that never came to a rising: deserters, tax rebels and
+    /// broken men on the roads. It is not an event but a condition — it suppresses the trade that
+    /// runs through the settlement for as long as it lasts, which is what gives brigandage a cost the
+    /// world can feel, and it dims a little every year on its own so that a bad decade recovers once
+    /// its cause does.</para>
+    ///
+    /// <para>Persistent like <see cref="YearsDepressed"/> and, like it, not exported: it is internal
+    /// state the unrest system reads back, and the chronicle already carries the events that raised
+    /// it. Distinct from <see cref="RealmFortunes.Grievance"/> — grievance is the memory of a wrong
+    /// and the cause, this is the lawlessness that is one of its symptoms.</para>
+    /// </remarks>
+    public double Banditry { get; set; }
+
     /// <summary>The faith followed here, or none while the place keeps its own counsel.</summary>
     public EntityId ReligionId { get; set; } = EntityId.None;
 

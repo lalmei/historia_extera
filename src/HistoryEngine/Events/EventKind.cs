@@ -113,4 +113,13 @@ public enum EventKind
     TradeRouteFlourished = 681,
     TradeRouteDeclined = 682,
     TradeRouteClosed = 683,
+
+    // ---- Unrest (700) ----
+    // Grievance a realm has carried without answering it turns, in stages, into lawlessness and
+    // then into revolt. Brigandage is the standing condition; the three rising events are the
+    // moment it boils over and the two ways that ends.
+    BrigandageWorsened = 700,
+    RevoltBroke = 701,
+    RevoltCrushed = 702,
+    RevoltPrevailed = 703,
 }
