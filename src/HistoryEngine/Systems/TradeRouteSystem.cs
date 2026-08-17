@@ -43,6 +43,10 @@ public sealed class TradeRouteSystem : ISystem
     /// <summary>Weak years tolerated before an established connection is closed.</summary>
     private const int ClosureDelay = 8;
 
+    /// <summary>How much of a route a fully lawless end can strangle. A town given over to brigands
+    /// keeps a fifth of its trade; total banditry never quite kills a route outright.</summary>
+    private const double BanditryTradePenalty = 0.8;
+
     /// <summary>
     /// Years between searches for new links. Existing routes are still measured every year;
     /// formation waits at most four years and avoids an all-pairs scan on every tick.
@@ -255,7 +259,7 @@ public sealed class TradeRouteSystem : ISystem
             ? 1.0
             : 0.0;
 
-        return DetMath.Clamp01(
+        double worth = DetMath.Clamp01(
             (distanceScore * 0.25)
             + (size * 0.20)
             + (specialization * 0.14)
@@ -264,7 +268,19 @@ public sealed class TradeRouteSystem : ISystem
             + (access * 0.09)
             + (complement * 0.06)
             + (tradeHub * 0.04));
+
+        // A route is only as safe as its unsafest end. Brigandage on the roads around either town
+        // takes a bite out of everything the route would otherwise carry, which is the cost the
+        // unrest system exists to make the world feel — trade is where discontent is paid for. The
+        // penalty rides the settlement's banditry and recovers with it, so a route through a
+        // quieted country climbs back on its own rather than needing to be re-established.
+        double security = Math.Min(Security(a), Security(b));
+        return worth * security;
     }
+
+    /// <summary>How much of a town's trade survives the lawlessness around it, in [0, 1].</summary>
+    private static double Security(Settlement settlement) =>
+        DetMath.Clamp01(1.0 - (BanditryTradePenalty * settlement.Banditry));
 
     private static int Capacity(Settlement settlement)
     {
