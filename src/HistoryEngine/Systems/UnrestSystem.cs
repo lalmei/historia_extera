@@ -25,11 +25,15 @@ namespace HistoryEngine.Systems;
 /// <see cref="TradeRouteSystem"/> so the brigandage it raises suppresses the very trade that year.
 /// Adding it is a behaviour change and moves the fingerprint; that is the point of it.</para>
 ///
-/// <para><b>Two outcomes, because unrest has two speeds.</b> Most discontent never becomes a
+/// <para><b>Two speeds, then two political endings.</b> Most discontent never becomes a
 /// rising: it festers as <see cref="Settlement.Banditry"/>, a standing tax on the trade through a
 /// place that dims on its own once its cause fades. Only real pressure boils over into a revolt,
 /// and a revolt resolves at once rather than looping — a crushed one vents the grievance that fed
-/// it, exactly the fix occupation was just given, so the same town does not rise every spring.</para>
+/// it, exactly the fix occupation was just given, so the same town does not rise every spring.
+/// A rising that wins and has a neighbour defects; one that has none becomes a realm of its own.
+/// A governor of a town that is not the seat may instead march on the crown: they take it, or
+/// they settle for independence, and those are kept as separate endings so a chronicle can tell
+/// a usurper from a secessionist.</para>
 /// </remarks>
 public sealed class UnrestSystem : ISystem
 {
@@ -79,6 +83,15 @@ public sealed class UnrestSystem : ISystem
     /// <summary>How far a seceding town will look for a rival to pass to, in world units.</summary>
     private const double MaxDefectDistance = 2200.0;
 
+    /// <summary>Share of the realm mustered to hold the seat against a marching governor.</summary>
+    private const double MarchResponseFraction = 0.22;
+
+    /// <summary>How much projecting force toward the capital costs a distant rising.</summary>
+    private const double MarchDistancePenalty = 0.45;
+
+    /// <summary>Yearly chance a disgraced rebel governor does not survive the answer.</summary>
+    private const double RebelGovernorExecuted = 0.28;
+
     public string Name => "unrest";
 
     public Cadence Cadence => Cadence.Annual;
@@ -88,10 +101,15 @@ public sealed class UnrestSystem : ISystem
         int year = now.Year;
         IRng rng = world.Root.Fork(Name, year);
 
-        foreach (Civilization civilization in world.ActiveCivilizations())
+        // Snapshot: a rising that transfers a settlement mutates the realm's own list, a secession
+        // adds a civilization behind us, and neither collection can be walked while it is being
+        // cut down or grown.
+        var civilizations = new List<Civilization>(world.ActiveCivilizations());
+
+        foreach (Civilization civilization in civilizations)
         {
-            // Snapshot: a rising that transfers a settlement mutates the realm's own list, and a
-            // realm cannot be walked while it is being cut down.
+            if (!civilization.IsActive) continue;
+
             var settlements = new List<Settlement>(world.ActiveSettlementsOf(civilization));
 
             foreach (Settlement settlement in settlements)
@@ -108,6 +126,11 @@ public sealed class UnrestSystem : ISystem
                 IRng local = rng.Fork("settlement", settlement.Id.ToDiscriminator());
 
                 Brigandage(world, settlement, pressure, year, local);
+
+                if (TryUsurp(world, civilization, settlement, pressure, year, local))
+                {
+                    continue;
+                }
 
                 if (settlement.Population >= RevoltMinPopulation
                     && pressure >= RevoltThreshold
@@ -208,6 +231,7 @@ public sealed class UnrestSystem : ISystem
     {
         bool againstGarrison = settlement.IsOccupied;
         EntityId adversary = againstGarrison ? settlement.OccupierId : realm.Id;
+        Figure? leader = againstGarrison ? null : Offices.GovernorOf(world, settlement);
 
         double rebels = settlement.Population * (0.5 + (0.6 * pressure)) * rng.NextDouble(0.8, 1.2);
         double response = Response(world, realm, settlement, adversary, rng);
@@ -216,13 +240,7 @@ public sealed class UnrestSystem : ISystem
             ? true
             : rng.Chance(response / (response + rebels));
 
-        world.Chronicle.Record(
-            year,
-            EventKind.RevoltBroke,
-            settlement.Id,
-            obj: adversary,
-            location: settlement.RegionId,
-            data: Chronicle.Data(("cause", Cause(world, settlement))));
+        RecordBroke(world, settlement, adversary, leader, Cause(world, settlement), year);
 
         if (crushed)
         {
@@ -289,22 +307,29 @@ public sealed class UnrestSystem : ISystem
             return;
         }
 
+        // A capital that throws off its own crown is a deposition, not a secession: the seat
+        // cannot break away from itself. Succession fills the empty throne later the same year.
+        if (settlement.IsCapital)
+        {
+            PopularDeposition(world, realm, settlement, lost, year);
+            return;
+        }
+
         // Against its own realm, a winning rising looks for a neighbour to pass to. If one is in
-        // reach the region defects to it; if none is, the town holds itself at the price of its own
-        // ruin, walls down and half its trade gone to the roads.
+        // reach the region defects to it; if none is, the town becomes a realm of its own rather
+        // than holding the walls as a wreck.
         Civilization? refuge = NearestRival(world, realm, settlement);
         if (refuge is not null)
         {
-            Defect(world, realm, settlement, refuge, year);
+            Realms.TransferRegion(world, world.Regions[settlement.RegionId], realm, refuge, year);
             Record(world, EventKind.RevoltPrevailed, settlement, realm.Id, refuge.Id, lost, year);
+            return;
         }
-        else
-        {
-            settlement.IsFortified = false;
-            settlement.Banditry = DetMath.Clamp01(settlement.Banditry + 0.4);
-            realm.Fortunes.LostABattle();
-            Record(world, EventKind.RevoltPrevailed, settlement, realm.Id, EntityId.None, lost, year);
-        }
+
+        Figure? founder = Offices.GovernorOf(world, settlement);
+        string cause = Cause(world, settlement);
+        Civilization born = Realms.BreakAway(world, realm, settlement, founder, year, rng);
+        RecordSecession(world, settlement, realm, born, cause, lost, year);
     }
 
     private static void Record(
@@ -400,45 +425,299 @@ public sealed class UnrestSystem : ISystem
         return best;
     }
 
-    /// <summary>Passes a rebel town and the region under it from one realm to another, in peace.</summary>
+    /// <summary>
+    /// A governor of a town that is not the seat may march on the crown, answering the realm's
+    /// grievance rather than only their own walls.
+    /// </summary>
     /// <remarks>
-    /// The ownership half of <see cref="Realms.Cede"/> without the war: a defection is not a treaty
-    /// term, so it writes no cession event of its own — <see cref="Rise"/> records the revolt that
-    /// caused it. A seat of government that defects is cleared, and succession repoints the rump the
-    /// next time it runs, exactly as a cession leaves it.
+    /// Separate from a leaderless rising on purpose. Wanting the throne and wanting out of the
+    /// realm are opposite war aims; mixing them in one roll produced chronicles that could not
+    /// tell which had just happened. A march that is put down is the existing crush. A march that
+    /// arrives takes the seat. A march that wins in the field but cannot finish — especially from
+    /// far off — settles as a breakaway, which is the truce the original rising was missing.
     /// </remarks>
-    private static void Defect(
-        WorldState world, Civilization from, Settlement settlement, Civilization to, int year)
+    private static bool TryUsurp(
+        WorldState world,
+        Civilization realm,
+        Settlement settlement,
+        double pressure,
+        int year,
+        IRng rng)
     {
-        Region region = world.Regions[settlement.RegionId];
-        region.Owner = to.Id;
-        from.TerritoryRegionIds.Remove(region.Id);
-        if (!to.TerritoryRegionIds.Contains(region.Id)) to.TerritoryRegionIds.Add(region.Id);
+        if (settlement.IsCapital || settlement.IsOccupied) return false;
+        if (settlement.Population < RevoltMinPopulation) return false;
+        if (!world.Figures.Contains(realm.CurrentRulerId)) return false;
 
-        var moving = new List<Settlement>();
-        foreach (EntityId id in from.SettlementIds)
+        Figure ruler = world.Figures[realm.CurrentRulerId];
+        if (!ruler.IsAlive) return false;
+
+        Figure? governor = Offices.GovernorOf(world, settlement);
+        if (governor is null || !governor.IsAlive) return false;
+
+        double heat = RealmHeat(realm);
+        if (pressure < 0.32 || heat < 0.22) return false;
+
+        double distance = DistanceFactor(world, realm, settlement);
+        double ambition = governor.Disposition.Centralism;
+        if (!governor.OpenOffice(OfficeKind.Governor)!.GrantedBy.IsNone) ambition += 0.15;
+        if (!governor.DynastyId.IsNone) ambition += 0.10;
+        ambition = DetMath.Clamp01(ambition);
+
+        // Close, ambitious, mandated cadets march on the seat. Far internal notables still get
+        // the ordinary rising, which may secede if it wins and has no neighbour.
+        double chance = (0.45 * pressure) + (0.40 * heat) + (0.20 * ambition);
+        chance *= 1.0 - (0.55 * distance);
+        if (!rng.Chance(DetMath.Clamp01(chance * 0.55))) return false;
+
+        double rebels = settlement.Population * (0.5 + (0.6 * pressure)) * rng.NextDouble(0.8, 1.2);
+        rebels *= 1.0 - (MarchDistancePenalty * distance);
+
+        double response = MarchResponse(world, realm, rng);
+        double share = response + rebels <= 0.0 ? 1.0 : response / (response + rebels);
+
+        RecordBroke(
+            world, settlement, realm.Id, governor,
+            "marching on the seat to settle the realm's grievances", year);
+
+        if (rng.Chance(share))
         {
-            Settlement standing = world.Settlements[id];
-            if (standing.IsActive && standing.RegionId == region.Id) moving.Add(standing);
+            Crush(world, realm, settlement, realm.Id, rebels, year, rng);
+            PunishGovernor(world, governor, realm, year, rng);
+            return true;
         }
 
-        foreach (Settlement standing in moving)
+        int lost = Kill(world, settlement, rebels * rng.NextDouble(0.1, 0.25), year);
+        settlement.Fortunes.Ease(0.6);
+        realm.Fortunes.Ease(0.35);
+
+        // Far from the seat, a field victory more often becomes independence than a coronation:
+        // the march never quite arrived. Close to it, the governor takes the crown.
+        bool settleForIndependence = distance >= 0.42 && rng.Chance(0.35 + (0.40 * distance));
+        if (settleForIndependence)
         {
-            if (standing.IsCapital)
-            {
-                standing.IsCapital = false;
-                if (from.CapitalId == standing.Id) from.CapitalId = EntityId.None;
-            }
-
-            if (standing.IsOccupied) Warfare.EndOccupation(world, standing, year, ceded: true);
-
-            standing.CivilizationId = to.Id;
-            from.SettlementIds.Remove(standing.Id);
-            if (!to.SettlementIds.Contains(standing.Id)) to.SettlementIds.Add(standing.Id);
+            Civilization born = Realms.BreakAway(world, realm, settlement, governor, year, rng);
+            RecordSecession(
+                world, settlement, realm, born,
+                "after a march that never reached the seat", lost, year);
+            return true;
         }
 
-        from.Fortunes.LandLost();
-        to.Fortunes.LandTaken();
+        Usurp(world, realm, settlement, governor, ruler, lost, year, rng);
+        return true;
+    }
+
+    /// <summary>How discontent the realm itself is, in [0, 1], apart from any one town.</summary>
+    private static double RealmHeat(Civilization realm)
+    {
+        RealmFortunes f = realm.Fortunes;
+        return DetMath.Clamp01(
+            (GrievanceWeight * f.Grievance)
+            + (WearinessWeight * f.Weariness)
+            + (CalamityWeight * f.Calamity));
+    }
+
+    /// <summary>Strength the crown can put around its own seat, after weariness.</summary>
+    private static double MarchResponse(WorldState world, Civilization realm, IRng rng)
+    {
+        double strength = realm.Population * MarchResponseFraction;
+        strength *= 1.0 - (0.5 * realm.Fortunes.Weariness);
+
+        if (world.Settlements.Contains(realm.CapitalId)
+            && world.Settlements[realm.CapitalId].IsFortified)
+        {
+            strength *= 1.3;
+        }
+
+        return strength * rng.NextDouble(0.8, 1.2);
+    }
+
+    /// <summary>The marching governor takes the throne: the old ruler dies, abdicates, or is deposed.</summary>
+    private static void Usurp(
+        WorldState world,
+        Civilization realm,
+        Settlement settlement,
+        Figure governor,
+        Figure ruler,
+        int lost,
+        int year,
+        IRng rng)
+    {
+        Culture culture = world.CultureOf(realm);
+        string how = VacateThrone(world, realm, culture, ruler, year, rng);
+
+        Houses.RaiseHouse(world, realm, culture, governor, year);
+        Houses.Enthrone(
+            world, realm, culture, governor, year, "by force of arms after the rising of " + settlement.Name);
+
+        RecordUsurped(world, settlement, realm, governor, how, lost, year);
+    }
+
+    /// <summary>How the sitting ruler leaves, in prose the usurping event can finish with.</summary>
+    private static string VacateThrone(
+        WorldState world,
+        Civilization realm,
+        Culture culture,
+        Figure ruler,
+        int year,
+        IRng rng)
+    {
+        string title = ruler.OpenOffice(OfficeKind.Ruler)?.Title ?? culture.RulerTitle;
+
+        double aggression = ruler.Disposition.Values.Aggression;
+        bool kill = rng.Chance(0.30 + (0.15 * realm.Fortunes.Grievance));
+        bool abdicate = !kill
+            && (realm.Fortunes.Weariness >= 0.45 || aggression < 0.38)
+            && rng.Chance(0.55);
+
+        if (kill)
+        {
+            Houses.Die(
+                world, ruler, year, DeathCause.Battle, "defending the seat against the rising");
+            return "the ruler fell in the fighting";
+        }
+
+        ruler.EndOffice(OfficeKind.Ruler, year);
+        Occupations.Sync(world, ruler, year);
+        realm.CurrentRulerId = EntityId.None;
+        realm.RegentId = EntityId.None;
+
+        if (abdicate)
+        {
+            world.Chronicle.Record(
+                year,
+                EventKind.RulerAbdicated,
+                ruler.Id,
+                obj: realm.Id,
+                location: realm.CapitalId,
+                data: Chronicle.Data(("title", title), ("cause", "in the face of the rising")));
+            return "forcing an abdication";
+        }
+
+        world.Chronicle.Record(
+            year,
+            EventKind.RulerDeposed,
+            ruler.Id,
+            obj: realm.Id,
+            location: realm.CapitalId,
+            data: Chronicle.Data(("title", title)));
+        return "deposing the ruler";
+    }
+
+    /// <summary>The people of the seat throw off their own crown. Succession names the next.</summary>
+    private static void PopularDeposition(
+        WorldState world, Civilization realm, Settlement settlement, int lost, int year)
+    {
+        if (world.Figures.Contains(realm.CurrentRulerId)
+            && world.Figures[realm.CurrentRulerId].IsAlive)
+        {
+            Figure ruler = world.Figures[realm.CurrentRulerId];
+            Culture culture = world.CultureOf(realm);
+            string title = ruler.OpenOffice(OfficeKind.Ruler)?.Title ?? culture.RulerTitle;
+
+            ruler.EndOffice(OfficeKind.Ruler, year);
+            Occupations.Sync(world, ruler, year);
+            realm.CurrentRulerId = EntityId.None;
+            realm.RegentId = EntityId.None;
+
+            world.Chronicle.Record(
+                year,
+                EventKind.RulerDeposed,
+                ruler.Id,
+                obj: realm.Id,
+                location: settlement.Id,
+                data: Chronicle.Data(("title", title)));
+        }
+
+        realm.Fortunes.Ease(0.45);
+        Record(world, EventKind.RevoltPrevailed, settlement, realm.Id, EntityId.None, lost, year);
+    }
+
+    /// <summary>A crushed march costs the governor their office, and sometimes their life.</summary>
+    private static void PunishGovernor(
+        WorldState world, Figure governor, Civilization realm, int year, IRng rng)
+    {
+        if (!governor.IsAlive) return;
+
+        if (rng.Chance(RebelGovernorExecuted + (0.20 * realm.EffectiveValues.Aggression)))
+        {
+            Houses.Die(world, governor, year, DeathCause.Execution, "for raising the town");
+            return;
+        }
+
+        if (governor.Holds(OfficeKind.Governor))
+        {
+            Offices.Revoke(world, governor, OfficeKind.Governor, "for raising the town", year);
+        }
+    }
+
+    private static void RecordBroke(
+        WorldState world,
+        Settlement settlement,
+        EntityId adversary,
+        Figure? leader,
+        string cause,
+        int year)
+    {
+        var data = Chronicle.Data(("cause", cause));
+                    if (leader is not null) data["leader"] = leader.FullName;
+
+        world.Chronicle.Record(
+            year,
+            EventKind.RevoltBroke,
+            settlement.Id,
+            obj: adversary,
+            location: settlement.RegionId,
+            extra: leader is null ? null : new[] { leader.Id },
+            data: data);
+    }
+
+    private static void RecordSecession(
+        WorldState world,
+        Settlement settlement,
+        Civilization from,
+        Civilization born,
+        string cause,
+        int lost,
+        int year)
+    {
+        var data = Chronicle.Data(("cause", cause));
+        if (world.Figures.Contains(born.CurrentRulerId))
+        {
+            data["ruler"] = world.Figures[born.CurrentRulerId].FullName;
+        }
+
+        if (lost > 0) data["lost"] = lost.ToString(CultureInfo.InvariantCulture);
+
+        world.Chronicle.Record(
+            year,
+            EventKind.RevoltSeceded,
+            settlement.Id,
+            obj: from.Id,
+            location: born.Id,
+            extra: new[] { born.CurrentRulerId, settlement.RegionId },
+            data: data);
+    }
+
+    private static void RecordUsurped(
+        WorldState world,
+        Settlement settlement,
+        Civilization realm,
+        Figure governor,
+        string how,
+        int lost,
+        int year)
+    {
+        var data = Chronicle.Data(("how", how));
+        if (lost > 0) data["lost"] = lost.ToString(CultureInfo.InvariantCulture);
+
+        world.Chronicle.Record(
+            year,
+            EventKind.RevoltUsurped,
+            settlement.Id,
+            obj: realm.Id,
+            location: governor.Id,
+            extra: new[] { governor.Id },
+            data: data);
     }
 
     /// <summary>The plainest current reason a place is disaffected, for the chronicle.</summary>
