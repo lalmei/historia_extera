@@ -5,14 +5,23 @@ viewer. This is the detailed record of what was chosen, what was measured, and w
 It preserves milestone-era assumptions and implementation retrospectives; the concise,
 current design lives in the repository root as `DESIGN.md`.
 
-**Status at the time of this snapshot:** Milestones 0–9, 11 and 12 complete. Real naming languages, a settlement lifecycle that
+**Status at the time of this snapshot:** Milestones 0–17 complete. Real naming languages, a settlement lifecycle that
 runs its full course rather than only ever growing, rulers who inherit from a family
 tree instead of appearing from nowhere, realms that fall to conquest as well as to the
 weather, faiths and pestilence that cross the borders those realms draw, a map that
 can be scrubbed to any year of the run to watch all of it happen, a world that can be
 built on terrain the engine did not generate, and — since M12 — realms whose decisions
 answer to whoever is governing them and to what has lately happened to them, rather
-than to a culture fixed at worldgen and never revisited.
+than to a culture fixed at worldgen and never revisited. Since then: grievance that
+finally bites — a town that rises, breaks away, or whose governor marches on the seat
+(M15); people the chronicle follows given a trade, journeys they return from, and the
+wars they stood in (M16); and a host star rolled from the seed that the world's own
+tomes can describe (M17).
+
+The four most recent milestones — M15 unrest, M16 figure lives, M17 cosmology and tomes
+— are recorded below as design and contract. Their measurement sweeps are marked pending
+where they have not yet been run, in the same spirit as the "Numbers still to sweep" notes
+the earlier sections carry.
 
 ---
 
@@ -2350,6 +2359,121 @@ along paths; an army remains a levy attached to a war, and roads stay deferred w
 trade-route design left them. And no real-time coupling to a running Vintage Story server:
 aligning the calendar is Phase 3's requirement, while simulating history live against a game
 clock is a different project that this one should not pre-empt.
+
+---
+
+### M15: grievance that finally bites
+
+The fortunes model measured a settlement's hardship densely — a sack, a lost war, a foreign
+garrison, a famine each raised the grievance, weariness and calamity a realm carries — and until
+M15 nothing downstream read a *settlement's* own copy of it. A place could be stormed, occupied
+and starved and go on paying its taxes as if content. `UnrestSystem` is the consumer that pressure
+was missing.
+
+**Per-settlement fortunes first.** M12 gave realms the four-measure fortunes; M15 gives every
+settlement its own, written by the same systems at the moment they happen — a sack, a plague, a
+siege, an occupation — and faded once a year with the realm's. They shift no one's values; they are
+read, sampled and exported so a town's page shows its own years rather than only its owner's. This
+is the substrate the rest of the milestone reads.
+
+**Two speeds, then two political endings.** Most discontent never becomes a rising: it festers as
+`Settlement.Banditry`, a standing tax on the trade through a place that dims on its own once its
+cause fades, and is written to the chronicle only when it erupts from a quiet country into a lawless
+one — not each year it lingers. Only real pressure boils over into a revolt, which resolves the year
+it breaks out rather than looping: a crushed rising vents the grievance that fed it, so the same town
+does not rise every spring.
+
+A rising that wins is not one outcome but several, and they are kept apart on purpose, because mixing
+them in one roll produced chronicles that could not tell which had just happened:
+
+- against a **garrison**, the town is freed back to its owner — the one relief an occupation can end
+  in that no treaty wrote;
+- against its own realm, the province **defects** to a rival in reach, or, with none close enough,
+  **breaks away** as a realm of its own;
+- a **capital** that throws off its own crown is a deposition, not a secession — the seat cannot
+  break away from itself;
+- and a mandated **governor** may instead march on the seat and **usurp** the throne, taking it or
+  settling for independence when the march never quite arrives.
+
+Wanting the throne and wanting out of the realm are opposite war aims, so `RevoltUsurped` and
+`RevoltSeceded` are separate endings of the same pressure rather than one rising with interchangeable
+outcomes.
+
+**Placement is causal.** `unrest` runs after `war` so a campaign's grievance is felt the year it is
+earned, and before `trade-routes` so the brigandage a rising raises suppresses that year's traffic.
+Adding it is a behaviour change and moves the fingerprint, which is the point of it.
+
+**Numbers still to sweep.** The pressure weights, the revolt threshold and scale, the muster
+fractions, the defect and march distances, and the usurpation gate were set by argument, not by a
+sweep. Each is a candidate for tuning against a seed panel — how many risings a century, what share
+of them a crown can actually put down, and how often a world ends a run holding a realm born of
+secession — without redesigning anything.
+
+### M16: the lives the chronicle follows
+
+M5 breeds a court full of people and M11 found work for one of them. M16 gives the rest a life on the
+page without adding anyone to the figure table.
+
+**An occupation, chosen once.** Everyone who reaches majority has an `Occupation` — soldiery, clergy,
+townsfolk, a craft, trade, the court, office, or letters. Raised notables arrive with the career their
+office implies; children of a recorded household choose from their disposition the year they come of
+age, weighted by a blend of their people's values and their own and pulled — not compelled — toward a
+parent's trade. The vocabulary lines up with the offices a court fills, so a marshal is raised from
+soldiery and a governor from the standing of a town, and the appointment model reads a career without
+a second mapping every consumer would have to keep honest. An office is a posting, not a new birth:
+taking one puts a figure in the career the seat is, and laying it down restores the one they had.
+
+**Journeys, not moves.** `TravelSystem` sends recorded adults out for a year and brings them back — a
+merchant along a standing route, a cleric on mission or fetching copies from a monastery, a pilgrim to
+a holy place of their faith, a courtier as a guest of an ally. Residence stays where they live; a
+journey is a trip. The distinction is load-bearing: changing residence would make a merchant vanish
+from their town every year they used a route, and the disasters that reach a residence would miss them
+for no reason the chronicle could defend. Travel runs after `trade-routes` so the corridor a merchant
+walks is actually open, and its journeys are marked `Routine` — the life page wants the itinerary; the
+world's spine does not.
+
+**Campaign memory.** A figure keeps the wars and engagements they stood in — a soldier the battles
+they reached, a ruler the wars their realm fought, anyone living in an invested town the siege itself —
+each settled with whether their side prevailed once the thing ends, the same late-filled pattern as an
+office's `ToYear`. Commanders were already named on the battle; this is how the rest of a life keeps
+the same facts.
+
+**The figure page needs a second voice.** A world event ("X declared war on Y") reads wrong on a
+person's own page. M16 adds a `.self` narration layer: a second template per kind, keyed `Kind.self`,
+telling the same fact as something they did ("Declared war on Y"), with role tests (`{as:ruler}`,
+`{self:extra}`, `{not:victor}`) that let one template serve every witness of an event and drop the
+segments that do not apply to the reader. Kinds without a `.self` template keep the world wording.
+
+**Numbers still to sweep.** The occupation weights and family pull, the four journey probabilities and
+their disposition coefficients, and the office affinities were set by argument. What a sweep would pin:
+the occupation mix across a seed panel (that no single trade dominates), that journeys stay a minority
+of figure-years, and that raised notables' careers match the offices they were raised for often enough
+to be worth the coupling.
+
+### M17: the seed's cosmology, and tomes that read it
+
+**Flavour with a physics.** `WorldCosmology` rolls a host star and a habitable body from the seed
+before any history begins: spectral class, mass, radius and luminosity; the habitable-zone edges and
+the body's orbit within them; surface gravity, escape velocity, albedo, greenhouse and surface
+temperature; and, for a habitable exomoon, the parent giant, the Roche limit and the tidal day. It is
+flavour — it feeds no simulation decision, exactly as the world's name does — and it travels in the
+export. A set of `CosmologyCheck`s records whether the rolled system is self-consistent, so an
+implausible draw is visible rather than silently shipped.
+
+**Why a book can now be about the sky.** The one place cosmology reaches the simulation's output is
+`Tomes`: a learned faith may compose a cosmology codex, and it draws on the same rolled system rather
+than inventing stars per book — so two codices of one world agree about its heavens the way two
+codices of one religion already agree about its gods.
+
+**Tomes and treasures, enriched.** Alongside cosmology, M17 widens what a book can be about and what an
+artifact remembers: tomes compose from the figures, campaigns and faith known when they are written (a
+chronicle written mid-war still says the outcome was uncertain); treasures gain owners and provenance;
+and `ArtifactRevised` records a work continued by a later hand. Contents are composed once and stored
+on the artifact, so later history cannot rewrite a book that was already closed.
+
+**Numbers still to sweep.** The cosmology check thresholds and the tome-kind weights — how often a
+faith reaches for cosmology over a campaign or its own annals — were set by argument. A sweep would
+confirm the check pass-rate across seeds and that no one tome kind crowds out the others.
 
 ---
 

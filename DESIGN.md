@@ -112,7 +112,7 @@ year and its seasons. `Docket` holds scheduled work in a deterministic total ord
 dispatches due entries to their declared owners. Cost therefore scales with active
 episodes, not with calendar length.
 
-Most systems remain annual. `expansion` and `war` are seasonal in the current checkout;
+Most systems remain annual, `unrest` and `travel` among them. `expansion` and `war` are seasonal in the current checkout;
 `plague` still performs its annual ignition work and also handles scheduled outbreak
 steps and arrivals, while `war` schedules a siege's decision instead of resolving an
 investment on the campaign day that began it.
@@ -164,18 +164,23 @@ The current system order is part of the run identity:
 8. `religion`
 9. `diplomacy`
 10. `war`
-11. `trade-routes`
-12. `figure-incidents`
-13. `figure-lifecycle`
-14. `succession`
-15. `houses`
-16. `offices`
-17. `artifacts`
+11. `unrest`
+12. `trade-routes`
+13. `travel`
+14. `figure-incidents`
+15. `figure-lifecycle`
+16. `succession`
+17. `houses`
+18. `offices`
+19. `artifacts`
 
 The order is causal, not merely organizational. Mortality precedes succession; succession
 precedes household and office decisions; diplomacy reads the frontier and faiths already
 established that step; trade responds to the peace or war that survives campaigning.
-Changing the order is a behavior change and must be reviewed as one.
+`unrest` sits between `war` and `trade-routes` so a year's grievance is felt the year it
+is earned and the brigandage it raises suppresses that year's trade; `travel` follows
+`trade-routes` so a merchant walks a corridor that is actually open. Changing the order is
+a behavior change and must be reviewed as one.
 
 ### Population and settlements
 
@@ -232,6 +237,9 @@ not a runtime architecture. A deployed viewer remains a reader of exported histo
 | M12 | Ruler dispositions and realm fortunes | Done |
 | M13 | Seasons, dated events, and scheduled episodes | Done |
 | M14 | Notable households and office succession | Done |
+| M15 | Grievance made to bite: brigandage, revolt, secession, and usurpation | Done |
+| M16 | Lives the chronicle follows: occupations, journeys, and campaign memory | Done |
+| M17 | The seed's cosmology, and tomes that draw on it | Done |
 
 M13 landed in independently reviewable stages: the clock and dated record first, seasonal
 war and expansion next, then plague travel and outbreak clocks, and finally sieges as
@@ -240,7 +248,8 @@ scheduled episodes. The engine now has no declared docket kind without a consume
 Beyond the numbered milestones:
 
 - Run a real external terrain generator through the Phase 2 raster route end to end.
-- Close the loop opened by ruler dispositions with unrest and gradual cultural drift.
+- Close the remaining half of the loop opened by ruler dispositions: gradual cultural
+  drift. (Unrest — the other half — landed in M15.)
 - Add road geometry only after trade topology provides stable demand for it.
 - Build the Phase 3 Vintage Story terrain adapter and revalidate framework, calendar,
   hydrology cost, and map-raster cost against the game version actually targeted.
