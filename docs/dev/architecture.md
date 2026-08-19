@@ -26,15 +26,17 @@ Order and cadence are part of the run's identity (hashed into the export). As bu
 8. `religion`
 9. `diplomacy`
 10. `war`
-11. `trade-routes`
-12. `figure-incidents`
-13. `figure-lifecycle`
-14. `succession`
-15. `houses`
-16. `offices`
-17. `artifacts`
+11. `unrest`
+12. `trade-routes`
+13. `travel`
+14. `figure-incidents`
+15. `figure-lifecycle`
+16. `succession`
+17. `houses`
+18. `offices`
+19. `artifacts`
 
-Most systems are annual. `expansion` and `war` are seasonal. `plague` also answers for
+Most systems are annual, `unrest` and `travel` among them. `expansion` and `war` are seasonal. `plague` also answers for
 scheduled outbreak steps and arrivals through the docket, so an active outbreak can keep its own
 clock without creating a daily global loop. `war` answers for scheduled siege decisions: the
 seasonal campaign starts an investment, and the docket carries it to the day it is carried,
@@ -42,9 +44,14 @@ relieved, or overtaken by the season or the peace.
 
 Causal chain: the crown settles the values governing this step → harvest and population →
 pestilence and the land taking their share → settlement change → character → pressure → borders
-→ faiths across them → opinion of the neighbours by both → the wars that follow → commerce
-responding to the resulting peace → exceptional incidents → biological mortality → thrones
+→ faiths across them → opinion of the neighbours by both → the wars that follow → the risings
+those wars and hard years leave behind → commerce responding to the resulting peace → who was
+on the road that year → exceptional incidents → biological mortality → thrones
 filled → households and offices against the line as it now stands → what the survivors made.
+
+`unrest` follows `war` so the grievance a campaign earns can boil over the same year, and
+precedes `trade-routes` so the brigandage a rising raises suppresses that year's traffic.
+`travel` follows `trade-routes` so a merchant's journey uses a corridor that is actually open.
 
 Diplomacy follows expansion so opinions are formed about the frontier that exists rather
 than last year's, and religion precedes diplomacy for the same reason. War precedes
