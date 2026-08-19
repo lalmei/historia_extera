@@ -142,6 +142,9 @@ public sealed record ExportSampleStats(
 /// How the world is spoken of: "The planet Borion", "The 3rd moon of Endor". Unique to the
 /// seed, and what a list of histories is labelled by.
 /// </param>
+/// <param name="Cosmology">
+/// Host star and habitable-body parameters derived from the seed before simulation begins.
+/// </param>
 /// <remarks>
 /// <para><see cref="EastWestPeriodic"/> is carried because a viewer cannot infer it and draws the
 /// world wrong without it. The simulation already measures distance the short way round, so a
@@ -161,6 +164,7 @@ public sealed record ExportWorld(
     string Designation,
     string? ParentName,
     int? MoonIndex,
+    ExportCosmology Cosmology,
     int MinX,
     int MinZ,
     int Width,
@@ -171,6 +175,55 @@ public sealed record ExportWorld(
     string Capabilities,
     ExportRaster Raster,
     IReadOnlyList<ExportRiver> Rivers);
+
+/// <summary>
+/// Star-system physics for a habitable planet or exomoon, rolled from the seed.
+/// </summary>
+public sealed record ExportCosmology(
+    StarSpectralClass StarClass,
+    double StarMassSolar,
+    double StarRadiusSolar,
+    double LuminositySolar,
+    double StarLifespanGyr,
+    double HabitableZoneInnerAu,
+    double HabitableZoneOuterAu,
+    double OrbitalDistanceAu,
+    double OrbitalPeriodDays,
+    double WorldMassEarth,
+    double WorldRadiusEarth,
+    double SurfaceGravityG,
+    double EscapeVelocityKmS,
+    double BondAlbedo,
+    double GreenhouseDeltaC,
+    double EquilibriumTempK,
+    double SurfaceTempK,
+    double? ParentGiantMassEarth,
+    double? MoonOrbitalDistanceEarthRadii,
+    double? MoonDayLengthDays,
+    double? RocheLimitEarthRadii,
+    double SnowLineAu,
+    IReadOnlyList<ExportCompanionPlanet> Companions,
+    IReadOnlyList<ExportSystemMoon> Moons,
+    int? HabitableMoonIndex,
+    bool IsHabitable,
+    IReadOnlyList<ExportCosmologyCheck> Checks);
+
+public sealed record ExportSystemMoon(
+    int Index,
+    double OrbitalDistanceEarthRadii,
+    double MassEarth,
+    double RadiusEarth,
+    double DayLengthDays,
+    bool Habitable);
+
+public sealed record ExportCompanionPlanet(
+    CompanionRole Role,
+    double SemiMajorAxisAu,
+    double MassEarth,
+    double RadiusEarth,
+    double OrbitalPeriodDays);
+
+public sealed record ExportCosmologyCheck(string Label, bool Passed, string Detail);
 
 /// <summary>
 /// One reach of a river, in world coordinates.

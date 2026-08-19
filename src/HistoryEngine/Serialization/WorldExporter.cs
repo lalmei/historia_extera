@@ -142,6 +142,7 @@ public static class WorldExporter
             Designation: world.Flavour.Designation,
             ParentName: world.Flavour.ParentName,
             MoonIndex: world.Flavour.MoonIndex,
+            Cosmology: BuildCosmology(world.Flavour.Cosmology),
             MinX: world.Terrain.Bounds.MinX,
             MinZ: world.Terrain.Bounds.MinZ,
             Width: world.Terrain.Bounds.Width,
@@ -152,6 +153,77 @@ public static class WorldExporter
             Capabilities: world.Terrain.Capabilities.ToString(),
             Raster: raster,
             Rivers: rivers);
+    }
+
+    private static ExportCosmology BuildCosmology(WorldCosmology cosmology)
+    {
+        var checks = new List<ExportCosmologyCheck>(cosmology.Checks.Count);
+        foreach (CosmologyCheck check in cosmology.Checks)
+        {
+            checks.Add(new ExportCosmologyCheck(check.Label, check.Passed, check.Detail));
+        }
+
+        return new ExportCosmology(
+            StarClass: cosmology.StarClass,
+            StarMassSolar: cosmology.StarMassSolar,
+            StarRadiusSolar: cosmology.StarRadiusSolar,
+            LuminositySolar: cosmology.LuminositySolar,
+            StarLifespanGyr: cosmology.StarLifespanGyr,
+            HabitableZoneInnerAu: cosmology.HabitableZoneInnerAu,
+            HabitableZoneOuterAu: cosmology.HabitableZoneOuterAu,
+            OrbitalDistanceAu: cosmology.OrbitalDistanceAu,
+            OrbitalPeriodDays: cosmology.OrbitalPeriodDays,
+            WorldMassEarth: cosmology.WorldMassEarth,
+            WorldRadiusEarth: cosmology.WorldRadiusEarth,
+            SurfaceGravityG: cosmology.SurfaceGravityG,
+            EscapeVelocityKmS: cosmology.EscapeVelocityKmS,
+            BondAlbedo: cosmology.BondAlbedo,
+            GreenhouseDeltaC: cosmology.GreenhouseDeltaC,
+            EquilibriumTempK: cosmology.EquilibriumTempK,
+            SurfaceTempK: cosmology.SurfaceTempK,
+            ParentGiantMassEarth: cosmology.ParentGiantMassEarth,
+            MoonOrbitalDistanceEarthRadii: cosmology.MoonOrbitalDistanceEarthRadii,
+            MoonDayLengthDays: cosmology.MoonDayLengthDays,
+            RocheLimitEarthRadii: cosmology.RocheLimitEarthRadii,
+            SnowLineAu: cosmology.SnowLineAu,
+            Companions: BuildCompanions(cosmology.Companions),
+            Moons: BuildMoons(cosmology.Moons),
+            HabitableMoonIndex: cosmology.HabitableMoonIndex,
+            IsHabitable: cosmology.IsHabitable,
+            Checks: checks);
+    }
+
+    private static List<ExportCompanionPlanet> BuildCompanions(IReadOnlyList<CompanionPlanet> companions)
+    {
+        var list = new List<ExportCompanionPlanet>(companions.Count);
+        foreach (CompanionPlanet body in companions)
+        {
+            list.Add(new ExportCompanionPlanet(
+                body.Role,
+                body.SemiMajorAxisAu,
+                body.MassEarth,
+                body.RadiusEarth,
+                body.OrbitalPeriodDays));
+        }
+
+        return list;
+    }
+
+    private static List<ExportSystemMoon> BuildMoons(IReadOnlyList<SystemMoon> moons)
+    {
+        var list = new List<ExportSystemMoon>(moons.Count);
+        foreach (SystemMoon moon in moons)
+        {
+            list.Add(new ExportSystemMoon(
+                moon.Index,
+                moon.OrbitalDistanceEarthRadii,
+                moon.MassEarth,
+                moon.RadiusEarth,
+                moon.DayLengthDays,
+                moon.Habitable));
+        }
+
+        return list;
     }
 
     private static List<ExportRegion> BuildRegions(WorldState world)

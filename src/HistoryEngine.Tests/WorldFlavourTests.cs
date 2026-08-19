@@ -18,7 +18,7 @@ public sealed class WorldFlavourTests
         WorldFlavour first = WorldFlavour.From(42, new MarkovNameGenerator(42));
         WorldFlavour again = WorldFlavour.From(42, new MarkovNameGenerator(42));
 
-        Assert.Equal(first, again);
+        AssertSameFlavour(first, again);
         Assert.False(string.IsNullOrWhiteSpace(first.Designation));
         Assert.False(string.IsNullOrWhiteSpace(first.Name));
     }
@@ -34,10 +34,10 @@ public sealed class WorldFlavourTests
         WorldFlavour shortRun = WorldFlavour.From(7, new MarkovNameGenerator(7));
         WorldFlavour longRun = WorldFlavour.From(7, new MarkovNameGenerator(7));
 
-        Assert.Equal(shortRun, longRun);
+        AssertSameFlavour(shortRun, longRun);
 
         WorldFlavour built = WorldBuilder.Create(TestWorlds.Small(7) with { Years = 1 }).Flavour;
-        Assert.Equal(shortRun, built);
+        AssertSameFlavour(shortRun, built);
     }
 
     [Fact]
@@ -84,7 +84,9 @@ public sealed class WorldFlavourTests
             else
             {
                 Assert.False(string.IsNullOrWhiteSpace(flavour.ParentName));
-                Assert.InRange(flavour.MoonIndex ?? 0, 1, 12);
+                Assert.Equal(flavour.Cosmology.HabitableMoonIndex, flavour.MoonIndex);
+                Assert.InRange(flavour.MoonIndex ?? 0, 1, flavour.Cosmology.Moons.Count);
+                Assert.True(flavour.Cosmology.Moons.Count >= flavour.MoonIndex);
                 Assert.Equal(
                     flavour.Name + ", the " + WorldFlavour.Ordinal(flavour.MoonIndex!.Value)
                     + " moon of " + flavour.ParentName,
@@ -132,6 +134,24 @@ public sealed class WorldFlavourTests
         Assert.Equal(run.World.Flavour.Designation, export.World.Designation);
         Assert.Equal(run.World.Flavour.ParentName, export.World.ParentName);
         Assert.Equal(run.World.Flavour.MoonIndex, export.World.MoonIndex);
+        Assert.Equal(run.World.Flavour.Cosmology.IsHabitable, export.World.Cosmology.IsHabitable);
+        Assert.Equal(run.World.Flavour.Cosmology.Companions.Count, export.World.Cosmology.Companions.Count);
         Assert.Equal(WorldExport.CurrentSchemaVersion, export.SchemaVersion);
+    }
+
+    private static void AssertSameFlavour(WorldFlavour expected, WorldFlavour actual)
+    {
+        Assert.Equal(expected.Kind, actual.Kind);
+        Assert.Equal(expected.Name, actual.Name);
+        Assert.Equal(expected.Designation, actual.Designation);
+        Assert.Equal(expected.ParentName, actual.ParentName);
+        Assert.Equal(expected.MoonIndex, actual.MoonIndex);
+        Assert.Equal(expected.Cosmology.StarClass, actual.Cosmology.StarClass);
+        Assert.Equal(expected.Cosmology.OrbitalDistanceAu, actual.Cosmology.OrbitalDistanceAu);
+        Assert.Equal(expected.Cosmology.Companions.Count, actual.Cosmology.Companions.Count);
+        for (int i = 0; i < expected.Cosmology.Companions.Count; i++)
+        {
+            Assert.Equal(expected.Cosmology.Companions[i], actual.Cosmology.Companions[i]);
+        }
     }
 }
