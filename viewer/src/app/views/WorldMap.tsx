@@ -1,13 +1,25 @@
 import type React from 'react';
-import { type MouseEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { NarratedEvent } from '../components/EventList';
-import { Badge, EntityLink, PageTitle, Panel } from '../components/common';
+import { EntityLink } from '../components/common';
+import { IconChevronLeft, IconChevronRight, IconMinus, IconPlus, IconRefresh } from '../components/icons';
+import {
+  housesOnMap,
+  landmarkMarks,
+  fortifiedFromYear,
+  waterMarks,
+  wallsStanding,
+  waterLabel,
+  type HouseMark,
+  type HouseOnMap,
+} from '../mapLayers';
 import { navigate } from '../router';
 import type { World } from '../store';
 import { buildGrid, buildRealms } from '../territory';
 import type { Standing } from '../timeline';
 import {
   FLAG_COAST,
+  SITE_LABELS,
   type Biome,
   type Civilization,
   type EntityId,
@@ -28,7 +40,8 @@ import {
  * political is a vector overlay on top. That split matters because the raster is a few hundred
  * pixels square while there may be thousands of settlements — and it means the colour ramp
  * lives here, in the viewer, where it can respond to theme rather than being baked into the
- * file.
+ * file. Zoom and pan are a view transform over that same canvas-plus-overlay, not a second
+ * rendering of the world.
  *
  * <b>The terrain is the only part that is fixed in time.</b> Borders, towns and battles are
  * replayed from the chronicle for the selected year, so the map answers "what did this world
@@ -51,6 +64,10 @@ type Colouring = 'realm' | 'faith';
 /** Years advanced per tick while playing. */
 const PLAY_INTERVAL_MS = 110;
 
+const ZOOM_MIN = 1;
+const ZOOM_MAX = 8;
+const ZOOM_STEP = 1.35;
+
 const BIOME_COLOURS: Record<Biome, [number, number, number]> = {
   Ocean: [42, 74, 105],
   Lake: [74, 120, 158],
@@ -71,6 +88,9 @@ type Hover =
   | { kind: 'settlement'; standing: Standing }
   | { kind: 'ruin'; settlement: Settlement }
   | { kind: 'holy-site'; site: HolySite }
+  | { kind: 'harbour'; settlement: Settlement }
+  | { kind: 'landmark'; settlement: Settlement }
+  | { kind: 'house'; mark: HouseMark }
   | { kind: 'region'; region: Region; owner?: EntityId };
 
 /** One drawn stroke in map units. A wrapped link needs two of them. */
@@ -104,9 +124,53 @@ function link(from: Stroke, periodic: boolean): Stroke[] {
   ].filter((stroke) => stroke.x1 !== stroke.x2 || stroke.y1 !== stroke.y2);
 }
 
+function clampZoom(value: number) {
+  return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, value));
+}
+
+function clampPan(pan: { x: number; y: number }, zoom: number, size: number) {
+  const min = size * (1 - zoom);
+  return {
+    x: Math.min(0, Math.max(min, pan.x)),
+    y: Math.min(0, Math.max(min, pan.y)),
+  };
+}
+
+function zoomToward(
+  nextZoom: number,
+  origin: { x: number; y: number },
+  currentZoom: number,
+  currentPan: { x: number; y: number },
+  size: number,
+) {
+  const zoom = clampZoom(nextZoom);
+  const worldX = (origin.x - currentPan.x) / currentZoom;
+  const worldY = (origin.y - currentPan.y) / currentZoom;
+  return {
+    zoom,
+    pan: clampPan(
+      { x: origin.x - worldX * zoom, y: origin.y - worldY * zoom },
+      zoom,
+      size,
+    ),
+  };
+}
+
 export function WorldMap({ world }: { world: World }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
+  const viewportRef = useRef<HTMLDivElement | null>(null);
+  const frameRef = useRef<HTMLDivElement | null>(null);
+  const zoomRef = useRef(1);
+  const panRef = useRef({ x: 0, y: 0 });
+  const dragRef = useRef<{
+    x: number;
+    y: number;
+    panX: number;
+    panY: number;
+    moved: boolean;
+  } | null>(null);
+  const pannedRef = useRef(false);
 
   const { raster, export: data, timeline } = world;
   const { startYear, endYear } = data.meta;
@@ -119,10 +183,35 @@ export function WorldMap({ world }: { world: World }) {
   const [showRuins, setShowRuins] = useState(true);
   const [showHolySites, setShowHolySites] = useState(true);
   const [showTerritory, setShowTerritory] = useState(true);
+  const [showHarbours, setShowHarbours] = useState(true);
+  const [showHouses, setShowHouses] = useState(true);
+  const [showWalls, setShowWalls] = useState(true);
+  const [showLandmarks, setShowLandmarks] = useState(true);
   const [year, setYear] = useState(endYear);
   const [playing, setPlaying] = useState(false);
   const [focus, setFocus] = useState<EntityId | null>(null);
   const [hovered, setHovered] = useState<Hover | null>(null);
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [side, setSide] = useState(0);
+
+  zoomRef.current = zoom;
+  panRef.current = pan;
+
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) return;
+
+    const measure = () => {
+      const box = frame.getBoundingClientRect();
+      setSide(Math.floor(Math.max(0, Math.min(box.width, box.height))));
+    };
+
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(frame);
+    return () => observer.disconnect();
+  }, []);
 
   const grid = useMemo(() => buildGrid(data.world, data.regions), [data.world, data.regions]);
   const order = useMemo(() => data.civilizations.map((civ) => civ.id), [data.civilizations]);
@@ -160,6 +249,26 @@ export function WorldMap({ world }: { world: World }) {
       ),
     [data.settlements, year],
   );
+
+  const harbours = useMemo(
+    () => waterMarks(standing, data.world, raster),
+    [standing, data.world, raster],
+  );
+  const landmarks = useMemo(
+    () => landmarkMarks(standing, data.world),
+    [standing, data.world],
+  );
+  const wallsRaised = useMemo(() => fortifiedFromYear(data.events), [data.events]);
+  const walls = useMemo(
+    () => wallsStanding(standing, year, wallsRaised),
+    [standing, year, wallsRaised],
+  );
+  const houses = useMemo(() => housesOnMap(world, year, focus), [world, year, focus]);
+  const ownerOf = useMemo(() => {
+    const owners = new Map<EntityId, EntityId>();
+    for (const entry of standing) owners.set(entry.settlement.id, entry.civilizationId);
+    return (settlementId: EntityId, fallback: EntityId) => owners.get(settlementId) ?? fallback;
+  }, [standing]);
 
   /**
    * Each route's traffic in the selected year, from the yearly series.
@@ -218,7 +327,9 @@ export function WorldMap({ world }: { world: World }) {
 
   const yearEvents = useMemo(() => {
     const indices = data.indices.eventsByYear[String(year)] ?? [];
-    return indices.map((index) => data.events[index]);
+    return indices
+      .map((index) => data.events[index])
+      .filter((event) => event.significance !== 'Routine');
   }, [data, year]);
 
   // Playback stops itself at the end of the run rather than looping: a chronicle has an end,
@@ -342,7 +453,7 @@ export function WorldMap({ world }: { world: World }) {
    * towns in it, so every ruin on the map sits within a dot's radius and none of them could be
    * hovered or clicked at all. Ties go to the living, by the order these are considered.
    */
-  const probe = (event: MouseEvent<SVGSVGElement>) => {
+  const probe = (event: { clientX: number; clientY: number }) => {
     const box = svgRef.current?.getBoundingClientRect();
     if (!box) return;
 
@@ -374,6 +485,33 @@ export function WorldMap({ world }: { world: World }) {
     if (showHolySites) {
       for (const site of independentHolySites) {
         consider({ kind: 'holy-site', site }, site.x, site.z, 1.5);
+      }
+    }
+
+    const considerMap = (hover: Hover, mx: number, my: number, radius: number) => {
+      const dx = mx - x;
+      const dy = my - y;
+      const distance = dx * dx + dy * dy;
+      if (distance <= radius * radius) within.push({ hover, distance });
+    };
+
+    if (showHarbours) {
+      for (const mark of harbours) {
+        considerMap({ kind: 'harbour', settlement: mark.settlement }, mark.mx, mark.my, 1.35);
+      }
+    }
+
+    if (showLandmarks) {
+      for (const mark of landmarks) {
+        considerMap({ kind: 'landmark', settlement: mark.settlement }, mark.mx, mark.my, 1.2);
+      }
+    }
+
+    if (showHouses) {
+      for (const house of houses) {
+        for (const mark of house.marks) {
+          considerMap({ kind: 'house', mark }, mark.mx, mark.my, 1.45);
+        }
       }
     }
 
@@ -409,66 +547,128 @@ export function WorldMap({ world }: { world: World }) {
       return;
     }
 
+    if (hovered.kind === 'harbour' || hovered.kind === 'landmark') {
+      navigate(`/${hovered.settlement.id}`);
+      return;
+    }
+
+    if (hovered.kind === 'house') {
+      navigate(`/${hovered.mark.house.id}`);
+      return;
+    }
+
     // Clicking bare ground focuses whoever holds it, and clicking the sea clears the focus —
     // which is the gesture people try first and otherwise does nothing at all.
     setFocus(hovered.owner && hovered.owner !== focus ? hovered.owner : null);
+  };
+
+  const applyZoom = (nextZoom: number, origin?: { x: number; y: number }) => {
+    const viewport = viewportRef.current;
+    const size = viewport?.clientWidth ?? 0;
+    const point = origin ?? { x: size / 2, y: size / 2 };
+    const next = zoomToward(nextZoom, point, zoomRef.current, panRef.current, size);
+    setZoom(next.zoom);
+    setPan(next.pan);
+  };
+
+  const resetView = () => {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  };
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+
+    const onWheel = (event: WheelEvent) => {
+      if ((event.target as HTMLElement | null)?.closest('.he-map-chrome')) return;
+      event.preventDefault();
+      const box = viewport.getBoundingClientRect();
+      const factor = event.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP;
+      applyZoom(zoomRef.current * factor, {
+        x: event.clientX - box.left,
+        y: event.clientY - box.top,
+      });
+    };
+
+    viewport.addEventListener('wheel', onWheel, { passive: false });
+    return () => viewport.removeEventListener('wheel', onWheel);
+  }, []);
+
+  const onPointerDown = (event: React.PointerEvent<SVGSVGElement>) => {
+    if (event.button !== 0) return;
+    viewportRef.current?.focus({ preventScroll: true });
+    if (zoomRef.current <= 1) return;
+    dragRef.current = {
+      x: event.clientX,
+      y: event.clientY,
+      panX: panRef.current.x,
+      panY: panRef.current.y,
+      moved: false,
+    };
+    pannedRef.current = false;
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const onPointerMove = (event: React.PointerEvent<SVGSVGElement>) => {
+    probe(event);
+    const drag = dragRef.current;
+    if (!drag) return;
+
+    const dx = event.clientX - drag.x;
+    const dy = event.clientY - drag.y;
+    if (!drag.moved && dx * dx + dy * dy < 16) return;
+
+    drag.moved = true;
+    pannedRef.current = true;
+    const size = viewportRef.current?.clientWidth ?? 0;
+    setPan(clampPan({ x: drag.panX + dx, y: drag.panY + dy }, zoomRef.current, size));
+  };
+
+  const onPointerUp = () => {
+    dragRef.current = null;
+  };
+
+  const onMapClick = () => {
+    if (pannedRef.current) {
+      pannedRef.current = false;
+      return;
+    }
+    click();
   };
 
   const dimmed = (civilizationId: EntityId) => focus !== null && focus !== civilizationId;
   const focused = focus ? data.civilizations.find((civ) => civ.id === focus) : undefined;
 
   return (
-    <div className="space-y-5">
-      <PageTitle
-        eyebrow="World"
-        title="Map"
-        meta={
-          <>
-            <Badge>
-              {data.world.width.toLocaleString()} × {data.world.height.toLocaleString()} units
-            </Badge>
-            {data.world.eastWestPeriodic && (
-              <Badge tone="accent">east/west edges joined</Badge>
-            )}
-            <Badge>raster {raster.resolution}²</Badge>
-            <Badge>
-              {realms.length} {realms.length === 1 ? 'realm' : 'realms'} · {standing.length}{' '}
-              settlements
-            </Badge>
-            {ruins.length > 0 && <Badge tone="muted">{ruins.length} in ruins</Badge>}
-            <Badge>{tradeRoutes.length} trade routes</Badge>
-            <Badge>{independentHolySites.length} independent holy sites</Badge>
-          </>
-        }
-      />
-
-      <div className="he-map-viewport relative aspect-square w-full overflow-hidden rounded-lg border border-[var(--rule)] bg-[var(--canvas)]">
-          <div className="he-map-chrome absolute top-2 left-2 z-10 flex max-w-[min(100%-1rem,32rem)] flex-wrap items-center gap-2 p-2 text-xs">
-            <select
-              value={layer}
-              onChange={(event) => setLayer(event.target.value as Layer)}
-              className="rounded border border-[var(--rule)] bg-[var(--surface-container-high)] px-1.5 py-1 text-xs"
-            >
-              <option value="biome">Biome</option>
-              <option value="height">Elevation</option>
-              <option value="habitability">Habitability</option>
-            </select>
-            <select
-              value={colouring}
-              onChange={(event) => setColouring(event.target.value as Colouring)}
-              title="What the settlement dots are coloured by"
-              className="rounded border border-[var(--rule)] bg-[var(--surface-container-high)] px-1.5 py-1 text-xs"
-            >
-              <option value="realm">Dots: realm</option>
-              <option value="faith">Dots: faith</option>
-            </select>
-            <Toggle label="Rivers" on={showRivers} onChange={setShowRivers} />
-            <Toggle label="Trade" on={showTradeRoutes} onChange={setShowTradeRoutes} />
-            <Toggle label="Settlements" on={showSettlements} onChange={setShowSettlements} />
-            <Toggle label="Ruins" on={showRuins} onChange={setShowRuins} />
-            <Toggle label="Holy sites" on={showHolySites} onChange={setShowHolySites} />
-            <Toggle label="Territory" on={showTerritory} onChange={setShowTerritory} />
-          </div>
+    <div className="flex h-full min-h-0 w-full flex-1 flex-col lg:flex-row">
+      <h1 className="sr-only">Map</h1>
+      <div
+        ref={frameRef}
+        className="relative flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden bg-[var(--canvas)]"
+      >
+      <div
+        ref={viewportRef}
+        tabIndex={0}
+        style={side > 0 ? { width: side, height: side } : undefined}
+        className="he-map-viewport relative overflow-hidden border border-[var(--rule)] bg-[var(--canvas)] outline-none"
+        onKeyDown={(event) => {
+          if (event.key === '+' || event.key === '=') {
+            event.preventDefault();
+            applyZoom(zoomRef.current * ZOOM_STEP);
+          } else if (event.key === '-' || event.key === '_') {
+            event.preventDefault();
+            applyZoom(zoomRef.current / ZOOM_STEP);
+          } else if (event.key === '0' || event.key === 'Escape') {
+            event.preventDefault();
+            resetView();
+          }
+        }}
+      >
+          <div
+            className="absolute inset-0 origin-top-left will-change-transform"
+            style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}
+          >
           <canvas
             ref={canvasRef}
             width={1024}
@@ -480,10 +680,17 @@ export function WorldMap({ world }: { world: World }) {
             ref={svgRef}
             viewBox="0 0 100 100"
             preserveAspectRatio="none"
-            className="absolute inset-0 h-full w-full cursor-crosshair"
-            onMouseMove={probe}
-            onMouseLeave={() => setHovered(null)}
-            onClick={click}
+            className={`absolute inset-0 h-full w-full ${
+              zoom > 1 ? 'cursor-grab active:cursor-grabbing' : 'cursor-crosshair'
+            }`}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            onPointerCancel={onPointerUp}
+            onMouseLeave={() => {
+              if (!dragRef.current) setHovered(null);
+            }}
+            onClick={onMapClick}
           >
             {showTerritory &&
               realms.map((realm) => (
@@ -573,6 +780,39 @@ export function WorldMap({ world }: { world: World }) {
                 ));
               })}
 
+            {/* A ruling house that does not sit where it rose: the line is the distance
+                between blood and the throne, and is the interesting case. Same wrap as
+                trade, because a house whose homeland is across the seam is a neighbour. */}
+            {showHouses &&
+              houses.map((entry) => {
+                if (!entry.link) return null;
+                const faded = dimmed(entry.civId);
+
+                return link(
+                  {
+                    x1: toWorld(entry.link.from.x, 'x'),
+                    y1: toWorld(entry.link.from.z, 'z'),
+                    x2: toWorld(entry.link.to.x, 'x'),
+                    y2: toWorld(entry.link.to.z, 'z'),
+                  },
+                  data.world.eastWestPeriodic,
+                ).map((stroke, index) => (
+                  <line
+                    key={`${entry.house.id}-home-${index}`}
+                    x1={stroke.x1}
+                    y1={stroke.y1}
+                    x2={stroke.x2}
+                    y2={stroke.y2}
+                    stroke={world.colourOf(entry.civId)}
+                    strokeWidth={0.22}
+                    strokeDasharray="0.7 0.55"
+                    strokeLinecap="round"
+                    strokeOpacity={faded ? 0.18 : 0.45}
+                    className="pointer-events-none"
+                  />
+                ));
+              })}
+
             {/* Ruins, under the living dots. A mark rather than a circle, so an empty place can
                 never be read as an inhabited one at a glance, and in plain ink rather than a
                 realm colour, because a ruin belongs to nobody. */}
@@ -621,6 +861,79 @@ export function WorldMap({ world }: { world: World }) {
                 />
               ))}
 
+            {showWalls &&
+              walls.map((entry) => {
+                const x = toWorld(entry.settlement.x, 'x');
+                const y = toWorld(entry.settlement.z, 'z');
+                const r = radiusOf(entry) + 0.38;
+                return (
+                  <rect
+                    key={`wall-${entry.settlement.id}`}
+                    x={x - r}
+                    y={y - r}
+                    width={r * 2}
+                    height={r * 2}
+                    fill="none"
+                    stroke="rgb(72 68 62)"
+                    strokeWidth={0.2}
+                    strokeOpacity={dimmed(entry.civilizationId) ? 0.3 : 0.9}
+                    className="pointer-events-none"
+                  />
+                );
+              })}
+
+            {showHarbours &&
+              harbours.map((mark) =>
+                mark.water === 'sea' ? (
+                  <AnchorMark
+                    key={`harbour-${mark.settlement.id}`}
+                    x={mark.mx}
+                    y={mark.my}
+                    faded={dimmed(ownerOf(mark.settlement.id, mark.settlement.civilizationId))}
+                  />
+                ) : (
+                  <WaveMark
+                    key={`river-${mark.settlement.id}`}
+                    x={mark.mx}
+                    y={mark.my}
+                    faded={dimmed(ownerOf(mark.settlement.id, mark.settlement.civilizationId))}
+                  />
+                ),
+              )}
+
+            {showLandmarks &&
+              landmarks.map((mark) =>
+                mark.site === 'Mine' ? (
+                  <MineMark
+                    key={`mine-${mark.settlement.id}`}
+                    x={mark.mx}
+                    y={mark.my}
+                    faded={dimmed(ownerOf(mark.settlement.id, mark.settlement.civilizationId))}
+                  />
+                ) : (
+                  <PassMark
+                    key={`pass-${mark.settlement.id}`}
+                    x={mark.mx}
+                    y={mark.my}
+                    faded={dimmed(ownerOf(mark.settlement.id, mark.settlement.civilizationId))}
+                  />
+                ),
+              )}
+
+            {showHouses &&
+              houses.map((entry) => (
+                <g key={`house-${entry.house.id}-${entry.civId}`}>
+                  {entry.marks.map((mark) => (
+                    <HouseGlyph
+                      key={`${mark.role}-${mark.settlement.id}`}
+                      mark={mark}
+                      colour={world.colourOf(entry.civId)}
+                      faded={dimmed(entry.civId)}
+                    />
+                  ))}
+                </g>
+              ))}
+
             {showHolySites &&
               independentHolySites.map((site) => {
                 const x = toWorld(site.x, 'x');
@@ -664,9 +977,10 @@ export function WorldMap({ world }: { world: World }) {
               </g>
             ))}
           </svg>
+          </div>
 
           {hovered && (
-            <div className="pointer-events-none absolute bottom-2 left-2 max-w-[85%] rounded border border-[var(--rule)] bg-[var(--input)] px-2.5 py-1.5 text-xs">
+            <div className="pointer-events-none absolute top-2 left-2 z-10 max-w-[min(85%,20rem)] rounded border border-[var(--rule)] bg-[var(--input)] px-2.5 py-1.5 text-xs">
               {hovered.kind === 'settlement' ? (
                 <>
                   <div className="text-sm font-medium">{hovered.standing.settlement.name}</div>
@@ -692,6 +1006,29 @@ export function WorldMap({ world }: { world: World }) {
                     {hovered.site.kind} · {world.nameOf(hovered.site.religionId)} · independent site
                   </div>
                 </>
+              ) : hovered.kind === 'harbour' ? (
+                <>
+                  <div className="text-sm font-medium">{hovered.settlement.name}</div>
+                  <div className="text-[var(--ink-faint)]">
+                    {hovered.settlement.site === 'Harbour' ? 'Harbour' : hovered.settlement.site}
+                    {' · '}
+                    {waterLabel(hovered.settlement.site)}
+                  </div>
+                </>
+              ) : hovered.kind === 'landmark' ? (
+                <>
+                  <div className="text-sm font-medium">{hovered.settlement.name}</div>
+                  <div className="text-[var(--ink-faint)]">
+                    {SITE_LABELS[hovered.settlement.site]}
+                  </div>
+                </>
+              ) : hovered.kind === 'house' ? (
+                <>
+                  <div className="text-sm font-medium">{hovered.mark.house.name}</div>
+                  <div className="text-[var(--ink-faint)]">
+                    {houseHover(hovered.mark, world)}
+                  </div>
+                </>
               ) : (
                 <>
                   <div className="text-sm font-medium">{hovered.region.name}</div>
@@ -704,78 +1041,204 @@ export function WorldMap({ world }: { world: World }) {
             </div>
           )}
 
-          <div className="he-data pointer-events-none absolute top-2 right-2 rounded border border-[var(--rule)] bg-[var(--input)] px-2 py-1 text-lg">
-            {year}
+          <div
+            className="he-map-chrome absolute right-2 bottom-2 z-10 flex flex-col overflow-hidden"
+            onWheel={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              title="Zoom in"
+              aria-label="Zoom in"
+              disabled={zoom >= ZOOM_MAX}
+              onClick={() => applyZoom(zoomRef.current * ZOOM_STEP)}
+              className="he-map-zoom-btn"
+            >
+              <IconPlus />
+            </button>
+            <button
+              type="button"
+              title="Reset view"
+              aria-label="Reset view"
+              disabled={zoom === 1}
+              onClick={resetView}
+              className="he-map-zoom-btn"
+            >
+              <IconRefresh />
+            </button>
+            <button
+              type="button"
+              title="Zoom out"
+              aria-label="Zoom out"
+              disabled={zoom <= ZOOM_MIN}
+              onClick={() => applyZoom(zoomRef.current / ZOOM_STEP)}
+              className="he-map-zoom-btn"
+            >
+              <IconMinus />
+            </button>
+          </div>
+
+          <div
+            className="he-map-chrome absolute bottom-2 left-2 z-10 w-[min(22rem,calc(100%-4.5rem))] px-2 py-1.5"
+            onWheel={(event) => event.stopPropagation()}
+          >
+            <YearScrubber
+              year={year}
+              startYear={startYear}
+              endYear={endYear}
+              playing={playing}
+              onYear={(next) => {
+                setPlaying(false);
+                setYear(next);
+              }}
+              onPlay={() => {
+                if (year >= endYear) setYear(startYear);
+                setPlaying(!playing);
+              }}
+            />
           </div>
         </div>
+      </div>
 
-        <YearScrubber
-          year={year}
-          startYear={startYear}
-          endYear={endYear}
-          playing={playing}
-          onYear={(next) => {
-            setPlaying(false);
-            setYear(next);
-          }}
-          onPlay={() => {
-            if (year >= endYear) setYear(startYear);
-            setPlaying(!playing);
-          }}
-        />
-
-        <MarkerKey
-          settlements={showSettlements}
-          ruins={showRuins && ruins.length > 0}
-          holySites={showHolySites && independentHolySites.length > 0}
-          battles={battles.length > 0}
-        />
-
-        {showTradeRoutes && (
-          <p className="mt-2 text-xs text-[var(--ink-faint)]">
-            Trade overlay: dashed amber is overland demand, blue uses river access, and teal uses
-            the coast. Line weight is the traffic the route carried in {year}. These are logical
-            connections between markets; physical roads and paths are not modelled yet.
-            {data.world.eastWestPeriodic &&
-              ' Links between towns either side of the seam leave one edge and return at the other, which is the short way round in a world whose east and west edges are the same meridian.'}
+      <aside className="he-map-inspector flex max-h-[42vh] w-full shrink-0 flex-col overflow-y-auto border-t border-[var(--rule)] bg-[var(--surface-container-low)] lg:max-h-none lg:w-80 lg:border-t-0 lg:border-l">
+        <div className="border-b border-[var(--rule)] px-4 py-3">
+          <div className="he-label">Map layers</div>
+          <p className="mt-1 text-sm text-[var(--ink-soft)]">
+            {data.world.width.toLocaleString()} × {data.world.height.toLocaleString()} units
+            {data.world.eastWestPeriodic ? ' · east/west joined' : ''}
           </p>
-        )}
+          <p className="he-data mt-0.5 text-[11px] text-[var(--ink-faint)]">
+            raster {raster.resolution}² · {realms.length}{' '}
+            {realms.length === 1 ? 'realm' : 'realms'} · {standing.length} settlements
+            {ruins.length > 0 ? ` · ${ruins.length} ruins` : ''}
+          </p>
+        </div>
 
-        <Legend
-          world={world}
-          year={year}
-          focus={focus}
-          onFocus={(id) => setFocus(id === focus ? null : id)}
-        />
+        <div className="space-y-4 px-4 py-4 text-sm">
+          <section>
+            <div className="he-label mb-2">Terrain</div>
+            <select
+              value={layer}
+              onChange={(event) => setLayer(event.target.value as Layer)}
+              className="w-full rounded border border-[var(--rule)] bg-[var(--surface-container-high)] px-2 py-1.5 text-sm"
+            >
+              <option value="biome">Biome</option>
+              <option value="height">Elevation</option>
+              <option value="habitability">Habitability</option>
+            </select>
+          </section>
 
-        {colouring === 'faith' && (
-          <FaithLegend world={world} year={year} colours={faithColours} />
-        )}
+          <section>
+            <div className="he-label mb-2">Settlement colour</div>
+            <select
+              value={colouring}
+              onChange={(event) => setColouring(event.target.value as Colouring)}
+              className="w-full rounded border border-[var(--rule)] bg-[var(--surface-container-high)] px-2 py-1.5 text-sm"
+            >
+              <option value="realm">By realm</option>
+              <option value="faith">By faith</option>
+            </select>
+          </section>
 
-      {focused && (
-        <Panel title={`${focused.name} in ${year}`}>
-          <RealmCard world={world} civ={focused} year={year} />
-        </Panel>
-      )}
-
-      <Panel title={`The year ${year}`}>
-        {yearEvents.length === 0 ? (
-          <p className="text-sm text-[var(--ink-faint)]">Nothing was recorded in this year.</p>
-        ) : (
-          <ol className="space-y-1">
-            {yearEvents.slice(0, 24).map((event) => (
-              <li key={event.id} className="text-sm leading-relaxed">
-                <NarratedEvent world={world} event={event} />
-              </li>
-            ))}
-            {yearEvents.length > 24 && (
-              <li className="text-xs text-[var(--ink-faint)]">
-                …and {yearEvents.length - 24} more.
-              </li>
+          <section>
+            <div className="he-label mb-2">Overlays</div>
+            <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+              <Toggle label="Territory" on={showTerritory} onChange={setShowTerritory} />
+              <Toggle label="Rivers" on={showRivers} onChange={setShowRivers} />
+              <Toggle label="Settlements" on={showSettlements} onChange={setShowSettlements} />
+              <Toggle label="Ruins" on={showRuins} onChange={setShowRuins} />
+              <Toggle label="Holy sites" on={showHolySites} onChange={setShowHolySites} />
+              <Toggle label="Harbours" on={showHarbours} onChange={setShowHarbours} />
+              <Toggle label="Walls" on={showWalls} onChange={setShowWalls} />
+              <Toggle label="Landmarks" on={showLandmarks} onChange={setShowLandmarks} />
+              <Toggle label="Houses" on={showHouses} onChange={setShowHouses} />
+              <Toggle label="Trade routes" on={showTradeRoutes} onChange={setShowTradeRoutes} />
+            </div>
+            {showHarbours && (
+              <p className="mt-2 text-xs text-[var(--ink-faint)]">
+                Anchors sit in the water a harbour was founded for, not on the town. A wave marks a
+                river landing.
+              </p>
             )}
-          </ol>
-        )}
-      </Panel>
+            {showHouses && (
+              <p className="mt-2 text-xs text-[var(--ink-faint)]">
+                A banner is the throne; a house mark is where the line rose. Focus a realm to see
+                where that house's living members reside. Residence is recorded as of the
+                chronicle's end.
+              </p>
+            )}
+            {showTradeRoutes && (
+              <p className="mt-2 text-xs text-[var(--ink-faint)]">
+                Dashed amber is overland demand, blue uses river access, teal the coast. Weight is
+                traffic in {year}. These are logical links, not roads.
+              </p>
+            )}
+          </section>
+
+          <section>
+            <div className="he-label mb-2">Key</div>
+            <MarkerKey
+              settlements={showSettlements}
+              ruins={showRuins && ruins.length > 0}
+              holySites={showHolySites && independentHolySites.length > 0}
+              battles={battles.length > 0}
+              harbours={showHarbours && harbours.some((mark) => mark.water === 'sea')}
+              riversides={showHarbours && harbours.some((mark) => mark.water === 'river')}
+              walls={showWalls && walls.length > 0}
+              mines={showLandmarks && landmarks.some((mark) => mark.site === 'Mine')}
+              passes={showLandmarks && landmarks.some((mark) => mark.site === 'Pass')}
+              houses={showHouses && houses.length > 0}
+            />
+          </section>
+
+          <Legend
+            world={world}
+            year={year}
+            focus={focus}
+            onFocus={(id) => setFocus(id === focus ? null : id)}
+          />
+
+          {showHouses && (
+            <HouseLegend
+              world={world}
+              year={year}
+              houses={houses}
+              focus={focus}
+              onFocus={(id) => setFocus(id === focus ? null : id)}
+            />
+          )}
+
+          {colouring === 'faith' && (
+            <FaithLegend world={world} year={year} colours={faithColours} />
+          )}
+
+          {focused && (
+            <section>
+              <div className="he-label mb-2">{focused.name} in {year}</div>
+              <RealmCard world={world} civ={focused} year={year} />
+            </section>
+          )}
+
+          <section>
+            <div className="he-label mb-2">The year {year}</div>
+            {yearEvents.length === 0 ? (
+              <p className="text-xs text-[var(--ink-faint)]">Nothing was recorded in this year.</p>
+            ) : (
+              <ol className="space-y-1">
+                {yearEvents.slice(0, 24).map((event) => (
+                  <li key={event.id} className="text-xs leading-relaxed">
+                    <NarratedEvent world={world} event={event} />
+                  </li>
+                ))}
+                {yearEvents.length > 24 && (
+                  <li className="text-xs text-[var(--ink-faint)]">
+                    …and {yearEvents.length - 24} more.
+                  </li>
+                )}
+              </ol>
+            )}
+          </section>
+        </div>
+      </aside>
     </div>
   );
 }
@@ -793,11 +1256,23 @@ function MarkerKey({
   ruins,
   holySites,
   battles,
+  harbours,
+  riversides,
+  walls,
+  mines,
+  passes,
+  houses,
 }: {
   settlements: boolean;
   ruins: boolean;
   holySites: boolean;
   battles: boolean;
+  harbours: boolean;
+  riversides: boolean;
+  walls: boolean;
+  mines: boolean;
+  passes: boolean;
+  houses: boolean;
 }) {
   const marks: { label: string; glyph: React.ReactNode }[] = [];
 
@@ -842,6 +1317,104 @@ function MarkerKey({
     });
   }
 
+  if (harbours) {
+    marks.push({
+      label: 'harbour',
+      glyph: (
+        <g
+          transform="translate(7 8) scale(0.55)"
+          fill="none"
+          stroke="rgb(214 232 244)"
+          strokeWidth={1.7}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <circle cx={0} cy={-5.2} r={1.5} />
+          <line x1={0} y1={-3.6} x2={0} y2={5.2} />
+          <line x1={-3.2} y1={-1.6} x2={3.2} y2={-1.6} />
+          <path d="M-4.4 2.2 Q 0 7.4 4.4 2.2" />
+        </g>
+      ),
+    });
+  }
+
+  if (riversides) {
+    marks.push({
+      label: 'river landing',
+      glyph: (
+        <g fill="none" stroke="rgb(168 206 230)" strokeWidth={1.4} strokeLinecap="round">
+          <path d="M2.5 6.5c1.2 1.4 2.4 1.4 3.6 0s2.4-1.4 3.6 0" />
+          <path d="M2.5 10c1.2 1.4 2.4 1.4 3.6 0s2.4-1.4 3.6 0" />
+        </g>
+      ),
+    });
+  }
+
+  if (walls) {
+    marks.push({
+      label: 'walled town',
+      glyph: (
+        <rect
+          x={3.5}
+          y={4.5}
+          width={7}
+          height={7}
+          fill="none"
+          stroke="rgb(72 68 62)"
+          strokeWidth={1.4}
+        />
+      ),
+    });
+  }
+
+  if (mines) {
+    marks.push({
+      label: 'mine',
+      glyph: (
+        <g stroke="rgb(168 150 118)" strokeWidth={1.5} strokeLinecap="round">
+          <line x1={3.5} y1={11} x2={10.5} y2={5} />
+          <line x1={10.5} y1={11} x2={3.5} y2={5} />
+        </g>
+      ),
+    });
+  }
+
+  if (passes) {
+    marks.push({
+      label: 'pass',
+      glyph: (
+        <path
+          d="M2 12 L5 6 L7 9 L9 5 L12 12"
+          fill="none"
+          stroke="rgb(148 146 148)"
+          strokeWidth={1.4}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+      ),
+    });
+  }
+
+  if (houses) {
+    marks.push({
+      label: 'house rules here',
+      glyph: (
+        <g>
+          <line x1={5} y1={13} x2={5} y2={4} stroke="var(--ink-soft)" strokeWidth={1.3} />
+          <path d="M5 4 L11 6.5 L5 9Z" fill="var(--ink-soft)" />
+        </g>
+      ),
+    });
+    marks.push({
+      label: 'house rose here',
+      glyph: (
+        <g fill="none" stroke="var(--ink-soft)" strokeWidth={1.3} strokeLinejoin="round">
+          <path d="M3.5 9.5 L7 6 L10.5 9.5 V13 H3.5Z" />
+        </g>
+      ),
+    });
+  }
+
   if (battles) {
     marks.push({
       label: 'battle this year',
@@ -854,10 +1427,12 @@ function MarkerKey({
     });
   }
 
-  if (marks.length === 0) return null;
+  if (marks.length === 0) {
+    return <p className="text-xs text-[var(--ink-faint)]">Nothing on these layers.</p>;
+  }
 
   return (
-    <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[var(--ink-faint)]">
+    <div className="flex flex-col gap-1.5 text-xs text-[var(--ink-faint)]">
       {marks.map((mark) => (
         <span key={mark.label} className="flex items-center gap-1.5">
           <svg viewBox="0 0 14 16" className="h-3.5 w-3.5 shrink-0" aria-hidden="true">
@@ -867,6 +1442,244 @@ function MarkerKey({
         </span>
       ))}
     </div>
+  );
+}
+
+function AnchorMark({ x, y, faded }: { x: number; y: number; faded: boolean }) {
+  const opacity = faded ? 0.35 : 0.95;
+  const parts = (
+    <>
+      <circle cx={0} cy={-0.48} r={0.16} />
+      <line x1={0} y1={-0.32} x2={0} y2={0.52} />
+      <line x1={-0.32} y1={-0.12} x2={0.32} y2={-0.12} />
+      <path d="M-0.48 0.18 Q 0 0.72 0.48 0.18" />
+    </>
+  );
+
+  return (
+    <g
+      transform={`translate(${x} ${y})`}
+      className="pointer-events-none"
+      fill="none"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      opacity={opacity}
+    >
+      <title>Harbour</title>
+      <g stroke="rgba(12, 22, 34, 0.8)" strokeWidth={0.4}>
+        {parts}
+      </g>
+      <g stroke="rgb(236 246 252)" strokeWidth={0.2}>
+        {parts}
+      </g>
+    </g>
+  );
+}
+
+function WaveMark({ x, y, faded }: { x: number; y: number; faded: boolean }) {
+  const opacity = faded ? 0.3 : 0.9;
+  const parts = (
+    <>
+      <path d="M-0.55 -0.18 C -0.2 0.12, 0.2 0.12, 0.55 -0.18" />
+      <path d="M-0.55 0.18 C -0.2 0.48, 0.2 0.48, 0.55 0.18" />
+    </>
+  );
+
+  return (
+    <g
+      transform={`translate(${x} ${y})`}
+      className="pointer-events-none"
+      fill="none"
+      strokeLinecap="round"
+      opacity={opacity}
+    >
+      <title>River landing</title>
+      <g stroke="rgba(12, 22, 34, 0.75)" strokeWidth={0.38}>
+        {parts}
+      </g>
+      <g stroke="rgb(186 220 240)" strokeWidth={0.2}>
+        {parts}
+      </g>
+    </g>
+  );
+}
+
+function MineMark({ x, y, faded }: { x: number; y: number; faded: boolean }) {
+  const opacity = faded ? 0.3 : 0.92;
+  const parts = (
+    <>
+      <line x1={-0.48} y1={0.38} x2={0.48} y2={-0.42} />
+      <line x1={0.48} y1={0.38} x2={-0.48} y2={-0.42} />
+    </>
+  );
+
+  return (
+    <g
+      transform={`translate(${x} ${y})`}
+      className="pointer-events-none"
+      strokeLinecap="round"
+      opacity={opacity}
+    >
+      <title>Mine</title>
+      <g stroke="rgba(12, 12, 12, 0.8)" strokeWidth={0.4}>
+        {parts}
+      </g>
+      <g stroke="rgb(210 188 132)" strokeWidth={0.22}>
+        {parts}
+      </g>
+    </g>
+  );
+}
+
+function PassMark({ x, y, faded }: { x: number; y: number; faded: boolean }) {
+  const opacity = faded ? 0.3 : 0.9;
+  const parts = <path d="M-0.7 0.45 L-0.28 -0.35 L0 -0.02 L0.28 -0.4 L0.7 0.45" />;
+
+  return (
+    <g
+      transform={`translate(${x} ${y})`}
+      className="pointer-events-none"
+      fill="none"
+      strokeLinejoin="round"
+      strokeLinecap="round"
+      opacity={opacity}
+    >
+      <title>Pass</title>
+      <g stroke="rgba(12, 12, 12, 0.8)" strokeWidth={0.4}>
+        {parts}
+      </g>
+      <g stroke="rgb(226 224 220)" strokeWidth={0.22}>
+        {parts}
+      </g>
+    </g>
+  );
+}
+
+function HouseGlyph({
+  mark,
+  colour,
+  faded,
+}: {
+  mark: HouseMark;
+  colour: string;
+  faded: boolean;
+}) {
+  const opacity = faded ? 0.28 : 1;
+  const { mx: x, my: y, role } = mark;
+
+  if (role === 'seat') {
+    const flag = `M ${x} ${y - 0.15} L ${x + 1.05} ${y + 0.28} L ${x} ${y + 0.7} Z`;
+    return (
+      <g className="pointer-events-none" opacity={opacity}>
+        <line
+          x1={x}
+          y1={y + 1.15}
+          x2={x}
+          y2={y - 0.15}
+          stroke="rgba(12,12,12,0.85)"
+          strokeWidth={0.34}
+          strokeLinecap="round"
+        />
+        <line
+          x1={x}
+          y1={y + 1.15}
+          x2={x}
+          y2={y - 0.15}
+          stroke={colour}
+          strokeWidth={0.2}
+          strokeLinecap="round"
+        />
+        <path d={flag} fill={colour} stroke="rgba(12,12,12,0.85)" strokeWidth={0.16} strokeLinejoin="round" />
+      </g>
+    );
+  }
+
+  const size = role === 'home' ? 0.55 : 0.42;
+  const house = `M ${x - size} ${y} L ${x} ${y - size * 0.9} L ${x + size} ${y} V ${y + size * 0.85} H ${x - size} Z`;
+  return (
+    <g
+      className="pointer-events-none"
+      fill={role === 'home' ? colour : 'var(--canvas)'}
+      stroke="rgba(12,12,12,0.85)"
+      strokeWidth={0.16}
+      strokeLinejoin="round"
+      opacity={opacity}
+    >
+      <path d={house} />
+      <path d={house} fill="none" stroke={colour} strokeWidth={0.18} />
+    </g>
+  );
+}
+
+function houseHover(mark: HouseMark, world: World): string {
+  const town = mark.settlement.name;
+  const realm = world.nameOf(mark.civId);
+
+  if (mark.role === 'seat') {
+    return `Rules ${realm} from ${town}`;
+  }
+
+  if (mark.role === 'home') {
+    const living =
+      mark.living > 0
+        ? ` · ${mark.living} ${mark.living === 1 ? 'lives' : 'live'} here`
+        : '';
+    return `Rose at ${town}${living}`;
+  }
+
+  return `${mark.living} of the house ${mark.living === 1 ? 'lives' : 'live'} at ${town}`;
+}
+
+function HouseLegend({
+  world,
+  year,
+  houses,
+  focus,
+  onFocus,
+}: {
+  world: World;
+  year: number;
+  houses: HouseOnMap[];
+  focus: EntityId | null;
+  onFocus: (id: EntityId) => void;
+}) {
+  return (
+    <section>
+      <div className="he-label mb-2">Houses in {year}</div>
+      {houses.length === 0 ? (
+        <p className="text-xs text-[var(--ink-faint)]">No house held a throne this year.</p>
+      ) : (
+        <div className="flex flex-col gap-1 text-xs">
+          {houses.map((entry) => (
+            <button
+              key={`${entry.house.id}-${entry.civId}`}
+              type="button"
+              onClick={() => onFocus(entry.civId)}
+              title={
+                entry.seat
+                  ? `${entry.house.name} rules from ${entry.seat.name}`
+                  : entry.house.name
+              }
+              className={`inline-flex items-center gap-1.5 text-left hover:text-[var(--accent)] ${
+                focus && focus !== entry.civId ? 'opacity-45' : ''
+              }`}
+            >
+              <span
+                className="inline-block h-2.5 w-2.5 shrink-0"
+                style={{
+                  background: world.colourOf(entry.civId),
+                  clipPath: 'polygon(0 0, 100% 40%, 0 80%)',
+                }}
+              />
+              <span className="min-w-0 truncate">{entry.house.name}</span>
+              <span className="he-data ml-auto truncate text-[var(--ink-faint)]">
+                {world.nameOf(entry.civId)}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -886,16 +1699,41 @@ function YearScrubber({
   onPlay: () => void;
 }) {
   return (
-    <div className="mt-4 flex items-center gap-3">
-      <button
-        type="button"
-        onClick={onPlay}
-        title={playing ? 'Pause' : 'Play the history through'}
-        className="he-btn-secondary w-16 shrink-0 px-2 py-1 text-xs"
-      >
-        {playing ? '❚❚ Pause' : '▶ Play'}
-      </button>
-
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-0.5">
+        <button
+          type="button"
+          title="Previous year"
+          aria-label="Previous year"
+          disabled={year <= startYear}
+          onClick={() => onYear(year - 1)}
+          className="inline-flex h-7 w-7 items-center justify-center rounded text-[var(--ink-soft)] hover:text-[var(--primary)] disabled:opacity-40"
+        >
+          <IconChevronLeft />
+        </button>
+        <button
+          type="button"
+          onClick={onPlay}
+          title={playing ? 'Pause' : 'Play the history through'}
+          className="inline-flex h-7 min-w-7 items-center justify-center rounded px-1.5 text-xs text-[var(--ink-soft)] hover:text-[var(--primary)]"
+        >
+          {playing ? '❚❚' : '▶'}
+        </button>
+        <button
+          type="button"
+          title="Next year"
+          aria-label="Next year"
+          disabled={year >= endYear}
+          onClick={() => onYear(year + 1)}
+          className="inline-flex h-7 w-7 items-center justify-center rounded text-[var(--ink-soft)] hover:text-[var(--primary)] disabled:opacity-40"
+        >
+          <IconChevronRight />
+        </button>
+        <div className="ml-1.5 min-w-0">
+          <div className="he-label">Year</div>
+          <div className="he-data text-lg leading-none">{year}</div>
+        </div>
+      </div>
       <input
         type="range"
         min={startYear}
@@ -905,15 +1743,6 @@ function YearScrubber({
         className="w-full accent-[var(--accent)]"
         aria-label="Year"
       />
-
-      <button
-        type="button"
-        onClick={() => onYear(endYear)}
-        disabled={year === endYear}
-        className="he-btn-secondary shrink-0 px-2 py-1 text-xs disabled:opacity-40"
-      >
-        End
-      </button>
     </div>
   );
 }
@@ -938,11 +1767,9 @@ function Legend({
   const { timeline } = world;
 
   return (
-    <div className="mt-4">
+    <section>
       <div className="mb-2 flex items-baseline justify-between">
-        <div className="he-label">
-          Realms
-        </div>
+        <div className="he-label">Realms</div>
         {focus && (
           <button
             type="button"
@@ -954,7 +1781,7 @@ function Legend({
         )}
       </div>
 
-      <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs">
+      <div className="flex flex-col gap-1 text-xs">
         {world.export.civilizations.map((civ) => {
           const extent = timeline.extentAt(civ.id, year);
           const yet = civ.foundedYear > year;
@@ -972,7 +1799,7 @@ function Legend({
                     ? `Ended in ${civ.endedYear}`
                     : `${extent} ${extent === 1 ? 'region' : 'regions'} in ${year}`
               }
-              className={`inline-flex items-center gap-1.5 ${
+              className={`inline-flex items-center gap-1.5 text-left ${
                 focus && focus !== civ.id ? 'opacity-45' : ''
               } ${yet || gone ? 'text-[var(--ink-faint)]' : ''} hover:text-[var(--accent)]`}
             >
@@ -983,15 +1810,15 @@ function Legend({
                   border: yet || gone ? `1px solid ${world.colourOf(civ.id)}` : undefined,
                 }}
               />
-              <span className={gone ? 'line-through' : ''}>{civ.name}</span>
+              <span className={`min-w-0 truncate ${gone ? 'line-through' : ''}`}>{civ.name}</span>
               {!yet && !gone && (
-            <span className="he-data text-[var(--ink-faint)]">{extent}</span>
+                <span className="he-data ml-auto text-[var(--ink-faint)]">{extent}</span>
               )}
             </button>
           );
         })}
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -1017,17 +1844,15 @@ function FaithLegend({
     .sort((a, b) => b.following - a.following);
 
   return (
-    <div className="mt-3">
-      <div className="he-label mb-2">
-        Faiths
-      </div>
+    <section>
+      <div className="he-label mb-2">Faiths</div>
 
       {followed.length === 0 ? (
         <p className="text-xs text-[var(--ink-faint)]">
           Nothing was preached anywhere in the world this year.
         </p>
       ) : (
-        <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs">
+        <div className="flex flex-col gap-1 text-xs">
           {followed.map(({ faith, following }) => (
             <a
               key={faith.id}
@@ -1038,13 +1863,13 @@ function FaithLegend({
                 className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
                 style={{ background: colours.get(faith.id) }}
               />
-              {faith.name}
-              <span className="tabular-nums text-[var(--ink-faint)]">{following}</span>
+              <span className="min-w-0 truncate">{faith.name}</span>
+              <span className="he-data ml-auto text-[var(--ink-faint)]">{following}</span>
             </a>
           ))}
         </div>
       )}
-    </div>
+    </section>
   );
 }
 

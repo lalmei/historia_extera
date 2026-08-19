@@ -12,10 +12,18 @@ import { EntityLink } from './common';
  * links the entity ones. New event kinds from later milestones render here with no
  * change at all.
  */
-export function NarratedEvent({ world, event }: { world: World; event: HistoryEvent }) {
+export function NarratedEvent({
+  world,
+  event,
+  viewpoint,
+}: {
+  world: World;
+  event: HistoryEvent;
+  viewpoint?: string;
+}) {
   const parts = useMemo(
-    () => narrate(event, world.export.narration, world.nameOf),
-    [event, world],
+    () => narrate(event, world.export.narration, world.nameOf, viewpoint),
+    [event, world, viewpoint],
   );
 
   return (
@@ -50,6 +58,7 @@ export function EventList({
   showFilters = true,
   separateRegister = false,
   pageSize = 150,
+  viewpoint,
 }: {
   world: World;
   events: HistoryEvent[];
@@ -57,6 +66,8 @@ export function EventList({
   showFilters?: boolean;
   separateRegister?: boolean;
   pageSize?: number;
+  /** When set, events are told as something this figure did. */
+  viewpoint?: string;
 }) {
   const [kind, setKind] = useState<string>('all');
   const [limit, setLimit] = useState(pageSize);
@@ -182,8 +193,8 @@ export function EventList({
               {event.year}
             </span>
             <span className="min-w-0 text-sm leading-relaxed">
-              <NarratedEvent world={world} event={event} />
-              {showRecord && <EventRecord world={world} event={event} />}
+              <NarratedEvent world={world} event={event} viewpoint={viewpoint} />
+              {showRecord && <EventRecord world={world} event={event} viewpoint={viewpoint} />}
             </span>
           </li>
         ))}
@@ -211,10 +222,18 @@ export function EventList({
  * else here: it prints whatever the template did not consume, so an event kind added later
  * needs no change.
  */
-function EventRecord({ world, event }: { world: World; event: HistoryEvent }) {
+function EventRecord({
+  world,
+  event,
+  viewpoint,
+}: {
+  world: World;
+  event: HistoryEvent;
+  viewpoint?: string;
+}) {
   const { data, extra } = useMemo(
-    () => unnarrated(event, world.export.narration),
-    [event, world],
+    () => unnarrated(event, world.export.narration, world.nameOf, viewpoint),
+    [event, world, viewpoint],
   );
 
   if (data.length === 0 && extra.length === 0) return null;

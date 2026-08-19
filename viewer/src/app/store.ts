@@ -256,6 +256,11 @@ export function treasuresOf(world: World, settlementId: EntityId): Artifact[] {
   return world.export.artifacts.filter((artifact) => artifact.holderId === settlementId);
 }
 
+/** Every artifact one person claims now, in the order they were made. */
+export function treasuresOwnedBy(world: World, figureId: EntityId): Artifact[] {
+  return world.export.artifacts.filter((artifact) => artifact.ownerId === figureId);
+}
+
 /** Resolves a list of figure ids, dropping any that do not. */
 export function figures(world: World, ids: EntityId[] | undefined): Figure[] {
   if (!ids) return [];

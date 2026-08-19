@@ -1,4 +1,4 @@
-import type { EntityId, HistoryEvent } from './types';
+import { kindOf, type EntityId, type HistoryEvent } from './types';
 
 /**
  * Renders an event using the template the engine shipped for its kind.
@@ -14,13 +14,22 @@ import type { EntityId, HistoryEvent } from './types';
  *   - `{subject}` `{object}` `{location}` — entity slots, emitted as segments so
  *     the caller can turn them into cross-links.
  *   - `{data:key}` — plain text from the event's data payload.
+ *   - `{self}` `{other}` — the figure whose page is being read, and the other
+ *     figure among subject and object.
+ *   - `{as:key}` `{not:key}` `{self:subject}` (also object, location, extra) —
+ *     role tests that succeed as empty text.
  *   - `[ ... ]` — optional segment, dropped whole if any placeholder inside it is
  *     absent. This is what keeps prose grammatical: a figure born before any
  *     settlement exists renders "Aeda was born." and not "Aeda was born in ."
  *
+ * A `Kind.self` template, when present, is the same fact told from that figure's
+ * point of view. Kinds without one keep the world wording.
+ *
  * `meta.narrationSyntaxVersion` guards against the grammar changing under us.
  */
-export const NARRATION_SYNTAX_VERSION = 1;
+export const NARRATION_SYNTAX_VERSION = 2;
+
+export const SELF_KEY_SUFFIX = '.self';
 
 export type NarrationPart =
   | { type: 'text'; text: string }
@@ -34,58 +43,26 @@ export function narrate(
   event: HistoryEvent,
   templates: Record<string, string>,
   nameOf: (id: EntityId) => string,
+  viewpoint?: EntityId,
 ): NarrationPart[] {
-  const template = templates[event.kind] ?? templates.Unknown ?? 'Something happened.';
-  const parts: NarrationPart[] = [];
+  const world = templates[event.kind] ?? templates.Unknown ?? 'Something happened.';
+  const self = viewpoint ? templates[`${event.kind}${SELF_KEY_SUFFIX}`] : undefined;
+  const parts = renderTemplate(self ?? world, event, nameOf, viewpoint);
 
-  let i = 0;
-  while (i < template.length) {
-    const c = template[i];
-
-    if (c === '[') {
-      const close = template.indexOf(']', i);
-      if (close < 0) {
-        parts.push({ type: 'text', text: template.slice(i) });
-        break;
-      }
-
-      const segment = renderSegment(template.slice(i + 1, close), event, nameOf);
-      if (segment) parts.push(...segment);
-
-      i = close + 1;
-      continue;
-    }
-
-    if (c === '{') {
-      const close = template.indexOf('}', i);
-      if (close < 0) {
-        parts.push({ type: 'text', text: template.slice(i) });
-        break;
-      }
-
-      const resolved = resolve(template.slice(i + 1, close), event, nameOf);
-      if (resolved) parts.push(resolved);
-
-      i = close + 1;
-      continue;
-    }
-
-    // Accumulate literal runs so the output is not one part per character.
-    let end = i;
-    while (end < template.length && template[end] !== '{' && template[end] !== '[') end++;
-    parts.push({ type: 'text', text: template.slice(i, end) });
-    i = end;
+  if (viewpoint && self && parts.length === 0) {
+    return renderTemplate(world, event, nameOf, viewpoint);
   }
 
-  return merge(parts);
+  return parts;
 }
 
 export function narrateText(
   event: HistoryEvent,
   templates: Record<string, string>,
   nameOf: (id: EntityId) => string,
+  viewpoint?: EntityId,
 ): string {
-  return narrate(event, templates, nameOf)
+  return narrate(event, templates, nameOf, viewpoint)
     .map((part) => (part.type === 'text' ? part.text : nameOf(part.id)))
     .join('');
 }
@@ -104,21 +81,24 @@ export function narrateText(
 export function unnarrated(
   event: HistoryEvent,
   templates: Record<string, string>,
+  nameOf: (id: EntityId) => string,
+  viewpoint?: EntityId,
 ): { data: [string, string][]; extra: EntityId[] } {
-  const template = templates[event.kind] ?? templates.Unknown ?? '';
+  const world = templates[event.kind] ?? templates.Unknown ?? '';
+  const self = viewpoint ? templates[`${event.kind}${SELF_KEY_SUFFIX}`] : undefined;
+  const template = self ?? world;
   const printed = new Set<string>();
 
   for (const [, inner] of template.matchAll(/\[([^\]]*)\]/g)) {
-    if (!segmentHolds(inner, event)) continue;
+    if (!segmentHolds(inner, event, nameOf, viewpoint)) continue;
     for (const [, key] of inner.matchAll(/\{data:(\w+)\}/g)) printed.add(key);
   }
 
-  // Outside the brackets a token stands on its own, so it prints whenever it resolves.
   for (const [, key] of template.replace(/\[[^\]]*\]/g, '').matchAll(/\{data:(\w+)\}/g)) {
     if (event.data?.[key]) printed.add(key);
   }
 
-  const named = new Set([event.subject, event.object, event.location]);
+  const named = new Set([event.subject, event.object, event.location, viewpoint]);
 
   return {
     data: Object.entries(event.data ?? {}).filter(([key]) => !printed.has(key)),
@@ -126,10 +106,64 @@ export function unnarrated(
   };
 }
 
+function renderTemplate(
+  template: string,
+  event: HistoryEvent,
+  nameOf: (id: EntityId) => string,
+  viewpoint: EntityId | undefined,
+): NarrationPart[] {
+  const parts: NarrationPart[] = [];
+
+  let i = 0;
+  while (i < template.length) {
+    const c = template[i];
+
+    if (c === '[') {
+      const close = template.indexOf(']', i);
+      if (close < 0) {
+        parts.push({ type: 'text', text: template.slice(i) });
+        break;
+      }
+
+      const segment = renderSegment(template.slice(i + 1, close), event, nameOf, viewpoint);
+      if (segment) parts.push(...segment);
+
+      i = close + 1;
+      continue;
+    }
+
+    if (c === '{') {
+      const close = template.indexOf('}', i);
+      if (close < 0) {
+        parts.push({ type: 'text', text: template.slice(i) });
+        break;
+      }
+
+      const resolved = resolve(template.slice(i + 1, close), event, nameOf, viewpoint);
+      if (resolved) parts.push(resolved);
+
+      i = close + 1;
+      continue;
+    }
+
+    let end = i;
+    while (end < template.length && template[end] !== '{' && template[end] !== '[') end++;
+    parts.push({ type: 'text', text: template.slice(i, end) });
+    i = end;
+  }
+
+  return merge(parts);
+}
+
 /** Whether an optional segment survives — it is dropped whole if anything in it is absent. */
-function segmentHolds(inner: string, event: HistoryEvent): boolean {
+function segmentHolds(
+  inner: string,
+  event: HistoryEvent,
+  nameOf: (id: EntityId) => string,
+  viewpoint: EntityId | undefined,
+): boolean {
   for (const [, token] of inner.matchAll(/\{([^}]*)\}/g)) {
-    if (resolve(token, event, () => '') === null) return false;
+    if (resolve(token, event, nameOf, viewpoint) === null) return false;
   }
 
   return true;
@@ -140,6 +174,7 @@ function renderSegment(
   inner: string,
   event: HistoryEvent,
   nameOf: (id: EntityId) => string,
+  viewpoint: EntityId | undefined,
 ): NarrationPart[] | null {
   const parts: NarrationPart[] = [];
 
@@ -159,7 +194,7 @@ function renderSegment(
       break;
     }
 
-    const resolved = resolve(inner.slice(i + 1, close), event, nameOf);
+    const resolved = resolve(inner.slice(i + 1, close), event, nameOf, viewpoint);
     if (!resolved) return null;
 
     parts.push(resolved);
@@ -173,10 +208,41 @@ function resolve(
   token: string,
   event: HistoryEvent,
   nameOf: (id: EntityId) => string,
+  viewpoint: EntityId | undefined,
 ): NarrationPart | null {
   if (token.startsWith('data:')) {
     const value = event.data?.[token.slice(5)];
     return value ? { type: 'text', text: value } : null;
+  }
+
+  if (token.startsWith('as:')) {
+    if (!viewpoint) return null;
+    return event.data?.[token.slice(3)] === nameOf(viewpoint) ? { type: 'text', text: '' } : null;
+  }
+
+  if (token.startsWith('not:')) {
+    if (!viewpoint) return null;
+    return event.data?.[token.slice(4)] === nameOf(viewpoint)
+      ? null
+      : { type: 'text', text: '' };
+  }
+
+  if (token.startsWith('self:')) {
+    if (!viewpoint) return null;
+
+    const slot = token.slice(5);
+    const holds =
+      slot === 'subject'
+        ? viewpoint === event.subject
+        : slot === 'object'
+          ? viewpoint === event.object
+          : slot === 'location'
+            ? viewpoint === event.location
+            : slot === 'extra'
+              ? (event.extra ?? []).includes(viewpoint)
+              : false;
+
+    return holds ? { type: 'text', text: '' } : null;
   }
 
   const id =
@@ -186,14 +252,29 @@ function resolve(
         ? event.object
         : token === 'location'
           ? event.location
-          : undefined;
+          : token === 'self'
+            ? viewpoint
+            : token === 'other'
+              ? otherFigure(event, viewpoint)
+              : undefined;
 
   if (!id) return null;
 
-  // nameOf is not called here — the entity part carries the id so the renderer can
-  // link it. Callers that want plain text resolve it themselves.
-  void nameOf;
   return { type: 'entity', id };
+}
+
+function otherFigure(event: HistoryEvent, self: EntityId | undefined): EntityId | undefined {
+  if (!self) return undefined;
+
+  if (event.subject && kindOf(event.subject) === 'fig' && event.subject !== self) {
+    return event.subject;
+  }
+
+  if (event.object && kindOf(event.object) === 'fig' && event.object !== self) {
+    return event.object;
+  }
+
+  return undefined;
 }
 
 function merge(parts: NarrationPart[]): NarrationPart[] {

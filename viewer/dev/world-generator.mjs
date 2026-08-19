@@ -106,6 +106,8 @@ const RUN_HISTORY = 20;
  *   error?: string,
  *   startedAt: number,
  *   finishedAt?: number,
+ *   year?: number,
+ *   endYear?: number,
  *   child?: import('node:child_process').ChildProcess,
  * }} Run
  */
@@ -458,6 +460,7 @@ async function inspectWorld(file, name) {
       schemaVersion: header.schemaVersion,
       engineVersion: header.engineVersion,
       designation: header.designation,
+      worldName: header.worldName,
       kind: header.kind,
       params: paramsFor(name, header),
     };
@@ -506,6 +509,7 @@ async function readWorldHeader(file) {
       eastWestPeriodic: readBoolField(prefix, 'eastWestPeriodic'),
       engineVersion: readStringField(prefix, 'engineVersion'),
       designation: readStringField(prefix, 'designation'),
+      worldName: readWorldName(prefix),
       kind: readWorldKind(prefix),
     };
   } finally {
@@ -585,6 +589,18 @@ function readBoolField(text, name) {
  */
 function readStringField(text, name) {
   const match = new RegExp(`"${name}"\\s*:\\s*"([^"]*)"`).exec(text);
+  return match ? match[1] : null;
+}
+
+/**
+ * The world's proper name, from the `world` object — not the first `"name"` in the file.
+ *
+ * @param {string} text
+ */
+function readWorldName(text) {
+  const worldAt = text.search(/"world"\s*:\s*\{/);
+  if (worldAt === -1) return null;
+  const match = /"name"\s*:\s*"([^"]*)"/.exec(text.slice(worldAt));
   return match ? match[1] : null;
 }
 
@@ -708,6 +724,8 @@ function report(run) {
     world: run.world,
     bytes: run.bytes,
     error: run.error,
+    year: run.year ?? 0,
+    endYear: run.endYear ?? run.params.years,
     elapsedMs: (run.finishedAt ?? Date.now()) - run.startedAt,
   };
 }
@@ -812,7 +830,16 @@ function collect(stream, run) {
 
     for (const line of lines) {
       const text = line.trimEnd();
-      if (text.length > 0) run.log.push(text);
+      if (text.length === 0) continue;
+
+      const progress = /^progress (\d+)\/(\d+)$/.exec(text);
+      if (progress) {
+        run.year = Number(progress[1]);
+        run.endYear = Number(progress[2]);
+        continue;
+      }
+
+      run.log.push(text);
     }
 
     if (run.log.length > LOG_LINES) run.log.splice(0, run.log.length - LOG_LINES);
@@ -820,7 +847,16 @@ function collect(stream, run) {
 
   stream.on('end', () => {
     const text = pending.trimEnd();
-    if (text.length > 0) run.log.push(text);
+    if (text.length === 0) return;
+
+    const progress = /^progress (\d+)\/(\d+)$/.exec(text);
+    if (progress) {
+      run.year = Number(progress[1]);
+      run.endYear = Number(progress[2]);
+      return;
+    }
+
+    run.log.push(text);
   });
 }
 

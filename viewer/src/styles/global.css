@@ -189,6 +189,15 @@ button {
   color: var(--primary);
 }
 
+.he-world-nav {
+  width: 14.5rem;
+  transition: width 0.15s ease;
+}
+
+.he-world-nav[data-collapsed='true'] {
+  width: 3.25rem;
+}
+
 .he-map-chrome {
   background: var(--input);
   border: 1px solid var(--hairline);
@@ -197,9 +206,38 @@ button {
   transition: opacity 0.15s ease;
 }
 
+.he-map-viewport {
+  touch-action: none;
+}
+
 .he-map-viewport:hover .he-map-chrome,
 .he-map-chrome:focus-within {
   opacity: 1;
+}
+
+.he-map-zoom-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.he-map-zoom-btn:last-child {
+  border-bottom: 0;
+}
+
+.he-map-zoom-btn:hover:not(:disabled) {
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+}
+
+.he-map-zoom-btn:disabled {
+  opacity: 0.35;
 }
 
 @media (hover: none) {

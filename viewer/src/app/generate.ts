@@ -39,6 +39,10 @@ export interface Run {
   bytes?: number;
   error?: string;
   elapsedMs: number;
+  /** Latest simulated year the CLI has reported. 0 during worldgen. */
+  year?: number;
+  /** End year the progress line named, usually `params.years` when StartYear is 1. */
+  endYear?: number;
 }
 
 export const DEFAULT_PARAMS: RunParams = {
@@ -49,6 +53,22 @@ export const DEFAULT_PARAMS: RunParams = {
   eastWestPeriodic: false,
 };
 
+/** World size presets on the Initialize Engine form. Exact engine sizes, not labels. */
+export const SIZE_TIERS = {
+  small: 2048,
+  medium: 4096,
+  large: 8192,
+} as const;
+
+export type SizeTier = keyof typeof SIZE_TIERS;
+
+export function sizeTierOf(size: number): SizeTier | null {
+  for (const [tier, value] of Object.entries(SIZE_TIERS) as [SizeTier, number][]) {
+    if (value === size) return tier;
+  }
+  return null;
+}
+
 /** The bounds the endpoint enforces, mirrored here so the form can say so before asking. */
 export const BOUNDS = {
   seed: { min: 0, max: Number.MAX_SAFE_INTEGER },
@@ -56,6 +76,15 @@ export const BOUNDS = {
   civs: { min: 1, max: 64 },
   size: { min: 512, max: 8192 },
 } as const;
+
+/** World size is aligned to the engine's terrain lattice so a periodic seam can close. */
+export const SIZE_STEP = 256;
+
+export function alignSize(size: number): number {
+  if (!Number.isFinite(size)) return DEFAULT_PARAMS.size;
+  const snapped = Math.round(size / SIZE_STEP) * SIZE_STEP;
+  return Math.min(BOUNDS.size.max, Math.max(BOUNDS.size.min, snapped));
+}
 
 /**
  * The engine's siting floor, mirrored: a world below it seats fewer civilizations than asked
@@ -67,7 +96,7 @@ const REGIONS_PER_CIV = 16;
 /** Smallest world size on the form's 256-unit step that can seat this many civilizations. */
 export function minimumSizeFor(civs: number): number {
   let size = BOUNDS.size.min;
-  while (Math.floor(size / REGION_SIZE) ** 2 < REGIONS_PER_CIV * civs) size += 256;
+  while (Math.floor(size / REGION_SIZE) ** 2 < REGIONS_PER_CIV * civs) size += SIZE_STEP;
   return size;
 }
 
