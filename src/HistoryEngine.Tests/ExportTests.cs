@@ -142,6 +142,10 @@ public sealed class ExportTests
             if (settlement.AbandonedYear is not null) continue;
 
             Assert.Equal(settlement.Population, last[(settlement.Id, "population")]);
+            Assert.Equal(Round(settlement.Fortunes.Weariness), last[(settlement.Id, "weariness")]);
+            Assert.Equal(Round(settlement.Fortunes.Calamity), last[(settlement.Id, "calamity")]);
+            Assert.Equal(Round(settlement.Fortunes.Triumph), last[(settlement.Id, "triumph")]);
+            Assert.Equal(Round(settlement.Fortunes.Grievance), last[(settlement.Id, "grievance")]);
         }
 
         foreach (ExportTradeRoute route in export.TradeRoutes)
@@ -150,6 +154,49 @@ public sealed class ExportTests
 
             Assert.Equal(Round(route.Traffic), last[(route.Id, "traffic")]);
         }
+    }
+
+    /// <summary>
+    /// A settlement's fortunes must actually move, or the tracks are four flat lines dressed as
+    /// history.
+    /// </summary>
+    /// <remarks>
+    /// The snapshot-agreement test above would pass if every town's weariness were identically
+    /// zero: last year would match the snapshot, both at rest. This is the assertion that sacks,
+    /// sieges, plague and cession reach the place they happened to, not only its owner.
+    /// </remarks>
+    [Fact]
+    public void SettlementFortunesMove()
+    {
+        WorldExport export = HistoryRun.Execute(TestWorlds.Standard()).ToExport();
+
+        var settlements = new HashSet<EntityId>();
+        foreach (ExportSettlement settlement in export.Settlements)
+        {
+            settlements.Add(settlement.Id);
+        }
+
+        bool moved = false;
+        foreach (ExportSeries series in export.Series)
+        {
+            if (series.Group != "fortunes") continue;
+            if (!settlements.Contains(series.Entity)) continue;
+
+            foreach (double value in series.Values)
+            {
+                if (value > 0)
+                {
+                    moved = true;
+                    break;
+                }
+            }
+
+            if (moved) break;
+        }
+
+        Assert.True(
+            moved,
+            "Three centuries left every town's fortunes at rest, so the tracks have nothing to plot.");
     }
 
     /// <summary>Dials are exported to three decimals; the snapshot fields are not.</summary>

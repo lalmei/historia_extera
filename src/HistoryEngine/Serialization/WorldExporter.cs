@@ -669,6 +669,7 @@ public static class WorldExporter
                 provenance.Add(new ExportProvenance(
                     Year: holding.Year,
                     SettlementId: OrNull(holding.SettlementId),
+                    OwnerId: OrNull(holding.OwnerId),
                     How: holding.How));
             }
 
@@ -682,6 +683,7 @@ public static class WorldExporter
                 TomeContents: BuildTomeContents(artifact.TomeContents),
                 CreatedYear: artifact.CreatedYear,
                 HolderId: OrNull(artifact.HolderId),
+                OwnerId: OrNull(artifact.OwnerId),
                 LostYear: artifact.LostYear,
                 Provenance: provenance));
         }
@@ -708,7 +710,8 @@ public static class WorldExporter
             sections.Add(new ExportTomeSection(
                 Heading: section.Heading,
                 Text: section.Text,
-                References: section.References.ToArray()));
+                References: section.References.ToArray(),
+                Year: section.Year));
         }
 
         return new ExportTomeContents(
