@@ -26,7 +26,10 @@ namespace HistoryEngine.World;
 public static class Tomes
 {
     /// <summary>Additional settlements that can receive one work before it ceases to be scarce.</summary>
-    private const int MaximumCopies = 4;
+    private const int MaximumCopies = 5;
+
+    /// <summary>How far a later scribe may misremember an event, in years, at no learning.</summary>
+    private const int MemoryDriftYears = 12;
 
     private sealed class CampaignRecord
     {
@@ -50,7 +53,11 @@ public static class Tomes
         Settlement settlement,
         Civilization civilization,
         EntityId artifactId,
-        int year)
+        int year,
+        Figure? patron = null,
+        TomeContentKind? requested = null,
+        EntityId requestedSubject = default,
+        EntityId requestedContext = default)
     {
         IRng rng = world.Root.Fork("tome.contents", artifactId.ToDiscriminator());
 
@@ -58,10 +65,127 @@ public static class Tomes
         List<CampaignRecord> campaigns = Campaigns(world, civilization, year);
         List<Artifact> artifacts = ArtifactSubjects(world, settlement, civilization, year);
         Religion? religion = ReligionAt(world, settlement, year);
+        List<HolySite> dedications = DedicationSubjects(world, settlement, year);
+        double learning = Scholarliness(world, civilization, patron);
 
-        var possible = new List<TomeContentKind>(5);
+        TomeContents contents = requested is TomeContentKind kind
+            ? Requested(
+                world, settlement, civilization, rng, year, learning, kind,
+                requestedSubject, requestedContext, figures, campaigns, artifacts, religion, dedications)
+            : Choose(
+                world, settlement, civilization, rng, year, learning, figures, campaigns,
+                artifacts, religion, dedications);
+
+        contents.CopyLimit = CopyLimit(world, settlement, civilization, artifactId, contents.Kind, patron);
+        return contents;
+    }
+
+    /// <summary>
+    /// Continues local and realm chronicles when enough has happened since they were last opened.
+    /// </summary>
+    /// <remarks>
+    /// The engine's own event log is append-only. These are the in-world books: a later court
+    /// adds a dated gathering of recent entries rather than rewriting what an earlier scribe set
+    /// down, so a reader can see both the original account and the update.
+    /// </remarks>
+    public static void Revise(WorldState world, int year)
+    {
+        foreach (Artifact artifact in world.Artifacts)
+        {
+            TomeContents? contents = artifact.TomeContents;
+            if (contents is null
+                || !artifact.IsExtant
+                || contents.Kind is not (TomeContentKind.Annals or TomeContentKind.RealmChronicle))
+            {
+                continue;
+            }
+
+            int last = Math.Max(artifact.CreatedYear, contents.LatestYear);
+            if (year < last + 12) continue;
+
+            IRng rng = world.Root
+                .Fork("tome.revise", artifact.Id.ToDiscriminator())
+                .Fork("year", year);
+
+            if (!world.Settlements.Contains(artifact.HolderId)
+                || !world.Settlements[artifact.HolderId].IsActive)
+            {
+                continue;
+            }
+
+            Settlement seat = world.Settlements[artifact.HolderId];
+            if (!world.Civilizations.Contains(seat.CivilizationId)) continue;
+
+            Civilization civilization = world.Civilizations[seat.CivilizationId];
+            Figure? patron = LivingPatron(world, civilization, artifact);
+            double learning = Scholarliness(world, civilization, patron);
+            if (!rng.Chance(0.10 + (learning * 0.18))) continue;
+
+            TomeSection? continuation = Continuation(
+                world, contents, last, year, rng, learning);
+            if (continuation is null) continue;
+
+            contents.Continue(continuation);
+
+            world.Chronicle.Record(
+                year,
+                EventKind.ArtifactRevised,
+                artifact.Id,
+                obj: patron?.Id ?? EntityId.None,
+                location: seat.Id);
+        }
+    }
+
+    /// <summary>
+    /// A ruler, high priest or house may pay for a particular work this year.
+    /// </summary>
+    public static void Commission(WorldState world, int year)
+    {
+        foreach (Civilization civilization in world.ActiveCivilizations())
+        {
+            if (civilization.CapitalId.IsNone
+                || !world.Settlements.Contains(civilization.CapitalId))
+            {
+                continue;
+            }
+
+            Settlement seat = world.Settlements[civilization.CapitalId];
+            if (!seat.IsActive || seat.Tier < SettlementTier.Town) continue;
+            if (HeldByTown(world, seat.Id) >= 3) continue;
+
+            IRng rng = world.Root.Fork("tome.commission", civilization.Id.ToDiscriminator())
+                .Fork("year", year);
+
+            PatronKind who = rng.NextInt(5) switch
+            {
+                0 => PatronKind.Priest,
+                1 => PatronKind.House,
+                2 => PatronKind.Scribe,
+                3 => PatronKind.Merchant,
+                _ => PatronKind.Ruler,
+            };
+
+            TryCommission(world, civilization, seat, year, rng.Fork("patron"), who);
+        }
+    }
+
+    private static TomeContents Choose(
+        WorldState world,
+        Settlement settlement,
+        Civilization civilization,
+        IRng rng,
+        int year,
+        double learning,
+        List<Figure> figures,
+        List<CampaignRecord> campaigns,
+        List<Artifact> artifacts,
+        Religion? religion,
+        List<HolySite> dedications)
+    {
+        var possible = new List<TomeContentKind>(6);
         if (figures.Count > 0) possible.Add(TomeContentKind.Biography);
         if (campaigns.Count > 0) possible.Add(TomeContentKind.Campaign);
+        if (Travellers(figures, year).Count > 0) possible.Add(TomeContentKind.Itinerary);
 
         if (religion is not null)
         {
@@ -69,30 +193,92 @@ public static class Tomes
             possible.Add(TomeContentKind.ReligiousTeaching);
         }
 
-        // Every town has a history even when it has no recorded ruler or faith.
         possible.Add(TomeContentKind.Annals);
 
-        // Artifact histories are a minority form rather than another equal slot in the main
-        // draw. This leaves lives, campaigns, faith and annals common while still making a
-        // treasury important enough to attract its own account from time to time.
-        TomeContentKind kind = artifacts.Count > 0
-            && rng.Fork("artifact-history").Chance(0.10)
-                ? TomeContentKind.ArtifactHistory
-                : rng.Pick(possible);
-
-        TomeContents contents = kind switch
+        TomeContentKind kind;
+        if (dedications.Count > 0 && rng.Fork("dedication").Chance(0.10))
         {
-            TomeContentKind.Biography => Biography(world, rng.Pick(figures), year),
-            TomeContentKind.Campaign => Campaign(world, rng.Pick(campaigns), year),
-            TomeContentKind.ArtifactHistory => ArtifactHistory(
-                world, rng.Fork("artifact-subject").Pick(artifacts), year),
-            TomeContentKind.ReligiousRite => ReligiousRite(world, religion!, year),
-            TomeContentKind.ReligiousTeaching => ReligiousTeaching(world, religion!, year),
+            kind = TomeContentKind.Dedication;
+        }
+        else if (religion is not null && rng.Fork("cosmology").Chance(0.08 + (learning * 0.08)))
+        {
+            kind = TomeContentKind.Cosmology;
+        }
+        else if (rng.Fork("realm").Chance(0.12))
+        {
+            kind = TomeContentKind.RealmChronicle;
+        }
+        else if (artifacts.Count > 0 && rng.Fork("artifact-history").Chance(0.10 + (learning * 0.08)))
+        {
+            kind = TomeContentKind.ArtifactHistory;
+        }
+        else
+        {
+            kind = rng.Pick(possible);
+        }
+
+        return Write(
+            world, settlement, civilization, rng, year, learning, kind,
+            EntityId.None, EntityId.None, figures, campaigns, artifacts, religion, dedications);
+    }
+
+    private static TomeContents Requested(
+        WorldState world,
+        Settlement settlement,
+        Civilization civilization,
+        IRng rng,
+        int year,
+        double learning,
+        TomeContentKind kind,
+        EntityId subject,
+        EntityId context,
+        List<Figure> figures,
+        List<CampaignRecord> campaigns,
+        List<Artifact> artifacts,
+        Religion? religion,
+        List<HolySite> dedications) =>
+        Write(
+            world, settlement, civilization, rng, year, learning, kind,
+            subject, context, figures, campaigns, artifacts, religion, dedications);
+
+    private static TomeContents Write(
+        WorldState world,
+        Settlement settlement,
+        Civilization civilization,
+        IRng rng,
+        int year,
+        double learning,
+        TomeContentKind kind,
+        EntityId subject,
+        EntityId context,
+        List<Figure> figures,
+        List<CampaignRecord> campaigns,
+        List<Artifact> artifacts,
+        Religion? religion,
+        List<HolySite> dedications)
+    {
+        return kind switch
+        {
+            TomeContentKind.Biography when PickFigure(world, rng, subject, figures) is Figure figure
+                => Biography(world, figure, year, rng, learning),
+            TomeContentKind.Campaign when PickCampaign(world, rng, subject, context, campaigns) is CampaignRecord campaign
+                => Campaign(world, campaign, year, rng, learning),
+            TomeContentKind.ArtifactHistory when PickTreasure(world, rng, subject, artifacts) is Artifact treasure
+                => ArtifactHistory(world, treasure, year),
+            TomeContentKind.ReligiousRite when religion is not null
+                => ReligiousRite(world, religion, year),
+            TomeContentKind.ReligiousTeaching when religion is not null
+                => ReligiousTeaching(world, religion, year),
+            TomeContentKind.Cosmology when religion is not null
+                => Cosmology(world, religion, year, rng, learning),
+            TomeContentKind.Dedication when PickDedication(world, rng, subject, dedications) is HolySite site
+                => Dedication(world, site, year),
+            TomeContentKind.Itinerary when PickTraveller(world, rng, subject, figures, year) is Figure traveller
+                => Itinerary(world, traveller, year),
+            TomeContentKind.RealmChronicle
+                => RealmChronicle(world, civilization, year, rng, learning),
             _ => Annals(world, settlement, civilization, year),
         };
-
-        contents.CopyLimit = CopyLimit(world, settlement, civilization, artifactId, kind);
-        return contents;
     }
 
     /// <summary>
@@ -124,7 +310,7 @@ public static class Tomes
                 .Fork("year", year);
 
             List<Settlement> sources = Sources(world, artifact, contents);
-            if (sources.Count == 0 || !rng.Chance(AnnualCopyChance(contents, sources))) continue;
+            if (sources.Count == 0 || !rng.Chance(AnnualCopyChance(world, contents, sources))) continue;
 
             List<CopyRoute> routes = Routes(world, contents, sources, rng);
             if (routes.Count == 0) continue;
@@ -147,26 +333,37 @@ public static class Tomes
         Settlement settlement,
         Civilization civilization,
         EntityId artifactId,
-        TomeContentKind kind)
+        TomeContentKind kind,
+        Figure? patron)
     {
         CultureValues values = world.CultureOf(civilization).Values;
         IRng rng = world.Root.Fork("tome.circulation", artifactId.ToDiscriminator());
+        double learning = Scholarliness(world, civilization, patron);
 
         double eligibility = 0.62
             + (values.Tradition * 0.10)
-            + (values.Mercantile * 0.08);
+            + (values.Mercantile * 0.08)
+            + (learning * 0.08);
 
         if (IsReligious(kind)) eligibility += 0.08;
-        if (IsBookHub(settlement)) eligibility += 0.06;
+        if (IsBookHub(world, settlement)) eligibility += 0.06;
+        if (HasScriptorium(world, settlement)) eligibility += 0.10;
         if (settlement.Tier == SettlementTier.City) eligibility += 0.04;
         if (settlement.IsCapital) eligibility += 0.03;
+        if (KnowsByWriting(world, settlement)) eligibility += 0.06;
 
-        if (!rng.Chance(DetMath.Clamp(eligibility, 0.50, 0.88))) return 0;
+        if (!rng.Chance(DetMath.Clamp(eligibility, 0.50, 0.92))) return 0;
 
         int limit = 1;
         if (rng.Chance(0.48 + (values.Mercantile * 0.12))) limit++;
         if (rng.Chance(0.18 + (values.Tradition * 0.12))) limit++;
         if (rng.Chance(0.05 + (IsReligious(kind) ? 0.05 : 0.0))) limit++;
+        if (HasScriptorium(world, settlement) && rng.Chance(0.45 + (learning * 0.25))) limit++;
+        if (patron is not null && patron.Disposition.Values.Learning >= 0.72 && rng.Chance(0.40))
+        {
+            limit++;
+        }
+
         return Math.Min(limit, MaximumCopies);
     }
 
@@ -198,19 +395,21 @@ public static class Tomes
         return sources;
     }
 
-    private static double AnnualCopyChance(TomeContents contents, IReadOnlyList<Settlement> sources)
+    private static double AnnualCopyChance(
+        WorldState world, TomeContents contents, IReadOnlyList<Settlement> sources)
     {
         double chance = 0.13 + (IsReligious(contents.Kind) ? 0.03 : 0.0);
 
         foreach (Settlement source in sources)
         {
-            if (IsBookHub(source)) chance += 0.04;
+            if (IsBookHub(world, source)) chance += 0.04;
+            if (HasScriptorium(world, source)) chance += 0.06;
             if (source.IsCapital) chance += 0.02;
             if (source.Tier == SettlementTier.City) chance += 0.02;
-            if (chance >= 0.24) break;
+            if (chance >= 0.32) break;
         }
 
-        return DetMath.Clamp(chance, 0.10, 0.24);
+        return DetMath.Clamp(chance, 0.10, 0.32);
     }
 
     /// <summary>Reachable destinations, strongest historical route first.</summary>
@@ -250,7 +449,8 @@ public static class Tomes
                     + (tradeRoute is not null ? 1.0 + tradeRoute.Traffic : 0.0)
                     + (destination.Tier == SettlementTier.City ? 0.7 : 0.0)
                     + (destination.IsCapital ? 0.4 : 0.0)
-                    + (IsBookHub(destination) ? 0.5 : 0.0)
+                    + (IsBookHub(world, destination) ? 0.5 : 0.0)
+                    + (HasScriptorium(world, destination) ? 0.8 : 0.0)
                     + (1.0 - DetMath.InverseLerp(
                         0.0, Diplomacy.ContactRange * 1.5, distance))
                     + rng.NextDouble(0.0, 0.35);
@@ -297,12 +497,470 @@ public static class Tomes
     }
 
     private static bool IsReligious(TomeContentKind kind) =>
-        kind is TomeContentKind.ReligiousRite or TomeContentKind.ReligiousTeaching;
+        kind is TomeContentKind.ReligiousRite
+            or TomeContentKind.ReligiousTeaching
+            or TomeContentKind.Cosmology
+            or TomeContentKind.Dedication;
 
-    private static bool IsBookHub(Settlement settlement) =>
+    private static bool IsBookHub(WorldState world, Settlement settlement) =>
         settlement.Specialization is SettlementSpecialization.Trade
             or SettlementSpecialization.Crafts
-            or SettlementSpecialization.Shrine;
+            or SettlementSpecialization.Shrine
+        || HasScriptorium(world, settlement);
+
+    /// <summary>A monastery at or beside this town, where copying is ordinary work.</summary>
+    public static bool HasScriptorium(WorldState world, Settlement settlement)
+    {
+        foreach (HolySite site in world.HolySites)
+        {
+            if (site.Kind != HolySiteKind.Monastery || site.FoundedYear > world.Now.Year)
+            {
+                continue;
+            }
+
+            if (site.SettlementId == settlement.Id) return true;
+            if (site.SettlementId.IsNone && site.RegionId == settlement.RegionId) return true;
+        }
+
+        return false;
+    }
+
+    private static bool KnowsByWriting(WorldState world, Settlement settlement)
+    {
+        if (settlement.ReligionId.IsNone || !world.Religions.Contains(settlement.ReligionId))
+        {
+            return false;
+        }
+
+        return world.Religions[settlement.ReligionId].Character.Dogma == DogmaEmphasis.Knowledge;
+    }
+
+    private enum PatronKind
+    {
+        Ruler = 0,
+        Priest = 1,
+        House = 2,
+        Scribe = 3,
+        Merchant = 4,
+    }
+
+    private static void TryCommission(
+        WorldState world,
+        Civilization civilization,
+        Settlement seat,
+        int year,
+        IRng rng,
+        PatronKind who)
+    {
+        Figure? patron = who switch
+        {
+            PatronKind.Priest => Offices.HolderOf(world, civilization, OfficeKind.HighPriest),
+            PatronKind.House => HouseHead(world, civilization, year),
+            PatronKind.Scribe => LivingOf(world, civilization, year, Occupation.Scribe),
+            PatronKind.Merchant => LivingOf(world, civilization, year, Occupation.Merchant),
+            _ => LivingRuler(world, civilization),
+        };
+
+        if (patron is null) return;
+
+        double learning = patron.Disposition.Values.Learning;
+        double piety = patron.Disposition.Values.Piety;
+        double chance = who switch
+        {
+            PatronKind.Priest => 0.006 + (piety * 0.012) + (learning * 0.006),
+            PatronKind.House => 0.004 + (learning * 0.008),
+            PatronKind.Scribe => 0.008 + (learning * 0.016),
+            PatronKind.Merchant => 0.005 + (patron.Disposition.Values.Mercantile * 0.010),
+            _ => 0.005 + (learning * 0.014),
+        };
+
+        if (!rng.Chance(chance)) return;
+
+        TomeContentKind kind;
+        EntityId subject = EntityId.None;
+        EntityId context = EntityId.None;
+
+        if (who == PatronKind.Priest)
+        {
+            Religion? faith = ReligionAt(world, seat, year);
+            List<HolySite> sites = DedicationSubjects(world, seat, year);
+            if (faith is not null && rng.Chance(0.35 + (learning * 0.15)))
+            {
+                kind = TomeContentKind.Cosmology;
+                subject = faith.Id;
+            }
+            else if (sites.Count > 0 && rng.Chance(0.45))
+            {
+                HolySite site = rng.Pick(sites);
+                kind = TomeContentKind.Dedication;
+                subject = site.Id;
+                context = site.Description.DedicateeId;
+            }
+            else if (faith is not null)
+            {
+                kind = rng.Chance(0.5) ? TomeContentKind.ReligiousTeaching : TomeContentKind.ReligiousRite;
+                subject = faith.Id;
+            }
+            else
+            {
+                return;
+            }
+        }
+        else if (who == PatronKind.Merchant)
+        {
+            if (HasJourney(patron, year))
+            {
+                kind = TomeContentKind.Itinerary;
+                subject = patron.Id;
+            }
+            else
+            {
+                kind = TomeContentKind.Biography;
+                subject = patron.Id;
+            }
+        }
+        else if (who == PatronKind.Scribe)
+        {
+            Figure? traveller = FirstTraveller(world, civilization, year);
+            if (traveller is not null && rng.Chance(0.45))
+            {
+                kind = TomeContentKind.Itinerary;
+                subject = traveller.Id;
+            }
+            else
+            {
+                kind = TomeContentKind.Biography;
+                subject = HouseSubject(world, patron);
+            }
+        }
+        else if (who == PatronKind.House && !patron.DynastyId.IsNone)
+        {
+            kind = TomeContentKind.Biography;
+            subject = HouseSubject(world, patron);
+        }
+        else if (learning >= 0.70 && rng.Chance(0.40))
+        {
+            List<CampaignRecord> oldWars = Campaigns(world, civilization, year);
+            if (oldWars.Count > 0 && rng.Chance(0.5))
+            {
+                CampaignRecord campaign = OldestCampaign(oldWars);
+                kind = TomeContentKind.Campaign;
+                subject = campaign.Figure.Id;
+                context = campaign.War.Id;
+            }
+            else
+            {
+                kind = TomeContentKind.RealmChronicle;
+                subject = civilization.Id;
+            }
+        }
+        else if (rng.Chance(0.45) && !patron.Id.IsNone)
+        {
+            kind = TomeContentKind.Biography;
+            subject = patron.Id;
+        }
+        else if (Campaigns(world, civilization, year).Count > 0 && rng.Chance(0.5))
+        {
+            CampaignRecord campaign = rng.Pick(Campaigns(world, civilization, year));
+            kind = TomeContentKind.Campaign;
+            subject = campaign.Figure.Id;
+            context = campaign.War.Id;
+        }
+        else
+        {
+            kind = TomeContentKind.RealmChronicle;
+            subject = civilization.Id;
+        }
+
+        EntityId preview = world.Artifacts.NextId;
+        TomeContents contents = Compose(
+            world, seat, civilization, preview, year, patron, kind, subject, context);
+
+        Treasures.Create(
+            world,
+            seat,
+            ArtifactKind.Tome,
+            patron.Id,
+            IsReligious(kind) ? seat.ReligionId : EntityId.None,
+            year,
+            patron.Id,
+            contents);
+    }
+
+    private static int HeldByTown(WorldState world, EntityId settlementId) =>
+        Treasures.HeldBy(world, settlementId).Count;
+
+    private static Figure? LivingRuler(WorldState world, Civilization civilization)
+    {
+        if (civilization.CurrentRulerId.IsNone || !world.Figures.Contains(civilization.CurrentRulerId))
+        {
+            return null;
+        }
+
+        Figure ruler = world.Figures[civilization.CurrentRulerId];
+        return ruler.IsAlive ? ruler : null;
+    }
+
+    private static Figure? LivingOf(
+        WorldState world, Civilization civilization, int year, Occupation occupation)
+    {
+        Figure? found = null;
+        foreach (Figure figure in world.Figures)
+        {
+            if (!figure.IsAlive || figure.CivilizationId != civilization.Id) continue;
+            if (figure.AgeIn(year) < Succession.MajorityAge) continue;
+            if (figure.Occupation != occupation) continue;
+            if (found is null || figure.Id.CompareTo(found.Id) < 0) found = figure;
+        }
+
+        return found;
+    }
+
+    private static Figure? FirstTraveller(WorldState world, Civilization civilization, int year)
+    {
+        Figure? found = null;
+        foreach (Figure figure in world.Figures)
+        {
+            if (!figure.IsAlive || figure.CivilizationId != civilization.Id) continue;
+            if (!HasJourney(figure, year)) continue;
+            if (found is null || figure.Id.CompareTo(found.Id) < 0) found = figure;
+        }
+
+        return found;
+    }
+
+    private static Figure? LivingPatron(WorldState world, Civilization civilization, Artifact artifact)
+    {
+        if (!artifact.OwnerId.IsNone
+            && world.Figures.Contains(artifact.OwnerId)
+            && world.Figures[artifact.OwnerId].IsAlive)
+        {
+            return world.Figures[artifact.OwnerId];
+        }
+
+        return LivingRuler(world, civilization);
+    }
+
+    private static Figure? HouseHead(WorldState world, Civilization civilization, int year)
+    {
+        if (civilization.RulingDynastyId.IsNone
+            || !world.Dynasties.Contains(civilization.RulingDynastyId))
+        {
+            return null;
+        }
+
+        Dynasty house = world.Dynasties[civilization.RulingDynastyId];
+        Figure? eldest = null;
+        foreach (EntityId id in house.MemberIds)
+        {
+            if (!world.Figures.Contains(id)) continue;
+            Figure member = world.Figures[id];
+            if (!member.IsAlive || member.AgeIn(year) < Succession.MajorityAge) continue;
+            if (member.Id == civilization.CurrentRulerId) continue;
+            if (eldest is null || member.BirthYear < eldest.BirthYear) eldest = member;
+        }
+
+        return eldest;
+    }
+
+    private static EntityId HouseSubject(WorldState world, Figure patron)
+    {
+        if (!world.Dynasties.Contains(patron.DynastyId)) return patron.Id;
+
+        EntityId founder = world.Dynasties[patron.DynastyId].FounderId;
+        return world.Figures.Contains(founder) ? founder : patron.Id;
+    }
+
+    private static CampaignRecord OldestCampaign(List<CampaignRecord> campaigns)
+    {
+        CampaignRecord oldest = campaigns[0];
+        foreach (CampaignRecord campaign in campaigns)
+        {
+            if (campaign.War.StartYear < oldest.War.StartYear) oldest = campaign;
+        }
+
+        return oldest;
+    }
+
+    private static TomeSection? Continuation(
+        WorldState world,
+        TomeContents contents,
+        int since,
+        int year,
+        IRng rng,
+        double learning)
+    {
+        EntityId subject = contents.SubjectId;
+        var entries = new List<HistoryEvent>();
+        foreach (HistoryEvent entry in world.Chronicle.Events)
+        {
+            if (entry.Year <= since || entry.Year > year) continue;
+            if (!entry.References().Contains(subject)) continue;
+            entries.Add(entry);
+        }
+
+        if (entries.Count == 0) return null;
+
+        int first = Math.Max(0, entries.Count - 4);
+        var lines = new List<string>();
+        var refs = new List<EntityId> { subject };
+
+        for (int i = first; i < entries.Count; i++)
+        {
+            HistoryEvent entry = entries[i];
+            string line = entry.Year.ToString(CultureInfo.InvariantCulture) + ": " + world.Narrate(entry);
+            if (Misremembers(rng, learning, year - entry.Year))
+            {
+                line += " The later hand is uncertain of the lesser names.";
+            }
+
+            lines.Add(line);
+            refs.AddRange(entry.References());
+        }
+
+        return Section(
+            "Continuation, " + year.ToString(CultureInfo.InvariantCulture),
+            string.Join(" ", lines),
+            refs) with { Year = year };
+    }
+
+    private static double Scholarliness(WorldState world, Civilization civilization, Figure? patron)
+    {
+        double court = world.ValuesFor(civilization).Learning;
+        return patron is null
+            ? court
+            : DetMath.Clamp01((court * 0.45) + (patron.Disposition.Values.Learning * 0.55));
+    }
+
+    private static bool Misremembers(IRng rng, double learning, int age)
+    {
+        if (age < 25) return false;
+
+        double fidelity = 0.58 + (learning * 0.38) - (Math.Min(age, 180) * 0.0018);
+        return !rng.Fork("memory", age).Chance(DetMath.Clamp(fidelity, 0.22, 0.92));
+    }
+
+    private static Figure? PickFigure(
+        WorldState world, IRng rng, EntityId subject, List<Figure> figures)
+    {
+        if (!subject.IsNone && world.Figures.Contains(subject)) return world.Figures[subject];
+        return figures.Count == 0 ? null : rng.Pick(figures);
+    }
+
+    private static Figure? PickTraveller(
+        WorldState world, IRng rng, EntityId subject, List<Figure> figures, int year)
+    {
+        if (!subject.IsNone && world.Figures.Contains(subject) && HasJourney(world.Figures[subject], year))
+        {
+            return world.Figures[subject];
+        }
+
+        List<Figure> travellers = Travellers(figures, year);
+        return travellers.Count == 0 ? null : rng.Pick(travellers);
+    }
+
+    private static List<Figure> Travellers(List<Figure> figures, int year)
+    {
+        var travellers = new List<Figure>();
+        foreach (Figure figure in figures)
+        {
+            if (HasJourney(figure, year)) travellers.Add(figure);
+        }
+
+        return travellers;
+    }
+
+    private static bool HasJourney(Figure figure, int year)
+    {
+        foreach (Journey journey in figure.Journeys)
+        {
+            if (journey.Year <= year) return true;
+        }
+
+        return false;
+    }
+
+    private static List<Journey> JourneysBy(Figure figure, int year)
+    {
+        var trips = new List<Journey>();
+        foreach (Journey journey in figure.Journeys)
+        {
+            if (journey.Year <= year) trips.Add(journey);
+        }
+
+        return trips;
+    }
+
+    private static CampaignRecord? PickCampaign(
+        WorldState world, IRng rng, EntityId subject, EntityId context, List<CampaignRecord> campaigns)
+    {
+        CampaignRecord? requested = SubjectCampaign(world, subject, context, campaigns);
+        if (!subject.IsNone || !context.IsNone) return requested;
+        return campaigns.Count == 0 ? null : rng.Pick(campaigns);
+    }
+
+    private static Artifact? PickTreasure(
+        WorldState world, IRng rng, EntityId subject, List<Artifact> artifacts)
+    {
+        if (!subject.IsNone && world.Artifacts.Contains(subject)) return world.Artifacts[subject];
+        return artifacts.Count == 0 ? null : rng.Fork("artifact-subject").Pick(artifacts);
+    }
+
+    private static HolySite? PickDedication(
+        WorldState world, IRng rng, EntityId subject, List<HolySite> dedications)
+    {
+        if (!subject.IsNone && world.HolySites.Contains(subject)) return world.HolySites[subject];
+        return dedications.Count == 0 ? null : rng.Pick(dedications);
+    }
+
+    private static CampaignRecord? SubjectCampaign(
+        WorldState world, EntityId subject, EntityId context, List<CampaignRecord> campaigns)
+    {
+        foreach (CampaignRecord campaign in campaigns)
+        {
+            if ((subject.IsNone || campaign.Figure.Id == subject)
+                && (context.IsNone || campaign.War.Id == context))
+            {
+                return campaign;
+            }
+        }
+
+        if (!subject.IsNone && world.Figures.Contains(subject) && !context.IsNone && world.Wars.Contains(context))
+        {
+            var record = new CampaignRecord(world.Figures[subject], world.Wars[context]);
+            foreach (EntityId battleId in world.Wars[context].BattleIds)
+            {
+                if (!world.Battles.Contains(battleId)) continue;
+                Battle battle = world.Battles[battleId];
+                if (battle.AttackerCommanderId == subject || battle.DefenderCommanderId == subject)
+                {
+                    record.Battles.Add(battle);
+                }
+            }
+
+            return record.Battles.Count == 0 ? null : record;
+        }
+
+        return campaigns.Count == 0 ? null : campaigns[0];
+    }
+
+    private static List<HolySite> DedicationSubjects(
+        WorldState world, Settlement settlement, int year)
+    {
+        var sites = new List<HolySite>();
+        foreach (HolySite site in world.HolySites)
+        {
+            if (site.FoundedYear > year) continue;
+            if (site.ReligionId != settlement.ReligionId && site.SettlementId != settlement.Id)
+            {
+                continue;
+            }
+
+            sites.Add(site);
+        }
+
+        return sites;
+    }
 
     // -----------------------------------------------------------------------
     // Subjects
@@ -442,7 +1100,8 @@ public static class Tomes
     // Lives and campaigns
     // -----------------------------------------------------------------------
 
-    private static TomeContents Biography(WorldState world, Figure figure, int year)
+    private static TomeContents Biography(
+        WorldState world, Figure figure, int year, IRng rng, double learning)
     {
         var sections = new List<TomeSection>();
         var origins = new List<EntityId> { figure.Id };
@@ -551,14 +1210,94 @@ public static class Tomes
             sections.Add(Section("Wars", deeds, References(new[] { figure.Id }.Concat(wars))));
         }
 
+        List<Journey> trips = JourneysBy(figure, year);
+        if (trips.Count > 0)
+        {
+            var places = new List<EntityId> { figure.Id };
+            var legs = new List<string>(trips.Count);
+            foreach (Journey trip in trips)
+            {
+                legs.Add(world.NameOf(trip.ToSettlementId) + " in "
+                         + trip.Year.ToString(CultureInfo.InvariantCulture));
+                places.Add(trip.ToSettlementId);
+            }
+
+            sections.Add(Section(
+                "Travels",
+                Subject(figure) + " was recorded on the road to " + Join(legs) + ".",
+                places));
+        }
+
+        if (figure.DeathYear is int died
+            && year - died >= 40
+            && Misremembers(rng, learning, year - died))
+        {
+            sections.Add(Section(
+                "Later memory",
+                "Scribes writing long after "
+                    + figure.FullName
+                    + "'s death disagree about the lesser offices "
+                    + Subject(figure).ToLowerInvariant()
+                    + " held, and some place events a handful of years from where the older record puts them.",
+                figure.Id));
+        }
+
         return new TomeContents(
             TomeContentKind.Biography,
             figure.Id,
             EntityId.None,
-            sections);
+            sections,
+            year);
     }
 
-    private static TomeContents Campaign(WorldState world, CampaignRecord record, int year)
+    private static TomeContents Itinerary(WorldState world, Figure figure, int year)
+    {
+        List<Journey> trips = JourneysBy(figure, year);
+        var refs = new List<EntityId> { figure.Id };
+        var lines = new List<string>();
+
+        foreach (Journey trip in trips)
+        {
+            string purpose = trip.Kind switch
+            {
+                JourneyKind.Trade => "on trade",
+                JourneyKind.Pilgrimage => "on pilgrimage",
+                JourneyKind.Mission => "on a clerical errand",
+                _ => "as a guest",
+            };
+
+            lines.Add(
+                "In " + trip.Year.ToString(CultureInfo.InvariantCulture) + " "
+                + Subject(figure).ToLowerInvariant() + " went from "
+                + world.NameOf(trip.FromSettlementId) + " to "
+                + world.NameOf(trip.ToSettlementId) + ", " + purpose + ".");
+            refs.Add(trip.FromSettlementId);
+            refs.Add(trip.ToSettlementId);
+            if (!trip.ViaId.IsNone) refs.Add(trip.ViaId);
+        }
+
+        if (lines.Count == 0)
+        {
+            lines.Add(Subject(figure) + " kept a book of travels, though no journey had yet been entered.");
+        }
+
+        return new TomeContents(
+            TomeContentKind.Itinerary,
+            figure.Id,
+            EntityId.None,
+            new[]
+            {
+                Section(
+                    "Itinerary",
+                    "This is a book of the roads " + figure.FullName + " took. "
+                    + string.Join(" ", lines),
+                    refs),
+            },
+            year);
+    }
+
+    private static TomeContents Campaign(
+        WorldState world, CampaignRecord record, int year, IRng rng, double learning)
     {
         Figure figure = record.Figure;
         War war = record.War;
@@ -623,12 +1362,24 @@ public static class Tomes
             int dead = ledAttackers ? battle.AttackerLosses : battle.DefenderLosses;
             string result = battle.VictorId == side ? "prevailed" : "was defeated";
 
+            int toldYear = battle.Year;
+            int toldStrength = strength;
+            int toldDead = dead;
+            if (Misremembers(rng, learning, year - battle.Year))
+            {
+                toldYear += rng.NextInt(-MemoryDriftYears, MemoryDriftYears + 1);
+                if (toldYear < war.StartYear) toldYear = war.StartYear;
+                if (toldYear > year) toldYear = year;
+                toldStrength = Math.Max(1, (int)(strength * rng.NextDouble(0.7, 1.45)));
+                toldDead = Math.Max(0, (int)(dead * rng.NextDouble(0.6, 1.55)));
+            }
+
             entries.Add(
                 "At the " + battle.Name + " in "
-                + battle.Year.ToString(CultureInfo.InvariantCulture) + ", "
+                + toldYear.ToString(CultureInfo.InvariantCulture) + ", "
                 + Subject(figure).ToLowerInvariant() + " led "
-                + strength.ToString("N0", CultureInfo.InvariantCulture) + " and " + result
-                + "; " + dead.ToString("N0", CultureInfo.InvariantCulture)
+                + toldStrength.ToString("N0", CultureInfo.InvariantCulture) + " and " + result
+                + "; " + toldDead.ToString("N0", CultureInfo.InvariantCulture)
                 + " of the force were lost"
                 + (battle.Sacked ? ", and the settlement was sacked" : string.Empty));
 
@@ -659,7 +1410,7 @@ public static class Tomes
 
         sections.Add(Section("Aftermath", aftermath, aftermathRefs));
 
-        return new TomeContents(TomeContentKind.Campaign, figure.Id, war.Id, sections);
+        return new TomeContents(TomeContentKind.Campaign, figure.Id, war.Id, sections, year);
     }
 
     private static List<CampaignRecord> CampaignsForFigure(
@@ -777,7 +1528,8 @@ public static class Tomes
                 Section("Making", making, references),
                 Section("Recorded journey", string.Join(" ", journey), references),
                 Section("Last record", lastRecord, references),
-            });
+            },
+            year);
     }
 
     private static string ArtifactPurpose(
@@ -835,6 +1587,10 @@ public static class Tomes
             TomeContentKind.ReligiousRite => "a body of rites",
             TomeContentKind.ReligiousTeaching => "religious teaching",
             TomeContentKind.ArtifactHistory => "the history of another artifact",
+            TomeContentKind.Cosmology => "an account of the heavens",
+            TomeContentKind.Dedication => "a dedication",
+            TomeContentKind.RealmChronicle => "a chronicle of the realm",
+            TomeContentKind.Itinerary => "an itinerary",
             _ => "local annals",
         };
 
@@ -857,7 +1613,7 @@ public static class Tomes
     }
 
     // -----------------------------------------------------------------------
-    // Faith
+    // Faith, cosmos and dedications
     // -----------------------------------------------------------------------
 
     private static TomeContents ReligiousRite(WorldState world, Religion religion, int year)
@@ -879,7 +1635,8 @@ public static class Tomes
                 ReligionOrigins(world, religion, year),
                 Section(name, observance, religion.Id),
                 Section("Offering and purpose", offering, religion.Id),
-            });
+            },
+            year);
     }
 
     private static string[] RiteNames(FaithCharacter faith) => faith.Festival switch
@@ -1021,7 +1778,8 @@ public static class Tomes
                 ReligionOrigins(world, religion, year),
                 Section("First principle", authority + lore.Pick(Teachings(faith)), religion.Id),
                 Section("Instruction", lore.Pick(Instructions(faith)), religion.Id),
-            });
+            },
+            year);
     }
 
     private static string[] Teachings(FaithCharacter faith) => faith.Dogma switch
@@ -1146,6 +1904,150 @@ public static class Tomes
         return Section("Origins", text, references);
     }
 
+    private static TomeContents Cosmology(
+        WorldState world, Religion religion, int year, IRng rng, double learning)
+    {
+        WorldFlavour flavour = world.Flavour;
+        WorldCosmology sky = flavour.Cosmology;
+        FaithCharacter faith = religion.Character;
+        var references = new List<EntityId> { religion.Id };
+
+        string seat = flavour.Kind == WorldKind.Moon
+            ? flavour.Name + " is taught as a lesser body circling " + (flavour.ParentName ?? "a greater world")
+            : flavour.Name + " is taught as a world set in its own course";
+
+        string lights = "The greater light returns in "
+                        + sky.OrbitalPeriodDays.ToString("0", CultureInfo.InvariantCulture)
+                        + " days, and the faithful mark "
+                        + FaithCharacters.Label(faith.Festival)
+                        + " by that turning.";
+
+        if (Misremembers(rng, learning, Math.Max(8, year - religion.FoundedYear)))
+        {
+            lights = "Later teachers disagree about the count of days in the greater turning, "
+                     + "and some name a second light that the older rite never counted.";
+        }
+
+        string order = faith.Deity switch
+        {
+            DeityStructure.Monotheistic =>
+                "The " + religion.Name + " holds that one will set the lights in their places.",
+            DeityStructure.Pantheistic =>
+                "The " + religion.Name + " holds that the world and the lights are of one substance.",
+            DeityStructure.Animistic =>
+                "The " + religion.Name + " holds that each light has its own spirit, as woods and rivers do.",
+            _ =>
+                "The " + religion.Name + " holds that several powers share the keeping of the sky.",
+        };
+
+        return new TomeContents(
+            TomeContentKind.Cosmology,
+            religion.Id,
+            EntityId.None,
+            new[]
+            {
+                ReligionOrigins(world, religion, year),
+                Section("The world", seat + ". " + world.Flavour.Designation + " is the name the scribes use.", references),
+                Section("The lights", lights, religion.Id),
+                Section("Teaching", order, religion.Id),
+            },
+            year);
+    }
+
+    private static TomeContents Dedication(WorldState world, HolySite site, int year)
+    {
+        HolySiteDescription described = site.Description;
+        var references = new List<EntityId> { site.Id, site.ReligionId };
+
+        string raised = site.Name + " was established in "
+                        + site.FoundedYear.ToString(CultureInfo.InvariantCulture)
+                        + " for the " + world.NameOf(site.ReligionId)
+                        + ". It is a " + site.Kind.ToString().ToLowerInvariant()
+                        + ", raised for " + described.Dedication + ".";
+
+        if (!described.DedicateeId.IsNone && world.Figures.Contains(described.DedicateeId))
+        {
+            references.Add(described.DedicateeId);
+            Figure dedicatee = world.Figures[described.DedicateeId];
+            raised += " The living record names " + dedicatee.FullName + ".";
+        }
+
+        if (site.IsWithinSettlement)
+        {
+            references.Add(site.SettlementId);
+            raised += " It stands at " + world.NameOf(site.SettlementId) + ".";
+        }
+
+        string observance = described.Atmosphere + " " + described.Offering;
+
+        return new TomeContents(
+            TomeContentKind.Dedication,
+            site.Id,
+            described.DedicateeId,
+            new[]
+            {
+                Section("The place", raised, references),
+                Section("Observance", observance, site.Id, site.ReligionId),
+            },
+            year);
+    }
+
+    private static TomeContents RealmChronicle(
+        WorldState world, Civilization civilization, int year, IRng rng, double learning)
+    {
+        string founding = civilization.Name + " was founded in "
+                          + civilization.FoundedYear.ToString(CultureInfo.InvariantCulture)
+                          + ".";
+        var refs = new List<EntityId> { civilization.Id };
+        if (!civilization.CurrentRulerId.IsNone)
+        {
+            refs.Add(civilization.CurrentRulerId);
+            founding += " At the writing of this chronicle its ruler was "
+                        + world.NameOf(civilization.CurrentRulerId) + ".";
+        }
+
+        var entries = new List<HistoryEvent>();
+        foreach (HistoryEvent entry in world.Chronicle.Events)
+        {
+            if (entry.Year <= year && entry.References().Contains(civilization.Id)) entries.Add(entry);
+        }
+
+        int first = Math.Max(0, entries.Count - 5);
+        var lines = new List<string>();
+        var eventRefs = new List<EntityId> { civilization.Id };
+
+        for (int i = first; i < entries.Count; i++)
+        {
+            HistoryEvent entry = entries[i];
+            string line = entry.Year.ToString(CultureInfo.InvariantCulture) + ": " + world.Narrate(entry);
+            if (Misremembers(rng, learning, year - entry.Year))
+            {
+                int drifted = entry.Year + rng.NextInt(-3, 4);
+                if (drifted < civilization.FoundedYear) drifted = civilization.FoundedYear;
+                if (drifted > year) drifted = year;
+                line = drifted.ToString(CultureInfo.InvariantCulture)
+                       + ": " + world.Narrate(entry)
+                       + " Later copies disagree about the year.";
+            }
+
+            lines.Add(line);
+            eventRefs.AddRange(entry.References());
+        }
+
+        if (lines.Count == 0) lines.Add("No event beyond the realm's founding was recorded.");
+
+        return new TomeContents(
+            TomeContentKind.RealmChronicle,
+            civilization.Id,
+            EntityId.None,
+            new[]
+            {
+                Section("The realm", founding, refs),
+                Section("Selected entries", string.Join(" ", lines), eventRefs),
+            },
+            year);
+    }
+
     // -----------------------------------------------------------------------
     // Local annals
     // -----------------------------------------------------------------------
@@ -1198,7 +2100,8 @@ public static class Tomes
                 Section("Foundation", founding, settlement.Id, civilization.Id, settlement.RegionId),
                 Section("The place", character, characterRefs),
                 Section("Selected entries", string.Join(" ", lines), eventRefs),
-            });
+            },
+            year);
     }
 
     // -----------------------------------------------------------------------

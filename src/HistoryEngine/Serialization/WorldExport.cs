@@ -622,6 +622,7 @@ public sealed record ExportArtifact(
     ExportTomeContents? TomeContents,
     int CreatedYear,
     EntityId? HolderId,
+    EntityId? OwnerId,
     int? LostYear,
     IReadOnlyList<ExportProvenance> Provenance);
 
@@ -644,10 +645,11 @@ public sealed record ExportTomeCopy(
 public sealed record ExportTomeSection(
     string Heading,
     string Text,
-    IReadOnlyList<EntityId> References);
+    IReadOnlyList<EntityId> References,
+    int Year);
 
 /// <summary>Where an artifact was, from a given year, and how it got there.</summary>
-public sealed record ExportProvenance(int Year, EntityId? SettlementId, string How);
+public sealed record ExportProvenance(int Year, EntityId? SettlementId, EntityId? OwnerId, string How);
 
 /// <summary>
 /// One person, with enough of the family tree attached to draw it.

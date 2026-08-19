@@ -28,13 +28,23 @@ public enum TomeContentKind
     ReligiousTeaching = 3,
     Annals = 4,
     ArtifactHistory = 5,
+    Cosmology = 6,
+    Dedication = 7,
+    RealmChronicle = 8,
+    Itinerary = 9,
 }
 
 /// <summary>One passage in a tome, with the entities a reader can follow from it.</summary>
+/// <param name="Year">
+/// When this passage was written. Later continuations keep the original sections and add new
+/// ones dated to the year they were entered, so a chronicle can be updated without rewriting
+/// what an earlier scribe put down.
+/// </param>
 public sealed record TomeSection(
     string Heading,
     string Text,
-    IReadOnlyList<EntityId> References);
+    IReadOnlyList<EntityId> References,
+    int Year = 0);
 
 /// <summary>A copy made in another settlement from an exemplar already available there.</summary>
 /// <remarks>
@@ -61,12 +71,20 @@ public sealed class TomeContents
         TomeContentKind kind,
         EntityId subjectId,
         EntityId contextId,
-        IReadOnlyList<TomeSection> sections)
+        IReadOnlyList<TomeSection> sections,
+        int year = 0)
     {
         Kind = kind;
         SubjectId = subjectId;
         ContextId = contextId;
-        Sections = sections;
+
+        var stamped = new List<TomeSection>(sections.Count);
+        foreach (TomeSection section in sections)
+        {
+            stamped.Add(section.Year == 0 && year > 0 ? section with { Year = year } : section);
+        }
+
+        Sections = stamped;
     }
 
     public TomeContentKind Kind { get; }
@@ -75,7 +93,32 @@ public sealed class TomeContents
 
     public EntityId ContextId { get; }
 
-    public IReadOnlyList<TomeSection> Sections { get; }
+    public List<TomeSection> Sections { get; }
+
+    /// <summary>The latest year any passage in this work was entered.</summary>
+    public int LatestYear
+    {
+        get
+        {
+            int latest = 0;
+            foreach (TomeSection section in Sections)
+            {
+                if (section.Year > latest) latest = section.Year;
+            }
+
+            return latest;
+        }
+    }
+
+    internal void Continue(TomeSection section)
+    {
+        if (section.Year == 0)
+        {
+            throw new InvalidOperationException("A continuation must be dated.");
+        }
+
+        Sections.Add(section);
+    }
 
     /// <summary>Maximum number of additional settlement copies this work may produce.</summary>
     public int CopyLimit { get; internal set; }
@@ -154,23 +197,22 @@ public static class ArtifactKinds
     };
 }
 
-/// <summary>Where an artifact was, from a given year, and how it got there.</summary>
-public sealed record ArtifactHolding(int Year, EntityId SettlementId, string How);
+/// <summary>Where an artifact was, who claimed it, from a given year, and how it got there.</summary>
+public sealed record ArtifactHolding(int Year, EntityId SettlementId, EntityId OwnerId, string How);
 
 /// <summary>
 /// A made thing that outlives whoever made it.
 /// </summary>
 /// <remarks>
-/// <para><b>Artifacts are held by settlements, not by people.</b> A crown carried by a king is the
-/// more romantic model and a worse one: every death would need a rule for where the thing went,
-/// and most of those rules would be arbitrary. A treasury sits in a place, and that place can be
-/// sacked, abandoned or ceded — which is what makes an artifact a way of reading the map's
-/// history rather than an inventory line. The person who made it is recorded and does not have
-/// to still be alive for the object to matter.</para>
+/// <para><b>A thing sits in a place and belongs to a person.</b> The settlement is where it can
+/// be sacked, abandoned or copied; the owner is who can inherit it, gift it, or commission its
+/// like. Treating those as one id made succession arbitrary and left famous objects as inventory
+/// lines on towns. They travel together when a court moves and come apart when a treasury keeps
+/// what a dead owner no longer claims.</para>
 ///
-/// <para><b>Provenance is the point.</b> Every move is appended, never overwritten, so an object
-/// that was made in one realm, looted into a second and lost when a third burned the place down
-/// carries all three facts — which is a great deal of history in one page.</para>
+/// <para><b>Provenance is the point.</b> Every change of place or owner is appended, never
+/// overwritten, so an object made for one ruler, inherited by a second and looted into a third
+/// realm carries all three facts — which is a great deal of history in one page.</para>
 /// </remarks>
 public sealed class Artifact
 {
@@ -179,7 +221,8 @@ public sealed class Artifact
         string name,
         ArtifactKind kind,
         EntityId originSettlementId,
-        int createdYear)
+        int createdYear,
+        EntityId ownerId = default)
     {
         Id = id;
         Name = name;
@@ -187,7 +230,11 @@ public sealed class Artifact
         OriginSettlementId = originSettlementId;
         CreatedYear = createdYear;
         HolderId = originSettlementId;
-        Provenance = new List<ArtifactHolding> { new(createdYear, originSettlementId, "where it was made") };
+        OwnerId = ownerId;
+        Provenance = new List<ArtifactHolding>
+        {
+            new(createdYear, originSettlementId, ownerId, "where it was made"),
+        };
     }
 
     public EntityId Id { get; }
@@ -209,27 +256,46 @@ public sealed class Artifact
 
     public int CreatedYear { get; }
 
-    /// <summary>The settlement holding it now. <see cref="EntityId.None"/> once it is lost.</summary>
+    /// <summary>The settlement keeping it now. <see cref="EntityId.None"/> once it is lost.</summary>
     public EntityId HolderId { get; set; }
+
+    /// <summary>
+    /// The living person who claims it, or none while it sits in a treasury.
+    /// </summary>
+    public EntityId OwnerId { get; set; }
 
     public int? LostYear { get; set; }
 
     public bool IsExtant => LostYear is null;
 
-    /// <summary>Everywhere it has been, oldest first.</summary>
+    /// <summary>Everywhere it has been, and who claimed it, oldest first.</summary>
     public List<ArtifactHolding> Provenance { get; }
 
-    public void MoveTo(EntityId settlementId, int year, string how)
+    /// <summary>
+    /// Records a change of place, owner, or both. A no-op is refused so provenance never
+    /// contains a journey the object did not make.
+    /// </summary>
+    public void Transfer(EntityId settlementId, EntityId ownerId, int year, string how)
     {
+        if (HolderId == settlementId && OwnerId == ownerId)
+        {
+            throw new InvalidOperationException("An artifact cannot arrive where its owner already keeps it.");
+        }
+
         HolderId = settlementId;
-        Provenance.Add(new ArtifactHolding(year, settlementId, how));
+        OwnerId = ownerId;
+        Provenance.Add(new ArtifactHolding(year, settlementId, ownerId, how));
     }
+
+    public void MoveTo(EntityId settlementId, int year, string how) =>
+        Transfer(settlementId, OwnerId, year, how);
 
     public void Lose(int year, string how)
     {
         HolderId = EntityId.None;
+        OwnerId = EntityId.None;
         LostYear = year;
-        Provenance.Add(new ArtifactHolding(year, EntityId.None, how));
+        Provenance.Add(new ArtifactHolding(year, EntityId.None, EntityId.None, how));
     }
 
     public override string ToString() => $"{Id} {Name}";

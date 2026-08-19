@@ -89,15 +89,31 @@ public sealed class ArtifactSystem : ISystem
                     ? civilization.CurrentRulerId
                     : EntityId.None;
 
+                EntityId owner = LivingPatron(civilization, world);
+
                 EntityId faith = kind is ArtifactKind.Relic or ArtifactKind.Idol
                     ? settlement.ReligionId
                     : EntityId.None;
 
-                Treasures.Create(world, settlement, kind, creator, faith, year);
+                Treasures.Create(world, settlement, kind, creator, faith, year, owner);
             }
         }
 
+        Tomes.Commission(world, year);
+        Treasures.SettleEstates(world, year);
         Tomes.Distribute(world, year);
+        Tomes.Revise(world, year);
+    }
+
+    private static EntityId LivingPatron(Civilization civilization, WorldState world)
+    {
+        if (civilization.CurrentRulerId.IsNone || !world.Figures.Contains(civilization.CurrentRulerId))
+        {
+            return EntityId.None;
+        }
+
+        Figure ruler = world.Figures[civilization.CurrentRulerId];
+        return ruler.IsAlive ? ruler.Id : EntityId.None;
     }
 
     /// <summary>How much a settlement's character and its realm's inclinations incline it to make things.</summary>

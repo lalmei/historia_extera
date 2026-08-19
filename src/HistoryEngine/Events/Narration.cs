@@ -165,13 +165,15 @@ public static class Narration
         Set(EventKind.ArtifactClaimed,
             "{subject} was yielded to {object}[ at {location}] as a term of peace.");
         Set(EventKind.ArtifactGiven,
-            "{subject} was given[ to {object}][ at {location}].");
+            "{subject} was given[ to {object}][ at {location}][, {data:manner}].");
         Set(EventKind.ArtifactFound,
             "{subject} was found[ at {location}][ by {object}].");
         Set(EventKind.ArtifactDestroyed,
             "{subject} was destroyed[ at {location}][, {data:cause}].");
         Set(EventKind.ArtifactRecovered,
             "{subject} was recovered[ at {location}][ by {object}].");
+        Set(EventKind.ArtifactRevised,
+            "{subject} was continued[ at {location}][ under {object}].");
 
         Set(EventKind.PlagueBegan,
             "The {data:name} broke out in {subject}[, carrying off {data:lost} people].");
