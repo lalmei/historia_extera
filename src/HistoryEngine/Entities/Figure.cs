@@ -167,6 +167,8 @@ public sealed class Figure
         Sex = sex;
         BirthYear = birthYear;
         Offices = new List<OfficeHolding>();
+        Campaigns = new List<CampaignMemory>();
+        Journeys = new List<Journey>();
         ChildIds = new List<EntityId>();
         SpouseIds = new List<EntityId>();
     }
@@ -265,8 +267,42 @@ public sealed class Figure
     /// </remarks>
     public Disposition Disposition { get; init; } = Disposition.Neutral;
 
+    /// <summary>
+    /// How they spend their life, once the chronicle is following them.
+    /// </summary>
+    /// <remarks>
+    /// <para>Empty until majority. A child has no trade, and inventing one at birth would
+    /// pretend the chronicle knew a fact it does not. Raised notables arrive already grown
+    /// and take the career the office implies; children of a recorded household choose from
+    /// their disposition the year they come of age. See <see cref="World.Occupations"/>.</para>
+    ///
+    /// <para>Kept on the figure rather than derived from offices, because most people the
+    /// chronicle follows never hold one, and the whole point of recording a governor's
+    /// children is that they have a life the next vacancy can draw from.</para>
+    /// </remarks>
+    public Occupation Occupation { get; set; } = Occupation.None;
+
+    /// <summary>
+    /// The career they return to when an office ends, if they live. Empty until a posting
+    /// actually changed what they did, and cleared when they have gone back.
+    /// </summary>
+    public Occupation PriorOccupation { get; set; } = Occupation.None;
+
     /// <summary>Every office this figure has ever held, in the order they were granted.</summary>
     public List<OfficeHolding> Offices { get; }
+
+    /// <summary>
+    /// Wars and engagements this person stood in, in the order they were recorded.
+    /// </summary>
+    /// <remarks>
+    /// A soldier is remembered for the battles they reached, a ruler for the wars their realm
+    /// fought, and anyone living in an invested town for the siege itself. Commanders were
+    /// already named on the battle; this is how the rest of a life keeps the same facts.
+    /// </remarks>
+    public List<CampaignMemory> Campaigns { get; }
+
+    /// <summary>Trips they made and came back from, in the order they were recorded.</summary>
+    public List<Journey> Journeys { get; }
 
     public EntityId MotherId { get; set; } = EntityId.None;
 

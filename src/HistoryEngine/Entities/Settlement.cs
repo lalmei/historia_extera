@@ -216,6 +216,17 @@ public sealed class Settlement
     public bool IsCapital { get; set; }
 
     /// <summary>
+    /// How the place's recent past sits on it: what it has suffered, lost and held lately.
+    /// </summary>
+    /// <remarks>
+    /// The same four measures a realm carries, written by the same systems at the moment they
+    /// happen — a sack, a plague, a siege, an occupation — and faded once a year with the
+    /// realm's. They do not shift anyone's values; they are sampled so a reader can see a
+    /// town's own years rather than only its owner's.
+    /// </remarks>
+    public RealmFortunes Fortunes { get; } = new();
+
+    /// <summary>
     /// What the ground it stands on was chosen for.
     /// </summary>
     /// <remarks>

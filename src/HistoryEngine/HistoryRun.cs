@@ -60,8 +60,16 @@ public sealed class HistoryRun
     /// order is folded into the run's identity, so a custom list produces a legitimately
     /// different history rather than a comparable one.
     /// </param>
+    /// <param name="onYear">
+    /// Optional progress hook. Invoked with <c>(0, endYear)</c> after worldgen, then with each
+    /// simulated year. The CLI uses this to stream a progress line; tests leave it null so a
+    /// run's stdout stays the export itself.
+    /// </param>
     public static HistoryRun Execute(
-        WorldConfig config, ITerrainSampler? inner = null, Simulator? simulator = null)
+        WorldConfig config,
+        ITerrainSampler? inner = null,
+        Simulator? simulator = null,
+        Action<int, int>? onYear = null)
     {
         config.Validate();
 
@@ -72,8 +80,9 @@ public sealed class HistoryRun
         var stopwatch = Stopwatch.StartNew();
 
         WorldState world = WorldBuilder.Create(config, counter);
+        onYear?.Invoke(0, world.EndYear);
         simulator ??= new Simulator();
-        simulator.Run(world);
+        simulator.Run(world, onYear);
 
         stopwatch.Stop();
 

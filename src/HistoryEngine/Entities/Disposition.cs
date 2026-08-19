@@ -19,8 +19,13 @@ namespace HistoryEngine.Entities;
 /// both together set how far a reign can drift, and a wide spread against a small latitude
 /// produces distinct rulers who move their realms a little, where the reverse produces
 /// indistinguishable rulers who move them a lot.</para>
+///
+    /// <para><see cref="Independence"/> is the follower–rebel axis: how far this person lets that
+    /// culture actually govern their choices. Followers are the common case and rebels the tail,
+    /// because a people that produced them in equal number would not hold together. A child's
+    /// occupation is chosen from a blend of people and person.</para>
 /// </remarks>
-public sealed record Disposition(CultureValues Values, double Centralism)
+public sealed record Disposition(CultureValues Values, double Centralism, double Independence = 0.5)
 {
     /// <summary>
     /// Inclinations that pull nowhere. The default on <see cref="Figure.Disposition"/>.
@@ -31,13 +36,21 @@ public sealed record Disposition(CultureValues Values, double Centralism)
     /// does", which is exactly what blending toward the midpoint at low latitude produces.
     /// </remarks>
     public static readonly Disposition Neutral =
-        new(new CultureValues(0.5, 0.5, 0.5, 0.5, 0.5, 0.5), 0.5);
+        new(new CultureValues(0.5, 0.5, 0.5, 0.5, 0.5, 0.5), 0.5, 0.5);
 
     /// <summary>How far a person's dial may sit from their culture's, before clamping.</summary>
     private const double Spread = 0.5;
 
     /// <summary>How far a person's <see cref="Centralism"/> may sit from their government's norm.</summary>
     private const double CentralismSpread = 0.25;
+
+    /// <summary>Lowest independence anyone is raised with — still a follower, not a blank.</summary>
+    private const double IndependenceFloor = 0.04;
+
+    /// <summary>How far the rebel tail can reach, in a restless people and a customary one.</summary>
+    private const double IndependenceRangeRestless = 0.78;
+
+    private const double IndependenceRangeCustomary = 0.48;
 
     /// <summary>
     /// Rolls inclinations for someone born into <paramref name="culture"/>.
@@ -64,7 +77,8 @@ public sealed record Disposition(CultureValues Values, double Centralism)
                 Learning: Dial(theirs.Learning, rng)),
             Centralism: DetMath.Clamp01(
                 CentralismNorm(culture.Government)
-                + rng.NextDouble(-CentralismSpread, CentralismSpread)));
+                + rng.NextDouble(-CentralismSpread, CentralismSpread)),
+            Independence: RollIndependence(culture, rng));
 
         return faith is null ? rolled : rolled.TintedBy(faith);
     }
@@ -84,8 +98,20 @@ public sealed record Disposition(CultureValues Values, double Centralism)
 
         return new Disposition(
             Values.BlendToward(faith.Inclines(), pull),
-            DetMath.Clamp01(DetMath.Lerp(Centralism, faith.OfficeInclination(), pull)));
+            DetMath.Clamp01(DetMath.Lerp(Centralism, faith.OfficeInclination(), pull)),
+            Independence);
     }
+
+    /// <summary>
+    /// This person's own reading of the culture's dials, pulled as far as they will go.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Independence"/> is the blend: a follower keeps what their people hold, a rebel
+    /// answers with their own inclinations. Occupation is chosen this way, so the dial is not a
+    /// label on a page.
+    /// </remarks>
+    public CultureValues Decides(CultureValues cultural) =>
+        cultural.BlendToward(Values, Independence);
 
     private static double Dial(double cultural, IRng rng) =>
         DetMath.Clamp01(cultural + rng.NextDouble(-Spread, Spread));
@@ -108,4 +134,32 @@ public sealed record Disposition(CultureValues Values, double Centralism)
         GovernmentForm.Republic => 0.30,
         _ => 0.45,
     };
+
+    /// <summary>
+    /// How independently a person of this culture is raised, on average.
+    /// </summary>
+    /// <remarks>
+    /// The mean of the skewed roll, not a centre people are scattered around. Tradition is the
+    /// pressure to conform, so a customary people sits further toward the follower end; this is
+    /// where the tick on a figure's dial belongs.
+    /// </remarks>
+    public static double IndependenceNorm(Culture culture) =>
+        IndependenceFloor + (IndependenceRange(culture) / 3.0);
+
+    /// <summary>
+    /// One person's independence: most of the mass toward the follower end, a long tail of rebels.
+    /// </summary>
+    /// <remarks>
+    /// A uniform scatter around a midpoint would make rebels as common as followers, which is
+    /// not how a people holds together. Squaring the roll is the cheapest skew that stays
+    /// bit-identical — no transcendental — and still reaches a real rebel in a restless culture.
+    /// </remarks>
+    private static double RollIndependence(Culture culture, IRng rng)
+    {
+        double roll = rng.NextDouble();
+        return DetMath.Clamp01(IndependenceFloor + (IndependenceRange(culture) * roll * roll));
+    }
+
+    private static double IndependenceRange(Culture culture) =>
+        DetMath.Lerp(IndependenceRangeRestless, IndependenceRangeCustomary, culture.Values.Tradition);
 }

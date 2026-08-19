@@ -148,6 +148,7 @@ public static class Warfare
             year);
 
         world.Wars.Add(war);
+        Campaigns.NoteWar(world, war, year);
 
         // Somebody decided this. Until now the chronicle recorded that one realm attacked another
         // and left out the person whose ambition, grievance or piety the war system had just
@@ -161,6 +162,11 @@ public static class Warfare
         if (world.NamePerson(declaration, "ruler", aggressor.CurrentRulerId))
         {
             references.Add(aggressor.CurrentRulerId);
+        }
+
+        if (!defender.CurrentRulerId.IsNone && defender.CurrentRulerId != aggressor.CurrentRulerId)
+        {
+            references.Add(defender.CurrentRulerId);
         }
 
         world.Chronicle.Record(
@@ -184,8 +190,16 @@ public static class Warfare
 
         side.Add(joiner.Id);
 
+        EntityId[]? extra = null;
+        if (world.Figures.Contains(joiner.CurrentRulerId))
+        {
+            Figure ruler = world.Figures[joiner.CurrentRulerId];
+            Campaigns.NoteRuler(world, ruler, joiner, year);
+            extra = new[] { ruler.Id };
+        }
+
         world.Chronicle.Record(
-            year, EventKind.WarJoined, joiner.Id, obj: war.Id, location: calledBy.Id);
+            year, EventKind.WarJoined, joiner.Id, obj: war.Id, location: calledBy.Id, extra: extra);
     }
 
     // -----------------------------------------------------------------------
@@ -277,6 +291,7 @@ public static class Warfare
 
         world.Battles.Add(battle);
         war.BattleIds.Add(battle.Id);
+        Campaigns.NoteBattle(world, war, battle, year);
 
         if (battle.IsSiege)
         {
@@ -370,6 +385,7 @@ public static class Warfare
         battle.EndYear = at.Year;
         battle.EndDay = at.Day;
         battle.VictorId = battle.DefenderId;
+        Campaigns.SettleBattle(world, battle);
 
         if (!world.Wars.Contains(battle.WarId)) return;
 
@@ -422,11 +438,21 @@ public static class Warfare
 
         battle.EndYear = at.Year;
         battle.EndDay = at.Day;
+        Campaigns.SettleBattle(world, battle);
 
         // Only the two realms that actually met on the field carry the memory of it. A coalition
         // partner that sent no levy to this battle is not marked by a day it did not have.
         (attackerWins ? invader : holder).Fortunes.WonABattle();
         (attackerWins ? holder : invader).Fortunes.LostABattle();
+
+        // The place the fighting stood on remembers it too: a town that held its walls is not
+        // the same town as one that saw them carried, and the realm's mood is the wrong grain
+        // for that.
+        if (contested is not null)
+        {
+            if (attackerWins) contested.Fortunes.LostABattle();
+            else contested.Fortunes.WonABattle();
+        }
 
         int contestedForce = Math.Max(1, Math.Min(battle.AttackerStrength, battle.DefenderStrength));
         int victorLosses = (int)(contestedForce * rng.NextDouble(MinVictorLosses, MaxVictorLosses));
@@ -530,7 +556,7 @@ public static class Warfare
             contested.Id,
             obj: battle.AttackerId,
             location: contested.RegionId,
-            extra: new[] { battle.WarId, battle.Id, battle.DefenderId },
+            extra: new[] { battle.WarId, battle.Id, battle.DefenderId, battle.AttackerCommanderId },
             data: data.Count == 0 ? null : data);
     }
 
@@ -880,6 +906,7 @@ public static class Warfare
 
         owner.Fortunes.TownSacked();
         sacker.Fortunes.SackedATown();
+        target.Fortunes.TownSacked();
 
         List<Figure> fallen = ResidentCasualties(world, target, year, rng);
 
@@ -996,6 +1023,7 @@ public static class Warfare
 
         war.Outcome = outcome;
         war.EndYear = year;
+        Campaigns.SettleWar(world, war);
 
         IReadOnlyList<EntityId> winners = outcome == WarOutcome.DefenderVictory
             ? war.Defenders
@@ -1070,7 +1098,7 @@ public static class Warfare
             EventKind.WarEnded,
             war.Id,
             obj: victor,
-            extra: Belligerents(war),
+            extra: Belligerents(world, war),
             data: data);
 
         // Checked after the peace is written so the chronicle reads in the order it happened: the
@@ -1135,8 +1163,7 @@ public static class Warfare
             {
                 Civilization loser = world.Civilizations[loserId];
 
-                winner.Truces[loser.Id] = truceEnds;
-                loser.Truces[winner.Id] = truceEnds;
+                Diplomacy.SwearTruce(winner, loser, truceEnds);
 
                 if (outcome == WarOutcome.Stalemate)
                 {
@@ -1435,7 +1462,6 @@ public static class Warfare
         _ => "still being fought",
     };
 
-    /// <summary>Everyone a battle should appear on the page of.</summary>
     /// <summary>
     /// What a sacking cost, and who was standing over it.
     /// </summary>
@@ -1454,19 +1480,39 @@ public static class Warfare
 
     private static EntityId[] Participants(War war, Battle battle)
     {
-        var ids = new List<EntityId>(5) { war.Id, battle.AttackerId, battle.DefenderId };
+        IReadOnlyList<EntityId> witnesses = Campaigns.Witnesses(battle);
+        var ids = new List<EntityId>(3 + witnesses.Count)
+        {
+            war.Id,
+            battle.AttackerId,
+            battle.DefenderId,
+        };
 
-        if (!battle.AttackerCommanderId.IsNone) ids.Add(battle.AttackerCommanderId);
-        if (!battle.DefenderCommanderId.IsNone) ids.Add(battle.DefenderCommanderId);
+        foreach (EntityId id in witnesses)
+        {
+            if (!ids.Contains(id)) ids.Add(id);
+        }
 
         return ids.ToArray();
     }
 
-    private static EntityId[] Belligerents(War war)
+    private static EntityId[] Belligerents(WorldState world, War war)
     {
         var ids = new List<EntityId>(war.Attackers.Count + war.Defenders.Count);
         ids.AddRange(war.Attackers);
         ids.AddRange(war.Defenders);
+
+        foreach (Figure figure in world.Figures)
+        {
+            foreach (CampaignMemory memory in figure.Campaigns)
+            {
+                if (memory.WarId != war.Id || memory.Role != CampaignRole.Ruled) continue;
+
+                if (!ids.Contains(figure.Id)) ids.Add(figure.Id);
+                break;
+            }
+        }
+
         return ids.ToArray();
     }
 }

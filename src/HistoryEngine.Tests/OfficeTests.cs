@@ -506,12 +506,20 @@ public sealed class OfficeTests
 
             foreach (Figure figure in world.Figures)
             {
-                // A dynast's origin is their house, and a consort's the marriage that brought
-                // them in. Only those an office raised out of the population carry one.
+                // A dynast born into a house, and a consort married in, have no origin: the
+                // family is the whole of how they arrived. A notable who later raises a house
+                // around themselves still came through an office, and that is the one fact the
+                // house does not already record.
+                if (!figure.DynastyId.IsNone && figure.Origin == FigureOrigin.Unrecorded)
+                {
+                    continue;
+                }
+
                 if (!figure.DynastyId.IsNone)
                 {
-                    Assert.Equal(FigureOrigin.Unrecorded, figure.Origin);
-                    continue;
+                    Assert.True(
+                        figure.MotherId.IsNone && figure.FatherId.IsNone,
+                        $"{figure.Name} was born into a house and still carries an origin.");
                 }
 
                 if (figure.Origin != FigureOrigin.Unrecorded) withOrigin++;

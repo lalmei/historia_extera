@@ -122,6 +122,37 @@ public sealed class Pcg32 : IRng
         return items[NextInt(items.Count)];
     }
 
+    public T PickWeighted<T>(IReadOnlyList<T> items, Func<T, double> weightOf)
+    {
+        if (items.Count == 0)
+        {
+            throw new ArgumentException("Cannot pick from an empty collection.", nameof(items));
+        }
+
+        double total = 0.0;
+        for (int i = 0; i < items.Count; i++)
+        {
+            double weight = weightOf(items[i]);
+            if (weight > 0.0) total += weight;
+        }
+
+        if (total <= 0.0) return Pick(items);
+
+        double roll = NextDouble() * total;
+        double walking = 0.0;
+
+        for (int i = 0; i < items.Count; i++)
+        {
+            double weight = weightOf(items[i]);
+            if (weight <= 0.0) continue;
+
+            walking += weight;
+            if (roll < walking) return items[i];
+        }
+
+        return items[items.Count - 1];
+    }
+
     public IRng Fork(string purpose, long discriminator = 0)
     {
         ulong childSeed = Hash.Combine(

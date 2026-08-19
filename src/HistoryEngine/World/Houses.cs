@@ -132,6 +132,7 @@ public static class Houses
 
         world.Dynasties.Add(house);
         founder.DynastyId = dynastyId;
+        founder.Occupation = Occupation.Court;
 
         world.Chronicle.Record(
             year,
@@ -188,7 +189,8 @@ public static class Houses
             if (!previousHouse.IsNone)
             {
                 world.Chronicle.Record(
-                    year, EventKind.DynastyAscended, ruler.DynastyId, obj: civilization.Id);
+                    year, EventKind.DynastyAscended, ruler.DynastyId, obj: civilization.Id,
+                    extra: new[] { ruler.Id });
             }
         }
 
@@ -228,6 +230,8 @@ public static class Houses
         civilization.RulerSinceYear = year;
         civilization.RulerIds.Add(ruler.Id);
 
+        Campaigns.NoteRuler(world, ruler, civilization, year);
+
         if (world.Dynasties.Contains(ruler.DynastyId))
         {
             world.Dynasties[ruler.DynastyId].RulerIds.Add(ruler.Id);
@@ -244,6 +248,8 @@ public static class Houses
                 ("title", culture.RulerTitle),
                 ("claim", claim),
                 ("age", ruler.AgeIn(year).ToString(CultureInfo.InvariantCulture))));
+
+        Occupations.Sync(world, ruler, year);
     }
 
     /// <summary>
@@ -307,6 +313,7 @@ public static class Houses
         string? style = inPower ? StyleOf(world, figure) : null;
 
         figure.EndAllOffices(year);
+        Occupations.Sync(world, figure, year, died: true);
 
         if (world.Figures.Contains(figure.SpouseId))
         {

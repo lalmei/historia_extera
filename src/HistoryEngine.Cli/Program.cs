@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using HistoryEngine;
 using HistoryEngine.Entities;
@@ -82,8 +83,21 @@ internal static class Program
         var flavour = WorldFlavour.From(config.Seed, new MarkovNameGenerator(config.Seed));
         Console.WriteLine(
             $"Generating {flavour.Designation} — {config.Years} years, seed {config.Seed}, config {config.ConfigHash}");
+        Console.WriteLine("Raising terrain and seating civilizations...");
+        Console.Out.Flush();
 
-        HistoryRun run = HistoryRun.Execute(config, raster);
+        var progressClock = Stopwatch.StartNew();
+        HistoryRun run = HistoryRun.Execute(config, raster, onYear: (year, end) =>
+        {
+            if (year != end && year != 0 && progressClock.ElapsedMilliseconds < 200)
+            {
+                return;
+            }
+
+            progressClock.Restart();
+            Console.WriteLine($"progress {year}/{end}");
+            Console.Out.Flush();
+        });
         WorldExport export = run.ToExport();
 
         string json = WorldExporter.ToJson(export, options.Pretty);

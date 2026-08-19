@@ -35,6 +35,16 @@ public interface IRng
     T Pick<T>(IReadOnlyList<T> items);
 
     /// <summary>
+    /// Picks one element in proportion to its weight. Throws if the list is empty.
+    /// </summary>
+    /// <remarks>
+    /// Zero and negative weights are treated as none. If every weight is none, this falls
+    /// back to a uniform pick rather than failing — a caller that filtered badly still
+    /// produces a person, not a crash in a year that happened to have no soldiers.
+    /// </remarks>
+    T PickWeighted<T>(IReadOnlyList<T> items, Func<T, double> weightOf);
+
+    /// <summary>
     /// Derives an independent substream from this stream's <em>seed</em> — never from
     /// its current position — so forking is free of ordering effects.
     /// </summary>

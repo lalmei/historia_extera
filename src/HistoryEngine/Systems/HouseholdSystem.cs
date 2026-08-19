@@ -104,6 +104,7 @@ public sealed class HouseholdSystem : ISystem
         IRng rng = world.Root.Fork(Name, year);
         DetMap<EntityId, int> ranks = RankEveryHouse(world, year);
 
+        ComeOfAge(world, year);
         Marry(world, ranks, year, rng);
         Bear(world, ranks, year, rng);
     }
@@ -346,8 +347,26 @@ public sealed class HouseholdSystem : ISystem
         Civilization civilization = world.Civilizations[figure.CivilizationId];
         Sex sex = figure.Sex == Sex.Male ? Sex.Female : Sex.Male;
 
-        return Houses.NewFigure(
+        Figure partner = Houses.NewFigure(
             world, civilization, culture, sex, year - rng.NextInt(MarriageAge, 27));
+        Occupations.Ensure(world, partner, year);
+        return partner;
+    }
+
+    /// <summary>
+    /// Children who have reached majority take a career, once.
+    /// </summary>
+    /// <remarks>
+    /// Walks the whole table rather than the marriage roster, because a notable's children are
+    /// recorded and then drop out of the line — they still live, and a vacant seat is entitled
+    /// to know what they became. Forked per figure, so the walk itself draws nothing.
+    /// </remarks>
+    private static void ComeOfAge(WorldState world, int year)
+    {
+        foreach (Figure figure in world.Figures)
+        {
+            Occupations.Ensure(world, figure, year);
+        }
     }
 
     /// <summary>

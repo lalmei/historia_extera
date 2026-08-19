@@ -275,11 +275,7 @@ public static class WorldExporter
                 RulerSinceYear: civilization.RulerSinceYear,
                 Population: civilization.Population,
                 PeakPopulation: civilization.PeakPopulation,
-                Fortunes: new ExportFortunes(
-                    civilization.Fortunes.Weariness,
-                    civilization.Fortunes.Calamity,
-                    civilization.Fortunes.Triumph,
-                    civilization.Fortunes.Grievance),
+                Fortunes: Snapshot(civilization.Fortunes),
                 EffectiveValues: new ExportValues(
                     civilization.EffectiveValues.Aggression,
                     civilization.EffectiveValues.Expansionism,
@@ -447,6 +443,7 @@ public static class WorldExporter
                 ReligionId: OrNull(settlement.ReligionId),
                 ConvertedYear: settlement.ConvertedYear,
                 Site: settlement.Site,
+                Fortunes: Snapshot(settlement.Fortunes),
                 Support: SupportOf(world, settlement, traffic, hinterland)));
         }
 
@@ -687,6 +684,7 @@ public static class WorldExporter
                 BirthSettlementId: OrNull(figure.BirthSettlementId),
                 ResidenceSettlementId: OrNull(figure.ResidenceSettlementId),
                 Origin: figure.Origin,
+                Occupation: figure.Occupation,
                 Disposition: new ExportDisposition(
                     figure.Disposition.Values.Aggression,
                     figure.Disposition.Values.Expansionism,
@@ -694,12 +692,48 @@ public static class WorldExporter
                     figure.Disposition.Values.Tradition,
                     figure.Disposition.Values.Mercantile,
                     figure.Disposition.Values.Learning,
-                    figure.Disposition.Centralism),
+                    figure.Disposition.Centralism,
+                    figure.Disposition.Independence),
                 Titles: titles,
+                Campaigns: BuildCampaigns(figure),
+                Journeys: BuildJourneys(figure),
                 MotherId: OrNull(figure.MotherId),
                 FatherId: OrNull(figure.FatherId),
                 ChildIds: figure.ChildIds.ToArray(),
                 SpouseIds: figure.SpouseIds.ToArray()));
+        }
+
+        return list;
+    }
+
+    private static List<ExportCampaign> BuildCampaigns(Figure figure)
+    {
+        var list = new List<ExportCampaign>(figure.Campaigns.Count);
+        foreach (CampaignMemory memory in figure.Campaigns)
+        {
+            list.Add(new ExportCampaign(
+                WarId: memory.WarId,
+                BattleId: OrNull(memory.BattleId),
+                SideId: memory.SideId,
+                Year: memory.Year,
+                Role: memory.Role,
+                Triumphant: memory.Triumphant));
+        }
+
+        return list;
+    }
+
+    private static List<ExportJourney> BuildJourneys(Figure figure)
+    {
+        var list = new List<ExportJourney>(figure.Journeys.Count);
+        foreach (Journey journey in figure.Journeys)
+        {
+            list.Add(new ExportJourney(
+                Kind: journey.Kind,
+                Year: journey.Year,
+                FromSettlementId: journey.FromSettlementId,
+                ToSettlementId: journey.ToSettlementId,
+                ViaId: OrNull(journey.ViaId)));
         }
 
         return list;
@@ -792,9 +826,9 @@ public static class WorldExporter
     /// </summary>
     /// <remarks>
     /// Counts are exported whole and dials to three decimals. The rounding is what keeps this
-    /// affordable: a realm's eleven tracks across three centuries are a few kilobytes at three
-    /// decimals and roughly three times that at full double precision, for a difference no chart
-    /// can draw and no reader can see.
+    /// affordable: a realm's eleven tracks and a settlement's five across three centuries are a
+    /// few kilobytes at three decimals and roughly three times that at full double precision, for
+    /// a difference no chart can draw and no reader can see.
     /// </remarks>
     private static IReadOnlyList<ExportSeries> BuildSeries(WorldState world)
     {
@@ -823,6 +857,12 @@ public static class WorldExporter
     }
 
     private static EntityId? OrNull(EntityId id) => id.IsNone ? null : id;
+
+    private static ExportFortunes Snapshot(RealmFortunes fortunes) => new(
+        fortunes.Weariness,
+        fortunes.Calamity,
+        fortunes.Triumph,
+        fortunes.Grievance);
 
     private static SortedDictionary<string, string> ToDictionary(DetMap<string, string> map)
     {

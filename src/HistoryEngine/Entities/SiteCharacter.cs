@@ -49,8 +49,9 @@ public enum SiteCharacter
     /// <summary>A strategic position.</summary>
     Strategic = 12,
 
-    // Values 7-12 are declared ahead of the selection that would produce them. SiteSelection.
-    // CharacterAt returns nothing above Pass, so no settlement carries one of them yet and no
+    // Mine is produced, by a party sent out for the deposit rather than for the soil — see
+    // FoundingNeed and SiteSelection.Characterise. The remaining values above Pass are declared
+    // ahead of the selection that would produce them: no settlement carries one of them yet and no
     // reader should expect to see one.
     //
     // Fortress in particular is a name, not a decision that has been made: M10 set out to select

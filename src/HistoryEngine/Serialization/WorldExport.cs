@@ -73,9 +73,37 @@ public sealed record WorldExport(
     /// has always carried — additive on purpose, so the per-year index, the timeline slider and the
     /// territory replay all keep reading exactly what they read before. Version 18 records when a
     /// battle began and ended and how a siege ended, so an investment that lasted into another
-    /// season is not flattened back into an instantaneous victory at export.
+    /// season is not flattened back into an instantaneous victory at export. Version 19 marks each
+    /// event as narrative spine or vital register, so a chronicle in which three quarters of the
+    /// lines are ordinary births and deaths can be read at the grain of its history without any of
+    /// those facts being dropped from the log or from the pages of the people they concern.
+    /// Version 20 named the world itself: whether the history is set on a planet or a moon, and
+    /// a designation unique to the seed — "The planet Borion", "The 3rd moon of Endor" — so a
+    /// list of exports can be told apart by something other than a filename and a number.
+    /// Version 21 added the four fortunes on each settlement, so a town's own years of weariness
+    /// and calamity are a snapshot and a series the same way a realm's already were, rather than
+    /// only a population curve and a chronicle of what happened to it.
+    /// Version 22 added the host star and habitable-body cosmology: spectral class, mass,
+    /// luminosity, habitable-zone edges, orbital year, surface gravity, escape velocity,
+    /// equilibrium and surface temperature, and for exomoons the parent giant, Roche limit,
+    /// and tidal day length — the physics the seed rolls before history begins.
+    /// Version 23 added companion planets: a required shepherd giant beyond the snow line
+    /// that clears leftover planetesimals, optional inner rocky and outer ice-giant worlds,
+    /// and the asteroid-belt gap those orbits leave.
+    /// Version 24 added the parent giant's full moon family (so "the 8th moon" has seven
+    /// siblings), the host star's radius, and enough to draw a true size comparison.
+    ///     Version 25 dropped the asteroid belt from the exported system and keeps every
+    /// satellite of the parent inside the same tidal-day limit as the habitable moon.
+    /// Version 26 added a figure's occupation and the independence dial on their
+    /// disposition — follower to rebel — so a person raised into the record has a
+    /// career behind them and a child of one chooses a life the court can appoint from.
+    /// Version 27 added a figure's campaigns: the battles a soldier or general stood in, the
+    /// wars a sitting ruler led, and the sieges endured by anyone living in an invested town,
+    /// each with whether their side prevailed.
+    /// Version 28 added journeys (trade, visits, pilgrimage, clerical missions) and the
+    /// occupations that office-holding and letters use: official and scribe.
     /// </remarks>
-    public const int CurrentSchemaVersion = 18;
+    public const int CurrentSchemaVersion = 28;
 }
 
 public sealed record ExportMeta(
@@ -272,12 +300,13 @@ public sealed record ExportValues(
     double Learning);
 
 /// <summary>
-/// How a realm's recent past sat on it at the end of the run, in four decaying measures.
+/// How a recent past sat on a realm or a place at the end of the run, in four decaying measures.
 /// </summary>
 /// <remarks>
-/// A snapshot of the final year rather than a series. What the realm went through is already in
-/// the chronicle event by event; this is the state those events left behind, and it is exported
-/// so a reader can see why the last reign behaved as it did.
+/// A snapshot of the final year rather than a series. What happened is already in the
+/// chronicle event by event; this is the state those events left behind, and it is exported
+/// so a reader can see why the last years read as they did. The year-by-year track of the
+/// same four measures is in <see cref="WorldExport.Series"/>.
 /// </remarks>
 public sealed record ExportFortunes(
     double Weariness,
@@ -400,6 +429,7 @@ public sealed record ExportSettlement(
     EntityId? ReligionId,
     int? ConvertedYear,
     SiteCharacter Site,
+    ExportFortunes Fortunes,
     ExportSupport? Support);
 
 /// <summary>
@@ -590,8 +620,11 @@ public sealed record ExportFigure(
     EntityId? BirthSettlementId,
     EntityId? ResidenceSettlementId,
     FigureOrigin Origin,
+    Occupation Occupation,
     ExportDisposition Disposition,
     IReadOnlyList<ExportTitle> Titles,
+    IReadOnlyList<ExportCampaign> Campaigns,
+    IReadOnlyList<ExportJourney> Journeys,
     EntityId? MotherId,
     EntityId? FatherId,
     IReadOnlyList<EntityId> ChildIds,
@@ -617,12 +650,40 @@ public sealed record ExportTitle(
     string? Claim);
 
 /// <summary>
+/// One war or engagement a person stood in.
+/// </summary>
+/// <param name="BattleId">
+/// The engagement, absent when they led the realm through a war rather than standing in a battle.
+/// </param>
+/// <param name="Triumphant">
+/// Whether their side prevailed. Absent while the war or siege is still open, and after a stalemate.
+/// </param>
+public sealed record ExportCampaign(
+    EntityId WarId,
+    EntityId? BattleId,
+    EntityId SideId,
+    int Year,
+    CampaignRole Role,
+    bool? Triumphant);
+
+/// <summary>
+/// One trip a person made and was expected home from. Residence is not this.
+/// </summary>
+public sealed record ExportJourney(
+    JourneyKind Kind,
+    int Year,
+    EntityId FromSettlementId,
+    EntityId ToSettlementId,
+    EntityId? ViaId);
+
+/// <summary>
 /// One person's own inclinations, on the same dials their culture has.
 /// </summary>
 /// <remarks>
 /// Exported for everyone rather than only for those who governed, because the viewer draws family
 /// trees and "the brother who would have been a very different king" is exactly the sort of thing
-/// a reader of a chronicle wants to be able to see.
+/// a reader of a chronicle wants to be able to see. <see cref="Independence"/> is the follower–
+/// rebel axis: how far they let that culture actually govern their choices.
 /// </remarks>
 public sealed record ExportDisposition(
     double Aggression,
@@ -631,7 +692,9 @@ public sealed record ExportDisposition(
     double Tradition,
     double Mercantile,
     double Learning,
-    double Centralism);
+    double Centralism,
+    /// <summary>Follower at zero, rebel at one. How far they let their culture govern them.</summary>
+    double Independence);
 
 /// <param name="Significance">
 /// Whether this belongs to the narrative spine or the vital register. The viewer hides

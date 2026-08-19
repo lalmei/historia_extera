@@ -113,6 +113,7 @@ public sealed class SuccessionSystem : ISystem
     {
         Figure ruler = world.Figures[civilization.CurrentRulerId];
         ruler.EndOffice(OfficeKind.Ruler, year);
+        Occupations.Sync(world, ruler, year);
 
         civilization.CurrentRulerId = EntityId.None;
         civilization.RegentId = EntityId.None;
@@ -379,7 +380,9 @@ public sealed class SuccessionSystem : ISystem
 
             if (world.Figures.Contains(civilization.RegentId))
             {
-                world.Figures[civilization.RegentId].EndOffice(OfficeKind.Regent, year);
+                Figure holder = world.Figures[civilization.RegentId];
+                holder.EndOffice(OfficeKind.Regent, year);
+                Occupations.Sync(world, holder, year);
             }
 
             civilization.RegentId = EntityId.None;
@@ -434,6 +437,8 @@ public sealed class SuccessionSystem : ISystem
             obj: ruler.Id,
             location: civilization.CapitalId,
             data: Chronicle.Data(("age", Chronicle.Years(ruler.AgeIn(year)))));
+
+        Occupations.Sync(world, regent, year);
     }
 
     /// <summary>
@@ -494,9 +499,15 @@ public sealed class SuccessionSystem : ISystem
     private static void EnsureCapital(WorldState world, Civilization civilization, int year)
     {
         bool capitalStands = !civilization.CapitalId.IsNone
-            && world.Settlements[civilization.CapitalId].IsActive;
+            && world.Settlements.Contains(civilization.CapitalId)
+            && world.Settlements[civilization.CapitalId].IsActive
+            && world.Settlements[civilization.CapitalId].CivilizationId == civilization.Id;
 
-        if (capitalStands) return;
+        if (capitalStands)
+        {
+            world.Settlements[civilization.CapitalId].IsCapital = true;
+            return;
+        }
 
         Settlement? replacement = null;
         foreach (Settlement candidate in world.ActiveSettlementsOf(civilization))

@@ -187,6 +187,8 @@ public static class Offices
             significance: kind == OfficeKind.Consort
                 ? Significance.Routine
                 : Significance.Notable);
+
+        Occupations.Sync(world, holder, year);
     }
 
     /// <summary>
@@ -215,6 +217,8 @@ public static class Offices
             holder.Id,
             obj: held.CivilizationId,
             data: Chronicle.Data(("office", held.Title), ("cause", cause)));
+
+        Occupations.Sync(world, holder, year);
     }
 
     /// <summary>Ends an office quietly: a lapse, a posting that no longer exists, a body that ended.</summary>
@@ -222,6 +226,7 @@ public static class Offices
     {
         holder.EndOffice(kind, year);
         if (kind == OfficeKind.Governor) SendHome(world, holder);
+        Occupations.Sync(world, holder, year, died: !holder.IsAlive);
     }
 
     /// <summary>
@@ -305,6 +310,7 @@ public static class Offices
             birthSettlementId: bornAt);
 
         notable.Origin = DoorInto(office);
+        notable.Occupation = Occupations.ForOffice(office);
 
         return notable;
     }
@@ -483,6 +489,20 @@ public static class Offices
 
             OfficeHolding? held = figure.OpenOffice(kind);
             if (held is not null && held.CivilizationId == civilization.Id) return figure;
+        }
+
+        return null;
+    }
+
+    /// <summary>The sitting governor of a settlement, if it has one.</summary>
+    public static Figure? GovernorOf(WorldState world, Settlement settlement)
+    {
+        foreach (Figure figure in world.Figures)
+        {
+            if (!figure.IsAlive) continue;
+
+            OfficeHolding? held = figure.OpenOffice(OfficeKind.Governor);
+            if (held is not null && held.ScopeId == settlement.Id) return figure;
         }
 
         return null;

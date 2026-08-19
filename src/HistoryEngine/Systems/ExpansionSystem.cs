@@ -195,7 +195,8 @@ public sealed class ExpansionSystem : ISystem
             target.Id,
             obj: civilization.Id,
             extra: named ? new[] { civilization.CurrentRulerId } : null,
-            data: claim.Count == 0 ? null : claim);
+            data: claim.Count == 0 ? null : claim,
+            significance: Significance.Routine);
 
         SiteChoice site = SiteSelection.Best(world, target, SitesPerAxis, frontier.Need);
 

@@ -180,6 +180,7 @@ public sealed class Simulator
         new WarSystem(),
         new UnrestSystem(),
         new TradeRouteSystem(),
+        new TravelSystem(),
         new FigureIncidentSystem(),
         new FigureLifecycleSystem(),
         new SuccessionSystem(),
@@ -241,11 +242,12 @@ public sealed class Simulator
     }
 
     /// <summary>Simulates from the world's current year through to the configured end.</summary>
-    public void Run(WorldState world)
+    public void Run(WorldState world, Action<int, int>? onYear = null)
     {
         for (int year = world.Year; year <= world.EndYear; year++)
         {
             Tick(world, year);
+            onYear?.Invoke(year, world.EndYear);
         }
     }
 
@@ -409,10 +411,21 @@ public sealed class Simulator
         for (int i = 0; i < world.Settlements.Count; i++)
         {
             Settlement settlement = world.Settlements[i];
-            if (!settlement.IsActive) continue;
+            // The year a place is abandoned is the last year it stood, and what happened to it
+            // that year — a sack, a famine — belongs on the track. Skipping it would leave a
+            // town that fell the year it was sacked with a weariness series that ended at rest.
+            if (!settlement.IsActive && settlement.AbandonedYear != year) continue;
 
-            world.Series.Record(
-                settlement.Id, Measures.Population, year, settlement.Population);
+            SeriesLog series = world.Series;
+            EntityId id = settlement.Id;
+
+            series.Record(id, Measures.Population, year, settlement.Population);
+
+            RealmFortunes fortunes = settlement.Fortunes;
+            series.Record(id, Measures.Weariness, year, fortunes.Weariness);
+            series.Record(id, Measures.Calamity, year, fortunes.Calamity);
+            series.Record(id, Measures.Triumph, year, fortunes.Triumph);
+            series.Record(id, Measures.Grievance, year, fortunes.Grievance);
         }
 
         foreach (TradeRoute route in world.ActiveTradeRoutes())

@@ -585,14 +585,6 @@ public sealed class OfficeSystem : ISystem
     }
 
     /// <summary>The sitting governor of a settlement, if it has one.</summary>
-    public static Figure? GovernorOf(WorldState world, Settlement settlement)
-    {
-        foreach (Figure figure in world.Figures)
-        {
-            OfficeHolding? held = figure.OpenOffice(OfficeKind.Governor);
-            if (held is not null && held.ScopeId == settlement.Id && figure.IsAlive) return figure;
-        }
-
-        return null;
-    }
+    public static Figure? GovernorOf(WorldState world, Settlement settlement) =>
+        Offices.GovernorOf(world, settlement);
 }
