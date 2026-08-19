@@ -81,6 +81,10 @@ public static class Realms
             from.SettlementIds.Remove(settlement.Id);
             if (!to.SettlementIds.Contains(settlement.Id)) to.SettlementIds.Add(settlement.Id);
 
+            // An occupied town already carried this at the storming. An unoccupied one learns it
+            // here, when the treaty takes it without a garrison ever having sat on the walls.
+            if (!settlement.IsOccupied) settlement.Fortunes.LandLost();
+
             // The largest of several is the one the chronicle names.
             if (taken.IsNone || settlement.Population > world.Settlements[taken].Population)
             {
@@ -96,27 +100,240 @@ public static class Realms
         from.Fortunes.LandLost();
         to.Fortunes.LandTaken();
 
+        // Named as a term of a particular peace rather than as ground that changed colour. The war
+        // was already among the references; saying it in the sentence is what connects a cession to
+        // the campaign three lines above that won it.
         world.Chronicle.Record(
             year,
             EventKind.RegionCeded,
             region.Id,
             obj: to.Id,
             location: taken,
-            extra: new[] { war.Id, from.Id });
+            extra: new[] { war.Id, from.Id },
+            data: Chronicle.Data(("war", war.Name), ("from", from.Name)));
     }
 
     /// <summary>
-    /// Records against a settlement's realm the people it just lost to something unfightable.
+    /// Moves a region and everyone standing in it from one realm to another, without a treaty.
     /// </summary>
     /// <remarks>
-    /// Shared by plague, disaster and famine so all three reach the realm's fortunes the same way
-    /// and none of them has to repeat the guard for a settlement whose owner has already fallen.
-    /// The severity is worked out against the realm's population rather than the settlement's, so
-    /// a thousand dead is a catastrophe to a small realm and a bad year to a large one.
+    /// The ownership half of <see cref="Cede"/> without the war. A defection and a secession both
+    /// need this, and writing it twice is how one of them would forget to clear a capital or
+    /// release an occupation. Silent on purpose: the caller records the revolt, the founding, or
+    /// the usurpation that caused it.
+    /// </remarks>
+    public static void TransferRegion(
+        WorldState world, Region region, Civilization from, Civilization to, int year)
+    {
+        region.Owner = to.Id;
+        from.TerritoryRegionIds.Remove(region.Id);
+        if (!to.TerritoryRegionIds.Contains(region.Id)) to.TerritoryRegionIds.Add(region.Id);
+
+        var moving = new List<Settlement>();
+        foreach (EntityId id in from.SettlementIds)
+        {
+            Settlement standing = world.Settlements[id];
+            if (standing.IsActive && standing.RegionId == region.Id) moving.Add(standing);
+        }
+
+        EntityId taken = EntityId.None;
+
+        foreach (Settlement standing in moving)
+        {
+            if (standing.IsCapital)
+            {
+                standing.IsCapital = false;
+                if (from.CapitalId == standing.Id) from.CapitalId = EntityId.None;
+            }
+
+            if (standing.IsOccupied) Warfare.EndOccupation(world, standing, year, ceded: true);
+
+            standing.CivilizationId = to.Id;
+            from.SettlementIds.Remove(standing.Id);
+            if (!to.SettlementIds.Contains(standing.Id)) to.SettlementIds.Add(standing.Id);
+
+            if (taken.IsNone || standing.Population > world.Settlements[taken].Population)
+            {
+                taken = standing.Id;
+            }
+        }
+
+        TransferResidents(world, moving, from, to);
+        Recount(world, from);
+        Recount(world, to);
+
+        from.Fortunes.LandLost();
+        to.Fortunes.LandTaken();
+
+        // Same event a peace uses, without a war to name: the viewer rebuilds borders from the
+        // log, and a silent transfer would leave the old colour on the map for the rest of the run.
+        world.Chronicle.Record(
+            year,
+            EventKind.RegionCeded,
+            region.Id,
+            obj: to.Id,
+            location: taken,
+            extra: new[] { from.Id },
+            data: Chronicle.Data(("from", from.Name)));
+    }
+
+    /// <summary>
+    /// A town that won its rising and had no neighbour to join becomes a realm of its own.
+    /// </summary>
+    /// <remarks>
+    /// <para>Shares the parent's culture: these are the same people under a new crown, not a new
+    /// folk rolled at worldgen. The breakaway is a civilization from the day it rises, so a truce
+    /// with the parent is a truce between realms — the shape a later raid or surprise-attack model
+    /// can still read — rather than a third kind of peace invented only for revolts.</para>
+    ///
+    /// <para>A named founder — a governor, a local adult — is raised into a house if they have
+    /// none and crowned here. A cadet keeps theirs. With nobody on the ground, a house is founded
+    /// the way an heirless throne already is.</para>
+    /// </remarks>
+    public static Civilization BreakAway(
+        WorldState world,
+        Civilization from,
+        Settlement seat,
+        Figure? founder,
+        int year,
+        IRng rng)
+    {
+        Culture culture = world.CultureOf(from);
+        EntityId civId = world.Civilizations.NextId;
+        var born = new Civilization(
+            civId,
+            from.CultureId,
+            world.Names.ForCivilization(civId, culture),
+            year)
+        {
+            EffectiveValues = from.EffectiveValues,
+            StateReligionId = seat.ReligionId.IsNone ? from.StateReligionId : seat.ReligionId,
+        };
+
+        world.Civilizations.Add(born);
+
+        Region region = world.Regions[seat.RegionId];
+        TransferRegion(world, region, from, born, year);
+
+        seat.IsCapital = true;
+        born.CapitalId = seat.Id;
+
+        world.Chronicle.Record(
+            year, EventKind.CivilizationFounded, born.Id, location: seat.Id);
+
+        Figure ruler = founder
+            ?? LocalAdult(world, born, seat, year)
+            ?? Houses.FoundDynasty(world, born, culture, year, rng);
+
+        Houses.RaiseHouse(world, born, culture, ruler, year);
+        Houses.Enthrone(world, born, culture, ruler, year, "by the rising of " + seat.Name);
+
+        Diplomacy.SwearTruce(from, born, year + rng.NextInt(12, 26));
+        Diplomacy.Nudge(from, born, -0.45);
+        Diplomacy.Nudge(born, from, -0.30);
+
+        if (IsFinished(world, from))
+        {
+            Fall(world, from, year, "torn apart by revolt", born.Id);
+        }
+
+        return born;
+    }
+
+    /// <summary>An adult already living in the breakaway seat, if the rising named nobody.</summary>
+    private static Figure? LocalAdult(
+        WorldState world, Civilization realm, Settlement seat, int year)
+    {
+        Figure? best = null;
+
+        foreach (Figure figure in world.Figures)
+        {
+            if (!figure.IsAlive) continue;
+            if (figure.CivilizationId != realm.Id) continue;
+            if (figure.ResidenceSettlementId != seat.Id) continue;
+            if (figure.AgeIn(year) < Succession.MajorityAge) continue;
+            if (Succession.HoldsAThrone(world, figure)) continue;
+
+            if (best is null || figure.Offices.Count > best.Offices.Count)
+            {
+                best = figure;
+            }
+        }
+
+        return best;
+    }
+
+    /// <summary>
+    /// Moves the people who actually live in the transferred towns, and nobody who does not.
+    /// </summary>
+    /// <remarks>
+    /// Residence, not realm: a posting never changes <see cref="Figure.CivilizationId"/>, but a
+    /// secession must, or the governor who just won the town is still a subject of the crown they
+    /// threw off. The sitting ruler of the parent is left even if they happen to be visiting —
+    /// stealing a king by moving a province is how three realms once spent a century governed by a
+    /// corpse.
+    /// </remarks>
+    private static void TransferResidents(
+        WorldState world,
+        List<Settlement> moving,
+        Civilization from,
+        Civilization to)
+    {
+        foreach (Figure figure in world.Figures)
+        {
+            if (!figure.IsAlive) continue;
+            if (figure.CivilizationId != from.Id) continue;
+            if (from.CurrentRulerId == figure.Id) continue;
+            if (!LivesIn(moving, figure.ResidenceSettlementId)) continue;
+
+            figure.CivilizationId = to.Id;
+        }
+    }
+
+    private static bool LivesIn(List<Settlement> moving, EntityId residence)
+    {
+        foreach (Settlement standing in moving)
+        {
+            if (standing.Id == residence) return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>Recounts a realm's people from the towns it still holds.</summary>
+    public static void Recount(WorldState world, Civilization civilization)
+    {
+        int population = 0;
+        foreach (EntityId id in civilization.SettlementIds)
+        {
+            Settlement settlement = world.Settlements[id];
+            if (settlement.IsActive) population += settlement.Population;
+        }
+
+        civilization.Population = population;
+        if (population > civilization.PeakPopulation) civilization.PeakPopulation = population;
+    }
+
+    /// <summary>
+    /// Records against a settlement, and its realm, the people it just lost to something unfightable.
+    /// </summary>
+    /// <remarks>
+    /// Shared by plague, disaster and famine so all three reach fortunes the same way and none of
+    /// them has to repeat the guard for a settlement whose owner has already fallen. The town is
+    /// measured against its own people, so emptying a place is a catastrophe there even when it
+    /// is a bad year to the realm; the realm is still measured against the realm, for the reason
+    /// it always was.
     /// </remarks>
     public static void Suffered(WorldState world, Settlement settlement, int lost)
     {
-        if (lost <= 0 || !world.Civilizations.Contains(settlement.CivilizationId)) return;
+        if (lost <= 0) return;
+
+        // Population has already been reduced by `lost`, so adding it back is the headcount the
+        // share should be taken against — including the case the place now stands empty, which
+        // would otherwise refuse to record a calamity at all.
+        settlement.Fortunes.Suffered(lost, settlement.Population + lost);
+
+        if (!world.Civilizations.Contains(settlement.CivilizationId)) return;
 
         Civilization realm = world.Civilizations[settlement.CivilizationId];
         realm.Fortunes.Suffered(lost, realm.Population);
@@ -145,7 +362,11 @@ public static class Realms
         if (!civilization.CurrentRulerId.IsNone)
         {
             Figure ruler = world.Figures[civilization.CurrentRulerId];
-            if (ruler.IsAlive) ruler.EndOffice(OfficeKind.Ruler, year);
+            if (ruler.IsAlive)
+            {
+                ruler.EndOffice(OfficeKind.Ruler, year);
+                Occupations.Sync(world, ruler, year);
+            }
             civilization.CurrentRulerId = EntityId.None;
         }
 

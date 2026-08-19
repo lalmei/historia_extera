@@ -95,11 +95,17 @@ public static class Narration
         Set(EventKind.RegencyEnded, "{subject} came of age and took {object} in hand.");
         Set(EventKind.SuccessionDisputed,
             "{subject} prevailed over {object} in a disputed succession[ in {location}].");
+        Set(EventKind.RulerAbdicated,
+            "{subject} abdicated as {data:title} of {object}[, {data:cause}].");
 
         Set(EventKind.OfficeGranted,
             "{subject} was made {data:office}[ of {object}][ at {location}][, {data:claim}].");
         Set(EventKind.OfficeRevoked,
             "{subject} was stripped of the office of {data:office}[ of {object}][, {data:cause}].");
+        Set(EventKind.OccupationTaken,
+            "{subject} took to {data:occupation}[ at {location}].");
+        Set(EventKind.JourneyMade,
+            "{subject} travelled to {location}[, {data:purpose}].");
 
         Set(EventKind.DynastyFounded, "The {subject} rose[ under {object}][ in {location}].");
         Set(EventKind.DynastyEnded, "The {subject} died out[ after {data:years}].");
@@ -188,18 +194,105 @@ public static class Narration
         Set(EventKind.BrigandageWorsened,
             "Brigands took to the roads around {subject}[, {data:cause}].");
         Set(EventKind.RevoltBroke,
-            "{subject} rose in revolt against {object}[, {data:cause}].");
+            "{subject} rose in revolt against {object}[, led by {data:leader}][, {data:cause}].");
         Set(EventKind.RevoltCrushed,
             "The rising in {subject} was put down by {object}[, at a cost of {data:lost} dead].");
         Set(EventKind.RevoltPrevailed,
             "{subject} threw off {object}[ and passed to {location}][, losing {data:lost} people in the rising].");
+        Set(EventKind.RevoltSeceded,
+            "{subject} broke from {object} and rose as {location}[, under {data:ruler}][, {data:cause}][, losing {data:lost} people in the rising].");
+        Set(EventKind.RevoltUsurped,
+            "{location} took the throne of {object} after the rising in {subject}[, {data:how}][, at a cost of {data:lost} dead].");
 
         Set(EventKind.Unknown, "Something happened.");
+
+        // The person is the implied subject. Named only when a clause has to point at them.
+        SetSelf(EventKind.FigureBorn, "Was born[ to {object}][ in {location}].");
+        SetSelf(EventKind.FigureDied,
+            "Died[ as {data:office}][ at the age of {data:age}][, of {data:cause}].");
+        SetSelf(EventKind.RulerCrowned,
+            "Became {data:title} of {object}[ at {location}][, {data:claim}].");
+        SetSelf(EventKind.RulerDeposed, "Was deposed as {data:title} of {object}.");
+        SetSelf(EventKind.FigureMarried, "Married {other}[ at {location}].");
+        SetSelf(EventKind.RulerTermEnded,
+            "Laid down the office of {data:title}[ of {object}][ after {data:years} years].");
+        SetSelf(EventKind.RegencyBegan,
+            "[{self:subject}Governed as regent for {object}][{self:subject}, a child of {data:age}]"
+            + "[{self:object}Came under the regency of {other}][{self:object}, at the age of {data:age}].");
+        SetSelf(EventKind.RegencyEnded,
+            "[{self:subject}Came of age and took {object} in hand]"
+            + "[{self:object}Ended the regency over {other}].");
+        SetSelf(EventKind.SuccessionDisputed,
+            "[{self:subject}Prevailed over {other} in a disputed succession][{self:subject} in {location}]"
+            + "[{self:object}Lost a disputed succession to {other}][{self:object} in {location}].");
+        SetSelf(EventKind.RulerAbdicated,
+            "Abdicated as {data:title} of {object}[, {data:cause}].");
+        SetSelf(EventKind.OfficeGranted,
+            "Was made {data:office}[ of {object}][ at {location}][, {data:claim}].");
+        SetSelf(EventKind.OfficeRevoked,
+            "Was stripped of the office of {data:office}[ of {object}][, {data:cause}].");
+        SetSelf(EventKind.OccupationTaken,
+            "Took to {data:occupation}[ at {location}].");
+        SetSelf(EventKind.JourneyMade,
+            "Travelled to {location}[, {data:purpose}].");
+        SetSelf(EventKind.DynastyFounded,
+            "[{self:object}Raised the {subject}][{self:object} in {location}].");
+        SetSelf(EventKind.DynastyAscended,
+            "[{self:extra}Took the throne of {object} in the name of the {subject}.]");
+        SetSelf(EventKind.RegionClaimed,
+            "[{as:ruler}Claimed {subject} for {object}.]");
+        SetSelf(EventKind.SettlementFounded,
+            "[{self:extra}Founded {subject}][{self:extra} for {object}]"
+            + "[{self:extra}, {data:settlers} of them out of {data:from}][{self:extra}, {data:purpose}].");
+        SetSelf(EventKind.WarDeclared,
+            "[{as:ruler}Declared war on {object}][{as:ruler}, {data:cause}][{as:ruler}. So began the {location}.]"
+            + "[{not:ruler}{subject} declared war][{not:ruler}, {data:cause}][{not:ruler}. So began the {location}.]");
+        SetSelf(EventKind.BattleFought,
+            "[{as:victor}Prevailed at the {subject}][{as:victor}, at a cost of {data:losses} dead]"
+            + "[{not:victor}Was at the {subject}, which {object} won]"
+            + "[{not:victor}, at a cost of {data:losses} dead].");
+        SetSelf(EventKind.SiegeBegan,
+            "[{self:extra}The {subject} began against {location}.]");
+        SetSelf(EventKind.SiegeLifted,
+            "[{self:extra}The {subject} was lifted][{self:extra}, {data:cause}].");
+        SetSelf(EventKind.SettlementSacked,
+            "[{as:captain}Sacked {subject}][{as:captain}, losing {data:lost} people]"
+            + "[{not:captain}{self:extra}Was in {subject} when it was sacked by {object}]"
+            + "[{not:captain}{self:extra}, losing {data:lost} people].");
+        SetSelf(EventKind.SettlementOccupied,
+            "[{as:captain}Took {subject} and held it under arms.]");
+        SetSelf(EventKind.ReligionFounded,
+            "[{self:object}First preached the {subject}][{self:object} at {location}].");
+        SetSelf(EventKind.StateFaithChanged,
+            "[{as:ruler}Took the {object} as the faith of {subject}.]");
+        SetSelf(EventKind.ArtifactCreated,
+            "[{self:object}Had {subject} made][{self:object} at {location}]"
+            + "[{self:extra}Came into {subject}][{self:extra} at {location}].");
+        SetSelf(EventKind.ArtifactTaken,
+            "[{self:extra}Took {subject}][{self:extra} to {location}].");
+        SetSelf(EventKind.ArtifactGiven,
+            "[{self:object}Received {subject}][{self:object} at {location}][{self:object}, {data:manner}]"
+            + "[{self:extra}Gave {subject}][{self:extra} to {object}][{self:extra} at {location}]"
+            + "[{self:extra}, {data:manner}].");
+        SetSelf(EventKind.ArtifactFound,
+            "[{self:object}Found {subject}][{self:object} at {location}].");
+        SetSelf(EventKind.ArtifactRecovered,
+            "[{self:object}Recovered {subject}][{self:object} at {location}].");
+        SetSelf(EventKind.DisasterStruck,
+            "[{self:extra}Was caught in the {data:kind} at {subject}]"
+            + "[{self:extra}, which lost {data:lost} people].");
+        SetSelf(EventKind.RevoltBroke,
+            "[{as:leader}Led {subject} in revolt against {object}][{as:leader}, {data:cause}].");
+        SetSelf(EventKind.RevoltSeceded,
+            "[{as:ruler}Broke {subject} from {object} and rose as {location}][{as:ruler}, {data:cause}].");
+        SetSelf(EventKind.RevoltUsurped,
+            "Took the throne of {object} after the rising in {subject}"
+            + "[, {data:how}][, at a cost of {data:lost} dead].");
 
         return map;
     }
 
-    /// <summary>The template table, keyed by <see cref="EventKind"/> name. Written to the export as-is.</summary>
+    /// <summary>The template table, keyed by <see cref="EventKind"/> name and <c>Kind.self</c>.</summary>
     public static DetMap<string, string> Templates => TemplatesByKind;
 
     public static string TemplateFor(EventKind kind) =>

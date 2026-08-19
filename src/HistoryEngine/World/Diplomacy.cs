@@ -181,6 +181,20 @@ public static class Diplomacy
     public static bool TruceHolds(Civilization a, Civilization b, int year) =>
         a.Truces.GetOrDefault(b.Id, int.MinValue) >= year;
 
+    /// <summary>
+    /// Binds two realms to keep the peace through <paramref name="untilYear"/>, both ways.
+    /// </summary>
+    /// <remarks>
+    /// One writer for the pair, so a revolt's recognition of a breakaway and a war's settlement
+    /// cannot disagree about what a truce is. A later raid or surprise-attack model can still
+    /// decide when to swear one; it should not invent a second place that stores it.
+    /// </remarks>
+    public static void SwearTruce(Civilization a, Civilization b, int untilYear)
+    {
+        a.Truces[b.Id] = untilYear;
+        b.Truces[a.Id] = untilYear;
+    }
+
     /// <summary>The running war these two are on opposite sides of, if there is one.</summary>
     public static War? WarBetween(WorldState world, EntityId a, EntityId b)
     {

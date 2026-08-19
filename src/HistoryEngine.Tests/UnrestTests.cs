@@ -24,6 +24,10 @@ public sealed class UnrestTests
 
     private static readonly ulong[] WideSeeds = { 2, 7, 11, 42, 99, 123, 777, 2024 };
 
+    /// <summary>A wider net again, for secession and usurpation, which are rarer than a rising.</summary>
+    private static readonly ulong[] RareSeeds =
+        { 2, 7, 11, 42, 99, 123, 777, 2024, 3, 5, 13, 17, 19, 23, 29, 31, 37, 41, 47, 53, 61, 71 };
+
     /// <summary>
     /// Discontent reaches the chronicle: brigandage on the roads and risings in the towns.
     /// </summary>
@@ -73,9 +77,11 @@ public sealed class UnrestTests
                 {
                     if (other.Year != broke.Year || other.Subject != broke.Subject) continue;
 
-                    // A crush, a defection or a garrison thrown off — the three ways a rising ends.
+                    // A crush, a defection, a secession, a usurpation, or a garrison thrown off.
                     if (other.Kind is EventKind.RevoltCrushed
                         or EventKind.RevoltPrevailed
+                        or EventKind.RevoltSeceded
+                        or EventKind.RevoltUsurped
                         or EventKind.SettlementRestored)
                     {
                         resolved = true;
@@ -145,5 +151,143 @@ public sealed class UnrestTests
         }
 
         Assert.True(garrisonRisings > 0, "No occupied town ever rose against its garrison.");
+    }
+
+    /// <summary>
+    /// A rising that wins with no neighbour to join founds a realm, rather than wrecking the town.
+    /// </summary>
+    [Fact]
+    public void AWinningRisingCanFoundABreakawayRealm()
+    {
+        int secessions = 0;
+        int foundedAfterStart = 0;
+
+        foreach (ulong seed in RareSeeds)
+        {
+            WorldState world = HistoryRun.Execute(TestWorlds.Standard(seed)).World;
+
+            foreach (HistoryEvent entry in world.Chronicle.Events)
+            {
+                if (entry.Kind == EventKind.RevoltSeceded) secessions++;
+                if (entry.Kind == EventKind.CivilizationFounded && entry.Year > world.StartYear)
+                {
+                    foundedAfterStart++;
+                }
+            }
+        }
+
+        Assert.True(secessions > 0, "No town ever broke away as a realm of its own.");
+        Assert.True(
+            foundedAfterStart > 0,
+            "No civilization was ever founded after the world's first year.");
+    }
+
+    /// <summary>
+    /// A breakaway is a real polity: a seat, a ruler, the parent's culture, and a truce so the
+    /// split does not re-declare itself the following spring.
+    /// </summary>
+    [Fact]
+    public void ABreakawayRealmIsWhole()
+    {
+        int checkedRealms = 0;
+
+        foreach (ulong seed in RareSeeds)
+        {
+            WorldState world = HistoryRun.Execute(TestWorlds.Standard(seed)).World;
+
+            foreach (HistoryEvent entry in world.Chronicle.Events)
+            {
+                if (entry.Kind != EventKind.RevoltSeceded) continue;
+                if (!world.Civilizations.Contains(entry.Location)) continue;
+
+                Civilization born = world.Civilizations[entry.Location];
+                Civilization? from = world.Civilizations.Contains(entry.Object)
+                    ? world.Civilizations[entry.Object]
+                    : null;
+
+                Assert.Equal(entry.Year, born.FoundedYear);
+
+                if (born.IsActive)
+                {
+                    Assert.True(
+                        world.Settlements.Contains(born.CapitalId)
+                        && world.Settlements[born.CapitalId].IsActive
+                        && world.Settlements[born.CapitalId].CivilizationId == born.Id,
+                        $"{born.Name} still stands but has no seat.");
+                    Assert.False(
+                        born.CurrentRulerId.IsNone,
+                        $"{born.Name} still stands but has no ruler.");
+                }
+
+                if (from is not null)
+                {
+                    Assert.Equal(from.CultureId, born.CultureId);
+                    Assert.True(
+                        born.Truces.ContainsKey(from.Id) && from.Truces.ContainsKey(born.Id),
+                        $"{born.Name} broke from {from.Name} with no truce between them.");
+                }
+
+                if (world.Figures.Contains(born.CurrentRulerId)
+                    || (born.RulerIds.Count > 0 && world.Figures.Contains(born.RulerIds[0])))
+                {
+                    Figure founder = world.Figures.Contains(born.CurrentRulerId)
+                        ? world.Figures[born.CurrentRulerId]
+                        : world.Figures[born.RulerIds[0]];
+                    Assert.False(
+                        founder.DynastyId.IsNone,
+                        $"{founder.Name} took a throne and was left of no house.");
+                }
+
+                checkedRealms++;
+            }
+        }
+
+        Assert.True(checkedRealms > 0, "No breakaway realm was found to inspect.");
+    }
+
+    /// <summary>
+    /// A governor can march on the seat and take it: the realm stays one, under a new crown.
+    /// </summary>
+    [Fact]
+    public void AGovernorCanTakeTheThrone()
+    {
+        int usurped = 0;
+
+        foreach (ulong seed in RareSeeds)
+        {
+            WorldState world = HistoryRun.Execute(TestWorlds.Standard(seed)).World;
+
+            foreach (HistoryEvent entry in world.Chronicle.Events)
+            {
+                if (entry.Kind != EventKind.RevoltUsurped) continue;
+
+                usurped++;
+
+                bool crowned = false;
+                foreach (HistoryEvent other in world.Chronicle.Events)
+                {
+                    if (other.Year != entry.Year) continue;
+                    if (other.Kind != EventKind.RulerCrowned) continue;
+                    if (other.Subject != entry.Location) continue;
+                    if (other.Object != entry.Object) continue;
+                    crowned = true;
+                    break;
+                }
+
+                Assert.True(
+                    crowned,
+                    $"{world.NameOf(entry.Location)} took the throne of {world.NameOf(entry.Object)} "
+                    + $"in {entry.Year} but was never crowned.");
+
+                if (world.Figures.Contains(entry.Location))
+                {
+                    Assert.False(
+                        world.Figures[entry.Location].DynastyId.IsNone,
+                        $"{world.NameOf(entry.Location)} took a throne and was left of no house.");
+                }
+            }
+        }
+
+        Assert.True(usurped > 0, "No governor ever took the throne.");
     }
 }

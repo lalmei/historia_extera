@@ -43,6 +43,21 @@ public sealed class TerritoryTests
     }
 
     /// <summary>
+    /// Claims stay in the log — they are how ownership is replayed — but they are not history.
+    /// </summary>
+    [Fact]
+    public void RegionClaimsAreRoutine()
+    {
+        WorldExport export = HistoryRun.Execute(TestWorlds.Standard()).ToExport();
+        List<ExportEvent> claims = export.Events
+            .Where(entry => entry.Kind == EventKind.RegionClaimed)
+            .ToList();
+
+        Assert.NotEmpty(claims);
+        Assert.All(claims, entry => Assert.Equal(Significance.Routine, entry.Significance));
+    }
+
+    /// <summary>
     /// Every realm claims its homeland in the year it is founded.
     /// </summary>
     /// <remarks>

@@ -145,6 +145,65 @@ public static class Houses
     }
 
     /// <summary>
+    /// Raises a house around someone the chronicle already follows.
+    /// </summary>
+    /// <remarks>
+    /// <para>The counterpart to <see cref="FoundDynasty"/> for a figure who took a throne rather
+    /// than appearing to fill one. A town-chosen governor who seizes a seat, or who breaks their
+    /// province away, already has a spouse and children; crowning them without a house would leave
+    /// those children of no house, and the new line would die with the person the rising just
+    /// installed.</para>
+    ///
+    /// <para>Does nothing when they already belong to a house — a cadet who secedes keeps theirs,
+    /// which is how one family comes to hold two thrones. Adopts living descendants who have no
+    /// house of their own, so the first generation a notable was already followed for becomes the
+    /// first generation of the house.</para>
+    /// </remarks>
+    public static void RaiseHouse(
+        WorldState world, Civilization civilization, Culture culture, Figure founder, int year)
+    {
+        if (!founder.DynastyId.IsNone) return;
+
+        EntityId dynastyId = world.Dynasties.NextId;
+        var house = new Dynasty(
+            dynastyId,
+            culture.Id,
+            world.Names.ForDynasty(dynastyId, culture),
+            year,
+            founder.Id,
+            civilization.Id);
+
+        world.Dynasties.Add(house);
+        founder.DynastyId = dynastyId;
+        AdoptLine(world, house, founder);
+
+        world.Chronicle.Record(
+            year,
+            EventKind.DynastyFounded,
+            dynastyId,
+            obj: founder.Id,
+            location: civilization.CapitalId);
+    }
+
+    /// <summary>
+    /// Folds a notable's already-recorded children into the house just raised around them.
+    /// </summary>
+    private static void AdoptLine(WorldState world, Dynasty house, Figure parent)
+    {
+        foreach (EntityId childId in parent.ChildIds)
+        {
+            if (!world.Figures.Contains(childId)) continue;
+
+            Figure child = world.Figures[childId];
+            if (!child.DynastyId.IsNone) continue;
+
+            child.DynastyId = house.Id;
+            house.MemberIds.Add(child.Id);
+            AdoptLine(world, house, child);
+        }
+    }
+
+    /// <summary>
     /// Puts a figure on a throne and records it.
     /// </summary>
     /// <param name="claim">
