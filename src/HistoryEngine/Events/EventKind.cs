@@ -45,6 +45,7 @@ public enum EventKind
     RegencyBegan = 306,
     RegencyEnded = 307,
     SuccessionDisputed = 308,
+    RulerAbdicated = 309,
 
     // ---- Dynasties (310, within the figures block) ----
     DynastyFounded = 310,
@@ -116,10 +117,14 @@ public enum EventKind
 
     // ---- Unrest (700) ----
     // Grievance a realm has carried without answering it turns, in stages, into lawlessness and
-    // then into revolt. Brigandage is the standing condition; the three rising events are the
-    // moment it boils over and the two ways that ends.
+    // then into revolt. Brigandage is the standing condition; a rising then either is put down,
+    // defects, throws off a garrison, breaks away as a realm of its own, or a governor takes the
+    // throne. Usurpation and secession are separate endings of the same pressure, not one rising
+    // with three interchangeable outcomes.
     BrigandageWorsened = 700,
     RevoltBroke = 701,
     RevoltCrushed = 702,
     RevoltPrevailed = 703,
+    RevoltSeceded = 704,
+    RevoltUsurped = 705,
 }
