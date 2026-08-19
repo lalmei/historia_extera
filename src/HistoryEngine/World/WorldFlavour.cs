@@ -1,5 +1,4 @@
 using System.Globalization;
-using HistoryEngine.Core;
 using HistoryEngine.Naming;
 
 namespace HistoryEngine.World;
@@ -22,11 +21,10 @@ public enum WorldKind
 ///
 /// <para><b>A pure function of the seed.</b> The same seed always produces the same designation,
 /// including when the run is longer, shorter, or asked for a different number of civilizations.
-/// The name generator's world language supplies the proper nouns; a dedicated flavour stream,
-/// forked from the seed rather than from <c>WorldState.Root</c>, decides planet versus moon and
-/// the moon's index. Drawing from the root stream would shift every founding downstream of it
-/// the first time this flavour was added, which is exactly the coupling <see cref="IRng.Fork"/>
-/// exists to prevent.</para>
+        /// The name generator's world language supplies the proper nouns. Planet versus moon, and
+        /// which satellite is habitable, come from <see cref="WorldCosmology"/> so the designation
+        /// cannot claim an eighth moon when the giant only has three. Names stay derived from the
+        /// seed rather than from <c>WorldState.Root</c>, so adding flavour cannot shift a founding.</para>
 ///
 /// <para>The designation is what the overview and the chronicle print: "The planet Borion",
 /// "The 3rd moon of Endor", "Ithil, the 3rd moon of Endor". The seed still travels beside it in
@@ -37,19 +35,14 @@ public sealed record WorldFlavour(
     string Name,
     string Designation,
     string? ParentName,
-    int? MoonIndex)
+    int? MoonIndex,
+    WorldCosmology Cosmology)
 {
     /// <summary>
     /// Chance the world is a moon rather than a planet. High enough that compound names show up
     /// in a handful of seeds, low enough that most histories are still a named planet.
     /// </summary>
-    private const double MoonChance = 0.4;
-
-    /// <summary>Inclusive lower bound of a moon's index among its parent's satellites.</summary>
-    private const int MinMoonIndex = 1;
-
-    /// <summary>Exclusive upper bound: moons are the 1st through 12th.</summary>
-    private const int MaxMoonIndexExclusive = 13;
+    internal const double MoonChance = WorldCosmology.MoonChance;
 
     /// <summary>
     /// Composes the world's identity from the seed and the name generator already used for its
@@ -57,11 +50,12 @@ public sealed record WorldFlavour(
     /// </summary>
     public static WorldFlavour From(ulong seed, INameGenerator names)
     {
-        IRng rng = new Pcg32(Hash.Combine(seed, Hash.OfString("world.flavour")));
+        WorldCosmology cosmology = WorldCosmology.From(seed);
+
         string body = names.ForWorld(WorldNameRole.Body);
         string other = names.ForWorld(WorldNameRole.Parent);
 
-        if (!rng.Chance(MoonChance))
+        if (cosmology.Kind == WorldKind.Planet)
         {
             // Two proper nouns when they differ, so "The planet Borion" still happens and
             // "The planet Borion of the Vathri system" is what keeps two seeds apart when
@@ -75,14 +69,15 @@ public sealed record WorldFlavour(
                 body,
                 designation,
                 ParentName: null,
-                MoonIndex: null);
+                MoonIndex: null,
+                cosmology);
         }
 
         string parent = other;
-        int index = rng.NextInt(MinMoonIndex, MaxMoonIndexExclusive);
+        int index = cosmology.HabitableMoonIndex ?? 1;
         string designationMoon = body + ", the " + Ordinal(index) + " moon of " + parent;
 
-        return new WorldFlavour(WorldKind.Moon, body, designationMoon, parent, index);
+        return new WorldFlavour(WorldKind.Moon, body, designationMoon, parent, index, cosmology);
     }
 
     /// <summary>
