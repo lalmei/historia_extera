@@ -1,0 +1,241 @@
+using HistoryEngine.Core;
+using HistoryEngine.Entities;
+using HistoryEngine.Events;
+
+namespace HistoryEngine.World;
+
+/// <summary>
+/// Choosing a life for someone the chronicle has started to follow.
+/// </summary>
+/// <remarks>
+/// <para>Raised notables arrive with the career the office implies; children choose, once, when
+/// they come of age. The choice is weighted by a blend of their people's values and their own
+/// — <see cref="Disposition.Decides"/> — so a follower of a pious people takes holy orders and
+/// a rebel of the same people may not. A parent's trade pulls the same way, harder on a
+/// follower than on a rebel, which is what makes a marshal's child likelier to serve than a
+/// merchant's without making it certain.</para>
+///
+/// <para>An office is a posting, not a new birth. Taking one puts them in the career the seat
+/// is — clergy, arms, office — and laying it down (alive) puts them back. Death leaves them
+/// as they were in the post. The title itself stays on the holding; occupation is what they
+/// were doing that year.</para>
+///
+/// <para>Forked on the figure's own id, so the year they turn sixteen cannot change what they
+/// become, and adding a later child cannot reshuffle an earlier one.</para>
+/// </remarks>
+public static class Occupations
+{
+    /// <summary>How hard a parent's trade pulls, at no independence.</summary>
+    private const double FamilyPull = 0.7;
+
+    /// <summary>How much more a matching career weighs when a court is filling a seat.</summary>
+    private const double OfficeMatch = 1.0;
+
+    /// <summary>How much a mismatch still weighs — never zero, or a realm with no soldiers
+    /// could never name a marshal from its own house.</summary>
+    private const double OfficeMismatch = 0.28;
+
+    public static Occupation ForOffice(OfficeKind office) => office switch
+    {
+        OfficeKind.Marshal => Occupation.Soldiery,
+        OfficeKind.HighPriest => Occupation.Clergy,
+        OfficeKind.Governor => Occupation.Official,
+        OfficeKind.GuildMaster => Occupation.Guild,
+        OfficeKind.Merchant => Occupation.Merchant,
+        _ => Occupation.Court,
+    };
+
+    public static Occupation FromOrigin(FigureOrigin origin) => origin switch
+    {
+        FigureOrigin.Soldiery => Occupation.Soldiery,
+        FigureOrigin.Clergy => Occupation.Clergy,
+        FigureOrigin.Townsfolk => Occupation.Townsfolk,
+        FigureOrigin.Guild => Occupation.Guild,
+        FigureOrigin.Merchant => Occupation.Merchant,
+        _ => Occupation.None,
+    };
+
+    /// <summary>
+    /// Puts this person in the career their open offices require, or restores the one they
+    /// had before, unless they died in the post.
+    /// </summary>
+    public static void Sync(WorldState world, Figure figure, int year, bool died = false)
+    {
+        if (died) return;
+
+        OfficeHolding? posting = CareerOffice(figure);
+        if (posting is not null)
+        {
+            Occupation implied = ForOffice(posting.Kind);
+            if (figure.Occupation == implied) return;
+
+            RememberPrior(figure);
+            Take(world, figure, implied, year);
+            return;
+        }
+
+        Occupation home = figure.PriorOccupation != Occupation.None
+            ? figure.PriorOccupation
+            : FromOrigin(figure.Origin);
+
+        figure.PriorOccupation = Occupation.None;
+
+        if (home == Occupation.None)
+        {
+            if (figure.AgeIn(year) < Succession.MajorityAge)
+            {
+                figure.Occupation = Occupation.None;
+            }
+
+            return;
+        }
+
+        if (home != figure.Occupation)
+        {
+            Take(world, figure, home, year);
+        }
+    }
+
+    /// <summary>
+    /// Gives this figure a career if they are old enough and do not already have one.
+    /// </summary>
+    public static void Ensure(WorldState world, Figure figure, int year)
+    {
+        if (figure.Occupation != Occupation.None) return;
+
+        int age = figure.IsAlive ? figure.AgeIn(year) : figure.AgeAtDeath ?? 0;
+        if (age < Succession.MajorityAge) return;
+
+        IRng rng = world.Root.Fork("occupation", figure.Id.ToDiscriminator());
+        Take(world, figure, Choose(world, figure, rng), year);
+    }
+
+    /// <summary>How the chronicle names the trade, in the case the template expects.</summary>
+    public static string Phrase(Occupation occupation) => occupation switch
+    {
+        Occupation.Soldiery => "arms",
+        Occupation.Clergy => "holy orders",
+        Occupation.Townsfolk => "the standing of the town",
+        Occupation.Guild => "a craft",
+        Occupation.Merchant => "trade",
+        Occupation.Court => "the court",
+        Occupation.Official => "office",
+        Occupation.Scribe => "letters",
+        _ => "a trade",
+    };
+
+    /// <summary>How strongly this person fits a seat, for a court choosing among courtiers.</summary>
+    public static double Affinity(Figure figure, OfficeKind office)
+    {
+        if (figure.Occupation == Occupation.None) return OfficeMismatch;
+        if (figure.Occupation == ForOffice(office)) return OfficeMatch;
+
+        // A governorship looks for someone of the town; holding it is office.
+        if (office == OfficeKind.Governor && figure.Occupation == Occupation.Townsfolk)
+        {
+            return OfficeMatch;
+        }
+
+        return OfficeMismatch;
+    }
+
+    public static Occupation Choose(WorldState world, Figure figure, IRng rng)
+    {
+        Culture culture = world.CultureOf(figure);
+        CultureValues decided = figure.Disposition.Decides(culture.Values);
+        double independence = figure.Disposition.Independence;
+
+        var weights = new[]
+        {
+            0.08 + (decided.Aggression * 1.10) + (decided.Expansionism * 0.40),
+            0.08 + (decided.Piety * 1.20),
+            0.08 + (decided.Tradition * 0.70),
+            0.08 + (decided.Learning * 1.10),
+            0.08 + (decided.Mercantile * 1.20),
+            0.06 + (figure.Disposition.Centralism * 0.25),
+            0.05 + (decided.Learning * 1.15) + (decided.Tradition * 0.25),
+        };
+
+        if (!figure.DynastyId.IsNone)
+        {
+            weights[5] += 0.12 + ((1.0 - independence) * 0.35);
+        }
+
+        PullToward(world, figure.MotherId, independence, weights);
+        PullToward(world, figure.FatherId, independence, weights);
+
+        var options = new[]
+        {
+            Occupation.Soldiery,
+            Occupation.Clergy,
+            Occupation.Townsfolk,
+            Occupation.Guild,
+            Occupation.Merchant,
+            Occupation.Court,
+            Occupation.Scribe,
+        };
+
+        return rng.PickWeighted(options, occupation => weights[IndexOf(occupation)]);
+    }
+
+    private static void Take(WorldState world, Figure figure, Occupation occupation, int year)
+    {
+        if (figure.Occupation == occupation) return;
+
+        figure.Occupation = occupation;
+        if (occupation == Occupation.None) return;
+
+        world.Chronicle.Record(
+            year,
+            EventKind.OccupationTaken,
+            figure.Id,
+            location: world.ResidenceOf(figure),
+            data: Chronicle.Data(("occupation", Phrase(occupation))),
+            significance: Significance.Routine);
+    }
+
+    private static void RememberPrior(Figure figure)
+    {
+        if (figure.PriorOccupation != Occupation.None) return;
+        if (figure.Occupation is Occupation.None or Occupation.Official) return;
+
+        figure.PriorOccupation = figure.Occupation;
+    }
+
+    private static OfficeHolding? CareerOffice(Figure figure)
+    {
+        for (int i = 0; i < figure.Offices.Count; i++)
+        {
+            OfficeHolding held = figure.Offices[i];
+            if (held.ToYear is not null) continue;
+            if (held.Kind == OfficeKind.Consort) continue;
+
+            return held;
+        }
+
+        return null;
+    }
+
+    private static void PullToward(
+        WorldState world, EntityId parentId, double independence, double[] weights)
+    {
+        if (!world.Figures.Contains(parentId)) return;
+
+        Occupation parent = world.Figures[parentId].Occupation;
+        if (parent is Occupation.None or Occupation.Official) return;
+
+        weights[IndexOf(parent)] += (1.0 - independence) * FamilyPull;
+    }
+
+    private static int IndexOf(Occupation occupation) => occupation switch
+    {
+        Occupation.Soldiery => 0,
+        Occupation.Clergy => 1,
+        Occupation.Townsfolk => 2,
+        Occupation.Guild => 3,
+        Occupation.Merchant => 4,
+        Occupation.Court => 5,
+        Occupation.Scribe => 6,
+        _ => 5,
+    };
+}

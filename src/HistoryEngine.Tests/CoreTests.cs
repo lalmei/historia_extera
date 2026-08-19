@@ -151,6 +151,23 @@ public sealed class RngTests
         Assert.True(rng.Chance(2.0));
     }
 
+    /// <summary>Heavier items are drawn more often, and a zero-weight list still returns someone.</summary>
+    [Fact]
+    public void WeightedPicksFollowTheWeights()
+    {
+        var rng = new Pcg32(19);
+        var items = new[] { "a", "b", "c" };
+        int b = 0;
+
+        for (int i = 0; i < 12_000; i++)
+        {
+            if (rng.PickWeighted(items, item => item == "b" ? 9.0 : 0.5) == "b") b++;
+        }
+
+        Assert.InRange(b, 9000, 11500);
+        Assert.Equal("a", rng.PickWeighted(items, _ => 0.0));
+    }
+
     [Fact]
     public void ZeroOrNegativeBoundsAreRejected()
     {

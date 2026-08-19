@@ -39,7 +39,7 @@ public sealed record Measure(string Name, string Group, MeasureUnit Unit);
 /// which is a great deal cheaper than the years it saves carrying.</para>
 ///
 /// <para><b>Not a snapshot of the world per year.</b> That is the thing the timeline replay
-/// exists to avoid, and this is not it: eleven numbers per living realm, one per standing
+/// exists to avoid, and this is not it: eleven numbers per living realm, five per standing
 /// settlement and one per open route, against a thousand regions and every entity they contain.
 /// The rule for adding to it is that a measure earns a track by moving — anything fixed at
 /// worldgen is already in the export as a field, and a flat line is not history.</para>

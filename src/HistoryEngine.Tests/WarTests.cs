@@ -250,69 +250,72 @@ public sealed class WarTests
     [Fact]
     public void EveryBattleIsWellFormed()
     {
-        WorldState world = HistoryRun.Execute(TestWorlds.Standard()).World;
-        Calendar calendar = world.Config.Calendar;
-
         int ongoing = 0;
         int carried = 0;
         int relieved = 0;
         int lifted = 0;
 
-        foreach (Battle battle in world.Battles)
+        foreach (ulong seed in Seeds)
         {
-            Assert.True(world.Wars.Contains(battle.WarId), $"{battle.Name} belongs to no war.");
-            Assert.True(world.Regions.Contains(battle.RegionId), $"{battle.Name} was fought nowhere.");
+            WorldState world = HistoryRun.Execute(TestWorlds.Standard(seed)).World;
+            Calendar calendar = world.Config.Calendar;
 
-            Assert.NotEqual(battle.AttackerId, battle.DefenderId);
-            Assert.True(
-                battle.AttackerLosses <= battle.AttackerStrength
-                && battle.DefenderLosses <= battle.DefenderStrength,
-                $"{battle.Name} killed more men than either side brought.");
-
-            // A siege is a battle at a settlement; a settlement is not necessarily a siege.
-            if (battle.IsSiege) Assert.True(world.Settlements.Contains(battle.SettlementId));
-            if (battle.Sacked) Assert.True(world.Settlements.Contains(battle.SettlementId));
-
-            if (!battle.IsSiege)
+            foreach (Battle battle in world.Battles)
             {
-                Assert.Equal(SiegeOutcome.NotSiege, battle.SiegeOutcome);
-                Assert.Equal(battle.StartedAt, battle.EndedAt);
+                Assert.True(world.Wars.Contains(battle.WarId), $"{battle.Name} belongs to no war.");
+                Assert.True(world.Regions.Contains(battle.RegionId), $"{battle.Name} was fought nowhere.");
+
+                Assert.NotEqual(battle.AttackerId, battle.DefenderId);
                 Assert.True(
-                    battle.VictorId == battle.AttackerId || battle.VictorId == battle.DefenderId,
-                    $"{battle.Name} was won by somebody who was not there.");
-            }
-            else
-            {
-                ValidateSiege(world, calendar, battle);
+                    battle.AttackerLosses <= battle.AttackerStrength
+                    && battle.DefenderLosses <= battle.DefenderStrength,
+                    $"{battle.Name} killed more men than either side brought.");
 
-                switch (battle.SiegeOutcome)
+                // A siege is a battle at a settlement; a settlement is not necessarily a siege.
+                if (battle.IsSiege) Assert.True(world.Settlements.Contains(battle.SettlementId));
+                if (battle.Sacked) Assert.True(world.Settlements.Contains(battle.SettlementId));
+
+                if (!battle.IsSiege)
                 {
-                    case SiegeOutcome.Ongoing:
-                        ongoing++;
-                        break;
-                    case SiegeOutcome.Carried:
-                        carried++;
-                        break;
-                    case SiegeOutcome.Relieved:
-                        relieved++;
-                        break;
-                    case SiegeOutcome.Lifted:
-                        lifted++;
-                        break;
+                    Assert.Equal(SiegeOutcome.NotSiege, battle.SiegeOutcome);
+                    Assert.Equal(battle.StartedAt, battle.EndedAt);
+                    Assert.True(
+                        battle.VictorId == battle.AttackerId || battle.VictorId == battle.DefenderId,
+                        $"{battle.Name} was won by somebody who was not there.");
                 }
-            }
+                else
+                {
+                    ValidateSiege(world, calendar, battle);
 
-            War war = world.Wars[battle.WarId];
-            Assert.Contains(battle.Id, war.BattleIds);
-            Assert.True(
-                war.Involves(battle.AttackerId) && war.Involves(battle.DefenderId),
-                $"{battle.Name} was fought by realms that were not at war.");
+                    switch (battle.SiegeOutcome)
+                    {
+                        case SiegeOutcome.Ongoing:
+                            ongoing++;
+                            break;
+                        case SiegeOutcome.Carried:
+                            carried++;
+                            break;
+                        case SiegeOutcome.Relieved:
+                            relieved++;
+                            break;
+                        case SiegeOutcome.Lifted:
+                            lifted++;
+                            break;
+                    }
+                }
+
+                War war = world.Wars[battle.WarId];
+                Assert.Contains(battle.Id, war.BattleIds);
+                Assert.True(
+                    war.Involves(battle.AttackerId) && war.Involves(battle.DefenderId),
+                    $"{battle.Name} was fought by realms that were not at war.");
+            }
         }
 
         Assert.True(carried > 0, "No siege was ever carried.");
         Assert.True(relieved > 0, "No siege was ever relieved.");
         Assert.True(lifted > 0, "No siege was ever lifted without a deciding battle.");
-        Assert.True(ongoing <= 1, $"The run ended with {ongoing} sieges still consuming campaigns.");
+        Assert.True(ongoing <= 5, $"The runs ended with {ongoing} sieges still consuming campaigns.");
 
         var episodic = Assert.IsAssignableFrom<IEpisodic>(new WarSystem());
         Assert.Contains(DocketKind.SiegeResolves, episodic.Handles);
@@ -800,6 +803,15 @@ public sealed class WarTests
             Assert.True(
                 lost < target.PeakPopulation,
                 $"{target.Name} lost more people to one sack than it ever had.");
+
+            // The sack is why this town has a weariness track of its own, not only its owner's.
+            // A siege that resolves on the last days of a year is applied at the next step, so
+            // the sample for the event's year can still be at rest and the weariness lands on
+            // the year after.
+            Assert.True(
+                Reading(world, target.Id, "weariness", entry.Year) > 0
+                || Reading(world, target.Id, "weariness", entry.Year + 1) > 0,
+                $"{target.Name} was sacked in {entry.Year} but its weariness that year is at rest.");
         }
 
         Assert.True(sacked > 0, "Eight centuries of war sacked nothing.");
@@ -859,5 +871,20 @@ public sealed class WarTests
         }
 
         return kept.ToArray();
+    }
+
+    /// <summary>One year's sample of one measure, or zero if that year was not recorded.</summary>
+    private static double Reading(WorldState world, EntityId entity, string metric, int year)
+    {
+        foreach (SeriesLog.Series series in world.Series.All)
+        {
+            if (series.Entity != entity || series.Measure.Name != metric) continue;
+
+            int index = year - series.FromYear;
+            if (index < 0 || index >= series.Values.Count) return 0;
+            return series.Values[index];
+        }
+
+        return 0;
     }
 }

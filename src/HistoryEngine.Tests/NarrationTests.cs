@@ -90,11 +90,52 @@ public sealed class NarrationTests
         Assert.Equal("fig:2 died, of illness.", Narration.Render(causeOnly, Name));
     }
 
+    [Fact]
+    public void AFiguresChronicleIsToldFromTheirPointOfView()
+    {
+        EntityId ruler = EntityId.Figure(4);
+        EntityId spouse = EntityId.Figure(5);
+        var claim = new HistoryEvent(
+            0, 40, EventKind.RegionClaimed, EntityId.Region(1), EntityId.Civilization(2), default,
+            Extra: new[] { ruler },
+            Data: Chronicle.Data(("ruler", "fig:4")));
+
+        Assert.Equal(
+            "civ:2 extended its reach into reg:1 under fig:4.",
+            Narration.Render(claim, Name));
+        Assert.Equal("Claimed reg:1 for civ:2.", Narration.Render(claim, Name, ruler));
+
+        var marriage = new HistoryEvent(
+            1, 20, EventKind.FigureMarried, ruler, spouse, EntityId.Settlement(8));
+
+        Assert.Equal("fig:4 married fig:5 at set:8.", Narration.Render(marriage, Name));
+        Assert.Equal("Married fig:5 at set:8.", Narration.Render(marriage, Name, ruler));
+        Assert.Equal("Married fig:4 at set:8.", Narration.Render(marriage, Name, spouse));
+    }
+
+    [Fact]
+    public void ANamedWitnessDoesNotStealTheActorsLine()
+    {
+        EntityId victor = EntityId.Figure(1);
+        EntityId other = EntityId.Figure(2);
+        var battle = new HistoryEvent(
+            0, 90, EventKind.BattleFought, EntityId.Battle(3), EntityId.Civilization(4), default,
+            Extra: new[] { victor, other },
+            Data: Chronicle.Data(("victor", "fig:1"), ("losses", "400")));
+
+        Assert.Equal(
+            "Prevailed at the bat:3, at a cost of 400 dead.",
+            Narration.Render(battle, Name, victor));
+        Assert.Equal(
+            "Was at the bat:3, which civ:4 won, at a cost of 400 dead.",
+            Narration.Render(battle, Name, other));
+    }
+
     /// <summary>Templates must not reference slots their emitting system never fills — spot-checked here.</summary>
     [Fact]
     public void TemplatesUseOnlyKnownPlaceholders()
     {
-        var allowed = new[] { "subject", "object", "location" };
+        var allowed = new[] { "subject", "object", "location", "self", "other" };
 
         foreach (KeyValuePair<string, string> pair in Narration.Templates)
         {
@@ -109,7 +150,10 @@ public sealed class NarrationTests
 
                 string token = template.Substring(i + 1, close - i - 1);
                 bool valid = allowed.Contains(token)
-                    || token.StartsWith("data:", StringComparison.Ordinal);
+                    || token.StartsWith("data:", StringComparison.Ordinal)
+                    || token.StartsWith("as:", StringComparison.Ordinal)
+                    || token.StartsWith("not:", StringComparison.Ordinal)
+                    || token.StartsWith("self:", StringComparison.Ordinal);
 
                 Assert.True(valid, $"Template for {pair.Key} uses unknown placeholder '{token}'");
                 i = close;

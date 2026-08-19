@@ -49,8 +49,9 @@ public interface IChronicle
 
     /// <param name="significance">
     /// Whether this is history or a vital record. Defaults to <see cref="Significance.Notable"/>,
-    /// which is what all but the four sites writing births, deaths, marriages and appointments
-    /// want; see <see cref="Significance"/> for why the caller is what decides.
+    /// which is what all but the sites writing births, deaths, marriages, appointments,
+    /// trades and quiet border claims want; see <see cref="Significance"/> for why the caller
+    /// is what decides.
     /// </param>
     HistoryEvent Record(
         int year,

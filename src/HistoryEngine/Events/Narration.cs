@@ -14,15 +14,24 @@ namespace HistoryEngine.Events;
 /// no viewer change, which matters because the alternative is a per-kind switch statement
 /// that has to be kept in sync across a language boundary and will not be.</para>
 ///
-/// <para><b>Template syntax</b> — three constructs, and the whole grammar:</para>
+/// <para><b>Template syntax</b> — the whole grammar:</para>
 /// <list type="bullet">
 ///   <item><description><c>{subject}</c>, <c>{object}</c>, <c>{location}</c> — resolve to
 ///   entity names, and become cross-links in the viewer.</description></item>
 ///   <item><description><c>{data:key}</c> — a string from <see cref="HistoryEvent.Data"/>,
 ///   rendered as plain text.</description></item>
+///   <item><description><c>{self}</c> — the figure whose page is being read. <c>{other}</c> is
+///   the other figure among subject and object.</description></item>
+///   <item><description><c>{as:key}</c> / <c>{not:key}</c> — succeed (as empty text) when a
+///   named actor in data is, or is not, the figure being read. <c>{self:subject}</c> and
+///   the same for object, location and extra test the slots themselves.</description></item>
 ///   <item><description><c>[ ... ]</c> — an optional segment, dropped in its entirety if any
 ///   placeholder inside it is unresolvable.</description></item>
 /// </list>
+///
+/// <para>A second template per kind, keyed <c>Kind.self</c>, is what a figure's chronicle uses.
+/// The world line names realms; the figure line is the same fact told as something they did.
+/// Kinds without a <c>.self</c> template keep the world wording.</para>
 ///
 /// <para>The optional segment is what keeps prose grammatical when slots are absent. A figure
 /// born before any settlement exists has no birthplace, and <c>"{subject} was born[ in
@@ -37,7 +46,10 @@ public static class Narration
     /// Bumped when the template grammar changes in a way the viewer must match. Exported so a
     /// viewer reading a newer world file can say so instead of rendering it wrongly.
     /// </summary>
-    public const int SyntaxVersion = 1;
+    public const int SyntaxVersion = 2;
+
+    /// <summary>Suffix on a world template's key for the wording a figure's page uses.</summary>
+    public const string SelfKeySuffix = ".self";
 
     private static readonly DetMap<string, string> TemplatesByKind = BuildTemplates();
 
@@ -46,6 +58,9 @@ public static class Narration
         var map = new DetMap<string, string>();
 
         void Set(EventKind kind, string template) => map[kind.ToString()] = template;
+
+        void SetSelf(EventKind kind, string template) =>
+            map[kind.ToString() + SelfKeySuffix] = template;
 
         Set(EventKind.WorldCreated, "{data:designation} took shape.");
 
@@ -192,6 +207,19 @@ public static class Narration
             ? template!
             : TemplatesByKind[EventKind.Unknown.ToString()];
 
+    /// <summary>The wording a figure's page uses, or the world line if none was written.</summary>
+    public static string TemplateFor(EventKind kind, EntityId viewpoint)
+    {
+        if (!viewpoint.IsNone && viewpoint.Kind == EntityKind.Figure
+            && TemplatesByKind.TryGetValue(kind.ToString() + SelfKeySuffix, out string? self)
+            && self is not null)
+        {
+            return self;
+        }
+
+        return TemplateFor(kind);
+    }
+
     /// <summary>Every kind with no template. Should always be empty — asserted by <c>NarrationTests</c>.</summary>
     public static IReadOnlyList<EventKind> MissingTemplates()
     {
@@ -212,10 +240,28 @@ public static class Narration
     /// Renders an event to prose. The engine-side twin of what the viewer does, used for CLI
     /// output and for tests that assert a history reads correctly.
     /// </summary>
-    /// <param name="nameOf">Resolves an entity id to its display name.</param>
-    public static string Render(HistoryEvent entry, Func<EntityId, string> nameOf)
+    /// <param name="viewpoint">
+    /// The figure whose chronicle is being read. Selects the <c>.self</c> template and resolves
+    /// <c>{self}</c>, <c>{other}</c> and the role tests.
+    /// </param>
+    public static string Render(
+        HistoryEvent entry, Func<EntityId, string> nameOf, EntityId viewpoint = default)
     {
-        string template = TemplateFor(entry.Kind);
+        string template = TemplateFor(entry.Kind, viewpoint);
+        string prose = RenderTemplate(template, entry, nameOf, viewpoint);
+
+        // A role-gated .self template can drop every segment for a witness it does not cover.
+        if (prose.Length == 0 && !viewpoint.IsNone)
+        {
+            prose = RenderTemplate(TemplateFor(entry.Kind), entry, nameOf, viewpoint);
+        }
+
+        return prose;
+    }
+
+    private static string RenderTemplate(
+        string template, HistoryEvent entry, Func<EntityId, string> nameOf, EntityId viewpoint)
+    {
         var result = new StringBuilder(template.Length + 32);
 
         int i = 0;
@@ -228,13 +274,12 @@ public static class Narration
                 int close = FindSegmentEnd(template, i);
                 if (close < 0)
                 {
-                    // Unterminated segment: treat the rest as literal rather than throwing.
                     result.Append(template, i, template.Length - i);
                     break;
                 }
 
                 string inner = template.Substring(i + 1, close - i - 1);
-                if (TryRenderSegment(inner, entry, nameOf, out string rendered))
+                if (TryRenderSegment(inner, entry, nameOf, viewpoint, out string rendered))
                 {
                     result.Append(rendered);
                 }
@@ -253,10 +298,7 @@ public static class Narration
                 }
 
                 string token = template.Substring(i + 1, close - i - 1);
-
-                // A required slot that will not resolve renders as nothing. Templates should
-                // wrap genuinely optional slots in [ ] so this stays rare.
-                result.Append(Resolve(token, entry, nameOf) ?? string.Empty);
+                result.Append(Resolve(token, entry, nameOf, viewpoint) ?? string.Empty);
                 i = close + 1;
                 continue;
             }
@@ -270,7 +312,11 @@ public static class Narration
 
     /// <summary>Renders an optional segment, reporting false if any placeholder inside is absent.</summary>
     private static bool TryRenderSegment(
-        string inner, HistoryEvent entry, Func<EntityId, string> nameOf, out string rendered)
+        string inner,
+        HistoryEvent entry,
+        Func<EntityId, string> nameOf,
+        EntityId viewpoint,
+        out string rendered)
     {
         var buffer = new StringBuilder(inner.Length + 16);
 
@@ -292,7 +338,8 @@ public static class Narration
                 break;
             }
 
-            string? value = Resolve(inner.Substring(i + 1, close - i - 1), entry, nameOf);
+            string? value = Resolve(
+                inner.Substring(i + 1, close - i - 1), entry, nameOf, viewpoint);
             if (value is null)
             {
                 rendered = string.Empty;
@@ -317,7 +364,8 @@ public static class Narration
         return -1;
     }
 
-    private static string? Resolve(string token, HistoryEvent entry, Func<EntityId, string> nameOf)
+    private static string? Resolve(
+        string token, HistoryEvent entry, Func<EntityId, string> nameOf, EntityId viewpoint)
     {
         if (token.StartsWith("data:", StringComparison.Ordinal))
         {
@@ -325,14 +373,77 @@ public static class Narration
             return string.IsNullOrEmpty(value) ? null : value;
         }
 
+        if (token.StartsWith("as:", StringComparison.Ordinal))
+        {
+            if (viewpoint.IsNone) return null;
+            string? named = entry.DataValue(token.Substring(3));
+            return named == nameOf(viewpoint) ? string.Empty : null;
+        }
+
+        if (token.StartsWith("not:", StringComparison.Ordinal))
+        {
+            if (viewpoint.IsNone) return null;
+            string? named = entry.DataValue(token.Substring(4));
+            return named == nameOf(viewpoint) ? null : string.Empty;
+        }
+
+        if (token.StartsWith("self:", StringComparison.Ordinal))
+        {
+            if (viewpoint.IsNone) return null;
+
+            return token.Substring(5) switch
+            {
+                "subject" => viewpoint == entry.Subject ? string.Empty : null,
+                "object" => viewpoint == entry.Object ? string.Empty : null,
+                "location" => viewpoint == entry.Location ? string.Empty : null,
+                "extra" => Mentions(entry, viewpoint) ? string.Empty : null,
+                _ => null,
+            };
+        }
+
         EntityId id = token switch
         {
             "subject" => entry.Subject,
             "object" => entry.Object,
             "location" => entry.Location,
+            "self" => viewpoint,
+            "other" => OtherFigure(entry, viewpoint),
             _ => EntityId.None,
         };
 
         return id.IsNone ? null : nameOf(id);
+    }
+
+    private static bool Mentions(HistoryEvent entry, EntityId id)
+    {
+        if (entry.Extra is null) return false;
+
+        for (int i = 0; i < entry.Extra.Count; i++)
+        {
+            if (entry.Extra[i] == id) return true;
+        }
+
+        return false;
+    }
+
+    private static EntityId OtherFigure(HistoryEvent entry, EntityId self)
+    {
+        if (self.IsNone) return EntityId.None;
+
+        if (!entry.Subject.IsNone
+            && entry.Subject.Kind == EntityKind.Figure
+            && entry.Subject != self)
+        {
+            return entry.Subject;
+        }
+
+        if (!entry.Object.IsNone
+            && entry.Object.Kind == EntityKind.Figure
+            && entry.Object != self)
+        {
+            return entry.Object;
+        }
+
+        return EntityId.None;
     }
 }

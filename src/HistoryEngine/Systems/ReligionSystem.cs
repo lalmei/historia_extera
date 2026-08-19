@@ -651,9 +651,10 @@ public sealed class ReligionSystem : ISystem
             civilization.StateReligionId = seatFaith;
 
             var data = new DetMap<string, string>();
-            if (!civilization.CurrentRulerId.IsNone && world.Figures.Contains(civilization.CurrentRulerId))
+            EntityId[]? extra = null;
+            if (world.NamePerson(data, "ruler", civilization.CurrentRulerId))
             {
-                data["ruler"] = world.Figures[civilization.CurrentRulerId].FullName;
+                extra = new[] { civilization.CurrentRulerId };
             }
 
             world.Chronicle.Record(
@@ -662,7 +663,8 @@ public sealed class ReligionSystem : ISystem
                 civilization.Id,
                 obj: seatFaith,
                 location: civilization.CapitalId,
-                data: data);
+                extra: extra,
+                data: data.Count == 0 ? null : data);
         }
     }
 

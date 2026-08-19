@@ -58,7 +58,19 @@ public enum EventKind
     OfficeGranted = 320,
     OfficeRevoked = 321,
 
+    /// <summary>
+    /// A recorded person took a trade. Children of a house, and consorts raised into the
+    /// record already grown; a notable appointed from the population is covered by the grant.
+    /// </summary>
+    OccupationTaken = 322,
+
+    /// <summary>A recorded person travelled and was expected home again.</summary>
+    JourneyMade = 323,
+
     // ---- Territory (400) ----
+    // Claims are written so ownership can be replayed year by year; they are marked Routine
+    // so the timeline is not a run of "extended its reach". Cessions and releases stay on
+    // the spine — those are the transfers a reader comes for.
     RegionClaimed = 400,
     RegionCeded = 401,
     RegionReleased = 402,

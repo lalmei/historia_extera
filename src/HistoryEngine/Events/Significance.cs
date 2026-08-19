@@ -27,8 +27,8 @@ namespace HistoryEngine.Events;
 ///
 /// <para><see cref="Notable"/> is zero so that it is what an event is unless someone says
 /// otherwise. Several hundred recording sites across the engine describe things that happened
-/// to realms, settlements and faiths, and every one of them is spine by default; the four sites
-/// that write vital records are the ones that opt out.</para>
+    /// to realms, settlements and faiths, and every one of them is spine by default; the sites
+    /// that write vital records are the ones that opt out.</para>
 /// </remarks>
 public enum Significance
 {

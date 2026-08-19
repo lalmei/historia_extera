@@ -105,6 +105,13 @@ public sealed class Battle
 
     public EntityId DefenderCommanderId { get; set; } = EntityId.None;
 
+    /// <summary>
+    /// Named people who were present: commanders, soldiers who took the field, and residents
+    /// of an invested town. Not exported of itself — it is how the chronicle indexes the
+    /// engagement onto their pages, and the careers live on the figures.
+    /// </summary>
+    public List<EntityId> WitnessIds { get; } = new();
+
     public int AttackerStrength { get; set; }
 
     public int DefenderStrength { get; set; }

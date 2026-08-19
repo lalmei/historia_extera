@@ -71,6 +71,16 @@ public sealed class CrownSystem : ISystem
 
             civilization.EffectiveValues = Settle(world, civilization, year);
         }
+
+        // The same dimming, for the same reason: a reading taken at the end of the year should
+        // be last year's memory plus this year's events, not an unfaded running total. Abandoned
+        // places keep the fortunes they died with rather than decaying to nothing in the years
+        // after the chronicle stopped watching them.
+        for (int i = 0; i < world.Settlements.Count; i++)
+        {
+            Settlement settlement = world.Settlements[i];
+            if (settlement.IsActive) settlement.Fortunes.Fade();
+        }
     }
 
     /// <summary>

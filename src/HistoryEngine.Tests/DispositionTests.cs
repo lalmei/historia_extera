@@ -396,6 +396,8 @@ public sealed class DispositionTests
             merciful.Values.Aggression < plain.Values.Aggression,
             "A church of mercy should leave its faithful less aggressive than their culture alone.");
         Assert.True(warlike.Values.Aggression > merciful.Values.Aggression);
+        Assert.Equal(plain.Independence, warlike.Independence);
+        Assert.Equal(plain.Independence, merciful.Independence);
     }
 
     /// <summary>A ranked church pulls a republican toward deciding things personally.</summary>

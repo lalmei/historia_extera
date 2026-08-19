@@ -3,11 +3,16 @@ using HistoryEngine.Core;
 namespace HistoryEngine.Entities;
 
 /// <summary>
-/// How a realm's recent past sits on it, in four decaying measures.
+/// How a recent past sits on a realm or a place, in four decaying measures.
 /// </summary>
 /// <remarks>
+/// <para>A settlement carries the same type as a realm because the four measures and the decay
+/// are the same question asked of a smaller subject: what has lately happened here. Only a
+/// realm's fortunes shift the values it is governed by; a town's are sampled and shown, not
+/// read back into the year's decisions.</para>
+///
 /// <para><b>Written by whichever system caused it, at the moment it happens</b> — the same
-/// provenance rule <see cref="DeathCause"/> follows. The alternative is deriving a realm's mood
+/// provenance rule <see cref="DeathCause"/> follows. The alternative is deriving a mood
 /// by walking the chronicle every year, which is both slower and a second opinion about what
 /// happened: the war system already knows it lost a battle, and asking the event log to work it
 /// out again is how the two come to disagree.</para>
