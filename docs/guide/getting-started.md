@@ -56,7 +56,9 @@ dotnet run --project src/HistoryEngine.Cli -- --seed 42 --years 300 --civs 8
 make viewer
 ```
 
-Then open the URL Astro prints (usually `http://localhost:4321`).
+Then open the URL Astro prints (usually `http://localhost:4321`). Under the
+dev server that landing page is the Worlds Library; open `world.json` from the
+list, or pass `?world=` for a named export.
 
 ## Run tests
 

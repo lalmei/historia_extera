@@ -7,7 +7,7 @@
  * stops moving.
  */
 
-export const SCHEMA_VERSION = 21;
+export const SCHEMA_VERSION = 28;
 
 /**
  * Whether an event carries the history or merely records a life.
@@ -108,6 +108,77 @@ export const WORLD_KIND_LABELS: Record<WorldKind, string> = {
   Moon: 'Moon',
 };
 
+export type StarSpectralClass = 'M' | 'K' | 'G' | 'F';
+
+export const STAR_CLASS_LABELS: Record<StarSpectralClass, string> = {
+  M: 'M-type (red dwarf)',
+  K: 'K-type (orange dwarf)',
+  G: 'G-type (Sun-like)',
+  F: 'F-type (yellow-white)',
+};
+
+export type CompanionRole = 'InnerRocky' | 'ShepherdGiant' | 'OuterIceGiant';
+
+export const COMPANION_ROLE_LABELS: Record<CompanionRole, string> = {
+  InnerRocky: 'Inner rocky',
+  ShepherdGiant: 'Shepherd giant',
+  OuterIceGiant: 'Outer ice giant',
+};
+
+export interface ExportCompanionPlanet {
+  role: CompanionRole;
+  semiMajorAxisAu: number;
+  massEarth: number;
+  radiusEarth: number;
+  orbitalPeriodDays: number;
+}
+
+export interface ExportSystemMoon {
+  index: number;
+  orbitalDistanceEarthRadii: number;
+  massEarth: number;
+  radiusEarth: number;
+  dayLengthDays: number;
+  habitable: boolean;
+}
+
+export interface ExportCosmologyCheck {
+  label: string;
+  passed: boolean;
+  detail: string;
+}
+
+/** Host-star and habitable-body physics derived from the seed. */
+export interface ExportCosmology {
+  starClass: StarSpectralClass;
+  starMassSolar: number;
+  starRadiusSolar: number;
+  luminositySolar: number;
+  starLifespanGyr: number;
+  habitableZoneInnerAu: number;
+  habitableZoneOuterAu: number;
+  orbitalDistanceAu: number;
+  orbitalPeriodDays: number;
+  worldMassEarth: number;
+  worldRadiusEarth: number;
+  surfaceGravityG: number;
+  escapeVelocityKmS: number;
+  bondAlbedo: number;
+  greenhouseDeltaC: number;
+  equilibriumTempK: number;
+  surfaceTempK: number;
+  parentGiantMassEarth?: number;
+  moonOrbitalDistanceEarthRadii?: number;
+  moonDayLengthDays?: number;
+  rocheLimitEarthRadii?: number;
+  snowLineAu: number;
+  companions: ExportCompanionPlanet[];
+  moons: ExportSystemMoon[];
+  habitableMoonIndex?: number;
+  isHabitable: boolean;
+  checks: ExportCosmologyCheck[];
+}
+
 export interface ExportWorld {
   /** The world's own proper name: the planet, or the moon this history is set on. */
   name: string;
@@ -121,6 +192,8 @@ export interface ExportWorld {
   parentName?: string;
   /** 1-based index among the parent's moons. Absent for planets. */
   moonIndex?: number;
+  /** Star-system physics for this habitable body. */
+  cosmology: ExportCosmology;
   minX: number;
   minZ: number;
   width: number;
@@ -294,13 +367,44 @@ export interface Fortunes {
  * information only for people an office raised out of the ordinary population, who would
  * otherwise have no life behind them at all.
  */
-export type FigureOrigin = 'Unrecorded' | 'Soldiery' | 'Clergy' | 'Townsfolk';
+export type FigureOrigin = 'Unrecorded' | 'Soldiery' | 'Clergy' | 'Townsfolk' | 'Guild' | 'Merchant';
 
 export const ORIGIN_LABELS: Record<FigureOrigin, string> = {
   Unrecorded: '',
   Soldiery: 'Risen from the ranks',
   Clergy: 'Risen through the temple',
   Townsfolk: 'Of the town',
+  Guild: 'Risen through a guild',
+  Merchant: 'Risen through a merchant house',
+};
+
+/**
+ * How a recorded person spends their life.
+ *
+ * Empty (`None`) until majority. Raised notables arrive with the career their office
+ * implies; children of a recorded household choose from their disposition.
+ */
+export type Occupation =
+  | 'None'
+  | 'Soldiery'
+  | 'Clergy'
+  | 'Townsfolk'
+  | 'Guild'
+  | 'Merchant'
+  | 'Court'
+  | 'Official'
+  | 'Scribe';
+
+export const OCCUPATION_LABELS: Record<Occupation, string> = {
+  None: 'Not yet of age',
+  Soldiery: 'Soldiery',
+  Clergy: 'Clergy',
+  Townsfolk: 'Of the town',
+  Guild: 'Guild',
+  Merchant: 'Merchant',
+  Court: 'Court',
+  Official: 'In office',
+  Scribe: 'Scribe',
 };
 
 /**
@@ -318,6 +422,11 @@ export interface Disposition {
   learning: number;
   /** How much this person insists on deciding things themselves. */
   centralism: number;
+  /**
+   * Follower at zero, rebel at one. How far they let their culture govern their
+   * choices — occupation, and the decisions they make once in office.
+   */
+  independence: number;
 }
 
 /**
@@ -708,7 +817,11 @@ export type TomeContentKind =
   | 'ReligiousRite'
   | 'ReligiousTeaching'
   | 'Annals'
-  | 'ArtifactHistory';
+  | 'ArtifactHistory'
+  | 'Cosmology'
+  | 'Dedication'
+  | 'RealmChronicle'
+  | 'Itinerary';
 
 export const TOME_CONTENT_LABELS: Record<TomeContentKind, string> = {
   Biography: 'Life',
@@ -717,6 +830,10 @@ export const TOME_CONTENT_LABELS: Record<TomeContentKind, string> = {
   ReligiousTeaching: 'Religious teaching',
   Annals: 'Local annals',
   ArtifactHistory: 'Artifact history',
+  Cosmology: 'Account of the heavens',
+  Dedication: 'Dedication',
+  RealmChronicle: 'Chronicle of the realm',
+  Itinerary: 'Itinerary',
 };
 
 export interface TomeSection {
@@ -724,6 +841,8 @@ export interface TomeSection {
   text: string;
   /** People, places, wars and other entities named by the passage. */
   references: EntityId[];
+  /** Year this passage was entered; later continuations keep earlier ones. */
+  year?: number;
 }
 
 /** A settlement copy made from an exemplar already circulating elsewhere. */
@@ -746,20 +865,22 @@ export interface TomeContents {
   sections: TomeSection[];
 }
 
-/** Where an artifact was, from a given year, and how it got there. */
+/** Where an artifact was, who claimed it, from a given year, and how it got there. */
 export interface Provenance {
   year: number;
   /** Absent for the entry that records it being lost. */
   settlementId?: EntityId;
+  /** Absent while it sat in a treasury, or once lost. */
+  ownerId?: EntityId;
   how: string;
 }
 
 /**
  * A made thing, and everywhere it has been.
  *
- * Held by settlements rather than people, so it can be sacked, abandoned or ceded along with
- * the place holding it — which is what makes `provenance` a way of reading the map's history
- * rather than an inventory line.
+ * Kept at a settlement and often claimed by a person, so it can be sacked with a town,
+ * inherited with a throne, or given as a gift — which is what makes `provenance` a way of
+ * reading both the map and a line of rulers.
  */
 export interface Artifact {
   id: EntityId;
@@ -772,8 +893,10 @@ export interface Artifact {
   /** Present only for books, codices, chronicles and testaments. */
   tomeContents?: TomeContents;
   createdYear: number;
-  /** The settlement holding it now. Absent once it is lost. */
+  /** The settlement keeping it now. Absent once it is lost. */
   holderId?: EntityId;
+  /** The person who claims it now. Absent in a treasury, or once lost. */
+  ownerId?: EntityId;
   lostYear?: number;
   provenance: Provenance[];
 }
@@ -998,6 +1121,45 @@ export interface Title {
   claim?: string;
 }
 
+export type CampaignRole = 'Commanded' | 'Fought' | 'Ruled' | 'EnduredSiege';
+
+export const CAMPAIGN_ROLE_LABELS: Record<CampaignRole, string> = {
+  Commanded: 'Commanded',
+  Fought: 'Took the field',
+  Ruled: 'Led the realm',
+  EnduredSiege: 'Endured the siege',
+};
+
+export interface Campaign {
+  warId: EntityId;
+  /** Absent when they led the realm through a war rather than standing in a battle. */
+  battleId?: EntityId;
+  /** The realm they stood with. */
+  sideId: EntityId;
+  year: number;
+  role: CampaignRole;
+  /** Absent while the war or siege is still open, and after a stalemate. */
+  triumphant?: boolean;
+}
+
+export type JourneyKind = 'Visit' | 'Trade' | 'Pilgrimage' | 'Mission';
+
+export const JOURNEY_KIND_LABELS: Record<JourneyKind, string> = {
+  Visit: 'Visit',
+  Trade: 'Trade',
+  Pilgrimage: 'Pilgrimage',
+  Mission: 'Mission',
+};
+
+export interface Journey {
+  kind: JourneyKind;
+  year: number;
+  fromSettlementId: EntityId;
+  toSettlementId: EntityId;
+  /** The route, holy site or host realm that made the journey make sense. */
+  viaId?: EntityId;
+}
+
 /**
  * One person, with enough of the family tree attached to draw it.
  *
@@ -1028,8 +1190,14 @@ export interface Figure {
   residenceSettlementId?: EntityId;
   /** What they were before the record began following them. See ORIGIN_LABELS. */
   origin: FigureOrigin;
+  /** How they spend their life, once of age. See OCCUPATION_LABELS. */
+  occupation: Occupation;
   disposition: Disposition;
   titles: Title[];
+  /** Wars and engagements they stood in, in the order they were recorded. */
+  campaigns: Campaign[];
+  /** Trips they made and returned from. Distinct from where they live. */
+  journeys: Journey[];
   motherId?: EntityId;
   fatherId?: EntityId;
   childIds: EntityId[];

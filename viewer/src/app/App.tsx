@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CAN_GENERATE } from './generate';
 import { hashParams, href, useRoute } from './router';
+import { CosmologyPage } from './components/CosmologyPanel';
+import { SiteFooter, SiteNav, generateHref, readingHref } from './components/SiteChrome';
+import { WorldNav } from './components/WorldNav';
 import { loadWorld, type World } from './store';
 import {
   kindOf,
-  WORLD_KIND_LABELS,
   type Artifact,
   type Battle,
   type Civilization,
@@ -50,6 +52,7 @@ import {
   WarList,
 } from './views/Lists';
 import { WorldMap } from './views/WorldMap';
+import { WorldsLibrary } from './views/WorldsLibrary';
 
 /** Where the CLI writes by default. */
 const DEFAULT_WORLD = `${import.meta.env.BASE_URL}worlds/world.json`.replace('//', '/');
@@ -61,45 +64,43 @@ const DEFAULT_WORLD = `${import.meta.env.BASE_URL}worlds/world.json`.replace('//
  *
  * Accepted before the `#` (canonical — it survives navigation) or inside it,
  * which is where the parameter lands when appended to a copied deep link.
+ *
+ * Under the dev server, omitting `world` opens the Worlds Library instead of
+ * assuming `worlds/world.json`. A built viewer still falls back to that default.
  */
-function selectedWorldUrl(): string {
+function requestedWorldUrl(): string | null {
   const search = new URLSearchParams(window.location.search).get('world')?.trim();
-  const requested = search || hashParams().get('world')?.trim();
-  return requested || DEFAULT_WORLD;
+  return search || hashParams().get('world')?.trim() || null;
 }
 
-const NAV = [
-  { path: '/', label: 'Overview' },
-  { path: '/map', label: 'Map' },
-  { path: '/timeline', label: 'Timeline' },
-  { path: '/civ', label: 'Civilizations' },
-  { path: '/war', label: 'Wars' },
-  { path: '/set', label: 'Settlements' },
-  { path: '/rte', label: 'Trade' },
-  { path: '/dyn', label: 'Houses' },
-  { path: '/fig', label: 'Figures' },
-  { path: '/rel', label: 'Faiths' },
-  { path: '/hol', label: 'Holy sites' },
-  { path: '/art', label: 'Artifacts' },
-  { path: '/plague', label: 'Plagues' },
-  { path: '/disaster', label: 'Disasters' },
-  { path: '/cul', label: 'Cultures' },
-  { path: '/reg', label: 'Regions' },
-];
+function selectedWorldUrl(): string {
+  return requestedWorldUrl() || DEFAULT_WORLD;
+}
+
+/** `?world=` value for the chronicle currently on screen, or the default export. */
+function currentWorldQuery(): string {
+  const requested = requestedWorldUrl();
+  if (requested) return requested;
+  return 'worlds/world.json';
+}
 
 export default function App() {
   const [world, setWorld] = useState<World | null>(null);
   const [error, setError] = useState<string | null>(null);
   const route = useRoute();
+  const browseLibrary = CAN_GENERATE && requestedWorldUrl() === null;
+  const mainRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
+    if (browseLibrary) return;
+
     // Loaded once for the lifetime of the app. Routing is client-side precisely so
     // that navigating between entities never re-fetches or re-parses a file that
     // can run to tens of megabytes.
     loadWorld(selectedWorldUrl())
       .then(setWorld)
       .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)));
-  }, []);
+  }, [browseLibrary]);
 
   useEffect(() => {
     if (!world) return;
@@ -114,39 +115,45 @@ export default function App() {
     };
   }, [world]);
 
-  // Scroll to the top on navigation — a deep chronicle otherwise leaves the next
-  // page opening halfway down.
+  // Scroll the reading column, not the window — the world shell is a fixed viewport.
   useEffect(() => {
-    window.scrollTo({ top: 0 });
+    mainRef.current?.scrollTo({ top: 0 });
   }, [route.path]);
 
+  if (browseLibrary) return <WorldsLibrary />;
   if (error) return <LoadFailure message={error} />;
   if (!world) return <Loading />;
 
   const isMap = route.path === '/map';
-  const isTimeline = route.path === '/timeline';
   const isEntity = route.path.includes(':');
-  const mainWidth = isMap || isTimeline
+  const innerWidth = isMap || route.path === '/timeline'
     ? 'w-full'
     : isEntity
       ? 'mx-auto w-full max-w-[720px]'
       : 'mx-auto w-full max-w-6xl';
 
   return (
-    <div className="min-h-screen px-4 py-6 md:px-10 md:py-10">
-      <div className="mx-auto max-w-6xl">
-        <Header world={world} activePath={route.path} />
+    <div className="flex h-screen flex-col overflow-hidden">
+      <SiteNav fluid active="reading" readingHref={readingHref(currentWorldQuery())} />
+      <div className="flex min-h-0 flex-1">
+        <WorldNav world={world} activePath={route.path} />
+        <main
+          ref={mainRef}
+          className={`min-h-0 min-w-0 flex-1 ${
+            isMap ? 'flex min-h-0 overflow-hidden' : 'overflow-y-auto px-4 py-6 md:px-8'
+          }`}
+        >
+          {isMap ? (
+            renderRoute(world, route.path)
+          ) : (
+            <div className={innerWidth}>{renderRoute(world, route.path)}</div>
+          )}
+        </main>
       </div>
-      <main className={`mt-8 ${mainWidth}`}>{renderRoute(world, route.path)}</main>
-      <div className="mx-auto mt-10 max-w-6xl">
-        <Footer world={world} />
-      </div>
+      <SiteFooter fluid />
     </div>
   );
 }
-
-/** The generator page, which is Astro's rather than one of these hash routes. */
-const GENERATOR = `${import.meta.env.BASE_URL}new/`;
 
 function renderRoute(world: World, path: string) {
   const target = path.replace(/^\//, '');
@@ -158,6 +165,8 @@ function renderRoute(world: World, path: string) {
       return <WorldMap world={world} />;
     case 'timeline':
       return <Timeline world={world} />;
+    case 'cosmology':
+      return <CosmologyPage world={world} />;
     case 'civ':
       return <CivilizationList world={world} />;
     case 'war':
@@ -223,125 +232,47 @@ function renderRoute(world: World, path: string) {
   }
 }
 
-function Header({ world, activePath }: { world: World; activePath: string }) {
-  const { meta } = world.export;
-  const { designation, kind } = world.export.world;
-
-  return (
-    <header>
-      <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-[var(--rule)] pb-4">
-        <div>
-          <a href={href('/')} className="he-headline-md tracking-tight">
-            Historia Extera
-            <span className="he-label ml-3 inline align-middle">Legends</span>
-          </a>
-          {designation && (
-            <p className="mt-1 text-sm text-[var(--ink-soft)]">
-              {designation}
-              {kind && (
-                <span className="he-label ml-2 inline align-middle">
-                  {WORLD_KIND_LABELS[kind]}
-                </span>
-              )}
-            </p>
-          )}
-        </div>
-        <div className="flex items-center gap-3 text-[var(--ink-faint)]">
-          <span className="he-data">
-            seed {meta.seed} · {meta.eventCount.toLocaleString()} events · years {meta.startYear}–
-            {meta.endYear}
-          </span>
-
-          {/* Next to the seed rather than in the nav: the nav lists views of this world, and
-              this leaves for a page that makes a different one. Dev-only, like the page. */}
-          {CAN_GENERATE && (
-            <a
-              href={GENERATOR}
-              title="Run another seed"
-              className="he-btn-secondary px-2 py-0.5"
-            >
-              New world
-            </a>
-          )}
-        </div>
-      </div>
-
-      <nav className="-mx-4 mt-4 overflow-x-auto px-4">
-        <ul className="flex gap-1 text-sm whitespace-nowrap">
-          {NAV.map((item) => {
-            const active =
-              item.path === '/' ? activePath === '/' : activePath.startsWith(item.path);
-
-            return (
-              <li key={item.path}>
-                <a
-                  href={href(item.path)}
-                  className={`inline-block border-l-2 px-2.5 py-1 transition-colors ${
-                    active
-                      ? 'border-[var(--primary)] font-medium text-[var(--primary)]'
-                      : 'border-transparent text-[var(--ink-soft)] hover:text-[var(--primary)]'
-                  }`}
-                >
-                  {item.label}
-                </a>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
-    </header>
-  );
-}
-
-function Footer({ world }: { world: World }) {
-  const { meta } = world.export;
-
-  return (
-    <footer className="border-t border-[var(--rule)] pt-4 text-xs text-[var(--ink-faint)]">
-      <p className="he-data">
-        Schema v{world.export.schemaVersion} · engine {meta.engineVersion} · config{' '}
-        {meta.configHash} · systems {meta.systemOrder.join(' → ')}
-      </p>
-      <p className="mt-1">
-        Names come from per-culture Markov chains over public-domain corpora, blended and
-        sound-shifted per culture. No generated name appears in its training data.
-      </p>
-    </footer>
-  );
-}
-
 function Loading() {
   return (
-    <div className="mx-auto flex min-h-[60vh] max-w-5xl items-center justify-center px-4">
-      <p className="text-sm text-[var(--ink-faint)]">Reading the chronicle…</p>
+    <div className="flex min-h-screen flex-col">
+      <SiteNav active="reading" readingHref={readingHref(currentWorldQuery())} />
+      <div className="flex flex-1 items-center justify-center px-4">
+        <p className="text-sm text-[var(--ink-faint)]">Reading the chronicle…</p>
+      </div>
     </div>
   );
 }
 
 function LoadFailure({ message }: { message: string }) {
   return (
-    <div className="mx-auto max-w-2xl px-4 py-16">
-      <h1 className="he-headline-md">No world to show</h1>
-      <pre className="he-data mt-4 overflow-x-auto rounded-lg border border-[var(--rule)] bg-[var(--panel)] p-4 whitespace-pre-wrap">
-        {message}
-      </pre>
+    <div className="flex min-h-screen flex-col">
+      <SiteNav active="reading" readingHref={readingHref(currentWorldQuery())} />
+      <div className="mx-auto w-full max-w-2xl flex-1 px-4 py-16">
+        <h1 className="he-headline-md">No world to show</h1>
+        <pre className="he-data mt-4 overflow-x-auto rounded-lg border border-[var(--rule)] bg-[var(--panel)] p-4 whitespace-pre-wrap">
+          {message}
+        </pre>
 
-      {/* Worlds are gitignored, so a fresh checkout lands here — which is the case the
-          generator page answers, and why it needs no world of its own to open. */}
-      {CAN_GENERATE && (
-        <p className="mt-4 text-sm">
-          <a href={GENERATOR} className="text-[var(--accent)] underline">
-            Simulate one now
-          </a>
+        {CAN_GENERATE && (
+          <p className="mt-4 text-sm">
+            <a href={import.meta.env.BASE_URL} className="text-[var(--accent)] underline">
+              Worlds library
+            </a>
+            {' · '}
+            <a href={generateHref()} className="text-[var(--accent)] underline">
+              Simulate one now
+            </a>
+          </p>
+        )}
+
+        <p className="mt-4 text-sm text-[var(--ink-soft)]">
+          Or generate one from the repository root, then reload:
         </p>
-      )}
-
-      <p className="mt-4 text-sm text-[var(--ink-soft)]">
-        Or generate one from the repository root, then reload:
-      </p>
-      <pre className="mt-2 overflow-x-auto rounded border border-[var(--rule)] bg-[var(--panel)] p-3 text-sm">
-        dotnet run --project src/HistoryEngine.Cli -- --seed 42
-      </pre>
+        <pre className="mt-2 overflow-x-auto rounded border border-[var(--rule)] bg-[var(--panel)] p-3 text-sm">
+          dotnet run --project src/HistoryEngine.Cli -- --seed 42
+        </pre>
+      </div>
+      <SiteFooter />
     </div>
   );
 }

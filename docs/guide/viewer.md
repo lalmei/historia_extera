@@ -13,11 +13,16 @@ Requires Node **≥ 22.12.0** (see `viewer/package.json` `engines`).
 
 ## Generating a world from the viewer
 
-Under the dev server the header carries a **New world** button. It opens `/new`, a small
-Astro page whose only interactive piece is the generator form: give it a seed, a span of
-years and a starting civilization count, and the dev server runs the CLI without a second
-terminal. The "no world to show" screen links there too, so a fresh checkout can simulate
-its way out of an empty `viewer/public/worlds/`.
+Under the dev server, `/` with no `?world=` is the **Worlds Library**: every JSON export
+already in `viewer/public/worlds/`, newest first, with seed, simulated years and
+civilization count in the row. **Generate new world** opens `/new`, **Initialize Engine**:
+a seed (hex or decimal), years, civilization count, a Small/Medium/Large world or an exact
+size in units, and whether the map wraps east to west. While a run is in flight, **Initialize
+Engine** opens a synthesis overlay with year progress and the CLI log; **Abort synthesis**
+cancels the run and returns to the form. The dev server runs the CLI without a second terminal.
+The "no world to show" screen links to both, so a fresh checkout can simulate its way out
+of an empty `viewer/public/worlds/`. A world already open in the viewer has a **Worlds**
+link back to the library.
 
 Runs are one at a time and can be cancelled while in flight. The CLI's own summary is
 shown as it arrives, which is what answers "was that seed worth looking at". Each run
@@ -25,31 +30,23 @@ writes `worlds/world-s<seed>-y<years>-c<civs>-z<size>.json`; when it finishes, `
 path to the viewer through `?world=`. Reloading — or sharing the URL — therefore comes
 back to the same history.
 
-A world already open in the viewer has the same generator on its **Overview**: change a
-parameter, run the current engine over the same settings, or continue through a later year.
-The overview titles the history by the world's designation and shows the seed next to it.
+The overview titles the history by the world's proper name, with the designation above it.
 `--raster` stays at the CLI's default.
 
-The same page lists every JSON export already in `viewer/public/worlds/`, newest first.
-It reads the schema number, world designation, seed, years and engine from each file header
-and enables **Open** only when the schema matches the viewer's current one; older exports
-remain visible so it is clear which worlds need to be regenerated. The list is labelled by
-the world's own name — "The planet Borion", "The 3rd moon of Endor" — with the seed kept
-beside it so a history can be recognised at a glance and still reproduced. **Rerun…** (or
-**Regenerate…** on an incompatible file) fills the form with that world's settings so it
-can be run again with different parameters, through the current engine, or continued for
-more years. Continuing writes a new file — the shorter history stays on disk — because the
-engine always starts from year one, and the same seed is deterministic through the years
-already simulated.
+The library reads the schema number, world name, seed, years and engine from each
+file header. The world's proper name is the open link when the schema matches the viewer's
+current one; older exports remain visible so it is clear which worlds need to be regenerated.
+Click a row to expand it: designation, size, engine, a low-resolution biome map, and the
+end of the history — standing civilizations and their populations, settlements, wars, trade
+and faiths — streamed from the export without loading the chronicle. The seed stays in its
+own column so a history can be recognised at a glance and still reproduced. **Run** and
+**Regenerate** fill `/new` with that world's settings so it can be run again with different
+parameters, through the current engine, or continued for more years. Continuing writes a new
+file — the shorter history stays on disk — because the engine always starts from year one, and
+the same seed is deterministic through the years already simulated.
 
-**Move to trash** asks for confirmation, then moves the export into
-`build/world-trash/`; the page shows the exact recovery path after it disappears from the
-list. **Delete permanently** has a separate irreversible confirmation and removes the file
-without making a recovery copy.
-
-The recovery folder sits outside `public/` on purpose: Astro copies `public/` into `dist/`
-wholesale, so a trash folder kept beside the worlds would ship every deleted world in the
-built site.
+**Delete** (the bin) asks for confirmation, then permanently removes the export. This cannot
+be undone.
 
 **Development only.** An Astro integration (`viewer/dev/world-generator.mjs`) injects the
 page and its Vite middleware only for `astro dev`. The page lives outside `src/pages/`, so
@@ -110,7 +107,11 @@ their indexes therefore reconstruct outbreak summaries and disaster rows from th
 without inventing viewer-only ids. Every exported place, realm and region remains a link.
 
 The **map** is a terrain canvas with vector overlays, drawn for a selected year rather
-than only as the world ended. The slider plays: borders move, towns appear and grow,
+than only as the world ended. Filters, the realm and faith legends, and the year's
+chronicle sit in a right-hand inspector. Year playback and zoom stay as floating controls
+on the map and remain quiet until hovered. Scroll the map to zoom toward the
+cursor; drag to pan when zoomed; `+` / `-` / `0` (or Escape) also work when the map is
+focused. The slider plays: borders move, towns appear and grow,
 battles mark the year they were fought, and the dots can be coloured by realm or by
 faith, which are two political maps of the same world and disagree in the interesting
 places. Territory is one shape per realm with an outline only where it meets somebody
@@ -118,7 +119,11 @@ else. Trade routes are a separate time-aware overlay: their straight lines show 
 connections and are not presented as physical roads.
 Independent holy sites appear as diamond markers and can be toggled separately; houses of worship
 inside settlements are listed on their settlement and faith pages to avoid hiding the settlement
-marker at the same coordinate.
+marker at the same coordinate. Four further overlays sit on the same year: **harbours** place an
+anchor in the water a coastal or sheltered site was founded for (a wave for a river landing),
+**houses** mark the throne with a banner and the ancestral seat with a house — focusing a realm
+shows where that house's living members reside — **walls** ring towns after the year they were
+fortified, and **landmarks** mark mines and passes.
 
 Changing political state before the final year is **replayed from the chronicle** — the export
 carries only final ownership, and `TerritoryTests` in the engine is what guarantees the replay
@@ -136,14 +141,27 @@ court casualties they caused, just as battles already link their commanders.
 
 ## Schema
 
-The viewer pins the export's `schemaVersion` (**18**) and refuses a file it does not
+The viewer pins the export's `schemaVersion` (**28**) and refuses a file it does not
 understand rather than misrendering it. Regenerate the world with the matching engine if
-it complains. Version 15 added what feeds each standing settlement — its carrying capacity
+it complains. Version 28 added journeys and the official and scribe occupations. Version 27 added a figure's campaigns — battles a soldier or general stood in,
+wars a sitting ruler led, and sieges endured by anyone living in an invested town. Version 20 added the world's designation — planet or moon, and the proper
+names that go with it. Version 15 added what feeds each standing settlement — its carrying capacity
 itemised into the site, its share of the surrounding fields and what the roads bring — which
 is what the **What supports it** panel reads. Version 14 added a faith's character — gods,
 church, clergy, observance and the dials besides fervour. Version 18 added the opening and ending
 dates of engagements and the outcome of a siege, so the viewer can distinguish a place carried by
 storm from one relieved, lifted, or still invested. An older world file will not load.
+
+## Look
+
+Dark-only. IBM Plex Sans for reading, JetBrains Mono for seeds, years, counts and logs.
+Surfaces are layered by tone rather than shadow; hairline borders (`#26282C`) separate
+adjacent panels. Primary actions are a desaturated steel blue (`#a6c9f8`). Every page
+shares the same top bar: **Worlds** and **Reading**, with a 2px underline on the active
+tab. Inside a loaded world, the chronicle index is a collapsible left sidebar (Overview,
+Map, Timeline, and the entity lists). Entity pages sit in a 720px reading column. The map
+fills the remaining viewport, with year and zoom controls floating on it and filters plus
+legends in a right inspector.
 
 ## Stack
 

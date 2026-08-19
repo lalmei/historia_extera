@@ -24,11 +24,14 @@ import {
   settlementOf,
   tradeRoutesOf,
   treasuresOf,
+  treasuresOwnedBy,
   warOf,
   type World,
 } from '../store';
 import {
   ARTIFACT_LABELS,
+  CAMPAIGN_ROLE_LABELS,
+  JOURNEY_KIND_LABELS,
   CAUSE_LABELS,
   DEATH_LABELS,
   AFTERLIFE_LABELS,
@@ -42,6 +45,8 @@ import {
   HOLY_SITE_DEDICATION_LABELS,
   HOLY_SITE_LABELS,
   KIND_LABELS,
+  OCCUPATION_LABELS,
+  ORIGIN_LABELS,
   OUTCOME_LABELS,
   PRAYER_LABELS,
   SACRED_TRADITION_LABELS,
@@ -55,6 +60,8 @@ import {
   kindOf,
   type Artifact,
   type Battle,
+  type Campaign,
+  type Journey,
   type Civilization,
   type Culture,
   type Disposition,
@@ -226,7 +233,7 @@ export function CivilizationPage({ world, civ }: { world: World; civ: Civilizati
       </Panel>
 
       <Panel title="Chronicle">
-        <EventList world={world} events={world.eventsFor(civ.id)} />
+        <EventList world={world} events={world.eventsFor(civ.id)} separateRegister />
       </Panel>
     </div>
   );
@@ -446,6 +453,17 @@ export function SettlementPage({ world, settlement }: { world: World; settlement
         </Panel>
       )}
 
+      <Panel title="What it has lately been through">
+        <Dials dials={fortuneDials(settlement.fortunes)} />
+        <p className="mt-3 text-xs leading-relaxed text-[var(--ink-faint)]">
+          Where the last years left this place, not a running total: all four decay, and
+          grievance decays slowest. A sack or a lost siege exhausts a town; occupation and
+          cession are the humiliation that outlives the exhaustion. Plague, fire and famine
+          are the hurt it cannot fight.
+        </p>
+      </Panel>
+
+      {/* The panel above is the last year alone. These are every year of it. */}
       <HistoryPanels world={world} id={settlement.id} />
 
       {treasures.length > 0 && (
@@ -626,18 +644,22 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
 
   const house = dynastyOf(world, figure.dynastyId);
   const culture = cultureOf(world, figure.cultureId);
+  const trade =
+    figure.occupation && figure.occupation !== 'None'
+      ? (OCCUPATION_LABELS[figure.occupation] ?? figure.occupation)
+      : undefined;
+  const role = figure.titles[0]?.title ?? trade;
   const hasFamily =
     figure.motherId !== undefined ||
     figure.fatherId !== undefined ||
     figure.spouseIds.length > 0 ||
     figure.childIds.length > 0;
+  const claimed = treasuresOwnedBy(world, figure.id);
 
   return (
     <div className="space-y-5">
       <PageTitle
-        eyebrow={
-          house ? `${figure.titles[0]?.title ?? 'Of the house of'} · ${house.name}` : 'Figure'
-        }
+        eyebrow={house ? `${role ?? 'Of the house of'} · ${house.name}` : (role ?? 'Figure')}
         title={figure.name}
         meta={
           <>
@@ -683,6 +705,10 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
               </>
             )}
           </Field>
+          <Field label="Occupation">{OCCUPATION_LABELS[figure.occupation] ?? figure.occupation}</Field>
+          {figure.origin !== 'Unrecorded' && ORIGIN_LABELS[figure.origin] && (
+            <Field label="Rose from">{ORIGIN_LABELS[figure.origin]}</Field>
+          )}
           {figure.deathYear !== undefined && (
             <Field label="Died">
               {figure.deathYear}
@@ -731,7 +757,8 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
             </>
           )}{' '}
           Centralism is rolled around what the office itself invites rather than around a culture,
-          so it carries no tick.
+          so it carries no tick. Independence is how far they let their people govern them: a
+          follower stays near the ticks, a rebel answers with their own inclinations.
           {figure.titles.length === 0 &&
             ' Recorded for everyone, though it only ever governed anything for those who came to rule.'}
         </p>
@@ -743,10 +770,67 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
         </Panel>
       )}
 
+      {(figure.campaigns?.length ?? 0) > 0 && (
+        <Panel title="Campaigns">
+          <CampaignList world={world} campaigns={figure.campaigns ?? []} />
+        </Panel>
+      )}
+
+      {(figure.journeys?.length ?? 0) > 0 && (
+        <Panel title="Travels">
+          <JourneyList world={world} journeys={figure.journeys ?? []} />
+        </Panel>
+      )}
+
+      {claimed.length > 0 && (
+        <Panel title="Treasures">
+          <ArtifactTable world={world} artifacts={claimed} />
+        </Panel>
+      )}
+
       <Panel title="Chronicle">
-        <EventList world={world} events={world.eventsFor(figure.id)} />
+        <EventList world={world} events={world.eventsFor(figure.id)} viewpoint={figure.id} />
       </Panel>
     </div>
+  );
+}
+
+function CampaignList({ world, campaigns }: { world: World; campaigns: Campaign[] }) {
+  return (
+    <ul className="space-y-1.5 text-sm">
+      {campaigns.map((campaign, index) => (
+        <li key={`${campaign.warId}:${campaign.battleId ?? 'war'}:${campaign.role}:${index}`}>
+          <span className="text-[var(--ink-faint)]">{campaign.year} · </span>
+          {CAMPAIGN_ROLE_LABELS[campaign.role] ?? campaign.role}
+          {' at '}
+          <EntityLink world={world} id={campaign.battleId ?? campaign.warId} />
+          <span className="ml-2 text-[var(--ink-faint)]">
+            {campaign.triumphant === undefined
+              ? 'outcome unsettled'
+              : campaign.triumphant
+                ? 'triumphant'
+                : 'defeated'}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function JourneyList({ world, journeys }: { world: World; journeys: Journey[] }) {
+  return (
+    <ul className="space-y-1.5 text-sm">
+      {journeys.map((journey, index) => (
+        <li key={`${journey.year}:${journey.toSettlementId}:${journey.kind}:${index}`}>
+          <span className="text-[var(--ink-faint)]">{journey.year} · </span>
+          {JOURNEY_KIND_LABELS[journey.kind] ?? journey.kind}
+          {' from '}
+          <EntityLink world={world} id={journey.fromSettlementId} />
+          {' to '}
+          <EntityLink world={world} id={journey.toSettlementId} />
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -1065,7 +1149,7 @@ export function RegionPage({ world, region }: { world: World; region: Region }) 
       )}
 
       <Panel title="Chronicle">
-        <EventList world={world} events={world.eventsFor(region.id)} />
+        <EventList world={world} events={world.eventsFor(region.id)} separateRegister />
       </Panel>
     </div>
   );
@@ -1514,6 +1598,12 @@ export function ArtifactPage({ world, artifact }: { world: World; artifact: Arti
               <Badge tone="accent">Held</Badge>
               <span>
                 at <EntityLink world={world} id={artifact.holderId} />
+                {artifact.ownerId ? (
+                  <>
+                    {', claimed by '}
+                    <EntityLink world={world} id={artifact.ownerId} />
+                  </>
+                ) : null}
               </span>
             </>
           ) : (
@@ -1530,6 +1620,11 @@ export function ArtifactPage({ world, artifact }: { world: World; artifact: Arti
           <Field label="Made for">
             <EntityLink world={world} id={artifact.creatorId} />
           </Field>
+          {artifact.ownerId && (
+            <Field label="Claimed by">
+              <EntityLink world={world} id={artifact.ownerId} />
+            </Field>
+          )}
           {artifact.religionId && (
             <Field label="Sacred to">
               <EntityLink world={world} id={artifact.religionId} />
@@ -1570,7 +1665,14 @@ export function ArtifactPage({ world, artifact }: { world: World; artifact: Arti
             <div className="space-y-5">
               {sections.map((section, index) => (
                 <article key={`${section.heading}-${index}`}>
-                  <h3 className="text-lg font-medium">{section.heading}</h3>
+                  <h3 className="text-lg font-medium">
+                    {section.heading}
+                    {section.year ? (
+                      <span className="ml-2 text-xs font-normal text-[var(--ink-faint)]">
+                        {section.year}
+                      </span>
+                    ) : null}
+                  </h3>
                   <p className="mt-1 text-sm leading-relaxed text-[var(--ink-soft)]">
                     {section.text}
                   </p>
@@ -1636,6 +1738,12 @@ export function ArtifactPage({ world, artifact }: { world: World; artifact: Arti
                 ) : (
                   <span className="text-[var(--ink-faint)]">lost</span>
                 )}
+                {holding.ownerId && (
+                  <>
+                    {', '}
+                    <EntityLink world={world} id={holding.ownerId} />
+                  </>
+                )}
                 <span className="ml-2 text-[var(--ink-faint)]">{holding.how}</span>
               </span>
             </li>
@@ -1700,6 +1808,17 @@ export function ArtifactTable({ world, artifacts }: { world: World; artifacts: A
           <Badge tone="muted">lost {a.lostYear}</Badge>
         ),
       sort: (a) => (a.holderId ? world.nameOf(a.holderId) : '~'),
+    },
+    {
+      key: 'owner',
+      header: 'Claimed by',
+      cell: (a) =>
+        a.ownerId ? (
+          <EntityLink world={world} id={a.ownerId} />
+        ) : (
+          <span className="text-[var(--ink-faint)]">treasury</span>
+        ),
+      sort: (a) => (a.ownerId ? world.nameOf(a.ownerId) : '~'),
     },
     {
       key: 'moves',
@@ -1958,10 +2077,16 @@ function dispositionDials(disposition: Disposition, against?: Values): Dial[] {
       value: disposition.centralism,
       hint: 'How much they insist on deciding things themselves',
     },
+    {
+      label: 'Independence',
+      value: disposition.independence,
+      against: against ? 0.30 - against.tradition * 0.10 : undefined,
+      hint: 'Follower at one end, rebel at the other. Followers are the common case',
+    },
   ];
 }
 
-/** The four decaying measures of what a realm has lately been through. */
+/** The four decaying measures of what a realm or a place has lately been through. */
 function fortuneDials(fortunes: Fortunes): Dial[] {
   return [
     {
@@ -2376,6 +2501,16 @@ function victorOf(war: War): EntityId | undefined {
   return undefined;
 }
 
+function presentAt(world: World, battleId: EntityId) {
+  const rows: { figure: Figure; campaign: Campaign }[] = [];
+  for (const figure of world.export.figures) {
+    for (const campaign of figure.campaigns ?? []) {
+      if (campaign.battleId === battleId) rows.push({ figure, campaign });
+    }
+  }
+  return rows;
+}
+
 function Coalition({ world, ids }: { world: World; ids: EntityId[] }) {
   return (
     <span className="flex flex-wrap gap-x-2 gap-y-1">
@@ -2398,6 +2533,7 @@ function Coalition({ world, ids }: { world: World; ids: EntityId[] }) {
  */
 export function BattlePage({ world, battle }: { world: World; battle: Battle }) {
   const war = warOf(world, battle.warId);
+  const present = presentAt(world, battle.id);
 
   return (
     <div className="space-y-5">
@@ -2464,6 +2600,26 @@ export function BattlePage({ world, battle }: { world: World; battle: Battle }) 
           )}
         </dl>
       </Panel>
+
+      {present.length > 0 && (
+        <Panel title="Present">
+          <ul className="space-y-1.5 text-sm">
+            {present.map(({ figure, campaign }) => (
+              <li key={`${figure.id}:${campaign.role}`}>
+                <EntityLink world={world} id={figure.id} />
+                <span className="ml-2 text-[var(--ink-faint)]">
+                  {CAMPAIGN_ROLE_LABELS[campaign.role] ?? campaign.role}
+                  {campaign.triumphant === undefined
+                    ? ''
+                    : campaign.triumphant
+                      ? ' · triumphant'
+                      : ' · defeated'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+      )}
 
       <Panel title="Chronicle">
         <EventList world={world} events={world.eventsFor(battle.id)} />

@@ -13,9 +13,9 @@ import {
   yearRange,
 } from '../components/common';
 import { cultureOf, figures, type World } from '../store';
-import { CAN_GENERATE } from '../generate';
 import {
   AUTHORITY_LABELS,
+  OCCUPATION_LABELS,
   DEATH_LABELS,
   DEITY_LABELS,
   SUCCESSION_LABELS,
@@ -39,7 +39,6 @@ import {
   WarTable,
   warsOf,
 } from './EntityPages';
-import { RerunWorld } from './RerunWorld';
 
 export function TradeRouteList({ world }: { world: World }) {
   const { tradeRoutes } = world.export;
@@ -914,6 +913,12 @@ export function FigureList({ world }: { world: World }) {
       sort: (figure) => (figure.religionId ? world.nameOf(figure.religionId) : ''),
     },
     {
+      key: 'occupation',
+      header: 'Occupation',
+      cell: (figure) => OCCUPATION_LABELS[figure.occupation] ?? figure.occupation,
+      sort: (figure) => figure.occupation,
+    },
+    {
       key: 'lived',
       header: 'Lived',
       cell: (figure) => yearRange(figure.birthYear, figure.deathYear),
@@ -1005,6 +1010,15 @@ export function FigureList({ world }: { world: World }) {
         })),
       ],
     },
+    {
+      key: 'occupation',
+      label: 'Occupation',
+      options: distinct(world.export.figures.map((f) => f.occupation)).map((occupation) => ({
+        value: occupation,
+        label: OCCUPATION_LABELS[occupation] ?? occupation,
+        match: (f: Figure) => f.occupation === occupation,
+      })),
+    },
   ];
 
   return (
@@ -1017,6 +1031,7 @@ export function FigureList({ world }: { world: World }) {
           facets={facets}
           searchText={(figure) =>
             `${figure.name} ${figure.titles[0]?.title ?? ''} ` +
+            `${OCCUPATION_LABELS[figure.occupation] ?? figure.occupation ?? ''} ` +
             `${figure.dynastyId ? world.nameOf(figure.dynastyId) : ''} ` +
             `${world.nameOf(figure.civilizationId)} ` +
             `${figure.religionId ? world.nameOf(figure.religionId) : ''}`
@@ -1348,11 +1363,14 @@ export function Overview({ world }: { world: World }) {
   return (
     <div className="space-y-5">
       <PageTitle
-        eyebrow={`Seed ${meta.seed} · config ${meta.configHash}`}
-        title={world.export.world.designation || 'A world, in brief'}
+        eyebrow={world.export.world.designation || `Seed ${meta.seed} · config ${meta.configHash}`}
+        title={world.export.world.name || 'A world, in brief'}
         meta={
           <>
             <Badge>{world.export.world.kind === 'Moon' ? 'Moon' : 'Planet'}</Badge>
+            {world.export.world.cosmology && (
+              <Badge tone="accent">{world.export.world.cosmology.starClass}-type star</Badge>
+            )}
             <Badge>seed {meta.seed}</Badge>
             <Badge>
               years {meta.startYear}–{meta.endYear}
@@ -1404,8 +1422,6 @@ export function Overview({ world }: { world: World }) {
           hint="Calamities recorded"
         />
       </div>
-
-      {CAN_GENERATE && <RerunWorld world={world} />}
 
       <div className="grid gap-5 lg:grid-cols-2">
         <Panel title="Great houses">
@@ -1540,6 +1556,7 @@ export function Overview({ world }: { world: World }) {
           events={events.slice(-40).reverse()}
           showFilters={false}
           pageSize={40}
+          separateRegister
         />
       </Panel>
     </div>
