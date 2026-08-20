@@ -195,10 +195,13 @@ public static class Narration
             "The {subject} began to decline[ as traffic fell to {data:traffic}].");
         Set(EventKind.TradeRouteClosed, "The {subject} closed[, {data:cause}].");
 
+        // Both name the two towns and neither names the route, which the viewer renders as
+        // "A-B route" — so the older wording said the same pair of names twice in one sentence.
         Set(EventKind.RoadBuilt,
-            "A road was cut between {object} and {location}, giving the {subject} a way over the ground.");
+            "A road was cut between {object} and {location}, the traffic between them having earned a made way.");
         Set(EventKind.RoadPaved,
-            "The road along the {subject} was bridged and paved[, shortening the way by {data:saved}].");
+            "The road between {object} and {location} was bridged and paved"
+            + "[ after {data:stood} years of use][, shortening the way by {data:saved}].");
 
         Set(EventKind.BrigandageWorsened,
             "Brigands took to the roads around {subject}[, {data:cause}].");

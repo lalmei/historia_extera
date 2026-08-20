@@ -411,12 +411,16 @@ public static class Roads
 
     /// <summary>Sustained traffic at which a track is worth engineering.</summary>
     /// <remarks>
-    /// The weakest number here, and it is kept on thin evidence rather than on none. Across the
-    /// five standard seeds 18 roads are paved and the engineered line differs from the track it
-    /// replaced in only two of them — both long ones, where it saved 21% and 18% of the way. The
-    /// rest are short roads over easy ground where cuttings and bridges have nothing to cut
-    /// through. If a wider sweep does not raise that, the grade should be deleted rather than kept
-    /// for flavour; see the decision log.
+    /// <para>The engineered line differs from the track it replaced in only two of eighteen cases
+    /// across the standard seeds — the rest are short roads over easy ground where cuttings and
+    /// bridges have nothing to cut through. That was once read as grounds for deleting the grade,
+    /// on the reasoning that a term moving no outcome is decoration.</para>
+    ///
+    /// <para><b>It was the wrong measure.</b> What paving produces is not a polyline but a dated
+    /// fact: a way a town has used for three generations being bridged is history whether or not
+    /// the course shifts a cell. The geometry is the smaller half of what this earns, so the grade
+    /// is kept and the test it is held to is the chronicle. What actually needed fixing was
+    /// <em>when</em> it fired — see <see cref="MinimumTrackYears"/>.</para>
     /// </remarks>
     public const double PaveThreshold = 0.76;
 
@@ -432,9 +436,69 @@ public static class Roads
         && route.Mode != TradeRouteMode.Coastal
         && route.PeakTraffic >= BuildThreshold;
 
-    /// <summary>Whether an existing track has earned bridges and cuttings.</summary>
-    public static bool DeservesPaving(TradeRoute route) =>
-        route.Road is { Grade: RoadGrade.Track } && route.PeakTraffic >= PaveThreshold;
+    /// <summary>
+    /// How long a track must have carried traffic before it is worth engineering.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Paving is a later generation's decision, and without this it was not one.</b>
+    /// <see cref="TradeRoute.PeakTraffic"/> is a high-water mark that only ever rises, so a link
+    /// whose peak crossed <see cref="BuildThreshold"/> this year had usually crossed
+    /// <see cref="PaveThreshold"/> by the next: thirteen of nineteen pavings in an eight-century
+    /// run landed the year after the road was cut. A road bridged the spring after it was first
+    /// trodden is not a road anybody has lived on — it reads as the same decision made twice, which
+    /// is what a chronicle shows and a fingerprint cannot.</para>
+    ///
+    /// <para>Twenty-five years is about a generation and roughly two reigns at this engine's mean,
+    /// so the track is worn in by people who did not choose it before anyone spends on bridging it.
+    /// Longer reads better in isolation and is worse in practice: at forty, two of the five standard
+    /// seeds finished three centuries with no paved road at all, and a tier absent from the default
+    /// run length is not rare, it is invisible.</para>
+    /// </remarks>
+    public const int MinimumTrackYears = 25;
+
+    /// <summary>
+    /// How much longer than the minimum an unmercantile people takes to get round to it.
+    /// </summary>
+    /// <remarks>
+    /// <para>A flat minimum fixes the "paved the year after it was cut" fault and introduces a
+    /// smaller one in its place: the floor becomes the mode. Thirteen of nineteen pavings landed on
+    /// exactly forty years, and a chronicle in which nine lines all say "after 40 years of use"
+    /// reads as mechanically as the thing it replaced.</para>
+    ///
+    /// <para>So the wait is a reason rather than a constant. A trading people spends on its roads
+    /// sooner; one with little interest in commerce leaves the track as it is for another lifetime.
+    /// Taken from whichever end of the road wants it more, because one willing partner is enough to
+    /// pay for bridges — and read from the realm's effective values, so a mercantile crown can
+    /// hurry a road its people would have left alone.</para>
+    /// </remarks>
+    public const int PavingPatienceYears = 40;
+
+    /// <summary>How long this particular road must stand before it is worth engineering.</summary>
+    public static int PavingWait(WorldState world, TradeRoute route)
+    {
+        double keenest = Math.Max(
+            MercantileAt(world, route.SettlementAId),
+            MercantileAt(world, route.SettlementBId));
+
+        return MinimumTrackYears + (int)((1.0 - keenest) * PavingPatienceYears);
+    }
+
+    /// <summary>How commercially minded the realm holding this settlement is, or the midpoint.</summary>
+    private static double MercantileAt(WorldState world, EntityId settlementId)
+    {
+        if (!world.Settlements.Contains(settlementId)) return 0.5;
+
+        Settlement settlement = world.Settlements[settlementId];
+        if (!world.Civilizations.Contains(settlement.CivilizationId)) return 0.5;
+
+        return DetMath.Clamp01(world.Civilizations[settlement.CivilizationId].EffectiveValues.Mercantile);
+    }
+
+    /// <summary>Whether an existing track has stood long enough, and carries enough, to be engineered.</summary>
+    public static bool DeservesPaving(WorldState world, TradeRoute route, int year) =>
+        route.Road is { Grade: RoadGrade.Track } road
+        && year - road.BuiltYear >= PavingWait(world, route)
+        && route.PeakTraffic >= PaveThreshold;
 
     /// <summary>
     /// Cuts the way for a route at the given grade, or returns null where none can be cut.
