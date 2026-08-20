@@ -112,7 +112,7 @@ year and its seasons. `Docket` holds scheduled work in a deterministic total ord
 dispatches due entries to their declared owners. Cost therefore scales with active
 episodes, not with calendar length.
 
-Most systems remain annual, `unrest` and `travel` among them. `expansion` and `war` are seasonal in the current checkout;
+Most systems remain annual, `unrest`, `travel` and `cultural-drift` among them. `expansion` and `war` are seasonal in the current checkout;
 `plague` still performs its annual ignition work and also handles scheduled outbreak
 steps and arrivals, while `war` schedules a siege's decision instead of resolving an
 investment on the campaign day that began it.
@@ -166,21 +166,25 @@ The current system order is part of the run identity:
 10. `war`
 11. `unrest`
 12. `trade-routes`
-13. `travel`
-14. `figure-incidents`
-15. `figure-lifecycle`
-16. `succession`
-17. `houses`
-18. `offices`
-19. `artifacts`
+13. `cultural-drift`
+14. `travel`
+15. `figure-incidents`
+16. `figure-lifecycle`
+17. `succession`
+18. `houses`
+19. `offices`
+20. `artifacts`
 
 The order is causal, not merely organizational. Mortality precedes succession; succession
 precedes household and office decisions; diplomacy reads the frontier and faiths already
 established that step; trade responds to the peace or war that survives campaigning.
 `unrest` sits between `war` and `trade-routes` so a year's grievance is felt the year it
 is earned and the brigandage it raises suppresses that year's trade; `travel` follows
-`trade-routes` so a merchant walks a corridor that is actually open. Changing the order is
-a behavior change and must be reviewed as one.
+`trade-routes` so a merchant walks a corridor that is actually open. `cultural-drift` runs
+after diplomacy, war, trade and religion because it moves a people's baseline against the
+relations, wars and faiths the year has just settled — it is `crown`'s counterpart at the
+other end of the year, writing the baseline that next year's `crown` reads first. Changing
+the order is a behavior change and must be reviewed as one.
 
 ### Population and settlements
 
@@ -197,9 +201,13 @@ for flavor.
 
 ### Politics and people
 
-Cultures provide a people's baseline values. A ruler's disposition bends those values
-within bounded latitude, while realm fortunes carry the recent consequences of war,
-calamity, triumph, and grievance. Systems read one settled answer for the current step.
+Cultures provide a people's founding values, and each realm carries its own baseline that
+drifts from them over the centuries: contact and trade pull a people toward its neighbours,
+war leaves it warlike, its faith pulls its piety, and an anchor back to the founding culture
+keeps convergence from becoming one culture. A ruler's disposition then bends that drifted
+baseline within bounded latitude, while realm fortunes carry the recent consequences of war,
+calamity, triumph, and grievance. Systems read one settled answer for the current step. The
+founding culture itself is never rewritten — it is the seed and the identity, not the state.
 
 Succession follows explicit laws and family relationships. Offices elevate existing
 figures from the simulated population instead of inventing disconnected names. Notable
@@ -240,6 +248,7 @@ not a runtime architecture. A deployed viewer remains a reader of exported histo
 | M15 | Grievance made to bite: brigandage, revolt, secession, and usurpation | Done |
 | M16 | Lives the chronicle follows: occupations, journeys, and campaign memory | Done |
 | M17 | The seed's cosmology, and tomes that draw on it | Done |
+| M18 | Cultural drift: a people that changes over the centuries | Done |
 
 M13 landed in independently reviewable stages: the clock and dated record first, seasonal
 war and expansion next, then plague travel and outbreak clocks, and finally sieges as
@@ -248,8 +257,6 @@ scheduled episodes. The engine now has no declared docket kind without a consume
 Beyond the numbered milestones:
 
 - Run a real external terrain generator through the Phase 2 raster route end to end.
-- Close the remaining half of the loop opened by ruler dispositions: gradual cultural
-  drift. (Unrest — the other half — landed in M15.)
 - Add road geometry only after trade topology provides stable demand for it.
 - Build the Phase 3 Vintage Story terrain adapter and revalidate framework, calendar,
   hydrology cost, and map-raster cost against the game version actually targeted.
