@@ -266,9 +266,10 @@ public sealed class TradeRouteSystem : ISystem
             return;
         }
 
-        if (!Roads.DeservesPaving(route)) return;
+        if (!Roads.DeservesPaving(world, route, year)) return;
 
         double before = route.Road!.Length;
+        int stood = year - route.Road.BuiltYear;
         Road? paved = Roads.Cut(world, route, RoadGrade.Paved, year);
         if (paved is null) return;
 
@@ -280,15 +281,21 @@ public sealed class TradeRouteSystem : ISystem
         // through — the slot is simply absent rather than reported as nothing gained.
         double saved = before - paved.Length;
 
+        // How long the track stood is the fact that makes an upgrade read as history rather than
+        // as the same decision twice, so it is always reported; the saving is reported only where
+        // the engineered line actually found one.
+        var record = Chronicle.Data(
+            ("stood", stood.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+
+        if (saved > 0.0 && before > 0.0) record["saved"] = Percent(saved / before);
+
         world.Chronicle.Record(
             year,
             EventKind.RoadPaved,
             route.Id,
             obj: a.Id,
             location: b.Id,
-            data: saved > 0.0 && before > 0.0
-                ? Chronicle.Data(("saved", Percent(saved / before)))
-                : null);
+            data: record);
     }
 
     /// <summary>Economic strength of one direct connection, in [0, 1].</summary>

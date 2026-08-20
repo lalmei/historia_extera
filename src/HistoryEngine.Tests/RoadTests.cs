@@ -344,7 +344,11 @@ public sealed class RoadTests
 
         foreach (ulong seed in Seeds)
         {
-            WorldState world = HistoryRun.Execute(TestWorlds.Standard(seed)).World;
+            // Longer than the standard run on purpose. Paving is generational — a track must stand
+            // a quarter-century or more before anyone bridges it — so three centuries leave only a
+            // handful of paved roads, and most of those in whichever seed happens to trade most.
+            // The invariant here is geometric, not a rate, so it wants samples rather than speed.
+            WorldState world = HistoryRun.Execute(TestWorlds.Standard(seed) with { Years = 600 }).World;
 
             foreach (TradeRoute route in world.TradeRoutes)
             {
