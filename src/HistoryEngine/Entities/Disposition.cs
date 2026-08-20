@@ -136,17 +136,6 @@ public sealed record Disposition(CultureValues Values, double Centralism, double
     };
 
     /// <summary>
-    /// How independently a person of this culture is raised, on average.
-    /// </summary>
-    /// <remarks>
-    /// The mean of the skewed roll, not a centre people are scattered around. Tradition is the
-    /// pressure to conform, so a customary people sits further toward the follower end; this is
-    /// where the tick on a figure's dial belongs.
-    /// </remarks>
-    public static double IndependenceNorm(Culture culture) =>
-        IndependenceFloor + (IndependenceRange(culture) / 3.0);
-
-    /// <summary>
     /// One person's independence: most of the mass toward the follower end, a long tail of rebels.
     /// </summary>
     /// <remarks>
