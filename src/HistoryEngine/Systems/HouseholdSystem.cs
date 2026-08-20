@@ -397,18 +397,19 @@ public sealed class HouseholdSystem : ISystem
         // And they move to where their partner actually lives, not merely into their realm. A
         // governor's spouse belongs in the town he governs; leaving them at the capital would put
         // a household in two places and expose the two halves of it to different disasters.
-        mover.ResidenceSettlementId = world.ResidenceOf(stays);
+        EntityId household = world.ResidenceOf(stays);
+        mover.ResidenceSettlementId = household;
 
-        EntityId seat = world.Civilizations.Contains(stays.CivilizationId)
-            ? world.Civilizations[stays.CivilizationId].CapitalId
-            : EntityId.None;
-
+        // Chronicled where the household is, not at the realm's seat. A wedding recorded at the
+        // capital puts a provincial couple in a town neither of them lives in, and every later
+        // line that does know where they live — a siege they endured, a journey they set out on —
+        // then reads as though they had appeared there from nowhere.
         world.Chronicle.Record(
             year,
             EventKind.FigureMarried,
             figure.Id,
             obj: partner.Id,
-            location: seat,
+            location: household,
             extra: HousesJoined(figure, partner),
             significance:
                 Houses.HeldPower(figure) || Houses.HeldPower(partner)
@@ -579,6 +580,10 @@ public sealed class HouseholdSystem : ISystem
             father.Holds(OfficeKind.Ruler) || father.Holds(OfficeKind.Regent)
             || mother.Holds(OfficeKind.Ruler) || mother.Holds(OfficeKind.Regent);
 
+        // The mother is carried in data as well as in extra. She is indexed on the event either
+        // way, but only subject and object resolve to a name in a template, and both are spoken
+        // for — the child and the father. Without this the one person certainly present at a
+        // birth is the one the sentence cannot mention.
         world.Chronicle.Record(
             year,
             EventKind.FigureBorn,
@@ -588,6 +593,9 @@ public sealed class HouseholdSystem : ISystem
             extra: child.DynastyId.IsNone
                 ? new[] { mother.Id }
                 : new[] { mother.Id, child.DynastyId },
+            data: Chronicle.Data(
+                ("mother", mother.FullName),
+                ("child", sex == Sex.Male ? "son" : "daughter")),
             significance: bornToThrone ? Significance.Notable : Significance.Routine);
 
         if (rng.Chance(ChildbedRisk))
