@@ -81,7 +81,8 @@ public static class Narration
         Set(EventKind.SettlementSpecialized, "{subject} came to be known for {data:trade}.");
         Set(EventKind.SettlementFamine, "{subject} suffered {data:severity}[, losing {data:lost} people].");
 
-        Set(EventKind.FigureBorn, "{subject} was born[ to {object}][ in {location}].");
+        Set(EventKind.FigureBorn,
+            "{subject} was born[ to {data:mother} and {object}][ in {location}].");
         Set(EventKind.FigureDied,
             "{subject}[, {data:office},] died[ at the age of {data:age}][, of {data:cause}]"
             + "[, and the court named {data:suspect}].");
@@ -215,7 +216,13 @@ public static class Narration
         Set(EventKind.Unknown, "Something happened.");
 
         // The person is the implied subject. Named only when a clause has to point at them.
-        SetSelf(EventKind.FigureBorn, "Was born[ to {object}][ in {location}].");
+        SetSelf(EventKind.FigureBorn,
+            "[{self:subject}Was born][{self:subject} to {data:mother} and {object}]"
+            + "[{self:subject} in {location}][{self:subject}.]"
+            + "[{self:object}{data:mother} bore him a {data:child}, {subject}]"
+            + "[{self:object}, at {location}][{self:object}.]"
+            + "[{self:extra}Bore {object} a {data:child}, {subject}]"
+            + "[{self:extra}, at {location}][{self:extra}.]");
         SetSelf(EventKind.FigureDied,
             "[{self:subject}Died][{self:subject} as {data:office}][{self:subject} at the age of {data:age}]"
             + "[{self:subject}, of {data:cause}][{self:subject}, and the court named {data:suspect}]"

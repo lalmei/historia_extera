@@ -118,6 +118,39 @@ public sealed class NarrationTests
             Narration.Render(murder, Name, hand));
     }
 
+    /// <summary>
+    /// A birth is read by three people, and only one of them was born.
+    /// </summary>
+    /// <remarks>
+    /// The <c>.self</c> template used to be ungated, so the child's sentence was handed to the
+    /// parents as well: a mother of six read "Was born to Jaroslav" six times on her own page,
+    /// once per child. Every viewpoint the event indexes needs its own clause.
+    /// </remarks>
+    [Fact]
+    public void ABirthReadsDifferentlyForTheChildAndForEachParent()
+    {
+        EntityId child = EntityId.Figure(11);
+        EntityId father = EntityId.Figure(4);
+        EntityId mother = EntityId.Figure(7);
+        var birth = new HistoryEvent(
+            0, 140, EventKind.FigureBorn, child, father, EntityId.Settlement(6),
+            Extra: new[] { mother },
+            Data: Chronicle.Data(("mother", "fig:7"), ("child", "daughter")));
+
+        Assert.Equal(
+            "fig:11 was born to fig:7 and fig:4 in set:6.",
+            Narration.Render(birth, Name));
+        Assert.Equal(
+            "Was born to fig:7 and fig:4 in set:6.",
+            Narration.Render(birth, Name, child));
+        Assert.Equal(
+            "fig:7 bore him a daughter, fig:11, at set:6.",
+            Narration.Render(birth, Name, father));
+        Assert.Equal(
+            "Bore fig:4 a daughter, fig:11, at set:6.",
+            Narration.Render(birth, Name, mother));
+    }
+
     [Fact]
     public void AFiguresChronicleIsToldFromTheirPointOfView()
     {
