@@ -212,7 +212,9 @@ public static class Occupations
 
     private static OfficeHolding? CareerOffice(Figure figure)
     {
-        for (int i = 0; i < figure.Offices.Count; i++)
+        // Newest first: a figure who already held one seat and was then given another is doing the
+        // later one, so a marshal appointed over a sitting governor reads as arms, not office.
+        for (int i = figure.Offices.Count - 1; i >= 0; i--)
         {
             OfficeHolding held = figure.Offices[i];
             if (held.ToYear is not null) continue;
