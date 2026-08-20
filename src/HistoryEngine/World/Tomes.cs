@@ -18,10 +18,10 @@ namespace HistoryEngine.World;
 /// it choose a subject and write sections from entity state. The independent artifact-id stream
 /// makes richer contents unable to perturb whether another town creates an artifact that year.</para>
 ///
-    /// <para>Religious rites and teachings are invented, because no event can record a doctrine, but
-    /// they are keyed to the faith's character rather than to the book. Two codices of one religion
-    /// therefore agree about its gods, its sins and its observance instead of inventing a fresh
-    /// religion each time.</para>
+/// <para>Religious rites and teachings are invented, because no event can record a doctrine, but
+/// they are keyed to the faith's character rather than to the book. Two codices of one religion
+/// therefore agree about its gods, its sins and its observance instead of inventing a fresh
+/// religion each time.</para>
 /// </remarks>
 public static class Tomes
 {
