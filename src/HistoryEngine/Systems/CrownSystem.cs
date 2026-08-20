@@ -94,7 +94,10 @@ public sealed class CrownSystem : ISystem
     private static CultureValues Settle(WorldState world, Civilization civilization, int year)
     {
         Culture culture = world.CultureOf(civilization);
-        CultureValues values = culture.Values;
+
+        // The realm's own baseline, not the fixed founding culture: cultural drift moves this over
+        // the centuries, and the ruler and fortunes bend whatever it has become by now.
+        CultureValues values = civilization.BaseValues;
 
         Figure? governor = Governing(world, civilization, out bool asRegent);
 
@@ -156,7 +159,9 @@ public sealed class CrownSystem : ISystem
             _ => 0.30,
         };
 
-        double brake = DetMath.Lerp(1.25, 0.65, culture.Values.Tradition);
+        // Read from the realm's drifted baseline, not the founding culture: a people that has grown
+        // more traditional over the centuries resists its rulers more than its founders did.
+        double brake = DetMath.Lerp(1.25, 0.65, civilization.BaseValues.Tradition);
 
         int held = Math.Max(0, year - civilization.RulerSinceYear);
         double tenure = DetMath.Lerp(

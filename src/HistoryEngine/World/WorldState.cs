@@ -182,6 +182,46 @@ public sealed class WorldState
 
     public int EndYear => Config.StartYear + Config.Years - 1;
 
+    /// <summary>Who is within reach of whom, by realm, as of <see cref="_reachYear"/>.</summary>
+    private readonly DetMap<EntityId, DetMap<EntityId, double>> _reach = new();
+
+    /// <summary>The year <see cref="_reach"/> describes. Before any is published, no year.</summary>
+    private int _reachYear = int.MinValue;
+
+    /// <summary>
+    /// Publishes the year's contact map, so systems after the one that paid for it can read it.
+    /// </summary>
+    /// <remarks>
+    /// <para>Proximity is every settlement of one realm against every settlement of another, and it
+    /// is the most expensive question the engine asks each year. Diplomacy already resolves it for
+    /// every realm; cultural drift needs the same answer a few systems later, and recomputing it
+    /// there doubled the cost of a long run for an identical result.</para>
+    ///
+    /// <para>Cached against the year it describes rather than kept indefinitely: a reader that asks
+    /// in a later year — or in a run whose system list has no diplomacy in it — is told nothing and
+    /// falls back to computing its own, which keeps this an optimisation rather than a dependency
+    /// between two systems.</para>
+    /// </remarks>
+    public void PublishReach(
+        int year, IReadOnlyList<Civilization> civilizations, IReadOnlyList<DetMap<EntityId, double>> reach)
+    {
+        _reach.Clear();
+        for (int i = 0; i < civilizations.Count && i < reach.Count; i++)
+        {
+            _reach[civilizations[i].Id] = reach[i];
+        }
+
+        _reachYear = year;
+    }
+
+    /// <summary>
+    /// The realms within reach of this one as resolved this year, or null if nobody published any.
+    /// </summary>
+    public DetMap<EntityId, double>? ReachOf(EntityId civilizationId, int year) =>
+        _reachYear == year && _reach.TryGetValue(civilizationId, out DetMap<EntityId, double>? found)
+            ? found
+            : null;
+
     /// <summary>Distance respecting this world's east/west boundary condition.</summary>
     public double Distance(double x1, double z1, double x2, double z2) =>
         Config.Bounds.Distance(x1, z1, x2, z2, Config.EastWestPeriodic);

@@ -211,6 +211,10 @@ public static class Realms
             year)
         {
             EffectiveValues = from.EffectiveValues,
+
+            // A breakaway is the same people under a new crown: it carries the parent's culture as
+            // the centuries have left it, then drifts on its own from there.
+            BaseValues = from.BaseValues,
             StateReligionId = seat.ReligionId.IsNone ? from.StateReligionId : seat.ReligionId,
         };
 

@@ -179,6 +179,10 @@ public static class WorldBuilder
             // The founding year runs before the first tick, so the crown system has not settled
             // anything yet. A realm founded this morning is governed by its people and nothing else.
             EffectiveValues = culture.Values,
+
+            // The baseline the drift system moves from here on. A world's founding realms start as
+            // their culture; the centuries are what pull them apart.
+            BaseValues = culture.Values,
         };
         world.Civilizations.Add(civilization);
 

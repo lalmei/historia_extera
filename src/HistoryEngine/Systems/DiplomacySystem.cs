@@ -197,6 +197,10 @@ public sealed class DiplomacySystem : ISystem
             contacts.Add(Diplomacy.Neighbours(world, civilization));
         }
 
+        // Published for the systems after this one that ask the same question — cultural drift does,
+        // and recomputing it there costs as much again for an identical answer.
+        world.PublishReach(year, civilizations, contacts);
+
         for (int i = 0; i < civilizations.Count; i++)
         {
             foreach (KeyValuePair<EntityId, double> contact in contacts[i])
