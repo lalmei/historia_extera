@@ -3103,10 +3103,10 @@ the contract, not that Azgaar's export ranges are what its documentation says. B
 Phase 2 work rather than spike work, and site selection growing teeth on real terrain
 (M10) is the natural place for them.
 
-M10 did the first and **not** the second: the cost model is still asserted against a hypothetical
-sample, and no external generator has yet been driven through the route end to end by a person.
-That remains the one piece of Phase 2 nobody has actually done, and it needs an export to hand
-rather than a design decision.
+M10 did the first and **not** the second. The second was finally done on its own, against
+WorldEngine — see *The Phase 2 terrain trial* below for what held and the six things that
+leaked. The cost model is still asserted against a hypothetical sample, because a raster
+read is an array lookup whichever generator wrote the array.
 
 ### M10: the ground decides
 
@@ -3348,6 +3348,90 @@ and the year a road was first cut is what gates it appearing at all.
 
 ---
 
+### The Phase 2 terrain trial: WorldEngine end to end
+
+> The full writeup, with every measurement, is *Terrain trial* in the developer docs. This
+> records the decisions and the verdict.
+
+M9 built the raster route and tested it against the engine's own baked output, and said so
+plainly: the round trip proves the format and the contract, not that a real generator's
+export is what its documentation claims. This closes that. **WorldEngine 0.20.0** (MIT —
+plate tectonics, erosion and climate) generates a 512x512 world; a script converts its
+protobuf into PGM planes and a manifest; a 300-year history runs on it. No engine code
+changed and the suite stayed green, which is the acceptance criterion and also the least
+interesting part of the result.
+
+**The conversion is a script, deliberately outside everything.** `HistoryEngine` takes no
+NuGet dependency, and neither does the docs toolchain: `make terrain-worldengine` runs the
+generator through `uv run --no-project --with` in a throwaway environment, and the
+converter is a PEP 723 script carrying its own inline dependencies. Nothing about
+WorldEngine is committed to this project except a version number in a Makefile. That is
+the shape any future adapter should take — the interchange is four files and a manifest,
+and the generator stays on its own side of it.
+
+**What held.** The two-piece datum map put WorldEngine's shoreline — 1.00 on its own
+unitless −0.40..12.59 scale — at exactly 0 m, which is the one thing the design anticipated
+completely. `TerrainCapabilities` declared `Height, Temperature, Rainfall, Lakes` and the
+CLI reported three modelled fields, correctly, without anyone checking by hand. The
+content digest works on terrain nobody here made: flipping one bit of `height.pgm` moves
+the digest, the config hash and the export fingerprint, and deleting the whole set and
+regenerating it from the generator's seed reproduces it byte for byte. The sample budget
+moved 5%.
+
+**The result that matters is a defect, and it is not in the format.** `Hydrology` has no
+depression filling. On WorldEngine's eroded terrain, **26 of 41 river cells are D8 sinks**
+— cells with no downhill neighbour — against 15 of 69 on the procedural bake. Flow
+accumulation piles into undrained pits, the top-4%-by-drainage rule then names those pits
+rivers, and a sink exports no segment: 15 river segments where the reference produces 54.
+Two-thirds of this world's rivers are puddles. Phase 1's noise is smooth by construction
+and never produced enough sinks to notice; Vintage Story's terrain will not be smooth
+either. A priority-flood pass before flow directions is the fix, and it belongs before the
+Phase 3 adapter rather than after it.
+
+Compounding it: `Hydrology` reads height at a 64-unit stride from an 8-unit raster — one
+pixel in sixty-four — and `ITerrainSampler` is a point query, so there is nowhere to ask
+for the mean over a cell. Box-averaging the same data before the D8 pass cuts the sinks
+from 35 to 20 and raises the segments from 15 to 21, while barely moving the procedural
+world at all. Aliasing costs a band-limited noise field nothing and costs real terrain
+half its drainage. This is the trap `TerrainAtlas` guards against in the cost dimension,
+turning up in the signal dimension where nothing was watching.
+
+**Four leaks are the manifest being too thin**, and each has a shape:
+
+1. *No ocean mask.* WorldEngine decides ocean by flooding in from the border, so 1,999
+   cells here are dry land below its shoreline value. The engine calls anything under 0 m
+   ocean and the `water` layer only marks lakes *on land*, so the mask has to be flattened
+   into the height and the converter has to choose which way to be wrong. Drowning the
+   basins invents inland seas and takes the coastal sites from 14 to 23; filling them
+   creates flat plateaus at exactly 0 m that are themselves sinks, 35 against 20.
+   `WaterKind` already distinguishes ocean from lake; the format does not.
+2. *Units the generator does not have.* Elevation is unitless and temperature is a
+   normalised field with quantile thresholds, so the metres and the degrees are invented
+   by the conversion — and they matter. The same pixels with `max` at 404 m rather than
+   2,920 m produce 45 settlements rather than 55 and 3 coastal sites rather than 14, with
+   the river structure untouched, because D8 ranks heights and siting reads metres.
+   Nothing tells you that you chose badly.
+3. *No rivers.* WorldEngine simulates them and `TerrainCapabilities.Rivers` is unreachable
+   through the raster route, so the engine rederived them and only partly agreed: 36.6% of
+   the cells it names as river are within 64 units of a WorldEngine river, against 23.4%
+   for land cells generally — enriched, not matching. A flow layer in the manifest is the
+   cheapest of these fixes and probably the most valuable, because Algernon's Watersheds
+   sampler is the identical situation.
+4. *No topology.* WorldEngine fades its borders to ocean, so its maps do not wrap.
+   `--east-west-periodic` accepted the set anyway and produced a perfectly plausible
+   history with 64 active trade routes against 43, several of them crossing a seam that
+   does not exist. The manifest should declare topology and the loader should check the
+   seam.
+
+**Verdict.** The abstraction held where it was designed to — datum, capabilities,
+provenance, budget — on data the engine did not make, and the simulation never knew. What
+leaked leaked either from a manifest that carries too little, or from hydrology tuned
+against smooth noise. The second is the one to fix first, because it produced a world that
+looked entirely reasonable and was quietly wrong, which is the failure mode Phase 3 cannot
+afford to discover inside the game.
+
+---
+
 ## Notes for Phase 2
 
 Three routes were listed here, in rough order of expected fit. **The first is built** —
@@ -3382,8 +3466,11 @@ confluences, harbour quality and passes all landed, and defensibility was cut on
 rather than deferred — see *M10: the ground decides*. It did belong in `SiteSelection`, and being
 one function is what made it a single change rather than four.
 
-What is left of Phase 2 is the piece that needs a file rather than a decision: driving a real
-external generator through the raster route end to end.
+~~What is left of Phase 2 is the piece that needs a file rather than a decision: driving a real
+external generator through the raster route end to end.~~ Done, against WorldEngine — see
+*The Phase 2 terrain trial* above. It found one defect worth fixing before Phase 3
+(hydrology does not fill depressions) and four places the manifest is too thin to describe
+somebody else's map.
 
 ## Notes for Phase 3
 

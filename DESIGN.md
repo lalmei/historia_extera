@@ -92,12 +92,19 @@ Simulation sampling must scale with decisions, not simulated years.
 | Phase | Terrain source | State |
 |---|---|---|
 | 1 | Procedural value noise | Current default |
-| 2 | PGM rasters plus JSON manifest | Supported; external end-to-end trial remains |
+| 2 | PGM rasters plus JSON manifest | Supported; trialled end to end against WorldEngine |
 | 3 | Vintage Story world generation | Designed for, not implemented |
 
 Raster content, not its file path, contributes to terrain provenance and the config
 hash. Only height is required; absent climate fields are modeled and are not falsely
 declared as measured capabilities.
+
+The Phase 2 trial (`docs/dev/terrain-trial.md`) ran an external generator through this
+route and found the datum, the capability declaration, the provenance digest and the
+sample budget all held on foreign data. It also found that hydrology fills no depressions
+and point-samples a fine raster at a coarse stride, which costs band-limited noise nothing
+and costs real eroded terrain most of its drainage. That is a defect to fix before the
+Phase 3 adapter, not a property of the format.
 
 ### Time
 
@@ -266,7 +273,11 @@ scheduled episodes. The engine now has no declared docket kind without a consume
 
 Beyond the numbered milestones:
 
-- Run a real external terrain generator through the Phase 2 raster route end to end.
+- Fill depressions before deriving flow directions, and prefilter height when hydrology
+  samples below the raster's own resolution — both measured in the Phase 2 terrain trial.
+- Widen the terrain manifest where it cannot describe somebody else's map: an ocean mask
+  distinct from lakes, a flow layer so a river-aware generator is not rederived worse, and
+  a declared east/west topology the loader can check against the seam.
 - Let something consume road geometry — travel time, campaign movement, or capacity — once a
   measurement shows the road is telling it something the route's traffic does not already.
 - Build the Phase 3 Vintage Story terrain adapter and revalidate framework, calendar,
