@@ -106,7 +106,14 @@ make fingerprint
 # Bake the noise world to rasters, then run a history over them
 make terrain-bake
 make generate ARGS='--terrain build/terrain/terrain.json'
+
+# The same route, on terrain from an external generator
+make terrain-worldengine
+make generate ARGS='--terrain build/terrain-worldengine/terrain.json'
 ```
 
 Baking is also the quickest way to get a reference manifest to compare your own against
-when a raster set will not load.
+when a raster set will not load. For an external generator's terrain,
+`make terrain-worldengine` runs WorldEngine and converts its output; the
+[terrain trial](../dev/terrain-trial.md) records what that conversion has to decide, and
+what the abstraction got wrong when it did.

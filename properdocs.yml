@@ -63,4 +63,5 @@ nav:
       - Architecture: dev/architecture.md
       - Determinism: dev/determinism.md
       - Testing: dev/testing.md
+      - Terrain trial: dev/terrain-trial.md
       - Decision log: dev/decision-log.md

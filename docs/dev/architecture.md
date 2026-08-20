@@ -211,6 +211,13 @@ A raster set's content digest goes into `WorldConfig.TerrainSource` and from the
 the config hash — a file path is not the pixels, and the determinism contract has to keep
 covering the terrain. It contributes only when set, so procedural worlds hash unchanged.
 
+`tools/terrain/worldengine_to_raster.py` converts an external generator's output into the
+format; `make terrain-worldengine` runs the whole route. The
+[terrain trial](terrain-trial.md) records what that proved and the two places it did not:
+the manifest cannot describe an ocean mask, measured rivers or a wrapping map, and
+`Hydrology` fills no depressions — which costs Phase 1's smooth noise nothing and costs
+real eroded terrain most of its drainage.
+
 ## Naming
 
 Markov models over language corpora under `Naming/Corpora/`. Licenses for corpus text

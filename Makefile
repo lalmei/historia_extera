@@ -27,6 +27,15 @@ ARGS   ?=
 TERRAIN     ?= build/terrain
 TERRAIN_RES ?= 512
 
+# The Phase 2 trial: terrain from a generator that has never heard of this engine.
+# WorldEngine (MIT) is run through uv in a throwaway environment, so nothing it needs
+# lands in this project's pyproject.toml and nothing lands in HistoryEngine at all.
+WE_SEED     ?= 4242
+WE_RES      ?= 512
+WE_WORLD    ?= build/worldengine
+WE_ARGS     ?=
+TERRAIN_WE  ?= build/terrain-worldengine
+
 CLI_FLAGS := --seed $(SEED) --years $(YEARS) --civs $(CIVS) --size $(SIZE) --raster $(RASTER)
 ifneq ($(OUT),)
   CLI_FLAGS += --out $(OUT)
@@ -36,7 +45,7 @@ ifneq ($(SAMPLE),)
 endif
 CLI_FLAGS += $(ARGS)
 
-.PHONY: help generate legends fingerprint terrain-bake terrain-generate test build viewer install preview docs-build docs-serve clean
+.PHONY: help generate legends fingerprint terrain-bake terrain-worldengine terrain-generate test build viewer install preview docs-build docs-serve clean
 
 help:
 	@echo "Historia Extera"
@@ -44,6 +53,7 @@ help:
 	@echo "  make generate [SEED=42 YEARS=300 CIVS=8 SIZE=4096 RASTER=256]"
 	@echo "  make fingerprint   # regenerate golden digest for seed 42"
 	@echo "  make terrain-bake  # bake the noise world to rasters (TERRAIN, TERRAIN_RES)"
+	@echo "  make terrain-worldengine  # convert a WorldEngine world into a raster set"
 	@echo "  make terrain-generate  # then run a history over them"
 	@echo "  make test"
 	@echo "  make build"
@@ -80,6 +90,17 @@ fingerprint:
 terrain-bake:
 	dotnet run --project $(CLI_PROJECT) -- \
 		--seed $(SEED) --size $(SIZE) --emit-terrain $(TERRAIN) --terrain-res $(TERRAIN_RES)
+
+# The external half of the same route: generate a world with WorldEngine, then convert
+# its protobuf into PGM planes and a manifest. See docs/dev/terrain-trial.md for what the
+# conversion has to decide on the generator's behalf, and what that costs.
+terrain-worldengine:
+	$(UV) run --no-project --with worldengine==0.20.0 \
+		worldengine world -s $(WE_SEED) -x $(WE_RES) -y $(WE_RES) -n trial -o $(WE_WORLD)
+	$(UV) run --no-project --script tools/terrain/worldengine_to_raster.py \
+		$(WE_WORLD)/trial.world --out $(TERRAIN_WE) $(WE_ARGS)
+	@echo
+	@echo "Then:  make terrain-generate TERRAIN=$(TERRAIN_WE)"
 
 terrain-generate:
 	dotnet run --project $(CLI_PROJECT) -- $(CLI_FLAGS) --terrain $(TERRAIN)/terrain.json

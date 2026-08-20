@@ -8,6 +8,7 @@ src/HistoryEngine.Cli/     console runner (`legends`)
 src/HistoryEngine.Tests/   xunit — determinism, discipline, serialization
 viewer/                    Astro + React + Tailwind Legends UI
 docs/                      ProperDocs sources
+tools/terrain/             conversion scripts for external terrain generators
 DESIGN.md                  concise living design
 docs/dev/decision-log.md   detailed rationale and milestone history
 Makefile                   CLI + viewer + docs shortcuts
@@ -38,5 +39,6 @@ make generate && make viewer
 - [Architecture](architecture.md)
 - [Determinism](determinism.md)
 - [Testing](testing.md)
+- [Terrain trial](terrain-trial.md) — what broke when an external generator's terrain came in
 - Repository-root `DESIGN.md` for the current design
 - [Decision log](decision-log.md) for the full rationale and milestone history
