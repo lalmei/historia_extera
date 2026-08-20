@@ -116,7 +116,12 @@ battles mark the year they were fought, and the dots can be coloured by realm or
 faith, which are two political maps of the same world and disagree in the interesting
 places. Territory is one shape per realm with an outline only where it meets somebody
 else. Trade routes are a separate time-aware overlay: their straight lines show logical
-connections and are not presented as physical roads.
+connections rather than the ground between two towns. **Roads** are a second overlay under them,
+and are the ground: a solid line following the country for each land route whose traffic held up
+long enough to earn one, drawn from the year it was cut, pale and thicker once it was bridged and
+paved. Most routes never earn one and a coastal route never does, so the road network is the trunk
+of the trade network rather than a copy of it. A road stays on the map after the route it served
+has closed.
 Independent holy sites appear as diamond markers and can be toggled separately; houses of worship
 inside settlements are listed on their settlement and faith pages to avoid hiding the settlement
 marker at the same coordinate. Four further overlays sit on the same year: **harbours** place an

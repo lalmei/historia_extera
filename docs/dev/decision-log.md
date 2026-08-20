@@ -3227,6 +3227,91 @@ of copying, and plague spread gets the same shared traffic network. That is the 
 making routes state: two systems that mean “ordinary travellers moved between these places” now
 mean the same thing.
 
+### Physical roads: geometry hung off the topology
+
+The demand the entry above was waiting for exists — tome circulation, plague spread, carrying
+capacity and figure travel all consume the route network — so the busiest land routes now have a
+way over the ground.
+
+**A road is a fact about a route, not a route of its own.** `TradeRoute.Road` holds a polyline, the
+year it was cut, the year it was bridged and paved if it ever was, and its length along the way.
+The route's id, founding year, traffic record and chronicle are untouched by anything that happens
+to the surface, and an upgrade carries the original `BuiltYear` forward. The alternative —
+a `Road` entity with its own id — was rejected because it would give the world two records of the
+same relationship that could disagree about which settlements it joins.
+
+**Where is a terrain question, so it lives under `World/`.** `TradeRouteSystem` decides *when* a
+link has earned a road, from traffic it already holds; `World/Roads.cs` cuts the path.
+`TerrainDisciplineTests` forbids anything under `Systems/` from naming `ITerrainSampler`, and the
+split is the same one `SiteSelection` already makes for founding.
+
+**Free, and measured to be free.** The search runs over the 64-unit grid `Hydrology` primes at
+world creation, re-read through `TerrainAtlas.SampleGrid`, which memoises. Simulation samples
+across seeds 2/7/11/42/99 are 5,414 / 9,494 / 7,334 / 7,574 / 10,214 — **byte-identical to the same
+five runs before roads existed**. `RoadTests.CuttingARoadSamplesNoTerrain` pins it: deriving the
+planes and cutting twenty roads moves the counter by zero.
+
+**Cost scales with construction, not with years.** A path is computed when a road is built or
+upgraded and never again. `TradeRoute.RoadSurveyed` records the one attempt, including a failed
+one: two towns can trade across a strait — the route system measures straight-line distance, not
+walking distance — and without the flag a pair no road can reach would pay for a graph search every
+year it stayed busy. No qualifying pair across the five seeds was actually unreachable, so that is a
+guard against a world that can happen rather than a fix for one that did.
+
+**Integers, and a total order on the frontier.** Every toll is an integer, and the priority queue is
+keyed on `cost × cells + index` so the minimum is unique. Dijkstra is then reproducible whatever
+heap the runtime implements, which matters because the engine compiles for net7.0 and its tests run
+on net10.0. A float cost with ties broken by pop order is the classic version of this bug: correct
+on the machine it was written on, quietly different elsewhere.
+
+**Prioritised by sustained traffic, and the threshold was measured, not chosen.** Peak traffic over
+the five seeds runs min 0.50, median 0.59–0.65, max 0.79–0.89. At `BuildThreshold = 0.68` the
+roaded share of *land* routes is 4/13, 42/108, 3/13, 15/53 and 31/130 — 23% to 39%, which draws
+trunks and spurs. At 0.62 it is roughly half the network and no corridor stands out from any other;
+at 0.76 the sparsest seed keeps one road.
+
+**What the geometry buys, in numbers.** Mean detour over the straight line is 1.00, 1.15, 1.00, 1.15
+and 1.17 by seed; over roads longer than 256 units it is 1.10–1.23, with a worst case of 2.17. Mean
+ruggedness along a road against the same endpoints' straight line: 0.033 vs 0.040 (seed 42), 0.124
+vs 0.152 (99), 0.131 vs 0.135 (7) — the road picks gentler ground by up to 18%. Cut in `River` mode
+the path stays nearer the water than the same endpoints cut overland, in **every** seed measured:
+mean distance-to-river 98 vs 129 units (42), 83 vs 98 (99), 132 vs 156 (11), and nearer on 46 of 57
+individual pairs.
+
+**Seeds 2 and 11 are the honest caveat.** Their roaded routes join towns 128 units apart — two
+cells on the hydrology grid — so their paths are straight lines and their detour is exactly 1.000.
+Road geometry is known to 64 units because that is the finest grid the world has; a road shorter
+than a few cells has nothing to say, and inventing a finer grid for it would be per-decision terrain
+sampling the budget cannot afford (a 16-unit corridor refinement for 40 roads is ~14,000 samples
+against a 12,000 budget for the whole run).
+
+**Coastal routes were deliberately left without geometry.** A coastal route is sailed, and the
+engine has no hulls, no ports beyond access, and no sea lanes; a polyline hugging the shore would be
+geometry nothing in the simulation earned. It also keeps "an overland road never crosses water" a
+real invariant rather than a special case. The cost is that a maritime seed has commerce with few
+roads on it — seed 11 has 48 routes and 3 roads — which is the truthful picture of such a world.
+
+**Rejected: roads feeding back into the model.** Capacity already takes live route traffic, and a
+road exists *because* that traffic was high; adding a road term would count the same fact twice.
+Armies moving along roads is a standing non-goal. So roads are presentation and record for now, and
+the first system to consume one should arrive with a measurement showing the road says something the
+traffic does not.
+
+**Numbers still to sweep.** The paving tier is the weakest term here and is kept on thin evidence:
+across the five seeds 18 roads were paved and the engineered line differs from the track it replaced
+in only **2** of them (both in seed 7, saving 21% and 18% of the way). The rest are short roads over
+easy ground where cuttings and bridges buy nothing, and the paved way is identical to the track.
+That is a real but marginal outcome; if a sweep over longer routes or a larger world does not raise
+it, `RoadGrade` should be deleted and paving reduced to a dated fact about an unchanged line — or
+dropped entirely. Also unswept: whether the pass discount changes which saddle a road crosses often
+enough to be worth its own constant, and whether the ford toll should scale with the river's
+drainage rather than being flat.
+
+**One limitation, recorded rather than hidden.** Only the current line is stored. A road paved in
+year 400 is drawn on its engineered course in year 300 too, because the track it replaced is not
+kept. The grade *is* replayed by year, so the viewer never shows a paved road before it was paved,
+and the year a road was first cut is what gates it appearing at all.
+
 ---
 
 ## Notes for Phase 2
