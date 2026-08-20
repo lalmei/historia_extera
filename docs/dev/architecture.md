@@ -28,15 +28,16 @@ Order and cadence are part of the run's identity (hashed into the export). As bu
 10. `war`
 11. `unrest`
 12. `trade-routes`
-13. `travel`
-14. `figure-incidents`
-15. `figure-lifecycle`
-16. `succession`
-17. `houses`
-18. `offices`
-19. `artifacts`
+13. `cultural-drift`
+14. `travel`
+15. `figure-incidents`
+16. `figure-lifecycle`
+17. `succession`
+18. `houses`
+19. `offices`
+20. `artifacts`
 
-Most systems are annual, `unrest` and `travel` among them. `expansion` and `war` are seasonal. `plague` also answers for
+Most systems are annual, `unrest`, `travel` and `cultural-drift` among them. `expansion` and `war` are seasonal. `plague` also answers for
 scheduled outbreak steps and arrivals through the docket, so an active outbreak can keep its own
 clock without creating a daily global loop. `war` answers for scheduled siege decisions: the
 seasonal campaign starts an investment, and the docket carries it to the day it is carried,
@@ -52,6 +53,25 @@ filled → households and offices against the line as it now stands → what the
 `unrest` follows `war` so the grievance a campaign earns can boil over the same year, and
 precedes `trade-routes` so the brigandage a rising raises suppresses that year's traffic.
 `travel` follows `trade-routes` so a merchant's journey uses a corridor that is actually open.
+`cultural-drift` follows all of them because it moves a people's baseline against the relations,
+wars and faiths the year has just settled. It is `crown`'s counterpart at the far end of the year:
+crown reads the baseline and settles what the realm is governed by, drift writes the baseline for
+next year's crown to read.
+
+## Cultural drift
+
+`Culture.Values` is a people's founding seed and never changes. What moves is
+`Civilization.BaseValues` — that realm's own baseline, seeded from the culture at founding (or from
+the parent realm's current baseline for a breakaway) and stepped once a year by `cultural-drift`.
+`crown` bends *that* rather than the culture, so a ruler argues with the people as they now are.
+
+Four terms, no random numbers: contact pulls a realm toward its neighbours' baselines by proximity
+and the square root of their population; sustained weariness and grievance pull aggression toward a
+war target; a state faith pulls piety toward its fervour; and a weak anchor pulls back toward the
+founding culture. Contact is convergent by default and only an active war reverses it — culture
+spreads down a border whether or not the neighbours are friendly. The anchor is what stops
+convergence ending in one culture; see the decision log for the two calibrations that found both
+failure modes.
 
 Diplomacy follows expansion so opinions are formed about the frontier that exists rather
 than last year's, and religion precedes diplomacy for the same reason. War precedes

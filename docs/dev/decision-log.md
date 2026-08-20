@@ -2483,6 +2483,112 @@ confirm the check pass-rate across seeds and that no one tome kind crowds out th
 
 ---
 
+### M18: a people that changes
+
+**The half of the loop M12 left open.** Ruler dispositions gave a realm values that bent for a reign
+and fortunes that shifted them for a decade, but both worked from a baseline fixed at worldgen. A
+people was therefore exactly what it was founded as under thirty rulers and eight wars, and three
+centuries read as a fixed culture with per-reign noise on top. `Civilization.BaseValues` is that
+baseline made a realm's own: seeded at founding from the culture, moved a little each year by
+`cultural-drift`, and read by `crown` as the thing a ruler bends. `Culture.Values` stays immutable —
+the founding seed and the identity anchor — so a people can change without its culture being
+rewritten underneath the succession law derived from it.
+
+**Per realm, not per culture.** Two realms of one founding culture diverging is the entire point, and
+a breakaway carries the parent's baseline *as it then stood* rather than the founding culture's, which
+is what makes a secession the start of a related people rather than a reset to the ancestral one.
+
+**Three pulls and an anchor, no dice.** Drift reads state and draws no random numbers, like `crown`.
+Contact pulls a realm toward its neighbours' baselines, weighted by proximity and by the square root
+of their population, normalised so the step is bounded however many neighbours there are; sustained
+weariness and grievance pull aggression toward a war target; a state faith pulls piety toward its own
+fervour; and a weak pull back toward the founding culture keeps the whole thing from running away.
+Every term is a fraction of the distance to a target, so nothing needs clipping. It runs late in the
+year — after diplomacy, war, trade and religion have settled — and writes the baseline that next
+year's `crown` reads first.
+
+#### Where the build found something
+
+**Opinion is the wrong sign for culture.** The first version took affinity straight from
+`Relations`, pulling toward realms that liked each other and away from realms that did not. It made
+neighbours *diverge*: most contact relations in this engine sit mildly negative — the diplomacy model
+bunches opinions below zero by construction — so the common case was a push apart, and friendly
+cross-culture neighbours ended 0.46 apart on the six dials having begun at 0.33. The fix is a
+statement about what a frontier is: culture spreads down a shared border and a trade road whether or
+not the two realms are fond of each other, so contact is convergent by default (`ContactBias`) and
+opinion only tilts it. An *active war* is what reverses it into a people defining itself against its
+enemy.
+
+**Convergence with no counterweight is a monoculture.** With contact made convergent, a small densely
+settled world collapsed: on seed 2 the two most different realms in the world ended 0.16 apart on a
+scale where their founding cultures began at 0.28. Convergence is a fixed point at "everyone holds
+the average", and nothing in the model resisted it. The anchor back to the founding culture
+(`RootsRate`) is what makes the equilibrium sit *partway*, which is the behaviour actually wanted: a
+crowded frontier becomes a region of related-but-distinct peoples rather than one people. Its first
+value over-damped in the other direction — mean drift fell to 0.09 and nothing moved — and half of it
+is the current setting.
+
+**Measuring drift by distance from founding hides the mechanism.** The obvious test — connected realms
+should drift further from their origin than isolated ones — failed, and was wrong rather than the
+code. War and faith move *every* realm, isolated ones included, so distance-from-founding is dominated
+by terms that have nothing to do with contact. The social pull's actual signature is that *neighbours
+grow alike*, and it is only legible on the four traits contact spreads: expansionism, tradition,
+mercantile and learning. Aggression and piety are what war and faith drive a realm's own way, and
+including them measures the two forces fighting each other.
+
+#### What it produced
+
+Five seeds (2, 7, 11, 42, 99) at 300 years:
+
+| | |
+|---|---|
+| mean baseline shift from founding, per dial | **0.118 – 0.176** (max 0.293) |
+| friendly cross-culture neighbours, adopted traits | **0.348 → 0.225** apart per dial |
+| realms of different founding cultures, at the end | **0.22** apart per dial — distinct, not merged |
+| a realm under sustained war, against itself at peace | **+0.05 or more** aggression over a century |
+
+The third row is the one that matters, and it is the one the two failures above were each a way of
+losing: a world that converges without homogenising. `CulturalDriftTests` pins all four, and the
+war row is measured as the same world twice with the only difference being what happened to one
+realm — a realm's fortunes have faded by the end of a run, and the drift they caused has not.
+
+#### What it cost, and what that measurement actually showed
+
+The social pull needs to know how near two realms are, and proximity — every settlement of one realm
+against every settlement of another — is the most expensive question this engine asks in a year.
+Drift asks it a few systems after diplomacy has already asked it, so diplomacy now publishes its
+contact map on `WorldState`, keyed to the year it describes, and drift reads that instead of
+recomputing. A reader in a later year, or in a run whose system list has no diplomacy in it, is told
+nothing and computes its own, which keeps this an optimisation rather than a dependency between two
+systems. The seed-42 fingerprint is byte for byte what it was before the change — the property that
+makes a performance fix reviewable at all.
+
+**The honest numbers are smaller than the first reading of them.** The duplicate proximity looked
+like it had tripled the suite, because `NoLandIsHeldByARealmThatHasEnded` — five seeds by eight
+hundred years — was taking 8m45s. Sharing the map took it to 8m18s *measured the same way*, about
+five percent. The much larger figure first attributed to the fix came from timing that test **alone**
+on an idle machine (1m32s) and comparing it against a run under full parallel contention: two
+different conditions, not a before and after. What actually dominates that test is the contention of
+twenty other heavy tests, not this system.
+
+**Drift does not make a run slower or a world bigger.** Seed 42 at eight hundred years, with the
+system and without it: 5.9s against 7.4s elapsed, 132 settlements against 128, 6,090 figures against
+6,077. What it does change is how much war there is — **33 wars and 163 battles against 25 and
+129** — which is the war pull doing what it was built to do over eight centuries, and the first
+number to watch if a later sweep decides the world has become too warlike.
+
+**Numbers still to sweep.** `SocialRate`, `ContactBias`, `RootsRate`, `WarRate`, `PeaceAggression` and
+`FaithRate` were set by argument and two rounds of measurement, not by a sweep. The ratio that
+actually decides the world's character is `SocialRate` against `RootsRate` — convergence against
+identity — and it is the one worth sweeping first.
+
+**Deliberately not built.** Language and naming drift (a separate Markov concern). A drifted people
+becoming a *newly named* culture: drift moves values, not identity, and a values-schism that reads as
+a new people is a follow-up that would want the naming system in the same breath. Per-person drift
+beyond `Disposition`, which already rolls around the culture and now rolls around a culture that moves.
+
+---
+
 ## Milestones
 
 | # | Deliverable | State |
