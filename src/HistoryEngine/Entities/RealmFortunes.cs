@@ -51,6 +51,11 @@ public sealed class RealmFortunes
     /// <summary>How much regaining ground answers an old humiliation.</summary>
     private const double LandTakenRelief = 0.25;
 
+    /// <summary>A sitting officer cut down at court. The shock fades; the insult does not.</summary>
+    private const double CourtMurderWeariness = 0.10;
+
+    private const double CourtMurderGrievance = 0.20;
+
     /// <summary>
     /// Calamity added per unit share of the realm's people lost at once.
     /// </summary>
@@ -94,6 +99,16 @@ public sealed class RealmFortunes
     {
         Triumph = Raise(Triumph, LandTakenTriumph);
         Grievance = Math.Max(0.0, Grievance - LandTakenRelief);
+    }
+
+    /// <summary>
+    /// Someone the court followed was murdered. Not a battle, and not a plague: a wrong done
+    /// inside the realm, which is why it feeds grievance rather than calamity.
+    /// </summary>
+    public void MurderAtCourt()
+    {
+        Weariness = Raise(Weariness, CourtMurderWeariness);
+        Grievance = Raise(Grievance, CourtMurderGrievance);
     }
 
     /// <summary>

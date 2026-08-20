@@ -349,6 +349,26 @@ public sealed class Figure
     public int? DisgracedYear { get; set; }
 
     /// <summary>
+    /// The year a spouse, parent, child or sibling was murdered, if one ever was.
+    /// </summary>
+    /// <remarks>
+    /// The other half of political violence: a plot that stops at the one person it named is not
+    /// how courts historically finished the job, and a widow or an heir who never appears in the
+    /// aftermath is a chronicle that forgot they were related. Simulation-only, like
+    /// <see cref="DisgracedYear"/> — the death event already carries the family on
+    /// <c>extra</c>, which is what the viewer needs.
+    /// </remarks>
+    public int? KinMurderedYear { get; set; }
+
+    /// <summary>The year this figure was named in a political murder, if they ever were.</summary>
+    public int? AccusedYear { get; set; }
+
+    /// <summary>
+    /// Whoever they were named in the death of, or <see cref="EntityId.None"/>.
+    /// </summary>
+    public EntityId AccusedOfId { get; set; } = EntityId.None;
+
+    /// <summary>
     /// Where this figure actually lives, or <see cref="EntityId.None"/> for "wherever the court is".
     /// </summary>
     /// <remarks>

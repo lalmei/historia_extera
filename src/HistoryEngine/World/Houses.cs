@@ -353,12 +353,23 @@ public static class Houses
     /// succession system means a throne is empty the instant its holder dies, whatever order the
     /// systems happen to run in.
     /// </remarks>
+    /// <param name="extra">
+    /// Further entities to index the death under, besides the house. Political murders pass
+    /// living family and a named suspect so the event appears on their pages; ordinary deaths
+    /// leave it empty.
+    /// </param>
+    /// <param name="data">
+    /// Further display facts merged onto the obituary — a named suspect, a particular form.
+    /// The age, cause and office are always written here and win if the caller repeats them.
+    /// </param>
     public static void Die(
         WorldState world,
         Figure figure,
         int year,
         DeathCause cause,
-        string? detail = null)
+        string? detail = null,
+        IReadOnlyList<EntityId>? extra = null,
+        DetMap<string, string>? data = null)
     {
         figure.DeathYear = year;
         figure.DeathCause = cause;
@@ -405,18 +416,57 @@ public static class Houses
         // successor, and the two now read as the sequence they always were.
         if (style is not null) obituary["office"] = style;
 
+        if (data is not null)
+        {
+            foreach (KeyValuePair<string, string> pair in data)
+            {
+                if (!obituary.ContainsKey(pair.Key)) obituary[pair.Key] = pair.Value;
+            }
+        }
+
         world.Chronicle.Record(
             year,
             EventKind.FigureDied,
             figure.Id,
             obj: realm,
-            extra: figure.DynastyId.IsNone ? null : new[] { figure.DynastyId },
+            extra: IndexedOn(figure, extra),
             data: obituary,
             significance: inPower || IsExceptional(cause)
                 ? Significance.Notable
                 : Significance.Routine);
 
         CloseHouseIfLast(world, figure, year);
+    }
+
+    /// <summary>
+    /// The house first, then whoever else the death concerns, with neither repeated.
+    /// </summary>
+    private static EntityId[]? IndexedOn(Figure figure, IReadOnlyList<EntityId>? extra)
+    {
+        if (figure.DynastyId.IsNone && (extra is null || extra.Count == 0)) return null;
+
+        var ids = new List<EntityId>(1 + (extra?.Count ?? 0));
+
+        void Add(EntityId id)
+        {
+            if (id.IsNone || id == figure.Id) return;
+
+            for (int i = 0; i < ids.Count; i++)
+            {
+                if (ids[i] == id) return;
+            }
+
+            ids.Add(id);
+        }
+
+        Add(figure.DynastyId);
+
+        if (extra is not null)
+        {
+            for (int i = 0; i < extra.Count; i++) Add(extra[i]);
+        }
+
+        return ids.Count == 0 ? null : ids.ToArray();
     }
 
     /// <summary>
