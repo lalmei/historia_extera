@@ -313,6 +313,49 @@ public static class Succession
         return kin;
     }
 
+    /// <summary>
+    /// The living people a murder would actually touch: spouse, parents, children, siblings.
+    /// </summary>
+    /// <remarks>
+    /// Narrower than <see cref="AreCloseKin"/>, which is a marriage bar and therefore includes
+    /// grandparents. A chronicle that indexed every grandparent on every assassination would
+    /// spread one death across a house; the household that historically sat in danger, and that
+    /// a reader expects to see the death on, is the one under the same roof.
+    /// </remarks>
+    public static List<Figure> ImmediateFamily(WorldState world, Figure figure)
+    {
+        var family = new List<Figure>();
+        var seen = new bool[world.Figures.Count];
+
+        void Consider(EntityId id)
+        {
+            if (id.IsNone || id == figure.Id) return;
+            if (!world.Figures.Contains(id)) return;
+
+            Figure other = world.Figures[id];
+            if (!other.IsAlive || seen[id.Index]) return;
+
+            seen[id.Index] = true;
+            family.Add(other);
+        }
+
+        Consider(figure.SpouseId);
+
+        foreach (EntityId parent in figure.Parents())
+        {
+            Consider(parent);
+
+            if (!world.Figures.Contains(parent)) continue;
+
+            foreach (EntityId sibling in world.Figures[parent].ChildIds) Consider(sibling);
+        }
+
+        foreach (EntityId child in figure.ChildIds) Consider(child);
+
+        family.Sort((a, b) => a.Id.CompareTo(b.Id));
+        return family;
+    }
+
     /// <summary>Whether two figures are near enough in blood that a marriage between them is barred.</summary>
     /// <remarks>
     /// Siblings, half-siblings, parent and child, and grandparent and grandchild. Cousins are

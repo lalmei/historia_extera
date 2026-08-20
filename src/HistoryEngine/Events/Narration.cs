@@ -83,7 +83,8 @@ public static class Narration
 
         Set(EventKind.FigureBorn, "{subject} was born[ to {object}][ in {location}].");
         Set(EventKind.FigureDied,
-            "{subject}[, {data:office},] died[ at the age of {data:age}][, of {data:cause}].");
+            "{subject}[, {data:office},] died[ at the age of {data:age}][, of {data:cause}]"
+            + "[, and the court named {data:suspect}].");
         Set(EventKind.RulerCrowned,
             "{subject} became {data:title} of {object}[ at {location}][, {data:claim}].");
         Set(EventKind.RulerDeposed, "{subject} was deposed as {data:title} of {object}.");
@@ -211,7 +212,14 @@ public static class Narration
         // The person is the implied subject. Named only when a clause has to point at them.
         SetSelf(EventKind.FigureBorn, "Was born[ to {object}][ in {location}].");
         SetSelf(EventKind.FigureDied,
-            "Died[ as {data:office}][ at the age of {data:age}][, of {data:cause}].");
+            "[{self:subject}Died][{self:subject} as {data:office}][{self:subject} at the age of {data:age}]"
+            + "[{self:subject}, of {data:cause}][{self:subject}, and the court named {data:suspect}]"
+            + "[{self:subject}.]"
+            + "[{as:suspect}Was named in the death of {subject}][{as:suspect}, of {data:cause}]"
+            + "[{as:suspect}.]"
+            + "[{not:suspect}{self:extra}{subject} was slain][{not:suspect}{self:extra}, of {data:cause}]"
+            + "[{not:suspect}{self:extra}, and the court named {data:suspect}]"
+            + "[{not:suspect}{self:extra}.]");
         SetSelf(EventKind.RulerCrowned,
             "Became {data:title} of {object}[ at {location}][, {data:claim}].");
         SetSelf(EventKind.RulerDeposed, "Was deposed as {data:title} of {object}.");

@@ -699,8 +699,13 @@ the enum into one value per plague name and disaster kind.
   the disaster event links every named casualty so their page retains the event that killed them.
 - Political violence considers the ruler, a regent and the strongest adult resident claimant,
   and only where a credible claimant exists. Aggressive and wartime courts are more dangerous.
-  Poisoning is likelier at restrained courts and direct assassination at aggressive ones, but
-  no culprit is named: there is no intrigue evidence model from which to choose one honestly.
+  Poisoning is likelier at restrained courts and direct assassination at aggressive ones. A
+  murder names a suspect only from people the court already had reason to fear — the claimant,
+  a lately disgraced officer, or an enemy ruler in a war being fought — and even then some
+  deaths stay as unknown hands. Living spouse, parents, children and siblings are indexed on
+  the death so it appears in their chronicle; they carry a short blood-debt that keeps the
+  same plot dangerous to them, and a named suspect at that court may later be executed for it.
+  The realm takes it as a grievance, not a calamity: this was done inside the court.
 - Adult figures face a very small accident risk, scaled by the culture's martial and travelling
   tendencies. Accident details are flavour attached to an event the system actually rolled.
 - When a ruler does not command in person, the court may appoint an adult resident dynast.
@@ -1018,8 +1023,9 @@ disposition for everyone born.
 
 No councils and no factions. No competence or skill ratings on office-holders — a marshal who
 wins is a marshal who was lucky, and the chronicle cannot tell the difference either. No
-intrigue: the assassination model still names no culprit, for the reason already recorded above,
-and an office roster is not evidence. No revolt, no secession, no provinces spanning several
+factional intrigue: an office roster is still not evidence of a plot. Murders later gained a
+bounded form of it from state the court already had — a claimant, a disgrace, a wartime enemy —
+without turning offices into factions. No revolt, no secession, no provinces spanning several
 settlements. Each of those wants this state to exist first, which is the argument for building
 it plainly now rather than in the shape some later feature might want.
 

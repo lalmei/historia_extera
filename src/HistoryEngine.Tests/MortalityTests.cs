@@ -109,6 +109,110 @@ public sealed class MortalityTests
     }
 
     /// <summary>
+    /// A murder is a family event, not only a vital record of the person who died.
+    /// </summary>
+    [Fact]
+    public void PoliticalMurdersReachTheHouseholdAndCanNameAHand()
+    {
+        int murders = 0;
+        int withFamily = 0;
+        int named = 0;
+        int settled = 0;
+
+        foreach (ulong seed in Seeds)
+        {
+            WorldState world = HistoryRun.Execute(TestWorlds.Standard(seed)).World;
+
+            foreach (Figure figure in world.Figures)
+            {
+                if (figure.DeathCause is not (DeathCause.Assassination or DeathCause.Poisoning))
+                {
+                    continue;
+                }
+
+                murders++;
+
+                HistoryEvent death = Assert.Single(
+                    world.Chronicle.Events,
+                    entry => entry.Kind == EventKind.FigureDied
+                        && entry.Subject == figure.Id
+                        && entry.Year == figure.DeathYear);
+
+                Assert.False(string.IsNullOrWhiteSpace(figure.DeathDetail));
+                Assert.Equal(figure.DeathDetail, death.Data!["cause"]);
+
+                if (death.Data.ContainsKey("suspect"))
+                {
+                    named++;
+                    Assert.False(death.Extra is null);
+
+                    bool found = false;
+                    foreach (EntityId id in death.Extra!)
+                    {
+                        if (id.Kind != EntityKind.Figure) continue;
+                        if (world.Figures[id].FullName != death.Data["suspect"]) continue;
+
+                        found = true;
+                        break;
+                    }
+
+                    Assert.True(found, "A named hand was not indexed on the death that named them.");
+                }
+
+                if (death.Extra is null) continue;
+
+                foreach (EntityId id in death.Extra)
+                {
+                    if (id.Kind != EntityKind.Figure || id == figure.Id) continue;
+
+                    Figure other = world.Figures[id];
+                    bool household = other.SpouseIds.Contains(figure.Id)
+                        || figure.ChildIds.Contains(id)
+                        || other.ChildIds.Contains(figure.Id)
+                        || SharesAParent(figure, other);
+
+                    if (!household) continue;
+
+                    withFamily++;
+                    break;
+                }
+            }
+
+            foreach (Figure figure in world.Figures)
+            {
+                if (figure.DeathCause != DeathCause.Execution) continue;
+                if (figure.DeathDetail is null) continue;
+                if (figure.DeathDetail.StartsWith("for the death of ", StringComparison.Ordinal))
+                {
+                    settled++;
+                }
+            }
+        }
+
+        Assert.True(murders > 0, "No assassination or poisoning occurred across the standard seeds.");
+        Assert.True(
+            withFamily > 0,
+            "No political murder was indexed on a living spouse, parent, child or sibling.");
+        Assert.True(named > 0, "No political murder named a hand the court had reason to suspect.");
+        Assert.True(
+            settled > 0,
+            "No named hand was later executed for the murder.");
+    }
+
+    private static bool SharesAParent(Figure a, Figure b)
+    {
+        foreach (EntityId parent in a.Parents())
+        {
+            foreach (EntityId other in b.Parents())
+            {
+                if (parent == other) return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// A campaign may be entrusted to a cadet or heir; command is no longer another word for rule.
     /// </summary>
     [Fact]

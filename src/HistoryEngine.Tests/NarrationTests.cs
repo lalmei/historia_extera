@@ -91,6 +91,34 @@ public sealed class NarrationTests
     }
 
     [Fact]
+    public void AMurderIsToldDifferentlyToKinAndTheNamedHand()
+    {
+        EntityId victim = EntityId.Figure(2);
+        EntityId spouse = EntityId.Figure(5);
+        EntityId hand = EntityId.Figure(8);
+        var murder = new HistoryEvent(
+            0, 80, EventKind.FigureDied, victim, default, default,
+            Extra: new[] { spouse, hand },
+            Data: Chronicle.Data(
+                ("age", "42"),
+                ("cause", "a knife in the dark"),
+                ("suspect", "fig:8")));
+
+        Assert.Equal(
+            "fig:2 died at the age of 42, of a knife in the dark, and the court named fig:8.",
+            Narration.Render(murder, Name));
+        Assert.Equal(
+            "Died at the age of 42, of a knife in the dark, and the court named fig:8.",
+            Narration.Render(murder, Name, victim));
+        Assert.Equal(
+            "fig:2 was slain, of a knife in the dark, and the court named fig:8.",
+            Narration.Render(murder, Name, spouse));
+        Assert.Equal(
+            "Was named in the death of fig:2, of a knife in the dark.",
+            Narration.Render(murder, Name, hand));
+    }
+
+    [Fact]
     public void AFiguresChronicleIsToldFromTheirPointOfView()
     {
         EntityId ruler = EntityId.Figure(4);
