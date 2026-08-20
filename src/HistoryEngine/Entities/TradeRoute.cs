@@ -90,6 +90,25 @@ public sealed class TradeRoute
     /// <summary>Consecutive years below the level that can sustain a route.</summary>
     public int YearsDeclining { get; set; }
 
+    /// <summary>
+    /// The way over the ground, once traffic has earned one. Null for most routes.
+    /// </summary>
+    /// <remarks>
+    /// The geometry hangs off the topology rather than replacing it. A route with no road is still
+    /// a route — demand exists before anyone spends on it — and a route that closes keeps the road
+    /// it had, because an abandoned road is exactly what the ground would show.
+    /// </remarks>
+    public Road? Road { get; set; }
+
+    /// <summary>Whether the ground between the endpoints has already been searched for a way.</summary>
+    /// <remarks>
+    /// Endpoints never move, so the search has one answer for the life of the route and a failed
+    /// one is as final as a successful one. Without this, a pair that trades across a strait would
+    /// pay for a graph search every year it stayed busy — cost scaling with years, which is the one
+    /// thing the terrain discipline exists to prevent.
+    /// </remarks>
+    public bool RoadSurveyed { get; set; }
+
     public bool Connects(EntityId settlementId) =>
         SettlementAId == settlementId || SettlementBId == settlementId;
 

@@ -61,6 +61,19 @@ public sealed class WorldState
     public TerrainAtlas Terrain { get; }
 
     /// <summary>
+    /// The ground a road can be cut through, derived once and only if a road is ever built.
+    /// </summary>
+    /// <remarks>
+    /// Lazy for the same reason hydrology is: a world in which no link ever earns a road — a
+    /// short run, or an entirely maritime one — should not pay to read the planes. Once built it is
+    /// held for the run, because the ground does not move and every road asks it the same
+    /// questions. It samples no terrain; see <see cref="Roadbed"/>.
+    /// </remarks>
+    public Roadbed Roadbed => _roadbed ??= Roadbed.Build(Terrain);
+
+    private Roadbed? _roadbed;
+
+    /// <summary>
     /// The run's root RNG. Systems must <see cref="IRng.Fork"/> from it rather than draw from
     /// it directly, so that one system's consumption cannot shift another's.
     /// </summary>
