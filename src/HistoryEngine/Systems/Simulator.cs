@@ -144,6 +144,13 @@ public sealed class Simulator
     /// survives the year's campaigning, and artifacts run later so books can use that route in the
     /// year it is established.</para>
     ///
+    /// <para><c>cultural-drift</c> runs after all of those — diplomacy, war, trade and religion —
+    /// because it reads the relations, wars, and faiths the year has just left in place, and moves a
+    /// people's baseline a little against them. It is the counterpart to <c>crown</c> at the other
+    /// end of the year: crown reads the baseline first and settles what the realm is governed by;
+    /// drift writes the baseline last, for next year's crown to read. Like crown it draws no random
+    /// numbers, and like crown it is a slow yearly accumulator with no reason to want a season.</para>
+    ///
     /// <para>The figure-lifecycle, succession and household sequence is the tightest coupling in
     /// the list, and war leans on the same property. Deaths must precede succession or a realm
     /// spends a year without a ruler for no
@@ -180,6 +187,7 @@ public sealed class Simulator
         new WarSystem(),
         new UnrestSystem(),
         new TradeRouteSystem(),
+        new CulturalDriftSystem(),
         new TravelSystem(),
         new FigureIncidentSystem(),
         new FigureLifecycleSystem(),

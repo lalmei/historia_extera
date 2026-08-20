@@ -129,6 +129,23 @@ public sealed class Civilization
     public RealmFortunes Fortunes { get; } = new();
 
     /// <summary>
+    /// What this people is, now — the founding culture as the centuries since have moved it.
+    /// </summary>
+    /// <remarks>
+    /// <para>The first of the layers <see cref="EffectiveValues"/> is built from, and the only one
+    /// that is a realm's own rather than a reading taken each year. Seeded at founding from the
+    /// culture (or, for a colony or a breakaway, from the parent realm's baseline as it then stood)
+    /// and moved a little each year by <c>CulturalDriftSystem</c>: a conquered or trade-linked
+    /// people drifts toward its neighbours, an isolated one stays where it began. Two realms of one
+    /// founding culture diverging is the whole point, which is why this is per-realm and
+    /// <see cref="Culture.Values"/> stays the immutable founding seed.</para>
+    ///
+    /// <para>Initialised to neutral only so a realm assembled by hand in a test is governed by
+    /// something real before its founding sets it; every real founding overwrites it.</para>
+    /// </remarks>
+    public CultureValues BaseValues { get; set; } = Disposition.Neutral.Values;
+
+    /// <summary>
     /// The values this realm is actually governed by this year — its people, its ruler, and its
     /// recent past, combined.
     /// </summary>
