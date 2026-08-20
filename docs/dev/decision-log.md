@@ -3297,15 +3297,49 @@ Armies moving along roads is a standing non-goal. So roads are presentation and 
 the first system to consume one should arrive with a measurement showing the road says something the
 traffic does not.
 
-**Numbers still to sweep.** The paving tier is the weakest term here and is kept on thin evidence:
-across the five seeds 18 roads were paved and the engineered line differs from the track it replaced
-in only **2** of them (both in seed 7, saving 21% and 18% of the way). The rest are short roads over
-easy ground where cuttings and bridges buy nothing, and the paved way is identical to the track.
-That is a real but marginal outcome; if a sweep over longer routes or a larger world does not raise
-it, `RoadGrade` should be deleted and paving reduced to a dated fact about an unchanged line — or
-dropped entirely. Also unswept: whether the pass discount changes which saddle a road crosses often
-enough to be worth its own constant, and whether the ford toll should scale with the river's
-drainage rather than being flat.
+#### Paving: judged on the wrong measure, then fixed on the right one
+
+The paving tier was first held to whether it moved the *line*, and by that measure it barely earned
+its place: across five seeds the engineered way differs from the track in only **2** of 18 cases. The
+recommendation was to delete it. That was the wrong test. Paving's output is not a polyline, it is a
+dated fact in a chronicle — a road that a town has used for three generations being bridged is
+history whether or not the course shifts a cell. `RoadGrade` is kept, and the question of whether a
+term earns its place is asked of the chronicle as well as of the geometry.
+
+Reading the chronicle instead of the digest found two faults a fingerprint cannot show:
+
+- **Thirteen of nineteen pavings landed the year after the road was cut.** `PeakTraffic` is a
+  high-water mark that only rises, so a link crossing `BuildThreshold` had usually crossed
+  `PaveThreshold` by the following spring. "Cut in 182, paved in 183" is not a road anyone has lived
+  on; it is the same decision made twice. Paving now requires the track to have *stood*.
+- **A flat minimum then made the floor the mode** — thirteen gaps of exactly the minimum, nine lines
+  all reading "after 40 years of use". So the wait is a reason rather than a constant:
+  `PavingWait` scales from the minimum by how mercantile the keener of the two ends is, giving
+  culture a second job and the chronicle a spread. Over eight centuries the gaps are now 28, 31, 31,
+  36, 38, 38, 38, 42, 43, 44, 44, 45, 46, 65, 72, 86, 94, 136 and 200 years — **15 distinct values
+  across 19 pavings**, against a single value covering thirteen of them before.
+
+**The minimum was then set by what a default-length world shows, not by what sounded right.** Forty
+years read better in isolation and was worse in practice: at forty, two of the five standard seeds
+finished three centuries with no paved road at all. Twenty-five — a generation, about two reigns —
+keeps the generational feel and does not make the tier invisible at the run length everything else
+is measured at. The measurement also corrected the diagnosis: the binding gate on those two seeds is
+not the wait but `PaveThreshold`, which their trade never reaches. Thin-trade worlds not paving
+roads is the model being right, not a fault to tune away.
+
+The chronicle that comes out of it reads as a record of use rather than of construction: *"The road
+between Mendosene and Caereslinum was bridged and paved after 200 years of use, shortening the way
+by 12%."*
+
+**The narration said everything twice.** The build line read "A road was cut between A and B, giving
+the A–B route a way over the ground" — the viewer names an unnamed route by its endpoints, so the
+sentence carried the same two names twice. Both lines now name the towns once.
+
+**Numbers still to sweep.** `MinimumTrackYears` and `PavingPatienceYears` were set from the five
+standard seeds at two run lengths and want a wider sweep, as does `PaveThreshold` — it, not the wait,
+is what decides whether a world paves anything at all. Also unswept: whether the pass discount changes which saddle a
+road crosses often enough to be worth its own constant, and whether the ford toll should scale with
+the river's drainage rather than being flat.
 
 **One limitation, recorded rather than hidden.** Only the current line is stored. A road paved in
 year 400 is drawn on its engineered course in year 300 too, because the track it replaced is not
