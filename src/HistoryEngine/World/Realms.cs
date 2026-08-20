@@ -55,42 +55,17 @@ public static class Realms
         int year,
         War war)
     {
-        region.Owner = to.Id;
-        from.TerritoryRegionIds.Remove(region.Id);
-        if (!to.TerritoryRegionIds.Contains(region.Id)) to.TerritoryRegionIds.Add(region.Id);
-
-        EntityId taken = EntityId.None;
-
-        // Collected first: transferring while walking the list it is read from would skip entries.
-        var moving = new List<Settlement>();
-        foreach (EntityId settlementId in from.SettlementIds)
-        {
-            Settlement settlement = world.Settlements[settlementId];
-            if (settlement.IsActive && settlement.RegionId == region.Id) moving.Add(settlement);
-        }
-
-        foreach (Settlement settlement in moving)
-        {
-            if (settlement.IsCapital)
+        // An occupied town already carried this at the storming. An unoccupied one learns it here,
+        // when the treaty takes it without a garrison ever having sat on the walls.
+        (_, EntityId taken) = MoveRegion(
+            world,
+            region,
+            from,
+            to,
+            settlement =>
             {
-                settlement.IsCapital = false;
-                if (from.CapitalId == settlement.Id) from.CapitalId = EntityId.None;
-            }
-
-            settlement.CivilizationId = to.Id;
-            from.SettlementIds.Remove(settlement.Id);
-            if (!to.SettlementIds.Contains(settlement.Id)) to.SettlementIds.Add(settlement.Id);
-
-            // An occupied town already carried this at the storming. An unoccupied one learns it
-            // here, when the treaty takes it without a garrison ever having sat on the walls.
-            if (!settlement.IsOccupied) settlement.Fortunes.LandLost();
-
-            // The largest of several is the one the chronicle names.
-            if (taken.IsNone || settlement.Population > world.Settlements[taken].Population)
-            {
-                taken = settlement.Id;
-            }
-        }
+                if (!settlement.IsOccupied) settlement.Fortunes.LandLost();
+            });
 
         war.CededRegionIds.Add(region.Id);
 
@@ -125,38 +100,15 @@ public static class Realms
     public static void TransferRegion(
         WorldState world, Region region, Civilization from, Civilization to, int year)
     {
-        region.Owner = to.Id;
-        from.TerritoryRegionIds.Remove(region.Id);
-        if (!to.TerritoryRegionIds.Contains(region.Id)) to.TerritoryRegionIds.Add(region.Id);
-
-        var moving = new List<Settlement>();
-        foreach (EntityId id in from.SettlementIds)
-        {
-            Settlement standing = world.Settlements[id];
-            if (standing.IsActive && standing.RegionId == region.Id) moving.Add(standing);
-        }
-
-        EntityId taken = EntityId.None;
-
-        foreach (Settlement standing in moving)
-        {
-            if (standing.IsCapital)
+        (List<Settlement> moving, EntityId taken) = MoveRegion(
+            world,
+            region,
+            from,
+            to,
+            standing =>
             {
-                standing.IsCapital = false;
-                if (from.CapitalId == standing.Id) from.CapitalId = EntityId.None;
-            }
-
-            if (standing.IsOccupied) Warfare.EndOccupation(world, standing, year, ceded: true);
-
-            standing.CivilizationId = to.Id;
-            from.SettlementIds.Remove(standing.Id);
-            if (!to.SettlementIds.Contains(standing.Id)) to.SettlementIds.Add(standing.Id);
-
-            if (taken.IsNone || standing.Population > world.Settlements[taken].Population)
-            {
-                taken = standing.Id;
-            }
-        }
+                if (standing.IsOccupied) Warfare.EndOccupation(world, standing, year, ceded: true);
+            });
 
         TransferResidents(world, moving, from, to);
         Recount(world, from);
@@ -175,6 +127,58 @@ public static class Realms
             location: taken,
             extra: new[] { from.Id },
             data: Chronicle.Data(("from", from.Name)));
+    }
+
+    /// <summary>
+    /// The ground both cessions share: swaps region ownership and moves every active settlement
+    /// standing in it, reporting the largest — the one the chronicle names.
+    /// </summary>
+    /// <remarks>
+    /// <paramref name="onEach"/> runs against each mover before its realm is reassigned — a treaty
+    /// marks the loss on the town, a defection ends any occupation on it — which is the one step
+    /// the two callers do differently. Collected first, because transferring while walking the list
+    /// it is read from would skip entries.
+    /// </remarks>
+    private static (List<Settlement> Moving, EntityId Taken) MoveRegion(
+        WorldState world,
+        Region region,
+        Civilization from,
+        Civilization to,
+        Action<Settlement> onEach)
+    {
+        region.Owner = to.Id;
+        from.TerritoryRegionIds.Remove(region.Id);
+        if (!to.TerritoryRegionIds.Contains(region.Id)) to.TerritoryRegionIds.Add(region.Id);
+
+        var moving = new List<Settlement>();
+        foreach (EntityId id in from.SettlementIds)
+        {
+            Settlement standing = world.Settlements[id];
+            if (standing.IsActive && standing.RegionId == region.Id) moving.Add(standing);
+        }
+
+        EntityId taken = EntityId.None;
+        foreach (Settlement standing in moving)
+        {
+            if (standing.IsCapital)
+            {
+                standing.IsCapital = false;
+                if (from.CapitalId == standing.Id) from.CapitalId = EntityId.None;
+            }
+
+            onEach(standing);
+
+            standing.CivilizationId = to.Id;
+            from.SettlementIds.Remove(standing.Id);
+            if (!to.SettlementIds.Contains(standing.Id)) to.SettlementIds.Add(standing.Id);
+
+            if (taken.IsNone || standing.Population > world.Settlements[taken].Population)
+            {
+                taken = standing.Id;
+            }
+        }
+
+        return (moving, taken);
     }
 
     /// <summary>
