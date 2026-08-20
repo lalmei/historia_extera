@@ -37,11 +37,18 @@ public static class Campaigns
     }
 
     /// <summary>Fills in whether each presence at this engagement was a triumph.</summary>
+    /// <remarks>
+    /// Walks the battle's own witnesses rather than the whole figure table: every memory of an
+    /// engagement is paired with a <see cref="Witness"/> when it is recorded, so the witness list
+    /// is exactly the figures a settling pass could touch.
+    /// </remarks>
     public static void SettleBattle(WorldState world, Battle battle)
     {
-        foreach (Figure figure in world.Figures)
+        foreach (EntityId figureId in battle.WitnessIds)
         {
-            foreach (CampaignMemory memory in figure.Campaigns)
+            if (!world.Figures.Contains(figureId)) continue;
+
+            foreach (CampaignMemory memory in world.Figures[figureId].Campaigns)
             {
                 if (memory.BattleId != battle.Id || memory.Triumphant is not null) continue;
 
@@ -78,9 +85,9 @@ public static class Campaigns
             _ => null,
         };
 
-        foreach (Figure figure in world.Figures)
+        foreach (EntityId figureId in RulersOf(world, war))
         {
-            foreach (CampaignMemory memory in figure.Campaigns)
+            foreach (CampaignMemory memory in world.Figures[figureId].Campaigns)
             {
                 if (memory.WarId != war.Id || memory.Role != CampaignRole.Ruled) continue;
 
@@ -93,6 +100,24 @@ public static class Campaigns
                 memory.Triumphant = war.IsAttacker(memory.SideId) == attackersPrevailed.Value;
             }
         }
+    }
+
+    /// <summary>
+    /// The figures who ruled a belligerent while this war ran, in id order.
+    /// </summary>
+    /// <remarks>
+    /// A <see cref="CampaignRole.Ruled"/> memory is only ever given to the sitting ruler of a
+    /// belligerent, so the coalitions' own ruler lists bound the search to a handful of candidates
+    /// instead of the whole figure table. Sorted by id so a caller that exposes the result keeps
+    /// the order a full-table scan produced.
+    /// </remarks>
+    public static List<EntityId> RulersOf(WorldState world, War war)
+    {
+        var ids = new List<EntityId>();
+        CollectRulers(world, war, war.Attackers, ids);
+        CollectRulers(world, war, war.Defenders, ids);
+        ids.Sort();
+        return ids;
     }
 
     /// <summary>Everyone a battle should appear on the page of, besides the war and the two realms.</summary>
@@ -178,6 +203,34 @@ public static class Campaigns
 
             Remember(ruler, war.Id, EntityId.None, civilization.Id, year, CampaignRole.Ruled);
         }
+    }
+
+    private static void CollectRulers(
+        WorldState world, War war, IReadOnlyList<EntityId> coalition, List<EntityId> into)
+    {
+        foreach (EntityId civilizationId in coalition)
+        {
+            if (!world.Civilizations.Contains(civilizationId)) continue;
+
+            foreach (EntityId figureId in world.Civilizations[civilizationId].RulerIds)
+            {
+                if (into.Contains(figureId)) continue;
+                if (!world.Figures.Contains(figureId)) continue;
+                if (!HasRuledMemory(world.Figures[figureId], war.Id)) continue;
+
+                into.Add(figureId);
+            }
+        }
+    }
+
+    private static bool HasRuledMemory(Figure figure, EntityId warId)
+    {
+        foreach (CampaignMemory memory in figure.Campaigns)
+        {
+            if (memory.WarId == warId && memory.Role == CampaignRole.Ruled) return true;
+        }
+
+        return false;
     }
 
     private static void Remember(
