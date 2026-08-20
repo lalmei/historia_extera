@@ -86,6 +86,14 @@ public static class Occupations
             {
                 figure.Occupation = Occupation.None;
             }
+            else if (figure.Occupation == Occupation.Official)
+            {
+                // A posting is not a life. A cadet too remote for the household pass to give
+                // them a trade can still be seated, and without this they would leave office
+                // still wearing it. Dynasts go back to court; FromOrigin cannot help them,
+                // because they arrived Unrecorded.
+                Take(world, figure, Occupation.Court, year);
+            }
 
             return;
         }
