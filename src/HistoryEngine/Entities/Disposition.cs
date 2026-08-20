@@ -20,10 +20,10 @@ namespace HistoryEngine.Entities;
 /// produces distinct rulers who move their realms a little, where the reverse produces
 /// indistinguishable rulers who move them a lot.</para>
 ///
-    /// <para><see cref="Independence"/> is the follower–rebel axis: how far this person lets that
-    /// culture actually govern their choices. Followers are the common case and rebels the tail,
-    /// because a people that produced them in equal number would not hold together. A child's
-    /// occupation is chosen from a blend of people and person.</para>
+/// <para><see cref="Independence"/> is the follower–rebel axis: how far this person lets that
+/// culture actually govern their choices. Followers are the common case and rebels the tail,
+/// because a people that produced them in equal number would not hold together. A child's
+/// occupation is chosen from a blend of people and person.</para>
 /// </remarks>
 public sealed record Disposition(CultureValues Values, double Centralism, double Independence = 0.5)
 {
