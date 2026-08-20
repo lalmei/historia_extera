@@ -1502,15 +1502,9 @@ public static class Warfare
         ids.AddRange(war.Attackers);
         ids.AddRange(war.Defenders);
 
-        foreach (Figure figure in world.Figures)
+        foreach (EntityId rulerId in Campaigns.RulersOf(world, war))
         {
-            foreach (CampaignMemory memory in figure.Campaigns)
-            {
-                if (memory.WarId != war.Id || memory.Role != CampaignRole.Ruled) continue;
-
-                if (!ids.Contains(figure.Id)) ids.Add(figure.Id);
-                break;
-            }
+            if (!ids.Contains(rulerId)) ids.Add(rulerId);
         }
 
         return ids.ToArray();
