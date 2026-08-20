@@ -574,10 +574,39 @@ public static class WorldExporter
                 FoundedYear: route.FoundedYear,
                 EndedYear: route.EndedYear,
                 Traffic: route.Traffic,
-                PeakTraffic: route.PeakTraffic));
+                PeakTraffic: route.PeakTraffic,
+                Road: ExportRoadOf(route)));
         }
 
         return list;
+    }
+
+    /// <summary>
+    /// The route's road, flattened to an <c>[x, z, x, z, …]</c> run of coordinates.
+    /// </summary>
+    /// <remarks>
+    /// A flat integer list rather than a list of point objects, because the viewer reads it as one
+    /// polyline and a per-point record would spend the field names again at every corner. Rivers
+    /// are exported as independent segments for the opposite reason: they are a graph rather than a
+    /// line, and each reach carries a strength of its own.
+    /// </remarks>
+    private static ExportRoad? ExportRoadOf(TradeRoute route)
+    {
+        if (route.Road is not { } road) return null;
+
+        var points = new List<int>(road.Points.Count * 2);
+        foreach (RoadPoint point in road.Points)
+        {
+            points.Add(point.X);
+            points.Add(point.Z);
+        }
+
+        return new ExportRoad(
+            Grade: road.Grade,
+            BuiltYear: road.BuiltYear,
+            PavedYear: road.PavedYear,
+            Length: Math.Round(road.Length, 1),
+            Points: points);
     }
 
     private static List<ExportReligion> BuildReligions(WorldState world)

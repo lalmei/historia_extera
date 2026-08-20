@@ -179,6 +179,7 @@ export function WorldMap({ world }: { world: World }) {
   const [colouring, setColouring] = useState<Colouring>('realm');
   const [showRivers, setShowRivers] = useState(true);
   const [showTradeRoutes, setShowTradeRoutes] = useState(true);
+  const [showRoads, setShowRoads] = useState(true);
   const [showSettlements, setShowSettlements] = useState(true);
   const [showRuins, setShowRuins] = useState(true);
   const [showHolySites, setShowHolySites] = useState(true);
@@ -307,6 +308,32 @@ export function WorldMap({ world }: { world: World }) {
         }))
         .filter((entry) => entry.a !== undefined && entry.b !== undefined),
     [data.tradeRoutes, data.settlements, year],
+  );
+
+  /**
+   * The roads standing in the selected year.
+   *
+   * Replayed from the year the way was cut, exactly as territory is replayed from transfers: a
+   * map of the second century must not show a road nobody had built yet. A road outlives the
+   * commerce that paid for it — an abandoned way is still a way — so a closed route keeps its
+   * road on the map and is merely drawn faint.
+   *
+   * The one thing that cannot be replayed is the *line* of a road before it was paved: the export
+   * keeps the way as it now stands, not every line it ever took, so a road engineered in year 400
+   * is drawn on its final course in year 300 as well. Its grade is replayed, which is the part a
+   * reader can see.
+   */
+  const roads = useMemo(
+    () =>
+      data.tradeRoutes
+        .filter((route) => route.road !== undefined && route.road.builtYear <= year)
+        .map((route) => ({
+          route,
+          road: route.road!,
+          paved: route.road!.pavedYear !== undefined && route.road!.pavedYear <= year,
+          abandoned: route.endedYear !== undefined && route.endedYear < year,
+        })),
+    [data.tradeRoutes, year],
   );
 
   const battles = useMemo(
@@ -733,9 +760,61 @@ export function WorldMap({ world }: { world: World }) {
                 />
               ))}
 
-            {/* Logical economic links, deliberately straight. Physical road and water paths
-                belong to the later transport-network layer; these lines show demand, not
-                geometry that the simulation has not calculated. Width is this year's traffic —
+            {/* The made ways, under the links that paid for them. Drawn before the trade lines so
+                a logical link sits over its own road rather than the other way round, and drawn
+                solid because that is the whole distinction from the dashed links: these are
+                geometry the engine calculated rather than demand it inferred. A road on a route
+                that has since closed is still there — the ground does not forget a road — and is
+                drawn faint. */}
+            {showRoads &&
+              roads.map(({ route, road, paved, abandoned }) => {
+                const traffic = trafficAt.get(route.id);
+                const carried = traffic === undefined ? 0.34 : 0.24 + traffic * 0.55;
+                const width = carried * (paved ? 1.5 : 1);
+                const strokes: Stroke[] = [];
+
+                for (let i = 2; i < road.points.length; i += 2) {
+                  strokes.push(
+                    ...link(
+                      {
+                        x1: toWorld(road.points[i - 2], 'x'),
+                        y1: toWorld(road.points[i - 1], 'z'),
+                        x2: toWorld(road.points[i], 'x'),
+                        y2: toWorld(road.points[i + 1], 'z'),
+                      },
+                      data.world.eastWestPeriodic,
+                    ),
+                  );
+                }
+
+                return strokes.map((stroke, index) => (
+                  <line
+                    key={`road-${route.id}-${index}`}
+                    x1={stroke.x1}
+                    y1={stroke.y1}
+                    x2={stroke.x2}
+                    y2={stroke.y2}
+                    stroke={paved ? 'rgb(226 206 170)' : 'rgb(158 128 88)'}
+                    strokeWidth={width}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeOpacity={abandoned ? 0.3 : 0.9}
+                    className="pointer-events-none"
+                  >
+                    <title>
+                      {paved ? 'Paved road' : 'Road'} of the {world.nameOf(route.id)}, cut in{' '}
+                      {road.builtYear}
+                      {paved && road.pavedYear !== undefined && `, paved in ${road.pavedYear}`}
+                      {` · ${Math.round(road.length)} units of made way`}
+                      {abandoned && ' · the route it served has closed'}
+                    </title>
+                  </line>
+                ));
+              })}
+
+            {/* Logical economic links, deliberately straight: they show demand between two towns,
+                not the ground between them. Where the traffic earned a road, the road is drawn
+                underneath and is the line that follows the country. Width is this year's traffic —
                 from the yearly series, so scrubbing back never shows a corridor thriving before
                 it did. A link across a periodic world's seam is drawn the short way, in two
                 strokes, because that is the way the goods went. */}
@@ -774,7 +853,9 @@ export function WorldMap({ world }: { world: World }) {
                     <title>
                       {world.nameOf(route.id)} · logical {route.mode.toLowerCase()} connection
                       {traffic !== undefined && ` · traffic ${traffic.toFixed(2)} in ${year}`}
-                      ; physical path not yet modelled
+                      {route.road === undefined
+                        ? '; no road was ever built for it'
+                        : `; road cut in ${route.road.builtYear}`}
                     </title>
                   </line>
                 ));
@@ -1152,6 +1233,7 @@ export function WorldMap({ world }: { world: World }) {
               <Toggle label="Landmarks" on={showLandmarks} onChange={setShowLandmarks} />
               <Toggle label="Houses" on={showHouses} onChange={setShowHouses} />
               <Toggle label="Trade routes" on={showTradeRoutes} onChange={setShowTradeRoutes} />
+              <Toggle label="Roads" on={showRoads} onChange={setShowRoads} />
             </div>
             {showHarbours && (
               <p className="mt-2 text-xs text-[var(--ink-faint)]">
@@ -1169,7 +1251,15 @@ export function WorldMap({ world }: { world: World }) {
             {showTradeRoutes && (
               <p className="mt-2 text-xs text-[var(--ink-faint)]">
                 Dashed amber is overland demand, blue uses river access, teal the coast. Weight is
-                traffic in {year}. These are logical links, not roads.
+                traffic in {year}. These are logical links; the road under one, where there is one,
+                is drawn separately.
+              </p>
+            )}
+            {showRoads && (
+              <p className="mt-2 text-xs text-[var(--ink-faint)]">
+                Solid brown is a way worn between two towns; pale stone is one bridged and paved.
+                Only land routes whose traffic held up for long enough are ever roaded, and a road
+                stays on the map after the trade that paid for it has gone.
               </p>
             )}
           </section>

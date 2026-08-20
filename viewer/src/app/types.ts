@@ -7,7 +7,7 @@
  * stops moving.
  */
 
-export const SCHEMA_VERSION = 28;
+export const SCHEMA_VERSION = 29;
 
 /**
  * Whether an event carries the history or merely records a life.
@@ -1034,12 +1034,35 @@ export interface Support {
   principal: SupportSource;
 }
 
-/** The transport corridor a logical route is most likely to use. It is not path geometry. */
+/** The transport corridor a route relies on. Coastal routes are sailed and carry no road. */
 export type TradeRouteMode = 'Overland' | 'River' | 'Coastal';
 
 export type TradeRouteStatus = 'Active' | 'Prosperous' | 'Declining' | 'Closed';
 
-/** A durable commercial link; later roads can realize its overland path. */
+/** A worn way, or one engineered with cuttings and bridges. */
+export type RoadGrade = 'Track' | 'Paved';
+
+/**
+ * The physical way a route takes over the ground.
+ *
+ * `points` is a flat `[x, z, x, z, …]` run from one settlement to the other, with a vertex only
+ * where the way turns — so a road over open country has two points and one threading a range has
+ * a dozen. `length` is measured along it and therefore exceeds the straight-line distance by what
+ * the ground cost.
+ *
+ * Present only on land routes whose traffic earned one, which is a minority of the network.
+ */
+export interface Road {
+  grade: RoadGrade;
+  /** The year the first way was cut. Survives an upgrade, so it is what a replay reads. */
+  builtYear: number;
+  /** The year the way was bridged and paved, if it ever was. */
+  pavedYear?: number;
+  length: number;
+  points: number[];
+}
+
+/** A durable commercial link, and the road under it once traffic paid for one. */
 export interface TradeRoute {
   id: EntityId;
   settlementAId: EntityId;
@@ -1052,6 +1075,8 @@ export interface TradeRoute {
   traffic: number;
   /** Highest traffic sustained during the route's life. */
   peakTraffic: number;
+  /** The road, if this link ever earned one. Absent on most routes and on every coastal one. */
+  road?: Road;
 }
 
 export type DeathCause =

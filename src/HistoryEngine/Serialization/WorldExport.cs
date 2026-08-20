@@ -102,8 +102,13 @@ public sealed record WorldExport(
     /// each with whether their side prevailed.
     /// Version 28 added journeys (trade, visits, pilgrimage, clerical missions) and the
     /// occupations that office-holding and letters use: official and scribe.
+    /// Version 29 gave the busiest land routes a road: a polyline over the ground, the year it
+    /// was cut, the year it was bridged and paved if it ever was, and its length along the way —
+    /// so the map can draw where the traffic physically went rather than only who traded with
+    /// whom. Absent on every route that never earned one, and on every coastal route, which is
+    /// sailed.
     /// </remarks>
-    public const int CurrentSchemaVersion = 28;
+    public const int CurrentSchemaVersion = 29;
 }
 
 public sealed record ExportMeta(
@@ -513,9 +518,14 @@ public sealed record ExportSupport(
     SupportSource Principal);
 
 /// <summary>
-/// One durable commercial connection. It carries topology and economic history, not a physical
-/// path; a later road network can realize an overland route without changing this contract.
+/// One durable commercial connection: its topology, its economic history, and the way over the
+/// ground if its traffic ever earned one.
 /// </summary>
+/// <remarks>
+/// <see cref="Road"/> is absent for most routes and always absent for a coastal one, which is
+/// sailed rather than walked. The route is the entity; the road is a fact about how it is served,
+/// so a route that gains, upgrades or outlives a road keeps the same id throughout.
+/// </remarks>
 public sealed record ExportTradeRoute(
     EntityId Id,
     EntityId SettlementAId,
@@ -525,7 +535,33 @@ public sealed record ExportTradeRoute(
     int FoundedYear,
     int? EndedYear,
     double Traffic,
-    double PeakTraffic);
+    double PeakTraffic,
+    ExportRoad? Road);
+
+/// <summary>
+/// The physical way a route takes, as a polyline over the world.
+/// </summary>
+/// <remarks>
+/// <para><see cref="Points"/> is a flat <c>[x, z, x, z, …]</c> run from one settlement to the
+/// other, with a vertex only where the way turns — so a road over open country is two points and a
+/// road threading a range is a dozen. <see cref="Length"/> is measured along it, so it exceeds the
+/// straight-line distance by exactly what the ground cost.</para>
+///
+/// <para><see cref="BuiltYear"/> survives an upgrade; <see cref="PavedYear"/> is the year the way
+/// was engineered, if it ever was. A viewer replaying a year draws the road only from
+/// <see cref="BuiltYear"/> onward, the same way territory is replayed from transfers.</para>
+///
+/// <para><b>One line, not a history of lines.</b> Only the current course is carried: a road paved
+/// in year 400 exports the engineered line, and the track it replaced is gone. The two dates say
+/// when each grade began, so a reader knows which of them the drawn line belongs to, but a replay
+/// of an earlier year shows the later course.</para>
+/// </remarks>
+public sealed record ExportRoad(
+    RoadGrade Grade,
+    int BuiltYear,
+    int? PavedYear,
+    double Length,
+    IReadOnlyList<int> Points);
 
 /// <summary>
 /// A faith, and the settlements that follow it.

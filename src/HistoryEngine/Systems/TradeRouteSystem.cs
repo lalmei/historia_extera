@@ -8,13 +8,15 @@ using HistoryEngine.World;
 namespace HistoryEngine.Systems;
 
 /// <summary>
-/// Establishes, measures and closes the commercial links that later roads will serve.
+/// Establishes, measures and closes the commercial links, and spends on the ground under them.
 /// </summary>
 /// <remarks>
 /// <para><b>Routes are economic facts before they are lines on the ground.</b> This system chooses
 /// endpoints and a preferred transport corridor from settlement size, specialization, access,
-/// distance and politics. It does not pathfind. An overland route is therefore a demand for a
-/// future road, not a claim that a road already exists.</para>
+/// distance and politics. It does not pathfind: where a road runs is a terrain question and belongs
+/// to <see cref="Roads"/> under <c>World/</c>. A route with no road is still a route — most of them
+/// never earn one — so the demand exists before, and independently of, anything built to serve it.
+/// </para>
 ///
 /// <para><b>Degree is bounded.</b> Sorting all viable pairs by strength and then filling a small
 /// capacity per settlement produces a legible network of hubs and spokes instead of a complete
@@ -24,7 +26,8 @@ namespace HistoryEngine.Systems;
 /// economic weakness must persist for years. That preserves established corridors through one
 /// poor harvest and gives the chronicle a route history rather than yearly flicker.</para>
 ///
-/// <para>Samples no terrain. River and coastal access are region facts derived during worldgen.</para>
+/// <para>Samples no terrain, road-building included: water access is a fact derived during
+/// worldgen, and a road is searched over the grid hydrology already paid for.</para>
 /// </remarks>
 public sealed class TradeRouteSystem : ISystem
 {
@@ -115,6 +118,7 @@ public sealed class TradeRouteSystem : ISystem
             }
 
             route.YearsDeclining = 0;
+            Construct(world, route, a, b, year);
 
             if (strength >= ProsperityThreshold)
             {
@@ -215,6 +219,76 @@ public sealed class TradeRouteSystem : ISystem
                 location: route.SettlementBId,
                 data: data);
         }
+    }
+
+    /// <summary>
+    /// Spends on the ground under a link that has carried enough, for long enough.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>This system decides when; it does not decide where.</b> The path is cut by
+    /// <see cref="Roads"/> under <c>World/</c>, because finding it reads terrain and nothing under
+    /// <c>Systems/</c> may — see <c>TerrainDisciplineTests</c>. What is decided here is the only
+    /// part that is economics: whether the traffic warrants the work.</para>
+    ///
+    /// <para><b>Only a route in good health builds.</b> The call sits after the decline branch, so
+    /// a corridor whose traffic has fallen below the sustaining level does not start a road in the
+    /// year it began failing. Peak traffic is what qualifies it, so the road answers to what the
+    /// link has sustained rather than to one exceptional year.</para>
+    ///
+    /// <para><b>Nothing else in the simulation reads the result.</b> Roads are economic geometry
+    /// for now: they change no capacity, no travel time and no army's route. That is deliberate —
+    /// a road that fed back into carrying capacity would double-count the traffic that already
+    /// feeds it. When something does consume them, it will be because a measurement asked for it.
+    /// </para>
+    /// </remarks>
+    private static void Construct(
+        WorldState world, TradeRoute route, Settlement a, Settlement b, int year)
+    {
+        if (Roads.DeservesRoad(route))
+        {
+            route.RoadSurveyed = true;
+
+            Road? road = Roads.Cut(world, route, RoadGrade.Track, year);
+
+            // No way over the ground at all: the two towns trade across water the engine has no
+            // ships for. The link stands and stays unroaded, which is the honest record.
+            if (road is null) return;
+
+            route.Road = road;
+
+            world.Chronicle.Record(
+                year,
+                EventKind.RoadBuilt,
+                route.Id,
+                obj: a.Id,
+                location: b.Id);
+
+            return;
+        }
+
+        if (!Roads.DeservesPaving(route)) return;
+
+        double before = route.Road!.Length;
+        Road? paved = Roads.Cut(world, route, RoadGrade.Paved, year);
+        if (paved is null) return;
+
+        route.Road = paved;
+
+        // The saving is the whole point of the upgrade and the only thing that distinguishes a
+        // paved road from the track it replaced, so it is what the chronicle line reports. Where
+        // the engineered line is no shorter — flat, dry country, where there was nothing to cut
+        // through — the slot is simply absent rather than reported as nothing gained.
+        double saved = before - paved.Length;
+
+        world.Chronicle.Record(
+            year,
+            EventKind.RoadPaved,
+            route.Id,
+            obj: a.Id,
+            location: b.Id,
+            data: saved > 0.0 && before > 0.0
+                ? Chronicle.Data(("saved", Percent(saved / before)))
+                : null);
     }
 
     /// <summary>Economic strength of one direct connection, in [0, 1].</summary>

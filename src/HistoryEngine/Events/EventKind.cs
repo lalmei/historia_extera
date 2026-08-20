@@ -128,6 +128,11 @@ public enum EventKind
     TradeRouteDeclined = 682,
     TradeRouteClosed = 683,
 
+    // Construction, not commerce: the link already existed and carried enough for long enough
+    // that somebody spent on the ground under it.
+    RoadBuilt = 684,
+    RoadPaved = 685,
+
     // ---- Unrest (700) ----
     // Grievance a realm has carried without answering it turns, in stages, into lawlessness and
     // then into revolt. Brigandage is the standing condition; a rising then either is put down,

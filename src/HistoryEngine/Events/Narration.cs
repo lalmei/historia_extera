@@ -194,6 +194,11 @@ public static class Narration
             "The {subject} began to decline[ as traffic fell to {data:traffic}].");
         Set(EventKind.TradeRouteClosed, "The {subject} closed[, {data:cause}].");
 
+        Set(EventKind.RoadBuilt,
+            "A road was cut between {object} and {location}, giving the {subject} a way over the ground.");
+        Set(EventKind.RoadPaved,
+            "The road along the {subject} was bridged and paved[, shortening the way by {data:saved}].");
+
         Set(EventKind.BrigandageWorsened,
             "Brigands took to the roads around {subject}[, {data:cause}].");
         Set(EventKind.RevoltBroke,
