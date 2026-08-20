@@ -124,17 +124,32 @@ trade, hereditary priesthood as true office succession, tolerance as a diplomati
 term). Those belong to other systems; the character stores them so those systems can read a
 single vocabulary.
 
-## Trade routes and future roads
+## Trade routes and roads
 
 `TradeRoute` is a persistent, undirected connection between two settlements. It records its
 founding and closure, preferred transport (`Overland`, `River`, or `Coastal`), current traffic,
 peak traffic, and economic status. Closed routes remain entities, so reopening the same pair
 later creates new history rather than rewriting the old route.
 
-The route is **topology, not geometry**. River and coastal modes say both endpoints have that
-access; an overland route records demand between its endpoints. A later road network can attach a
-physical path to the route, prioritize construction by peak traffic, and preserve the route's
-identity across rerouting or road upgrades.
+The route is **topology**; the road is the geometry hanging off it. River and coastal modes say
+both endpoints have that access; an overland route records demand between its endpoints. A land
+route whose peak traffic reaches `Roads.BuildThreshold` gains a `Road` — a stored polyline, the
+year it was cut, and the year it was bridged and paved if its traffic later reached
+`Roads.PaveThreshold`. The route's id, founding and traffic record survive both events, because a
+road is a fact about how a relationship is served rather than a relationship of its own.
+
+`TradeRouteSystem` decides *when*; `World/Roads.cs` decides *where*. That split is not tidiness:
+finding a path reads terrain, and `TerrainDisciplineTests` fails the build if anything under
+`Systems/` so much as names `ITerrainSampler`. The search is Dijkstra over the 64-unit grid
+hydrology already primed at world creation, so a road costs **no terrain samples at all** — and it
+is run once per construction, never per year, which is what `TradeRoute.RoadSurveyed` protects for
+the pairs no road can reach. Every toll is an integer and the frontier is keyed on
+`cost × cells + index`, so the minimum is unique and the path does not depend on a heap's
+tie-breaking, which no framework guarantees.
+
+Nothing consumes a road yet. Roads are economic geometry: they change no capacity, no travel time
+and no campaign. Feeding them back into carrying capacity would double-count the traffic that
+built them.
 
 Tome circulation, plague spread and carrying capacity consume active routes. This keeps the
 engine's different notions of ordinary travel on one shared network instead of letting each system

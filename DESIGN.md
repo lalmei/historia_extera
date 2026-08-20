@@ -220,9 +220,19 @@ Diplomacy is based on reach, contact, memory, faith, kinship, and recent events 
 than a static border table. War records declarations, campaigns, battles, sackings,
 territorial settlements, and conclusions.
 
-Trade routes are persistent economic topology, not road geometry. Routes can open,
-decline, close, and later be replaced. Trade, tome circulation, carrying capacity, and
-plague movement consume the same network. Physical roads and paths remain future work.
+Trade routes are persistent economic topology. Routes can open, decline, close, and
+later be replaced. Trade, tome circulation, carrying capacity, and plague movement
+consume the same network.
+
+A minority of that topology has physical geometry. A land route whose *sustained* traffic
+crosses a threshold has a road cut for it: a least-cost path over the height, drainage and
+pass grids the atlas already holds, computed once when the road is built or upgraded and
+stored on the route the way a settlement's coordinate is. The route keeps its identity
+throughout — a road is a fact about how a relationship is served, not a relationship of its
+own — and outlives the commerce that paid for it. Coastal routes are sailed and carry no
+road, because the engine models no ships. Nothing in the simulation reads a road yet: it is
+economic geometry, and feeding it back into capacity would double-count the traffic that
+produced it.
 
 ## Viewer boundary
 
@@ -257,7 +267,8 @@ scheduled episodes. The engine now has no declared docket kind without a consume
 Beyond the numbered milestones:
 
 - Run a real external terrain generator through the Phase 2 raster route end to end.
-- Add road geometry only after trade topology provides stable demand for it.
+- Let something consume road geometry — travel time, campaign movement, or capacity — once a
+  measurement shows the road is telling it something the route's traffic does not already.
 - Build the Phase 3 Vintage Story terrain adapter and revalidate framework, calendar,
   hydrology cost, and map-raster cost against the game version actually targeted.
 
@@ -270,7 +281,8 @@ questions and the evidence behind each proposal.
 - No parallel mutation in the simulation loop.
 - No per-day weather model.
 - No positional armies moving along paths yet.
-- No claim that a logical trade route is already a physical road.
+- No claim that every logical trade route is a physical road: most are not, and a coastal one
+  never is.
 - No direct Vintage Story types or packages in `HistoryEngine`.
 - No real-time coupling to a running game server in the current phases.
 - No simulation of every household or every person.
