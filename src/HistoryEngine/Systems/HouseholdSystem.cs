@@ -203,10 +203,17 @@ public sealed class HouseholdSystem : ISystem
             if (!rng.Chance(MarriageChance)) continue;
 
             Culture culture = world.CultureOf(figure);
-            Figure partner = FindPartner(world, figure, culture, year, rng)
-                ?? MatchAtHome(world, figure, culture, year, rng);
+            Figure? found = FindPartner(world, figure, culture, year, rng);
+            Figure partner = found ?? MatchAtHome(world, figure, culture, year, rng);
 
             Wed(world, figure, partner, ranks, year);
+
+            // A spouse invented for this wedding takes their trade after it, not before. Chosen
+            // first, they were an unmarried person who might reasonably enter holy orders, and
+            // the wedding two lines later made them a married cleric in a faith that forbids
+            // one — which is where most of the remaining violations came from once the vow
+            // itself was fixed. An existing partner is untouched: they had a life already.
+            if (found is null) Occupations.Ensure(world, partner, year);
         }
     }
 
@@ -254,26 +261,49 @@ public sealed class HouseholdSystem : ISystem
     }
 
     /// <summary>
-    /// A high priest of a faith that forbids its clergy to marry.
+    /// Anyone in holy orders in a faith that forbids its clergy to marry.
     /// </summary>
     /// <remarks>
-    /// Only the sitting holder, and only while they hold the seat. A retired priest returning to
-    /// ordinary life is a later story; inventing one here would need an ending the office system
-    /// does not yet write. The vow is the faith's, not the person's, so a realm that changes
-    /// religion mid-tenure releases them.
+    /// <para><b>The vow binds the priesthood, not the seat.</b> This once asked only whether the
+    /// figure held <see cref="OfficeKind.HighPriest"/>, which was defensible while clergy were
+    /// only ever an office — one person per faith, and the rule reached all of them. M16 made the
+    /// priesthood a population through <see cref="Occupation.Clergy"/> and the vow did not
+    /// follow, so every ordinary priest was exempt from a rule their own faith's scripture
+    /// asserts. Measured across six worlds, 20 of 267 clergy in celibate faiths had a spouse.</para>
+    ///
+    /// <para><b>The faith is the figure's own.</b> A cleric carries
+    /// <see cref="Figure.ReligionId"/>, which is what the vow is owed to; the office's scope is
+    /// consulted only for a high priest, whose seat may belong to a faith they have not otherwise
+    /// professed. The vow is still the faith's rather than the person's, so a realm that changes
+    /// religion mid-life releases them — see <c>MarriedClergyOnlyArriveByAChangeOfFaith</c> for
+    /// the residue that leaves and why it is not a leak.</para>
+    ///
+    /// <para>This refuses a marriage while the vow holds. It is not the whole of the rule:
+    /// ordination is refused to the already-married in <see cref="Occupations.Choose"/> and
+    /// <see cref="Offices.EligibleCleric"/>, because a vow that only ever fires in one direction
+    /// would let the same person marry in one year and take orders in the next.</para>
     /// </remarks>
-    private static bool VowedToCelibacy(WorldState world, Figure figure)
+    internal static bool VowedToCelibacy(WorldState world, Figure figure)
     {
         OfficeHolding? held = figure.OpenOffice(OfficeKind.HighPriest);
-        if (held is null || !world.Civilizations.Contains(held.CivilizationId)) return false;
 
-        EntityId faithId = held.ScopeId.IsNone
-            ? world.FaithOf(world.Civilizations[held.CivilizationId])
-            : held.ScopeId;
-        return !faithId.IsNone
-               && world.Religions.Contains(faithId)
-               && world.Religions[faithId].Character.CelibateClergy;
+        if (held is not null && world.Civilizations.Contains(held.CivilizationId))
+        {
+            EntityId seatFaith = held.ScopeId.IsNone
+                ? world.FaithOf(world.Civilizations[held.CivilizationId])
+                : held.ScopeId;
+
+            if (Forbids(world, seatFaith)) return true;
+        }
+
+        return figure.Occupation == Occupation.Clergy && Forbids(world, figure.ReligionId);
     }
+
+    /// <summary>Whether this faith forbids its clergy to marry.</summary>
+    private static bool Forbids(WorldState world, EntityId faithId) =>
+        !faithId.IsNone
+        && world.Religions.Contains(faithId)
+        && world.Religions[faithId].Character.CelibateClergy;
 
     /// <summary>
     /// Looks for a match among the other houses.
@@ -347,10 +377,10 @@ public sealed class HouseholdSystem : ISystem
         Civilization civilization = world.Civilizations[figure.CivilizationId];
         Sex sex = figure.Sex == Sex.Male ? Sex.Female : Sex.Male;
 
-        Figure partner = Houses.NewFigure(
+        // No career yet: the caller gives them one after the wedding, so that the vow of a
+        // celibate faith sees a married person rather than a momentarily single one.
+        return Houses.NewFigure(
             world, civilization, culture, sex, year - rng.NextInt(MarriageAge, 27));
-        Occupations.Ensure(world, partner, year);
-        return partner;
     }
 
     /// <summary>

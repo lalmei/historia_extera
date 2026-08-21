@@ -3525,6 +3525,61 @@ available and it needs its evidence attached.
 
 ---
 
+### The vow binds the priesthood, not the seat
+
+`HouseholdSystem.VowedToCelibacy` asked whether a figure held `OfficeKind.HighPriest`. That
+was right while clergy were only ever an office — one person per faith, and the rule reached
+all of them. M16 made the priesthood a population through `Occupation.Clergy` and the vow did
+not follow, so every ordinary priest was exempt from a rule the faith's own generated
+scripture asserts. Measured across six worlds: 20 of 267 clergy in celibate faiths had a
+spouse, and the chronicle contained a man taking holy orders and marrying in the same year.
+
+**A vow that fires in one direction is not a vow.** Refusing the marriage of someone already
+in orders closed less than half of it. Three doors had to shut, and each was a separate way in:
+
+1. **The marriage.** `VowedToCelibacy` now reads `Occupation.Clergy` against the figure's own
+   `ReligionId`, and still reads the seat for a high priest — whose faith may be the realm's
+   rather than one they professed.
+2. **The ordination.** `Occupations.Choose` zeroes the weight on `Occupation.Clergy` for a
+   married figure of a celibate faith, and `Offices.EligibleCleric` refuses them the seat.
+   Without the second, an appointment is a back door into orders, because the seat carries the
+   occupation with it. The weight is zeroed rather than the option removed, so the roll makes
+   the same number of draws for everyone and one married figure cannot shift the careers of
+   everyone chosen after them.
+3. **The restore.** Holding an office overwrites the career, so a cleric who was crowned reads
+   as Court for the length of the reign — long enough to marry without the vow noticing — and
+   `Occupations.Sync` was handing the orders back on the way out. That was the last remaining
+   violation in the panel, one figure in 214, and it is the whole reason the target was zero
+   rather than "nearly none": at 3.6% it looked like acceptable residue, and it was a bug.
+
+**A spouse invented for a wedding now takes their trade after it.** `MatchAtHome` creates a
+partner and called `Occupations.Ensure` before `Wed`, so the career was chosen for someone who
+was single for two more lines. That was the largest single source once the vow itself was
+fixed. An existing partner is untouched — they had a life already.
+
+**Zero, and a counterweight.** Nobody in the panel is now both in orders and married where the
+faith forbids it. That number is only worth having next to the one that stops the lazy version
+of this fix: barring the married from orders removes people from a pool, and barring too many
+satisfies the vow by abolishing the priesthood. Clergy were 11.5% of recorded figures before
+and are 11.0% after, and both tests are in `OccupationTests`.
+
+**Two things the issue proposed that measurement did not support**, recorded because not doing
+them was a decision:
+
+- *`FigureOrigin.Clergy` implies a hereditary priesthood.* It does not — the enum means "rose
+  through a temple", which a celibate faith does as readily as any other.
+- *`ClergyAdmission.Bloodline` contradicts celibacy.* It does not, quite. A priestly caste can
+  be drawn from particular families whose lay members are the ones who reproduce, which is a
+  real arrangement rather than an oversight. It occurs in 4 of 26 celibate faiths and is left
+  alone.
+
+**Still open: leaving orders as an event.** The restore rule above is a resignation in
+substance — a former ruler who married does not get their priesthood back — but the chronicle
+does not say so. *"Left holy orders, and married"* is a line worth writing, and it needs an
+event kind and narration rather than a rule change.
+
+---
+
 ## Notes for Phase 2
 
 Three routes were listed here, in rough order of expected fit. **The first is built** —
