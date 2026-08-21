@@ -24,9 +24,24 @@ public sealed class UnrestTests
 
     private static readonly ulong[] WideSeeds = { 2, 7, 11, 42, 99, 123, 777, 2024 };
 
-    /// <summary>A wider net again, for secession and usurpation, which are rarer than a rising.</summary>
+    /// <summary>
+    /// A wider net again, for secession and usurpation, which are rarer than a rising.
+    /// </summary>
+    /// <remarks>
+    /// <b>How rare, measured:</b> a town secedes in 8 of 259 consecutive seeds at the standard
+    /// shape — about 3% of worlds, and never more than once in a world. A sample of twenty-odd
+    /// seeds therefore has roughly even odds of containing a single occurrence, which is what
+    /// this list was until depression filling moved the world's rivers and the one seed that
+    /// carried it stopped carrying it. The tail is deliberately seeds known to secede: the
+    /// question here is whether the path exists at all, and a coin-flip sample cannot answer it.
+    /// If a change empties this, check the rate before widening the net again — four occurrences
+    /// going to zero is a behaviour change, one going to zero is a resample.
+    /// </remarks>
     private static readonly ulong[] RareSeeds =
-        { 2, 7, 11, 42, 99, 123, 777, 2024, 3, 5, 13, 17, 19, 23, 29, 31, 37, 41, 47, 53, 61, 71 };
+    {
+        2, 7, 11, 42, 99, 123, 777, 2024, 3, 5, 13, 17, 19, 23, 29, 31, 37, 41, 47, 53, 61, 71,
+        26, 64, 98, 139,
+    };
 
     /// <summary>
     /// Discontent reaches the chronicle: brigandage on the roads and risings in the towns.
