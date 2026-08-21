@@ -1,3 +1,4 @@
+using HistoryEngine.Core;
 using HistoryEngine.Entities;
 using HistoryEngine.World;
 using Xunit;
@@ -252,6 +253,185 @@ public sealed class ColonisationTests
             $"Realms holding two or more mines have a median mercantile value of "
             + $"{Median(hungry):F3}, against {Median(content):F3} for those holding fewer. The "
             + "crown's appetite has stopped reaching the decision.");
+    }
+
+
+    // ─── The march ────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// A garrison is a minority of foundings, and never in a realm nobody threatened.
+    /// </summary>
+    /// <remarks>
+    /// The bound that keeps the need a need. Purpose foundings are the exceptions that make the
+    /// rest of a map look intelligent, so they have to stay exceptional: across twenty-four seeds
+    /// posts are 5.3% of settlements and mines 11.3%, which leaves ordinary colonisation holding
+    /// five sixths of the map. The second assertion is the one that makes it a *reason*: not one
+    /// post in the panel stands in a realm that never fought anybody.
+    /// </remarks>
+    [Fact]
+    public void AGarrisonIsAMinorityAndNeverUnprovoked()
+    {
+        int settlements = 0;
+        int posts = 0;
+        int unprovoked = 0;
+
+        for (ulong seed = 1; seed <= 24; seed++)
+        {
+            WorldState world = HistoryRun.Execute(TestWorlds.Standard(seed)).World;
+
+            var fought = new HashSet<EntityId>();
+            foreach (War war in world.Wars)
+            {
+                fought.Add(war.AggressorId);
+                fought.Add(war.DefenderId);
+            }
+
+            foreach (Settlement settlement in world.Settlements)
+            {
+                settlements++;
+                if (settlement.Site != SiteCharacter.Strategic) continue;
+
+                posts++;
+                if (!fought.Contains(settlement.CivilizationId)) unprovoked++;
+            }
+        }
+
+        Assert.True(posts > 20, $"Only {posts} frontier posts were founded across the panel.");
+        Assert.InRange(posts / (double)settlements, 0.01, 0.10);
+        Assert.Equal(0, unprovoked);
+    }
+
+    /// <summary>
+    /// A frontier post stands on the march, and on ground a farmer would not have chosen.
+    /// </summary>
+    /// <remarks>
+    /// <para>The equivalent of the ore build's "mine sites stand on measurably worse land": a
+    /// purpose founding has to be visible in the ground it took, or the purpose is a label. Two
+    /// measures, both on the region rather than the site, because the region is where this need
+    /// does its work — see the note in <c>SiteSelection</c> on the two siting terms that were
+    /// built for this and cut.</para>
+    ///
+    /// <para>Measured: a post's region sits a median of 1 hop from a region another realm holds,
+    /// against 3 for everything else, and carries a median ruggedness of 0.155 against 0.109.</para>
+    /// </remarks>
+    [Fact]
+    public void AFrontierPostStandsOnTheMarch()
+    {
+        var postHops = new List<double>();
+        var otherHops = new List<double>();
+        var postRuggedness = new List<double>();
+        var otherRuggedness = new List<double>();
+
+        for (ulong seed = 1; seed <= 24; seed++)
+        {
+            WorldState world = HistoryRun.Execute(TestWorlds.Standard(seed)).World;
+
+            foreach (Settlement settlement in world.Settlements)
+            {
+                if (!world.Regions.Contains(settlement.RegionId)) continue;
+
+                bool post = settlement.Site == SiteCharacter.Strategic;
+                double hops = HopsToAnotherRealm(world, settlement);
+                double ruggedness = world.Regions[settlement.RegionId].Ruggedness;
+
+                (post ? postHops : otherHops).Add(hops);
+                (post ? postRuggedness : otherRuggedness).Add(ruggedness);
+            }
+        }
+
+        Assert.True(postHops.Count > 20, $"Only {postHops.Count} posts to measure.");
+
+        Assert.True(
+            Median(postHops) < Median(otherHops),
+            $"Frontier posts sit a median of {Median(postHops):F1} regions from another realm, "
+            + $"against {Median(otherHops):F1} for ordinary foundings. They are no longer on a "
+            + "march.");
+
+        Assert.True(
+            Median(postRuggedness) > Median(otherRuggedness),
+            $"Frontier posts stand on median ruggedness {Median(postRuggedness):F3}, against "
+            + $"{Median(otherRuggedness):F3} elsewhere. The search has stopped preferring ground "
+            + "a small force can hold.");
+    }
+
+    /// <summary>
+    /// A bellicose crown garrisons and a peaceable one does not.
+    /// </summary>
+    /// <remarks>
+    /// What makes this the crown's decision rather than a rule of the map, and the exact
+    /// counterpart of <see cref="AMercantileCrownWorksMoreOre"/>. The appetite floor is zero
+    /// rather than a small positive, so a peaceable realm facing a neighbour it has fought answers
+    /// by not building forts — which is why the comparison is against realms with none at all
+    /// rather than between one post and two. Measured: 0.517 against 0.442.
+    /// </remarks>
+    [Fact]
+    public void ABellicoseCrownGarrisonsTheMarch()
+    {
+        var garrisoned = new List<double>();
+        var quiet = new List<double>();
+
+        for (ulong seed = 1; seed <= 24; seed++)
+        {
+            WorldState world = HistoryRun.Execute(TestWorlds.Standard(seed)).World;
+
+            foreach (Civilization civilization in world.ActiveCivilizations())
+            {
+                bool holdsAPost = false;
+                foreach (Settlement settlement in world.ActiveSettlementsOf(civilization))
+                {
+                    if (settlement.Site != SiteCharacter.Strategic) continue;
+                    holdsAPost = true;
+                    break;
+                }
+
+                double aggression = world.ValuesFor(civilization).Aggression;
+                (holdsAPost ? garrisoned : quiet).Add(aggression);
+            }
+        }
+
+        Assert.True(
+            garrisoned.Count > 20 && quiet.Count > 20,
+            $"Needed realms on both sides; got {garrisoned.Count} holding a post and "
+            + $"{quiet.Count} holding none.");
+
+        Assert.True(
+            Median(garrisoned) > Median(quiet),
+            $"Realms holding a frontier post have a median aggression of {Median(garrisoned):F3}, "
+            + $"against {Median(quiet):F3} for those holding none. The crown's temper has stopped "
+            + "reaching the decision.");
+    }
+
+    /// <summary>
+    /// How many regions from this settlement's own to the nearest one another realm holds.
+    /// </summary>
+    /// <remarks>
+    /// Capped, and the cap is reported rather than skipped: a settlement with no foreign region
+    /// within four hops is genuinely deep inside its realm, and dropping those would compare
+    /// frontier posts only against other border towns.
+    /// </remarks>
+    private static double HopsToAnotherRealm(WorldState world, Settlement settlement)
+    {
+        const int Cap = 4;
+
+        var seen = new Dictionary<EntityId, int> { [settlement.RegionId] = 0 };
+        var queue = new List<EntityId> { settlement.RegionId };
+
+        for (int head = 0; head < queue.Count; head++)
+        {
+            Region region = world.Regions[queue[head]];
+            int distance = seen[region.Id];
+
+            if (!region.Owner.IsNone && region.Owner != settlement.CivilizationId) return distance;
+            if (distance >= Cap) continue;
+
+            foreach (EntityId neighbourId in region.AdjacentRegions)
+            {
+                if (!world.Regions[neighbourId].IsLand) continue;
+                if (seen.TryAdd(neighbourId, distance + 1)) queue.Add(neighbourId);
+            }
+        }
+
+        return Cap + 1;
     }
 
     private static double Median(List<double> values)
