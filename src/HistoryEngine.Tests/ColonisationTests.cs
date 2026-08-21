@@ -198,9 +198,15 @@ public sealed class ColonisationTests
     /// third, and this measures exactly there.</para>
     ///
     /// <para>Median rather than mean, and restricted to realms large enough to have had the choice:
-    /// a realm of four settlements has not yet been asked the question this is about. The gap
-    /// currently runs 0.75 against 0.51; the bound is that the order holds, since the size of the
-    /// gap depends on how many realms in eight worlds happen to grow large.</para>
+    /// a realm of four settlements has not yet been asked the question this is about.</para>
+    ///
+    /// <para><b>Over its own, wider panel.</b> The eight seeds the rest of this class uses yield
+    /// about fourteen grown realms on each side of the comparison, and two medians over fourteen
+    /// points are not a measurement — they inverted the moment an unrelated change to the
+    /// household rules moved which figures ended up governing. Twenty-four seeds give 34 against
+    /// 53, and the gap comes back clearly: 0.601 against 0.471. The bound stays "the order
+    /// holds", because the size of the gap still depends on how many realms happen to grow
+    /// large.</para>
     /// </remarks>
     [Fact]
     public void AMercantileCrownWorksMoreOre()
@@ -210,7 +216,7 @@ public sealed class ColonisationTests
         var hungry = new List<double>();
         var content = new List<double>();
 
-        foreach (ulong seed in Seeds)
+        for (ulong seed = 1; seed <= 24; seed++)
         {
             WorldState world = HistoryRun.Execute(TestWorlds.Standard(seed)).World;
 

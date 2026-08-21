@@ -406,10 +406,17 @@ public sealed class OfficeTests
     /// Every office changes what some other system does.
     /// </summary>
     /// <remarks>
-    /// The standard the design set itself, and the one worth a test rather than a comment: an
+    /// <para>The standard the design set itself, and the one worth a test rather than a comment: an
     /// office nothing reads is a title generator. Each of the three appointed offices is asserted
     /// through its consumer rather than through its own record — a marshal by the fields he takes,
-    /// a governor by dying somewhere the court is not, a high priest by the faiths he starts.
+    /// a governor by dying somewhere the court is not, a high priest by the faiths he starts.</para>
+    ///
+    /// <para><b>Over a wider panel than the rest of this class.</b> The governor clause is the
+    /// binding one and it is rare: a governor dies of a disaster or a sack in the town he was
+    /// posted to in 7 of 24 seeds, never more than twice in one. Five seeds are not enough to
+    /// contain it reliably, and the version that sampled five passed until an unrelated change
+    /// moved which figures held which posts. A test for "this path executes at all" needs a
+    /// sample that holds the path.</para>
     /// </remarks>
     [Fact]
     public void OfficesChangeWhatOtherSystemsDo()
@@ -418,7 +425,7 @@ public sealed class OfficeTests
         int governorsKilledByGeography = 0;
         int faithsFromClergy = 0;
 
-        foreach (ulong seed in Seeds)
+        for (ulong seed = 1; seed <= 24; seed++)
         {
             WorldState world = HistoryRun.Execute(TestWorlds.Standard(seed)).World;
 
