@@ -3432,6 +3432,99 @@ afford to discover inside the game.
 
 ---
 
+### Depression filling: rivers that leave the map
+
+The Phase 2 trial found it and the trial doc records the measurement; this records the fix
+and the four things it moved that were not rivers.
+
+**The defect.** D8 gives a cell its steepest downhill neighbour or nothing at all, and
+`Hydrology` had no answer for "nothing at all". That is not a lost cell. Flow accumulates
+*into* a sink, so the wettest cells on a map are its pits, and `ClassifyRivers` names the
+wettest 4% of the land. On WorldEngine's eroded terrain 26 of 41 river cells were sinks:
+two thirds of that world's rivers were puddles. On the engine's own baked noise it was 15
+of 69 — bad, but not bad enough that anyone looked in eight milestones. That is the whole
+argument for having built the trial: the failure was invisible against a single backend
+because the single backend was smooth by construction.
+
+**Priority flood, with an epsilon.** The sea is the outlet; the flood works inward from it,
+always from the lowest frontier cell, and raises each cell it reaches to at least the level
+the water arrived at. Real relief is untouched — a cell higher than the arriving level keeps
+its own elevation — so only the hollows fill. The epsilon is the half of it that is easy to
+leave out: filling a basin *flat* trades a sink for a plateau, and every cell on a plateau
+has no downhill neighbour either. Raising each cell a micrometre above the one that reached
+it leaves a monotone ramp instead, so the network is connected by construction rather than
+by luck. Over the longest path a lattice this size can hold, the accumulated tilt is
+millimetres — orders below what raster quantisation already costs.
+
+**The filled surface is a drainage construct and does not escape.** Only
+`ComputeFlowDirections` and `ComputeAccumulation` see it. Height, submersion, coast, shelter
+and coast distance all read the real elevation, so a basin floor is still at its real height
+for siting and fertility. There is a test for exactly that, because the tempting version of
+this change is to fill `heights` in place.
+
+**Determinism.** `PriorityQueue` promises nothing about equal priorities and a lattice is
+mostly ties — a flat sea floor is thousands of them. The comparer orders by level and then
+by index, which is a total order, so the flood visits cells in one sequence whatever the
+heap does. No extra terrain samples: this is post-processing on a grid already paid for.
+
+| at the 64-unit stride | procedural bake | WorldEngine |
+|---|---|---|
+| Land cells with no downhill neighbour | 25 → **0** | 35 → **0** |
+| River cells that are sinks | 15 → **0** | 26 → **0** |
+| Segments exported | 54 → **63** | 15 → **36** |
+| Connected components | 18 → **2** | 10 → **6** |
+| Largest component | 8 → **50** nodes | 6 → **20** nodes |
+
+The reference world's rivers went from eighteen fragments to essentially one network. Both
+figures were reproduced by an independent re-implementation outside the engine before the
+change was believed.
+
+**The prefilter is cut, on the measurement that motivated it.** The trial's other hydrology
+finding was aliasing: reading height at a 64-unit stride from an 8-unit raster is one pixel
+in sixty-four, and box-averaging first halved the sinks. After filling, those sinks are
+identically zero, and box-averaging moves what remains from 33.3% to 32.4% agreement with
+WorldEngine's own rivers, which is noise. A 3×3 kernel would take hydrology from ~4,225
+samples to ~38,000 against a 12,000 budget for the whole simulation. Paying three times the
+simulation's entire budget for an effect that no longer measures is the wrong trade.
+
+**What moved that was not a river.** Before the fill, pits were scattered across the land,
+so river access was near-ubiquitous: 42% of land on the procedural world sat within 128
+units of a "river", and 60% on WorldEngine's. Now it is 28% and 35%. Rivers became a
+scarcity, which is what they are supposed to be — and the consequences are real:
+
+- **Fewer settlements.** Seed 42 seats 33 rather than 43 over three centuries. Site scores
+  were being inflated everywhere by a river premium that almost everywhere qualified for.
+- **Riverside siting falls and coastal siting rises**, which follows from the same thing.
+- **M10's premiums are now calibrated against a distribution that no longer exists.** The
+  river and coast weights were swept when 42% of land counted as river-adjacent. They want
+  re-sweeping; that is recorded as outstanding rather than guessed at here.
+- **Roads move**, because `Roadbed` prices a ford. Across five seeds, 85 paved roads: 17
+  shorter than the track they replaced (one by 29%), 67 identical, one longer by 1.6%.
+
+**Four tests failed and none of them was this change breaking something.** Worth recording,
+because "the change is fine, the tests were wrong" is the most self-serving sentence
+available and it needs its evidence attached.
+
+- `GoldenExportTests` — the seed-42 fingerprint. Expected: rivers moved, so the history
+  moved. Regenerated deliberately, as its own commit.
+- `PavedRoadsAreNeverLongerThanTheirTracks` asserted length where `Roadbed.Cut` minimises
+  **cost**. Paving lowers the price of slope and of fording, not of distance, so the
+  engineered line may buy a slightly longer route to cheaper ground — one road in 85 did, by
+  1.6%. The test now holds the ceiling per world, requires the population to shorten on net,
+  and says why an exact bound would be asserting that the cost function is distance.
+- Two unrest tests and one dynasty test failed with "this never happened". Measured: a town
+  secedes in **8 of 259** consecutive seeds, and before the change the 22-seed sample
+  contained exactly **one** occurrence. So they were passing on a single event at a 3% rate —
+  a coin flip that any change to world layout would have flipped. The rate is unchanged;
+  seeds known to carry the event were added and the rate written down, so the next person can
+  tell a resample from a regression.
+- `RoadsAreBuiltOnlyForTheLinksThatEarnedThem` asserted a per-world roaded share above 5%,
+  and seed 2 is a sea world with six land routes in total. A share over six items has a
+  resolution of one sixth. The ceiling — the assertion the test's own comment calls the one
+  that matters — stays per world; the floor is now pooled.
+
+---
+
 ## Notes for Phase 2
 
 Three routes were listed here, in rough order of expected fit. **The first is built** —

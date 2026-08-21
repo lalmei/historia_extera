@@ -119,9 +119,14 @@ public sealed class Hydrology
             submerged[i] = grid[i].Height < 0f;
         }
 
+        // Flow is derived from the filled surface; everything else keeps the real one. A
+        // basin's floor is still at its real elevation for siting and fertility — it is only
+        // the question "where does water leave here" that needs the spill route.
+        double[] drainage = FillDepressions(heights, submerged, w, h, atlas.EastWestPeriodic);
+
         int[] downstream = ComputeFlowDirections(
-            heights, w, h, stride, atlas.EastWestPeriodic);
-        double[] accumulation = ComputeAccumulation(heights, downstream, n);
+            drainage, w, h, stride, atlas.EastWestPeriodic);
+        double[] accumulation = ComputeAccumulation(drainage, downstream, n);
         bool[] isRiver = ClassifyRivers(accumulation, submerged, n);
         bool[] isCoast = ClassifyCoast(submerged, w, h, atlas.EastWestPeriodic);
         bool[] isConfluence = ClassifyConfluences(isRiver, downstream, n);
@@ -153,6 +158,132 @@ public sealed class Hydrology
             riverDistance,
             coastDistance,
             max);
+    }
+
+    /// <summary>
+    /// The height each cell drains at, with closed basins raised to their spill point.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Why this is here.</b> D8 gives a cell the steepest downhill neighbour or nothing
+    /// at all, and "nothing at all" is a sink: water arrives and never leaves. Real terrain is
+    /// full of them — a resampled lattice turns every closed hollow, every flat, and every
+    /// coastal shelf into one — and the sinks do not merely lose their own drainage. Flow
+    /// accumulates <em>into</em> them, so the cells with the most water on them are the pits, and
+    /// <see cref="ClassifyRivers"/>, which names the wettest few percent of the land, names the
+    /// pits. The Phase 2 terrain trial measured 26 of 41 river cells on an external generator's
+    /// terrain to be sinks: two thirds of that world's rivers were puddles, in a world that
+    /// otherwise looked entirely reasonable.</para>
+    ///
+    /// <para>Phase 1's value noise hid this for eight milestones because it is smooth by
+    /// construction and produced few enough sinks to pass for weather. Nothing about Vintage
+    /// Story's terrain will be smooth, so this belongs in front of Phase 3 rather than behind it.</para>
+    ///
+    /// <para><b>Priority flood.</b> The sea is the outlet; the flood works inward from it, always
+    /// from the lowest frontier cell, and each cell it reaches is raised to at least the level the
+    /// water arrived at. A cell higher than that keeps its own elevation, so real relief is
+    /// untouched and only the hollows fill. One pass, one visit per cell.</para>
+    ///
+    /// <para><b>Why the epsilon.</b> Filling a basin flat solves the sink and creates a plateau,
+    /// which is the same problem wearing a hat: every cell on a flat has no downhill neighbour
+    /// either. Raising each cell a hair above the one that reached it leaves a monotone ramp
+    /// toward the outlet instead, so every land cell has somewhere to send its water and the
+    /// network is connected by construction rather than by luck. <see cref="SpillEpsilon"/> is a
+    /// micrometre: over the longest path a lattice this size can hold, the accumulated tilt is
+    /// millimetres, which is below anything the simulation can see and far below the metre or two
+    /// that raster quantisation already costs.</para>
+    ///
+    /// <para><b>Determinism.</b> <see cref="PriorityQueue{TElement, TPriority}"/> makes no promise
+    /// about equal priorities, and a lattice has ties everywhere — a flat sea floor is thousands
+    /// of them. <see cref="SpillOrder"/> therefore orders by level and then by index, which is a
+    /// total order, so the flood visits cells in one fixed sequence whatever the heap does
+    /// internally.</para>
+    /// </remarks>
+    private static double[] FillDepressions(
+        double[] heights, bool[] submerged, int w, int h, bool eastWestPeriodic)
+    {
+        int n = w * h;
+        var filled = new double[n];
+        var reached = new bool[n];
+
+        var frontier = new PriorityQueue<int, Spill>(SpillOrder.Instance);
+
+        // The sea is where water leaves the world. A world with no sea at all — small, high, or
+        // simply dry — drains off its edges instead, since the alternative is a lattice with no
+        // outlet, which fills to its own highest point and drains nowhere.
+        bool hasSea = false;
+        for (int i = 0; i < n; i++)
+        {
+            if (submerged[i]) { hasSea = true; break; }
+        }
+
+        for (int j = 0; j < h; j++)
+        {
+            for (int i = 0; i < w; i++)
+            {
+                int idx = (j * w) + i;
+
+                bool outlet = hasSea
+                    ? submerged[idx]
+                    : j == 0 || j == h - 1 || (!eastWestPeriodic && (i == 0 || i == w - 1));
+
+                if (!outlet) continue;
+
+                filled[idx] = heights[idx];
+                reached[idx] = true;
+                frontier.Enqueue(idx, new Spill(filled[idx], idx));
+            }
+        }
+
+        while (frontier.TryDequeue(out int index, out _))
+        {
+            int i = index % w;
+            int j = index / w;
+
+            for (int d = 0; d < 8; d++)
+            {
+                if (!TryNeighbour(i, j, d, w, h, eastWestPeriodic, out int nIdx)) continue;
+                if (reached[nIdx]) continue;
+
+                reached[nIdx] = true;
+                filled[nIdx] = Math.Max(heights[nIdx], filled[index] + SpillEpsilon);
+                frontier.Enqueue(nIdx, new Spill(filled[nIdx], nIdx));
+            }
+        }
+
+        // A cell the flood never reached has no path to any outlet, which on a fully connected
+        // lattice cannot happen. Keeping its own height rather than zero means that if it ever
+        // does, the result is terrain that is merely undrained rather than terrain at sea level.
+        for (int i = 0; i < n; i++)
+        {
+            if (!reached[i]) filled[i] = heights[i];
+        }
+
+        return filled;
+    }
+
+    /// <summary>The tilt given to a filled flat, in metres, so that it still runs downhill.</summary>
+    private const double SpillEpsilon = 1e-6;
+
+    /// <summary>A cell on the flood frontier: the level water reached it at, and which cell it is.</summary>
+    private readonly record struct Spill(double Level, int Index);
+
+    /// <summary>
+    /// Lowest first, and on a tie the lower index first.
+    /// </summary>
+    /// <remarks>
+    /// The index is not a tiebreak of convenience; it is what makes the flood reproducible. A
+    /// heap's behaviour among equal keys is an implementation detail, and this lattice is full of
+    /// equal keys.
+    /// </remarks>
+    private sealed class SpillOrder : IComparer<Spill>
+    {
+        public static readonly SpillOrder Instance = new();
+
+        public int Compare(Spill a, Spill b)
+        {
+            int byLevel = a.Level.CompareTo(b.Level);
+            return byLevel != 0 ? byLevel : a.Index.CompareTo(b.Index);
+        }
     }
 
     /// <summary>Steepest-descent neighbour for each cell, or -1 where the cell is a sink.</summary>
