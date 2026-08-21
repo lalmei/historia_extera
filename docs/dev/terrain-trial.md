@@ -148,11 +148,19 @@ artefact of the comparison.
 Phase 1's noise never produced enough sinks to notice, because it is smooth by
 construction. Real eroded terrain is not, and Vintage Story's will not be either.
 
-**For Phase 3:** priority-flood depression filling before flow directions, or a sink
-resolution pass that routes pits to their spill point. Until then, the acceptance question
-"are there disconnected fragments at this stride" has the honest answer *yes, on both
-backends* — the reference fragments into 18 components too. The external terrain is not a
-regression in kind; it yields a third of the segments, for a reason that is now identified.
+**Fixed.** Priority flood with an epsilon tilt now runs ahead of the flow directions — see
+*Depression filling* in the decision log. Every land cell drains to the sea, the sink counts
+above go to zero on both backends, and the fragmented networks become networks:
+
+| | procedural bake | WorldEngine |
+|---|---|---|
+| River cells that are sinks | 15 → **0** | 26 → **0** |
+| Segments exported | 54 → **63** | 15 → **36** |
+| Connected components | 18 → **2** | 10 → **6** |
+| Largest component | 8 → **50** nodes | 6 → **20** nodes |
+
+The acceptance question "are there disconnected fragments at this stride" now has a much
+better answer on both: the reference world's rivers are essentially one network.
 
 ### 4. A point-query contract has nowhere to say "average over this cell"
 
@@ -175,10 +183,20 @@ has no energy at the pixel scale to alias — and costs the external world nearl
 sinks. This is the same trap `TerrainAtlas` exists to guard against in the cost dimension,
 appearing in the signal dimension where nothing was watching.
 
-**For Phase 3:** Vintage Story's sampler is a point query too, and its terrain has
-metre-scale structure. Hydrology should either sample at its own stride *and* prefilter, or
-sample a small kernel per cell and pay for it — a decision worth making on a measurement
-rather than inheriting.
+**Cut, on the measurement that motivated it.** The table above was taken before depression
+filling. Afterwards the sinks it improved are identically zero, and box-averaging changes
+what is left almost not at all: river agreement with WorldEngine's own network moves from
+33.3% to 32.4% at ±64 units, which is noise. Meanwhile a 3×3 kernel would take hydrology
+from ~4,225 samples to ~38,000, against a 12,000 budget for the entire simulation — and
+hydrology is already the one place the design admits its sampling is not negligible.
+Paying three times the whole simulation's budget for an effect that no longer measures is
+the wrong trade, so it is not being made. Recorded here rather than dropped, because the
+argument stops holding the moment something wants sub-stride detail for its own sake.
+
+**For Phase 3:** the point-query contract is still the constraint — there is no way to ask
+`ITerrainSampler` for the mean over a cell, and Vintage Story's sampler will be a point
+query over terrain with metre-scale structure. If that turns out to matter there, it will
+want measuring again rather than assuming this result carries.
 
 ### 5. The format cannot carry rivers, so a generator that has them gets them thrown away
 

@@ -101,10 +101,11 @@ declared as measured capabilities.
 
 The Phase 2 trial (`docs/dev/terrain-trial.md`) ran an external generator through this
 route and found the datum, the capability declaration, the provenance digest and the
-sample budget all held on foreign data. It also found that hydrology fills no depressions
-and point-samples a fine raster at a coarse stride, which costs band-limited noise nothing
-and costs real eroded terrain most of its drainage. That is a defect to fix before the
-Phase 3 adapter, not a property of the format.
+sample budget all held on foreign data. It also found hydrology deriving flow over
+undrained pits, which cost band-limited noise nothing and cost real eroded terrain most of
+its drainage. Flow is now taken from a depression-filled surface, so every land cell
+drains to the sea; the real elevation is untouched and only the flow graph reads the
+spill surface.
 
 ### Time
 
@@ -273,8 +274,10 @@ scheduled episodes. The engine now has no declared docket kind without a consume
 
 Beyond the numbered milestones:
 
-- Fill depressions before deriving flow directions, and prefilter height when hydrology
-  samples below the raster's own resolution — both measured in the Phase 2 terrain trial.
+- Re-sweep site selection's river and coast premiums. They were calibrated in M10 against a
+  river network that was substantially artefact — before depression filling, 42% of land sat
+  within 128 units of a "river" and now 28% does — so the weights were set against a scarcity
+  that did not exist.
 - Widen the terrain manifest where it cannot describe somebody else's map: an ocean mask
   distinct from lakes, a flow layer so a river-aware generator is not rederived worse, and
   a declared east/west topology the loader can check against the seam.
