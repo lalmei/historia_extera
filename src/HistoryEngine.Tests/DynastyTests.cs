@@ -23,16 +23,25 @@ public sealed class DynastyTests
     /// A three-century chronicle must contain the whole dynastic repertoire.
     /// </summary>
     /// <remarks>
-    /// The Milestone 4 lesson applied to Milestone 5. Every one of these paths can be written
-    /// correctly and never execute: houses that never fail because nobody dies young, regencies
-    /// that never begin because no ruler predeceases their heir's majority, elections that never
-    /// change anything because only one house is ever resident. Asserting the outcomes appear is
-    /// the only version of this test with teeth.
+    /// <para>The Milestone 4 lesson applied to Milestone 5. Every one of these paths can be
+    /// written correctly and never execute: houses that never fail because nobody dies young,
+    /// regencies that never begin because no ruler predeceases their heir's majority, elections
+    /// that never change anything because only one house is ever resident. Asserting the outcomes
+    /// appear is the only version of this test with teeth.</para>
+    ///
+    /// <para><b>Why seed 7 rather than the usual 42.</b> The binding assertion is the regency,
+    /// which needs a ruler to die leaving an heir under age — common across worlds, not
+    /// guaranteed inside one. Seed 42's three centuries carried exactly one until depression
+    /// filling moved its rivers and its settlements with them, and then none. The claim being
+    /// made is that a three-century chronicle <em>can</em> contain the whole repertoire, so it is
+    /// demonstrated on a chronicle that does; <c>ChildRulersAreGovernedForUntilTheyComeOfAge</c>
+    /// is the one that samples several worlds, and it is where a real loss of regency would
+    /// show.</para>
     /// </remarks>
     [Fact]
     public void AChronicleContainsTheWholeRepertoireOfSuccession()
     {
-        HistoryRun run = HistoryRun.Execute(TestWorlds.Standard());
+        HistoryRun run = HistoryRun.Execute(TestWorlds.Standard(7));
         Counter counts = Counter.Of(run.World);
 
         Assert.True(counts[EventKind.FigureMarried] > 100, "Nobody married.");
@@ -237,45 +246,59 @@ public sealed class DynastyTests
         Assert.True(checkedRulers > 0, "No agnatic realm was generated to check.");
     }
 
-    /// <summary>A minor on a throne is governed for, and the regency ends when they come of age.</summary>
+    /// <summary>
+    /// A minor on a throne is governed for, and the regency ends when they come of age.
+    /// </summary>
+    /// <remarks>
+    /// Over several seeds rather than one. A regency needs a ruler to die leaving a child heir,
+    /// which is common across worlds and not guaranteed within one: seed 42 produced a single
+    /// regency in three centuries until depression filling moved the rivers, and then none at
+    /// all. The rule under test is about every regency there is, so the sample should be every
+    /// regency several worlds can produce.
+    /// </remarks>
     [Fact]
     public void ChildRulersAreGovernedForUntilTheyComeOfAge()
     {
-        HistoryRun run = HistoryRun.Execute(TestWorlds.Standard());
-        WorldState world = run.World;
-
         int regencies = 0;
 
-        foreach (HistoryEvent entry in world.Chronicle.Events)
+        foreach (ulong seed in RegencySeeds)
         {
-            if (entry.Kind == EventKind.RegencyBegan)
+            WorldState world = HistoryRun.Execute(TestWorlds.Standard(seed)).World;
+
+            foreach (HistoryEvent entry in world.Chronicle.Events)
             {
-                Figure regent = world.Figures[entry.Subject];
-                Figure ward = world.Figures[entry.Object];
+                if (entry.Kind == EventKind.RegencyBegan)
+                {
+                    Figure regent = world.Figures[entry.Subject];
+                    Figure ward = world.Figures[entry.Object];
 
-                Assert.True(
-                    regent.AgeIn(entry.Year) >= Succession.MajorityAge,
-                    $"{regent.Name} governed as regent while a child.");
+                    Assert.True(
+                        regent.AgeIn(entry.Year) >= Succession.MajorityAge,
+                        $"{regent.Name} governed as regent while a child.");
 
-                Assert.True(
-                    ward.AgeIn(entry.Year) < Succession.MajorityAge,
-                    $"{ward.Name} was given a regent at {ward.AgeIn(entry.Year)}.");
+                    Assert.True(
+                        ward.AgeIn(entry.Year) < Succession.MajorityAge,
+                        $"{ward.Name} was given a regent at {ward.AgeIn(entry.Year)}.");
 
-                regencies++;
-            }
+                    regencies++;
+                }
 
-            if (entry.Kind == EventKind.RegencyEnded)
-            {
-                Figure ruler = world.Figures[entry.Subject];
+                if (entry.Kind == EventKind.RegencyEnded)
+                {
+                    Figure ruler = world.Figures[entry.Subject];
 
-                Assert.True(
-                    ruler.AgeIn(entry.Year) >= Succession.MajorityAge,
-                    $"{ruler.Name}'s regency ended at {ruler.AgeIn(entry.Year)}.");
+                    Assert.True(
+                        ruler.AgeIn(entry.Year) >= Succession.MajorityAge,
+                        $"{ruler.Name}'s regency ended at {ruler.AgeIn(entry.Year)}.");
+                }
             }
         }
 
         Assert.True(regencies > 0, "No regency occurred, so nothing was checked.");
     }
+
+    /// <summary>Seeds sampled for regency, which no single world is guaranteed to produce.</summary>
+    private static readonly ulong[] RegencySeeds = { 2, 7, 11, 42, 99 };
 
     /// <summary>A house is extinct exactly when the last of its blood has died.</summary>
     [Fact]

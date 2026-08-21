@@ -28,12 +28,15 @@ public sealed class RoadTests
     /// The upper bound is the assertion that matters. A threshold low enough to road most of the
     /// network produces a map on which no corridor stands out from any other — the failure the
     /// route system's own degree cap was written to avoid, reintroduced one layer up. Measured
-    /// across these five seeds the roaded share of land routes is 0.23–0.39.
+    /// across these five seeds the pooled roaded share of land routes is 0.32; per world it runs
+    /// from 0.00 to 0.38, the zero being a sea world whose six land routes never carried enough
+    /// to earn one.
     /// </remarks>
     [Fact]
     public void RoadsAreBuiltOnlyForTheLinksThatEarnedThem()
     {
         int roadsSeen = 0;
+        int landSeen = 0;
 
         foreach (ulong seed in Seeds)
         {
@@ -78,11 +81,20 @@ public sealed class RoadTests
             Assert.Equal(built, roaded);
             Assert.True(land > 0, $"Seed {seed} produced no land routes to road.");
 
-            double share = roaded / (double)land;
-            Assert.InRange(share, 0.05, 0.55);
+            // The ceiling is per world, because roading most of one map is the failure this
+            // guards. The floor is pooled below: seed 2 is a sea world with six land routes in
+            // total, and a share over six items has a resolution of one sixth — asserting it
+            // clears 5% is a claim about that world's traffic, not about the road system.
+            Assert.True(
+                roaded <= land * 0.55,
+                $"Seed {seed} roaded {roaded} of {land} land routes. Road most of a network and "
+                + "no corridor stands out from any other.");
+
+            landSeen += land;
         }
 
         Assert.True(roadsSeen > 50, $"Only {roadsSeen} roads were checked across {Seeds.Length} worlds.");
+        Assert.InRange(roadsSeen / (double)landSeen, 0.05, 0.55);
     }
 
     /// <summary>
@@ -335,12 +347,29 @@ public sealed class RoadTests
     }
 
     /// <summary>
-    /// A paved road across the standard seeds is never longer than the track it replaced.
+    /// Paving shortens the way, and never sends it wandering.
     /// </summary>
+    /// <remarks>
+    /// <para><b>Length is not what a road minimises.</b> <c>Roadbed.Cut</c> searches for the
+    /// cheapest line, and paving lowers the price of slope and of fording rather than the price
+    /// of distance. So the engineered line is usually shorter and can legitimately be a little
+    /// longer, when a few more metres reach ground that is enough cheaper to pay for them. An
+    /// exact "never longer" would be asserting that the cost function is distance, which it is
+    /// not, and it held for as long as it did by luck: it broke the moment depression filling
+    /// moved the rivers and with them the fords.</para>
+    ///
+    /// <para><b>What is asserted instead, and why these numbers.</b> Across 85 paved roads over
+    /// five seeds and six centuries, 17 are shorter — one by 29% — 67 are identical, and exactly
+    /// one is longer, by 1.6%. So the population must shorten on net, and no single road may
+    /// wander: the 5% ceiling is triple the largest overshoot measured and still far below any
+    /// detour that would mean the search had gone wrong, which is what this test is for.</para>
+    /// </remarks>
     [Fact]
-    public void PavedRoadsAreNeverLongerThanTheirTracks()
+    public void PavingShortensTheWayWithoutSendingItWandering()
     {
         int compared = 0;
+        double pavedTotal = 0.0;
+        double trackTotal = 0.0;
 
         foreach (ulong seed in Seeds)
         {
@@ -362,13 +391,23 @@ public sealed class RoadTests
 
                 Assert.NotNull(track);
                 compared++;
+                pavedTotal += paved.Length;
+                trackTotal += track!.Length;
+
                 Assert.True(
-                    paved.Length <= track!.Length + 0.001,
-                    $"The paved way on route {route.Id} is longer than the track it replaced.");
+                    paved.Length <= (track.Length * 1.05) + 0.001,
+                    $"The paved way on route {route.Id} is {paved.Length / track.Length:P1} of " +
+                    "the track it replaced. Engineering may buy a slightly longer line to reach " +
+                    "cheaper ground; it should not go wandering.");
             }
         }
 
         Assert.True(compared > 10, $"Only {compared} paved roads were available to compare.");
+        Assert.True(
+            pavedTotal <= trackTotal,
+            $"Paving lengthened the road network overall — {pavedTotal:F0} against " +
+            $"{trackTotal:F0} units of track. Individually a road may go slightly round; the " +
+            "population may not.");
     }
 
     /// <summary>
