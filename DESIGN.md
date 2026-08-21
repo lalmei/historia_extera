@@ -274,6 +274,9 @@ scheduled episodes. The engine now has no declared docket kind without a consume
 
 Beyond the numbered milestones:
 
+- Build the Quarry and Harbour founding needs, the two the needs table still lists as unbuilt.
+  The frontier post is the pattern to copy and the warning to read: its region search works and
+  both of its siting terms were cut on measurement.
 - Re-sweep site selection's river and coast premiums. They were calibrated in M10 against a
   river network that was substantially artefact — before depression filling, 42% of land sat
   within 128 units of a "river" and now 28% does — so the weights were set against a scarcity

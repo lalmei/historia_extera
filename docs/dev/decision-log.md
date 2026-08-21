@@ -359,7 +359,7 @@ short of metal.
 | **Ore** | few mines, a mercantile crown, geology sitting unused | geologic activity, height, ruggedness | worth walking past a farm cell — 3 hops |
 | *Quarry* | walls going up, little stone, mountains unused | height and ruggedness, not ore | as above |
 | *Harbour* | mercantile realm with no port, coast in reach | shelter, estuary, confluence | adjacent |
-| *Frontier post* | hostile neighbour, recent war, high aggression | a pass, the border region, not the nicest farm | close to the threat |
+| **Frontier post** | hostile neighbour, recent war, a bellicose crown | the region between the two realms, and broken ground in it | close to the threat — 2 hops |
 
 Mining was built first because it is the case the habitability sort is most wrong about, the
 geology is already on the region, and `SiteCharacter.Mine` was already reserved.
@@ -3577,6 +3577,83 @@ them was a decision:
 substance — a former ruler who married does not get their priesthood back — but the chronicle
 does not say so. *"Left holy orders, and married"* is a line worth writing, and it needs an
 event kind and narration rather than a rule change.
+
+---
+
+### The march: a founding that is about somebody else
+
+The third need, and the first that is not a fact about the ground. Land and ore are answers to
+what a region has; a frontier post is an answer to who is next to it, and it could not have been
+built at M11 because nothing then knew that a particular realm was a particular realm's problem.
+M15's wars, truces and grievance are what made the question answerable.
+
+**The threat is read from two signals that cover the same fact from either side.** An active war
+is the obvious one; a live truce is the more useful, because a truce exists precisely because a
+war has just been settled, which is when frontier posts actually get built. Between them, plus a
+twenty-five-year memory on ended wars, they answer "have we lately had trouble with these people"
+without a hostility score nothing else would read. The most recent war wins, ties break on the
+lower realm id, and nothing draws a number.
+
+**The appetite floor is zero, and that is the difference from ore.** Every realm that becomes a
+state plants a first mine if there is ore in reach, because ore is wealth and every crown wants
+wealth. A peaceable crown facing a neighbour it has fought answers by *not* building forts, and
+the model should let it. So the frontier appetite runs 0.00 to 0.08 against Mercantile — and
+`WorldState.ValuesFor` has already folded the fortunes in, so grievance spurs this and weariness
+damps it without either being named in the need.
+
+**Two walks, deliberately different.** One measures how near each region lies to the threatening
+realm and crosses anything, because distance to somebody is a fact about the map rather than a
+route anybody takes. The other gathers candidates outward from this realm's own territory and
+crosses only its own ground and nobody's — the rule the ore search already gives, since planting a
+post beyond another realm's territory is a claim about borders that expansion is not entitled to
+make. A candidate has to be in both; when nothing is, the threat is on the other side of the world
+and the caller falls through to the ordinary needs.
+
+Measured over twenty-four seeds:
+
+| | frontier post | everything else |
+|---|---|---|
+| Share of settlements | 5.3% | mines 11.3%, ordinary 83.4% |
+| Regions to the nearest realm that is not theirs | **1** (median) | 3 |
+| Region ruggedness | **0.155** | 0.109 |
+| Median aggression of the realms holding one | **0.517** | 0.442 |
+| Posts in realms that never fought anybody | **0** | — |
+
+#### Both siting terms were built and both were cut
+
+The design above said the need should reach the ground twice, as ore does — once choosing the
+region and once scoring the sites inside it. It reaches it once. Two terms were written for
+`SiteSelection` and neither survived its own measurement, which is the M10 bar applied to work
+done under it.
+
+- **A raised pass bonus (0.45 against 0.12) never fired once.** Across 74 frontier posts, not one
+  of the regions a post was sent to contains a pass *anywhere in it*. The design assumed a
+  frontier post holds a pass. On this map a march is the settled country between two realms and
+  passes are in high broken ground that nobody borders — so the term was a weight on a quantity
+  that is identically zero everywhere it was ever asked.
+- **A lowered soil weight (0.60 against 1.00) moved the median fertility under a post from 0.8015
+  to 0.8026** — a thousandth, in the wrong direction. `SiteSelection` says at the top that within
+  one region soil barely varies and everything else does; this is that, measured. It is also why
+  the ore need had to move four weights before it was visible at all.
+
+So the need picks the region and the ordinary score picks the spot in it, which is defensible on
+its own terms: a garrison still wants the best ground on the march it was sent to hold. The
+difference a reader can see — a post a region nearer the border, on rougher country — is entirely
+the region search's doing.
+
+**Defensibility is still not a term, and this is the second time that has been the answer.** The
+tempting version of a frontier post rewards steep ground, which is exactly the formulation M10
+measured four ways and cut for putting settlements on ground nobody could build on. The slope
+penalty is therefore at full strength for a march — ore relaxes it, this does not — and
+`SiteCharacter.Fortress` stays unfilled. `Strategic` says why the party was sent, not that the
+ground is steep.
+
+**The character is the errand, unconditionally**, which is one step further than `Mine` goes.
+Mine's claim is about the ground and has to be checked against it: a party sent for ore can arrive
+and find none. A post's claim is about why it was sent, which is true by construction. It costs
+the "astride the pass" line for a post that holds one — but letting `Pass` win would make the
+character mean "sent for the march, unless the march had a pass in it", after which no reader and
+no test could count the posts.
 
 ---
 

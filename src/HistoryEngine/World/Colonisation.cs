@@ -20,6 +20,17 @@ public enum FoundingNeed
 
     /// <summary>Ore the realm has not got, worth walking past good soil to reach.</summary>
     Ore = 1,
+
+    /// <summary>
+    /// A post on the march, facing a neighbour the realm has lately fought.
+    /// </summary>
+    /// <remarks>
+    /// The one need that is about somebody else. Land and <see cref="Ore"/> are answers to what
+    /// the ground has; this is an answer to who is next to it, and it could not have been built
+    /// at M11 because nothing then knew that a particular realm was a particular realm's problem.
+    /// M15's wars, truces and grievance are what made the question answerable.
+    /// </remarks>
+    FrontierPost = 2,
 }
 
 /// <summary>Where a settling party is going, and what the realm wants from it.</summary>
@@ -128,11 +139,90 @@ public static class Colonisation
     private const double MostOreShare = 0.14;
 
     /// <summary>
+    /// Settlements a realm holds before it will spend a party on a garrison.
+    /// </summary>
+    /// <remarks>
+    /// Higher than <see cref="SettlementsBeforeOre"/>. A mine pays for itself and a frontier post
+    /// does not: it is a place the realm feeds in order to be standing somewhere. A realm of three
+    /// towns under threat should be defending the three towns.
+    /// </remarks>
+    private const int SettlementsBeforeFrontierPost = 4;
+
+    /// <summary>
+    /// Years after a war ends during which the realm still counts the other side as a threat.
+    /// </summary>
+    /// <remarks>
+    /// A generation. Long enough that the post is built in the peace after the war rather than
+    /// only during it — which is when frontier posts are actually built — and short enough that a
+    /// realm is not still fortifying against somebody it fought three reigns ago. A live truce
+    /// counts on its own, since a truce exists precisely because a war just ended.
+    /// </remarks>
+    private const int ThreatMemoryYears = 25;
+
+    /// <summary>
+    /// How far past its own border a realm will place a post, in regions.
+    /// </summary>
+    /// <remarks>
+    /// Shorter than <see cref="OreReach"/>, and for the opposite reason. Ore reaches far because
+    /// the deposit is where it is; a march is by definition the ground between two realms, so a
+    /// post three regions out is not on it. Two hops is the adjacent region and the one behind it.
+    /// </remarks>
+    private const int FrontierReach = 2;
+
+    /// <summary>How habitable ground taken to stand on has to be.</summary>
+    /// <remarks>
+    /// Between <see cref="MinHabitability"/> and <see cref="MinOreHabitability"/>. A garrison eats
+    /// but is not a farm, and unlike a mine it has no export to pay for what it cannot grow.
+    /// </remarks>
+    private const double MinFrontierHabitability = 0.10;
+
+    /// <summary>
+    /// How much of its map a realm will spend on posts, from a peaceable crown to a bellicose one.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>The floor is zero, which <see cref="LeastOreShare"/>'s is not.</b> Every realm
+    /// that becomes a state plants a first mine if there is ore in reach, because ore is wealth
+    /// and every crown wants wealth. A frontier post is not like that: a peaceable crown facing a
+    /// neighbour it has fought answers by not building forts, and the model should let it. So the
+    /// appetite compares against zero for an unaggressive realm and the need never fires.</para>
+    ///
+    /// <para>The ceiling is well below <see cref="MostOreShare"/>. Purpose foundings are a
+    /// minority of all colonisation and the mines already hold most of that budget; a realm whose
+    /// map is one part garrison in twelve is at the outer edge of plausible.</para>
+    /// </remarks>
+    private const double LeastFrontierShare = 0.00;
+
+    private const double MostFrontierShare = 0.08;
+
+    /// <summary>What one region of distance from the threat is worth against everything else.</summary>
+    /// <remarks>
+    /// Large on purpose, and larger than any terrain term below it. A frontier post is chosen for
+    /// where it is; the quality of the ground decides between two places on the march rather than
+    /// deciding whether to be on it.
+    /// </remarks>
+    private const double MarchNearnessWeight = 0.50;
+
+    // What the ground is worth once nearness has spoken. Broken country is where a small force
+    // holds a line, and habitability still has to be there because the post has to eat.
+    private const double FrontierRuggednessWeight = 0.30;
+    private const double FrontierHabitabilityWeight = 0.25;
+
+    /// <summary>
     /// Where this civilization's next settling party is going, and what the realm wants from it.
     /// </summary>
     /// <returns>Null when there is nowhere left worth going.</returns>
     public static FrontierChoice? Frontier(WorldState world, Civilization civilization)
     {
+        // The march comes before the mine. A realm that has just been fought and is minded to
+        // answer has a more immediate use for a party than a realm that is short of ore, and the
+        // need is far rarer, so putting it first costs the ore need almost nothing.
+        EntityId threat = Threat(world, civilization);
+        if (!threat.IsNone && WantsFrontierPost(world, civilization))
+        {
+            Region? march = BestBorder(world, civilization, threat);
+            if (march is not null) return new FrontierChoice(march, FoundingNeed.FrontierPost);
+        }
+
         if (WantsOre(world, civilization))
         {
             Region? deposit = BestOre(world, civilization);
@@ -141,6 +231,203 @@ public static class Colonisation
 
         Region? land = BestLand(world, civilization);
         return land is null ? null : new FrontierChoice(land, FoundingNeed.Land);
+    }
+
+    /// <summary>
+    /// The realm this one has most lately had cause to fear, if any.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Two signals, because they cover different halves of the same fact.</b> An active
+    /// war is the obvious one. A live truce is the other and the more useful: a truce exists
+    /// because a war has just been settled, so it marks exactly the period in which a realm builds
+    /// against the next one. Between them they answer "have we lately had trouble with these
+    /// people" without needing a hostility score that nothing else would read.</para>
+    ///
+    /// <para>The most recent war wins, ties breaking on the lower realm id, so the answer is a
+    /// total order over state and draws no numbers. Wars the realm fought against realms that no
+    /// longer stand are skipped: a march faces somebody.</para>
+    /// </remarks>
+    private static EntityId Threat(WorldState world, Civilization civilization)
+    {
+        EntityId threat = EntityId.None;
+        int mostRecent = int.MinValue;
+
+        foreach (War war in world.Wars)
+        {
+            if (!war.Involves(civilization.Id)) continue;
+            if (!war.IsActive && war.EndYear is int ended
+                && world.Year - ended > ThreatMemoryYears)
+            {
+                continue;
+            }
+
+            EntityId other = war.AggressorId == civilization.Id ? war.DefenderId : war.AggressorId;
+            if (!Standing(world, other)) continue;
+
+            if (war.StartYear > mostRecent
+                || (war.StartYear == mostRecent && !threat.IsNone && other.CompareTo(threat) < 0))
+            {
+                mostRecent = war.StartYear;
+                threat = other;
+            }
+        }
+
+        if (!threat.IsNone) return threat;
+
+        // No war within memory, but a truce still running is the same statement made by the peace
+        // rather than by the fighting.
+        foreach ((EntityId other, int through) in civilization.Truces)
+        {
+            if (through < world.Year || !Standing(world, other)) continue;
+            if (threat.IsNone || other.CompareTo(threat) < 0) threat = other;
+        }
+
+        return threat;
+    }
+
+    private static bool Standing(WorldState world, EntityId id) =>
+        !id.IsNone && world.Civilizations.Contains(id) && world.Civilizations[id].IsActive;
+
+    /// <summary>
+    /// Whether the realm is grown enough to garrison a march, and minded to.
+    /// </summary>
+    /// <remarks>
+    /// The same shape as <see cref="WantsOre"/> and for the same reason: read against what the
+    /// realm already holds, so the need switches itself off once it is met and returns when the
+    /// realm outgrows it. Aggression rather than mercantile appetite, and
+    /// <see cref="WorldState.ValuesFor"/> is what makes that the crown's decision rather than the
+    /// culture's — it has already folded in the fortunes, so grievance spurs this and weariness
+    /// damps it without either being named here.
+    /// </remarks>
+    private static bool WantsFrontierPost(WorldState world, Civilization civilization)
+    {
+        int settlements = 0;
+        int posts = 0;
+
+        foreach (Settlement settlement in world.ActiveSettlementsOf(civilization))
+        {
+            settlements++;
+            if (settlement.Site is SiteCharacter.Strategic or SiteCharacter.Pass) posts++;
+        }
+
+        if (settlements < SettlementsBeforeFrontierPost) return false;
+
+        double appetite = DetMath.Lerp(
+            LeastFrontierShare, MostFrontierShare, world.ValuesFor(civilization).Aggression);
+
+        return posts < settlements * appetite;
+    }
+
+    /// <summary>
+    /// The best unclaimed ground within reach that faces the threat.
+    /// </summary>
+    /// <remarks>
+    /// <para>Two walks, and they are different walks on purpose. The first measures how near each
+    /// region is to the threatening realm and crosses anything, because distance to somebody is a
+    /// fact about the map rather than a route anybody takes. The second gathers candidates from
+    /// this realm's own territory outward and crosses only its own ground and nobody's, which is
+    /// the rule <see cref="BestOre"/> gives: planting a post beyond another realm's territory is a
+    /// claim about borders this is not entitled to make.</para>
+    ///
+    /// <para>A candidate has to be in both — near the threat and reachable from home. If nothing
+    /// is, there is no march to hold and the caller falls through to the ordinary needs, which is
+    /// what happens when the threat is on the other side of the world.</para>
+    ///
+    /// <para>Nothing here draws a number or samples terrain, and both walks are over the region
+    /// graph, which is a thousand nodes.</para>
+    /// </remarks>
+    private static Region? BestBorder(
+        WorldState world, Civilization civilization, EntityId threat)
+    {
+        Dictionary<EntityId, int> towardThreat = HopsFrom(world, threat);
+        if (towardThreat.Count == 0) return null;
+
+        var reached = new Dictionary<EntityId, int>();
+        var queue = new List<EntityId>();
+
+        foreach (EntityId ownedId in civilization.TerritoryRegionIds)
+        {
+            if (reached.TryAdd(ownedId, 0)) queue.Add(ownedId);
+        }
+
+        Region? best = null;
+        double bestScore = double.NegativeInfinity;
+
+        for (int head = 0; head < queue.Count; head++)
+        {
+            EntityId id = queue[head];
+            int hops = reached[id];
+            if (hops >= FrontierReach) continue;
+
+            foreach (EntityId neighbourId in world.Regions[id].AdjacentRegions)
+            {
+                if (!reached.TryAdd(neighbourId, hops + 1)) continue;
+
+                Region neighbour = world.Regions[neighbourId];
+                if (!neighbour.IsLand) continue;
+
+                bool open = neighbour.Owner.IsNone;
+                if (!open && neighbour.Owner != civilization.Id) continue;
+
+                queue.Add(neighbourId);
+                if (!open) continue;
+
+                if (!towardThreat.TryGetValue(neighbourId, out int toThreat)) continue;
+                if (neighbour.Habitability < MinFrontierHabitability) continue;
+
+                double score = ((FrontierReach + 1 - toThreat) * MarchNearnessWeight)
+                               + (neighbour.Ruggedness * FrontierRuggednessWeight)
+                               + (neighbour.Habitability * FrontierHabitabilityWeight)
+                               - ((hops - 1) * HopCost);
+
+                if (Beats(score, bestScore, neighbour, best))
+                {
+                    bestScore = score;
+                    best = neighbour;
+                }
+            }
+        }
+
+        return best;
+    }
+
+    /// <summary>
+    /// How many regions each nearby region lies from a realm's territory, out to
+    /// <see cref="FrontierReach"/>.
+    /// </summary>
+    /// <remarks>
+    /// Its own territory is zero and is included, so a region the threat already holds is at
+    /// distance nothing — which is right, and harmless, because the candidate walk will not offer
+    /// an owned region as a site anyway.
+    /// </remarks>
+    private static Dictionary<EntityId, int> HopsFrom(WorldState world, EntityId realmId)
+    {
+        var hops = new Dictionary<EntityId, int>();
+        if (!world.Civilizations.Contains(realmId)) return hops;
+
+        var queue = new List<EntityId>();
+
+        foreach (EntityId ownedId in world.Civilizations[realmId].TerritoryRegionIds)
+        {
+            if (hops.TryAdd(ownedId, 0)) queue.Add(ownedId);
+        }
+
+        for (int head = 0; head < queue.Count; head++)
+        {
+            EntityId id = queue[head];
+            int distance = hops[id];
+            if (distance >= FrontierReach) continue;
+
+            foreach (EntityId neighbourId in world.Regions[id].AdjacentRegions)
+            {
+                if (!world.Regions[neighbourId].IsLand) continue;
+                if (!hops.TryAdd(neighbourId, distance + 1)) continue;
+
+                queue.Add(neighbourId);
+            }
+        }
+
+        return hops;
     }
 
     /// <summary>

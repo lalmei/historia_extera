@@ -85,6 +85,11 @@ public static class SiteSelection
     private const double OreSlopePenalty = 0.55;
     private const double OreThinAirPenalty = 0.10;
 
+    // What changes when the party was sent to hold a march. Two weights move, and the one that
+    // pointedly does not is the slope penalty — see FoundingNeed.FrontierPost below.
+    private const double FrontierSoilWeight = 0.60;
+    private const double FrontierPassBonus = 0.12;
+
     // There is no defensibility term, and that is a finding rather than an omission. See
     // "Defensibility was tried four ways and cut" below.
 
@@ -282,6 +287,20 @@ public static class SiteSelection
         {
             return SiteCharacter.Mine;
         }
+
+        // The errand again, and unconditionally this time. Mine's claim is about the ground and
+        // has to be checked against it — a party sent for ore can arrive and find none. A post's
+        // claim is about why the party was sent, which is a fact by construction, so there is
+        // nothing to check and no case where it falls through.
+        //
+        // It costs the "astride the pass" line for a post that does hold one, and that is the
+        // trade: letting Pass win would make the character mean "sent for the march, unless the
+        // march had a pass in it", and no reader or test could then count the posts. What the
+        // ground is stays measurable through Landform.IsPass, which is where it belongs.
+        //
+        // Nothing here asserts the ground is steep, deliberately: Fortress stays unfilled until
+        // something answers M10's measurement rather than repeating it.
+        if (need == FoundingNeed.FrontierPost) return SiteCharacter.Strategic;
 
         bool nearRiver = hydrology.RiverDistance(at.X, at.Z) <= WaterAtHand;
         bool nearSea = hydrology.CoastDistance(at.X, at.Z) <= WaterAtHand;
