@@ -80,6 +80,16 @@ public static class Occupations
 
         figure.PriorOccupation = Occupation.None;
 
+        // A priesthood that would not have married them will not take them back. Holding an
+        // office overwrites the career, so a cleric who was crowned reads as Court for the length
+        // of the reign — long enough to marry without the vow noticing — and this restore was
+        // handing them their orders again on the way out. They keep the court instead, which is
+        // where the marriage put them.
+        if (home == Occupation.Clergy && BarredFromOrders(world, figure))
+        {
+            home = Occupation.Court;
+        }
+
         if (home == Occupation.None)
         {
             if (figure.AgeIn(year) < Succession.MajorityAge)
@@ -147,6 +157,25 @@ public static class Occupations
         return OfficeMismatch;
     }
 
+    /// <summary>
+    /// Whether a vow of celibacy stands between this figure and holy orders.
+    /// </summary>
+    /// <remarks>
+    /// The other half of <c>HouseholdSystem.VowedToCelibacy</c>, which refuses the marriage of
+    /// someone already in orders. Without this the rule fires in one direction only, and the
+    /// chronicle records a man marrying and taking holy orders in the same year in a faith whose
+    /// own scripture forbids it — which is exactly what it did.
+    ///
+    /// <para>Asked of the faith the figure professes, because that is the faith whose vow they
+    /// would be taking. A married figure of no faith, or of a faith that permits it, is barred
+    /// from nothing.</para>
+    /// </remarks>
+    public static bool BarredFromOrders(WorldState world, Figure figure) =>
+        figure.IsMarried
+        && !figure.ReligionId.IsNone
+        && world.Religions.Contains(figure.ReligionId)
+        && world.Religions[figure.ReligionId].Character.CelibateClergy;
+
     public static Occupation Choose(WorldState world, Figure figure, IRng rng)
     {
         Culture culture = world.CultureOf(figure);
@@ -182,6 +211,12 @@ public static class Occupations
             Occupation.Court,
             Occupation.Scribe,
         };
+
+        // A vow taken after a wedding is not a vow. Zeroing the weight rather than removing the
+        // option keeps the array — and therefore the number of draws this roll makes — the same
+        // for everyone, which is what stops a married figure's existence from shifting the
+        // careers of everyone chosen after them.
+        if (BarredFromOrders(world, figure)) weights[IndexOf(Occupation.Clergy)] = 0.0;
 
         return rng.PickWeighted(options, occupation => weights[IndexOf(occupation)]);
     }

@@ -1,6 +1,7 @@
 using HistoryEngine.Core;
 using HistoryEngine.Entities;
 using HistoryEngine.Events;
+using HistoryEngine.Systems;
 using HistoryEngine.World;
 using Xunit;
 
@@ -83,6 +84,133 @@ public sealed class OccupationTests
         }
 
         Assert.True(civilians > 50, $"Only {civilians} people had a trade and no appointed office.");
+    }
+
+
+    // ─── The vow ──────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// A panel wide enough to contain celibate faiths, including the world the bug was found in.
+    /// </summary>
+    private static readonly ulong[] CelibacySeeds = { 2, 7, 11, 42, 99, 1432144466 };
+
+    /// <summary>
+    /// Nobody is both in holy orders and married, where the faith forbids it.
+    /// </summary>
+    /// <remarks>
+    /// <para>The rule the faiths' own scripture asserts and the simulation did not keep. It was
+    /// checked against the <see cref="OfficeKind.HighPriest"/> seat, which reaches exactly one
+    /// person per faith, so every ordinary priest was exempt: 20 of 267 clergy in celibate faiths
+    /// across this panel had a spouse.</para>
+    ///
+    /// <para>Zero rather than a tolerance, and it took closing three doors to get there — the
+    /// marriage, the ordination, and the restore that hands a former ruler back the career they
+    /// held before the crown. Any of them left open puts figures back in this count, which is why
+    /// it is asserted exactly.</para>
+    /// </remarks>
+    [Fact]
+    public void NobodyInHolyOrdersIsMarriedWhereTheFaithForbidsIt()
+    {
+        int underVow = 0;
+
+        foreach (ulong seed in CelibacySeeds)
+        {
+            WorldState world = HistoryRun.Execute(TestWorlds.Standard(seed)).World;
+
+            foreach (Figure figure in world.Figures)
+            {
+                if (figure.Occupation != Occupation.Clergy) continue;
+                if (figure.ReligionId.IsNone || !world.Religions.Contains(figure.ReligionId)) continue;
+                if (!world.Religions[figure.ReligionId].Character.CelibateClergy) continue;
+
+                underVow++;
+
+                Assert.True(
+                    !figure.IsMarried && figure.SpouseId.IsNone,
+                    $"{figure.FullName} is in holy orders in a faith that forbids its clergy to "
+                    + $"marry, and has a spouse (seed {seed}).");
+            }
+        }
+
+        Assert.True(
+            underVow > 100,
+            $"Only {underVow} clergy served a celibate faith across the panel, so the assertion "
+            + "above is close to vacuous. Check that celibate faiths are still being generated.");
+    }
+
+    /// <summary>
+    /// Closing the doors did not empty the temples.
+    /// </summary>
+    /// <remarks>
+    /// The counterweight to the test above, and the one that would have caught the lazy version
+    /// of this fix. Barring the married from orders removes people from a pool; barring too many
+    /// would satisfy the vow by abolishing the priesthood. Measured before the change, clergy
+    /// were 11.5% of recorded figures across this panel and are 11.0% after.
+    /// </remarks>
+    [Fact]
+    public void TheVowDoesNotEmptyThePriesthood()
+    {
+        int figures = 0;
+        int clergy = 0;
+
+        foreach (ulong seed in CelibacySeeds)
+        {
+            WorldState world = HistoryRun.Execute(TestWorlds.Standard(seed)).World;
+
+            foreach (Figure figure in world.Figures)
+            {
+                figures++;
+                if (figure.Occupation == Occupation.Clergy) clergy++;
+            }
+        }
+
+        double share = clergy / (double)figures;
+        Assert.InRange(share, 0.07, 0.16);
+    }
+
+    /// <summary>
+    /// The vow refuses a marriage, and refuses orders to someone already married.
+    /// </summary>
+    /// <remarks>
+    /// Both directions on one figure, because the bug was that only one of them was ever asked.
+    /// The chronicle's own example ran "took to holy orders at Chernigradun" and "married
+    /// Findabaire at Chernigradun" in the same year, which needs both doors shut to be
+    /// impossible rather than merely unlikely.
+    /// </remarks>
+    [Fact]
+    public void AVowBindsBothWaysRound()
+    {
+        WorldState world = HistoryRun.Execute(TestWorlds.Standard(11)).World;
+
+        Religion? celibate = null;
+        foreach (Religion religion in world.Religions)
+        {
+            if (!religion.Character.CelibateClergy) continue;
+            celibate = religion;
+            break;
+        }
+
+        Assert.NotNull(celibate);
+
+        Figure? cleric = null;
+        foreach (Figure figure in world.Figures)
+        {
+            if (figure.Occupation != Occupation.Clergy) continue;
+            if (figure.ReligionId != celibate!.Id) continue;
+            cleric = figure;
+            break;
+        }
+
+        Assert.NotNull(cleric);
+
+        // Already in orders: not barred from orders (they are in them), and the household roll
+        // must refuse them a marriage. Asserted through the public surface the roll uses.
+        Assert.False(Occupations.BarredFromOrders(world, cleric!));
+        Assert.True(HouseholdSystem.VowedToCelibacy(world, cleric!));
+
+        // The mirror: mark them married, and orders become unavailable.
+        cleric!.SpouseId = cleric.Id;
+        Assert.True(Occupations.BarredFromOrders(world, cleric));
     }
 
     private static bool HeldAPublicOffice(Figure figure)

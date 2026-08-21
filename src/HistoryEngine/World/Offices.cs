@@ -345,6 +345,12 @@ public static class Offices
 
         if (!world.Religions[faithId].Character.Admits(figure.Sex)) return false;
 
+        // A faith that forbids its clergy to marry does not hand its highest seat to a married
+        // person. Checked here rather than left to the household roll, because the seat carries
+        // Occupation.Clergy with it: without this, an appointment is a second door into orders
+        // and the vow reaches nobody who came through it.
+        if (figure.IsMarried && world.Religions[faithId].Character.CelibateClergy) return false;
+
         // A person of another church is not a candidate for this one's seat. The faithless
         // still are — taking the office is how they enter it.
         return figure.ReligionId.IsNone || figure.ReligionId == faithId;
