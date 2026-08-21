@@ -229,9 +229,15 @@ public sealed class UnrestTests
                         && world.Settlements[born.CapitalId].IsActive
                         && world.Settlements[born.CapitalId].CivilizationId == born.Id,
                         $"{born.Name} still stands but has no seat.");
-                    Assert.False(
-                        born.CurrentRulerId.IsNone,
-                        $"{born.Name} still stands but has no ruler.");
+                    // Crowned, not necessarily crowned *now*. An empty throne is a state the
+                    // engine models on purpose — CrownSystem governs an interregnum by the
+                    // culture alone and UnrestSystem counts it as unrest — so asserting a sitting
+                    // ruler at the final snapshot forbids a legitimate condition and merely
+                    // happens to pass while no sampled breakaway is between crowns. Seed 71's
+                    // Nuijaset, five rulers over 118 years, is exactly that realm.
+                    Assert.True(
+                        born.RulerIds.Count > 0,
+                        $"{born.Name} still stands and has never been crowned at all.");
                 }
 
                 if (from is not null)
