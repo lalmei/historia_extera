@@ -108,6 +108,8 @@ public static class Narration
             "{subject} took to {data:occupation}[ at {location}].");
         Set(EventKind.JourneyMade,
             "{subject} travelled to {location}[, {data:purpose}].");
+        Set(EventKind.JourneyWaylaid,
+            "{subject} came to grief[ on the way to {location}][, {data:cause}].");
 
         Set(EventKind.DynastyFounded, "The {subject} rose[ under {object}][ in {location}].");
         Set(EventKind.DynastyEnded, "The {subject} died out[ after {data:years}].");
@@ -260,6 +262,8 @@ public static class Narration
             "Took to {data:occupation}[ at {location}].");
         SetSelf(EventKind.JourneyMade,
             "Travelled to {location}[, {data:purpose}].");
+        SetSelf(EventKind.JourneyWaylaid,
+            "Came to grief[ on the way to {location}][, {data:cause}].");
         SetSelf(EventKind.DynastyFounded,
             "[{self:object}Raised the {subject}][{self:object} in {location}].");
         SetSelf(EventKind.DynastyAscended,

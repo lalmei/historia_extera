@@ -765,7 +765,8 @@ public sealed record ExportJourney(
     int Year,
     EntityId FromSettlementId,
     EntityId ToSettlementId,
-    EntityId? ViaId);
+    EntityId? ViaId,
+    JourneyOutcome Outcome);
 
 /// <summary>
 /// One person's own inclinations, on the same dials their culture has.

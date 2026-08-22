@@ -837,7 +837,8 @@ public static class WorldExporter
                 Year: journey.Year,
                 FromSettlementId: journey.FromSettlementId,
                 ToSettlementId: journey.ToSettlementId,
-                ViaId: OrNull(journey.ViaId)));
+                ViaId: OrNull(journey.ViaId),
+                Outcome: journey.Outcome));
         }
 
         return list;

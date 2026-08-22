@@ -68,6 +68,16 @@ public enum EventKind
     /// <summary>A recorded person travelled and was expected home again.</summary>
     JourneyMade = 323,
 
+    /// <summary>
+    /// A journey went wrong: robbed, turned back, or ended in a death away from home.
+    /// </summary>
+    /// <remarks>
+    /// Separate from the journey itself rather than a field on it, because this is the half a
+    /// reader came for. <see cref="JourneyMade"/> is an itinerary and stays Routine; this is an
+    /// event on the road and stands on the spine with the rest of the year's violence.
+    /// </remarks>
+    JourneyWaylaid = 324,
+
     // ---- Territory (400) ----
     // Claims are written so ownership can be replayed year by year; they are marked Routine
     // so the timeline is not a run of "extended its reach". Cessions and releases stay on
