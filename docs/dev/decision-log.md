@@ -2589,6 +2589,99 @@ beyond `Disposition`, which already rolls around the culture and now rolls aroun
 
 ---
 
+### M19: the road has a cost
+
+**What reading the chronicle showed.** M16 gave recorded people journeys, and by seed 42 they were
+the third-largest event class in the world — 1,250 of 7,051 — and every single one of them ended the
+same way. Nobody was robbed, nobody drowned, nobody failed to come home. A merchant's life page was
+forty identical lines saying he had been to the same town again. Travel was the only thing in this
+world with no downside, and the shape of that failure was familiar: brigandage had been raised by
+unrest since M15 and nothing but the trade ledger had ever read it, so a country could go lawless
+without a single traveller noticing.
+
+**A journey now rolls against the road.** The floor is set by the journey's kind, ordered by how much
+company the traveller keeps — a merchant moves with a caravan along a corridor somebody's soldiers
+nominally patrol, a guest of an allied court travels under that court's protection, a missionary and
+a pilgrim have neither. On top of that go the lawlessness of the worse of the two ends, the distance,
+and a war at the far end. A mishap kills 28% of the time by land and 55% by water, more past 55, and
+a robbery that spares the traveller may still take something they personally owned — the only way an
+artifact leaves a settlement in this engine without an army arriving.
+
+**The unsafest end, not the average.** The same rule the trade system already applies to a route's
+security, for the same reason: a road is as safe as its worst stretch and nobody is robbed on average.
+When one end is lawless enough that the chronicle has already told the reader so, the robbery is
+pinned on it — "set upon by brigands out of Tamasqa" is the one line in the world that ties a robbery
+to the grievance that produced the robbers.
+
+**Residence is still untouched.** A journey remains a trip. Being robbed does not relocate anyone,
+and the mishap is recorded as its own event rather than a field on the itinerary, so a life page reads
+"travelled to Shche" in most years and "came to grief on the way to Shche" in the year that mattered.
+
+#### The first consumer of a road
+
+DESIGN has been asking since M17 for something to read road geometry, on the condition that it read
+something the route's traffic does not already say. Safety is that consumer, and the term has two
+halves. A cut track leaves 80% of the land hazard and a paved road 62% — bridges instead of fords are
+most of what the engineering bought. Then the line the road *had to take* gives some of it back: the
+ratio of its length to the straight distance between the two towns measures how hard the country in
+between is, and hard country is dangerous country. Traffic cannot supply that. Traffic says how much
+is carried; it says nothing about how far round the carrying has to go.
+
+Measured before the term was written, because a term that cannot distinguish its cases does not get
+kept: the seven roads built on seed 42 have detour ratios from 1.00 to 1.41, and the term reaches 85
+of 1,472 journeys with multipliers spread over 0.62 to 0.97. A paved road across easy country makes a
+journey a third safer; a track dragged 45% the long way round is worth almost nothing. Nothing here
+samples terrain — the path was searched once when the road was built, and its length has been sitting
+on the route ever since.
+
+#### What it produced
+
+Seed 42, 300 years: **48 mishaps, 31 survived and 17 fatal**, against 5 battle deaths and 3
+assassinations in the same run. Rare enough to be remarkable, common enough to appear — a High Priest
+lost in a storm on pilgrimage, a Consul caught by weather in the hills, a merchant of 74 taken by
+armed men on a road he had walked for forty years.
+
+**The cause is carried twice, and that is not redundancy.** The clause that reads well in the
+chronicle — "came to grief on the way to Shche, when the ship was driven aground" — reads as "died, of
+when the ship was driven aground" in an obituary a line later. One string in both slots produces one
+good line and one bad one, which is exactly the sort of defect that survives a demo.
+
+#### What it disturbed
+
+Three tests failed that were not about travel at all, and one of them was a real bug.
+
+**A newcomer could be ordained on their wedding day after all.** M18's celibacy work closed three
+doors and `BarredFromOrders` still had a fourth open: it asked what faith the *figure* professed, and
+a spouse invented for a wedding professes none. So the guard saw a person of no faith and barred them
+from nothing — the exact person the rule exists for. The vow that binds is the one held by the temple
+standing where they live, and that is what it asks now.
+
+**Two assertions were reading proxies.** A standing realm was required to have a seated ruler at the
+final tick, but a ruler can die on a scheduled day after succession has made its pass for the year;
+the same run carried one year further seats an heir. And a frontier post was required to stand in a
+realm that had fought a war, when the model's own threat test also counts a live truce — and a truce
+is sworn between a parent realm and a province that secedes from it. Seed 15 builds a post on exactly
+that provocation. Both assertions now ask for their subject rather than for a stand-in that agreed
+with it on the sample they were written against.
+
+#### Deliberately not built
+
+**A journey that ends in staying.** The most interesting thing a traveller could do is not come back
+*and not be dead* — a merchant's family relocating to the partner city, a missionary who stays among
+his converts. It is also a residence change across a realm boundary, which touches houses, offices
+and civilization membership, and it belongs in a change that can be reviewed as being about migration
+rather than smuggled into one about hazard.
+
+**Pirates.** Lawlessness is a fact about the country around a town, and following it out to sea would
+be borrowing a number from a place it does not describe. The sea has its own hazard and no brigands.
+
+**Folding the routine itinerary.** Forty "travelled to Megalophura" lines are still forty lines. The
+mishap gives the class a spine, but whether a merchant's standing circuit should collapse into one
+recorded fact is a question about the chronicle's shape, not about travel, and it wants measuring
+against the viewer's own filters first.
+
+---
+
 ## Milestones
 
 | # | Deliverable | State |

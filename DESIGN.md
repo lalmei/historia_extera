@@ -222,6 +222,21 @@ figures from the simulated population instead of inventing disconnected names. N
 households give those figures family continuity without attempting to simulate every
 person in the world.
 
+### Travel
+
+A recorded adult may leave home for a year: a merchant along an open route, a priest to preach
+or to fetch copies, a pilgrim to a shrine of their own faith, a courtier as a guest of an ally.
+Residence does not move — a journey is a trip, and a merchant who vanished from his town every
+year he used a route would be missed by the disasters that reach a residence for no reason the
+chronicle could defend.
+
+A journey can go wrong, rarely. The hazard rises with the lawlessness of the worse of its two
+ends, the distance, and a war at the far end, and falls on a road. Most mishaps are a robbery
+the traveller survives, which may still cost them something they owned; the rest are a death
+away from home, recorded with the place it happened and the cause. This is the one thing that
+makes brigandage cost a person rather than a ledger, and the only way an artifact leaves a
+settlement without an army arriving.
+
 ### Connection and conflict
 
 Diplomacy is based on reach, contact, memory, faith, kinship, and recent events rather
@@ -238,9 +253,16 @@ pass grids the atlas already holds, computed once when the road is built or upgr
 stored on the route the way a settlement's coordinate is. The route keeps its identity
 throughout — a road is a fact about how a relationship is served, not a relationship of its
 own — and outlives the commerce that paid for it. Coastal routes are sailed and carry no
-road, because the engine models no ships. Nothing in the simulation reads a road yet: it is
-economic geometry, and feeding it back into capacity would double-count the traffic that
-produced it.
+road, because the engine models no ships.
+
+One thing reads a road: how safe it is to travel. A cut track takes less of a journey's
+hazard than open country and an engineered road less again, and then the ratio of the road's
+length to the straight distance gives some of that back, because a way forced the long way
+round is a measurement of how hard the country between the towns is. That is the condition
+the geometry had to meet before anything consumed it — it tells the model something the
+route's traffic cannot, since traffic says how much is carried and nothing about how far
+round the carrying has to go. Capacity still does not read a road, and should not: the
+traffic that paid for it is already in the number.
 
 ## Viewer boundary
 
@@ -267,6 +289,7 @@ not a runtime architecture. A deployed viewer remains a reader of exported histo
 | M16 | Lives the chronicle follows: occupations, journeys, and campaign memory | Done |
 | M17 | The seed's cosmology, and tomes that draw on it | Done |
 | M18 | Cultural drift: a people that changes over the centuries | Done |
+| M19 | The road has a cost: journeys that can be robbed, drowned, or fatal | Done |
 
 M13 landed in independently reviewable stages: the clock and dated record first, seasonal
 war and expansion next, then plague travel and outbreak clocks, and finally sieges as
@@ -284,8 +307,11 @@ Beyond the numbered milestones:
 - Widen the terrain manifest where it cannot describe somebody else's map: an ocean mask
   distinct from lakes, a flow layer so a river-aware generator is not rederived worse, and
   a declared east/west topology the loader can check against the seam.
-- Let something consume road geometry — travel time, campaign movement, or capacity — once a
-  measurement shows the road is telling it something the route's traffic does not already.
+- Let campaign movement or travel *time* consume road geometry as well, now that safety does.
+  The same condition applies: it must read something the route's traffic does not already say.
+- Let a journey end in staying — a merchant's family relocating to the partner city, a
+  missionary who remains among his converts. It is a residence change across a realm boundary,
+  so it touches houses, offices and membership, and wants reviewing as migration in its own right.
 - Build the Phase 3 Vintage Story terrain adapter and revalidate framework, calendar,
   hydrology cost, and map-raster cost against the game version actually targeted.
 

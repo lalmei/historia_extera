@@ -52,7 +52,8 @@ filled → households and offices against the line as it now stands → what the
 
 `unrest` follows `war` so the grievance a campaign earns can boil over the same year, and
 precedes `trade-routes` so the brigandage a rising raises suppresses that year's traffic.
-`travel` follows `trade-routes` so a merchant's journey uses a corridor that is actually open.
+`travel` follows `trade-routes` so a merchant's journey uses a corridor that is actually open, and
+so the hazard of that journey is read off a route whose road and security are this year's.
 `cultural-drift` follows all of them because it moves a people's baseline against the relations,
 wars and faiths the year has just settled. It is `crown`'s counterpart at the far end of the year:
 crown reads the baseline and settles what the realm is governed by, drift writes the baseline for
@@ -147,9 +148,13 @@ the pairs no road can reach. Every toll is an integer and the frontier is keyed 
 `cost × cells + index`, so the minimum is unique and the path does not depend on a heap's
 tie-breaking, which no framework guarantees.
 
-Nothing consumes a road yet. Roads are economic geometry: they change no capacity, no travel time
-and no campaign. Feeding them back into carrying capacity would double-count the traffic that
-built them.
+One thing consumes a road: `travel` reads it to decide how dangerous a journey is. A cut track
+takes less of the hazard than open country and a paved road less again, and then the ratio of the
+road's length to the straight distance between the towns gives some of that back, since a way
+forced the long way round measures how hard the intervening country is. That is the condition the
+geometry had to meet — it says something `TradeRoute.Traffic` cannot. Nothing else reads a road:
+carrying capacity in particular must not, because the traffic that built the road is already in
+the number, and campaign movement is not modelled positionally at all.
 
 Tome circulation, plague spread and carrying capacity consume active routes. This keeps the
 engine's different notions of ordinary travel on one shared network instead of letting each system
