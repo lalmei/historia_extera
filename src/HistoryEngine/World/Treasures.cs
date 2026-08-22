@@ -203,6 +203,24 @@ public static class Treasures
     }
 
     /// <summary>
+    /// Loses one thing a person owned, if they owned anything to lose.
+    /// </summary>
+    /// <remarks>
+    /// For a robbery on the road. The location written is where the thing was being kept, because
+    /// that is the last place anyone could name — nobody records the mile of road a chest went
+    /// missing on, and the cause says the rest.
+    /// </remarks>
+    public static bool LoseCarried(
+        WorldState world, Figure figure, int year, string cause, IRng rng)
+    {
+        List<Artifact> owned = OwnedBy(world, figure.Id);
+        if (owned.Count == 0) return false;
+
+        Lose(world, owned[rng.NextInt(owned.Count)], year, cause);
+        return true;
+    }
+
+    /// <summary>
     /// Settles claims left on the dead, and passes a throne's treasures to whoever now sits it.
     /// </summary>
     /// <remarks>
