@@ -166,15 +166,31 @@ public static class Occupations
     /// chronicle records a man marrying and taking holy orders in the same year in a faith whose
     /// own scripture forbids it — which is exactly what it did.
     ///
-    /// <para>Asked of the faith the figure professes, because that is the faith whose vow they
-    /// would be taking. A married figure of no faith, or of a faith that permits it, is barred
-    /// from nothing.</para>
+    /// <para>Asked of the faith the figure professes, and of the faith of the place they live in
+    /// when they profess none. The fall-back is not a nicety: a spouse invented for a wedding is
+    /// raised into the record with no faith at all and is given a career in the same pass, so
+    /// asking only what they professed let exactly the person this rule exists for through the
+    /// door — married in one line, ordained in the next, and holding the town's celibate faith by
+    /// the following spring. Whoever ordains them is the temple standing where they live, and that
+    /// temple's vow is the one that binds. A married figure in a place of no faith, or of a faith
+    /// that permits it, is barred from nothing.</para>
     /// </remarks>
-    public static bool BarredFromOrders(WorldState world, Figure figure) =>
-        figure.IsMarried
-        && !figure.ReligionId.IsNone
-        && world.Religions.Contains(figure.ReligionId)
-        && world.Religions[figure.ReligionId].Character.CelibateClergy;
+    public static bool BarredFromOrders(WorldState world, Figure figure)
+    {
+        if (!figure.IsMarried) return false;
+
+        EntityId faith = figure.ReligionId;
+
+        if (faith.IsNone)
+        {
+            EntityId home = world.ResidenceOf(figure);
+            if (world.Settlements.Contains(home)) faith = world.Settlements[home].ReligionId;
+        }
+
+        return !faith.IsNone
+            && world.Religions.Contains(faith)
+            && world.Religions[faith].Character.CelibateClergy;
+    }
 
     public static Occupation Choose(WorldState world, Figure figure, IRng rng)
     {
