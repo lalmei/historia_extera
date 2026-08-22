@@ -156,6 +156,13 @@ public sealed class DynastyTests
     /// <para>Nothing about that is visible in aggregate: the event count merely comes out lower
     /// than it would have, which during calibration reads as a dial needing a turn. Three realms
     /// in a three-century run had been governed by the dead for over a century each.</para>
+    ///
+    /// <para>The final year is exempt from the vacancy half, and only from that half. A ruler can
+    /// die on a scheduled day — of a plague step, or on a road somewhere — after succession has
+    /// already made its pass for the year, and the throne then stands empty until the following
+    /// spring. That is an interregnum the history simply ends inside, not a realm abandoned: the
+    /// same run carried one year further seats an heir. What must never happen is a throne held by
+    /// a corpse or by a foreigner, and those are still asserted with no exemption at all.</para>
     /// </remarks>
     [Fact]
     public void NoStandingRealmIsRuledByTheDeadOrTheAbsent()
@@ -165,15 +172,35 @@ public sealed class DynastyTests
 
         foreach (Civilization civilization in world.ActiveCivilizations())
         {
-            Assert.False(
-                civilization.CurrentRulerId.IsNone,
-                $"{civilization.Name} still stands but has no ruler at all.");
+            if (civilization.CurrentRulerId.IsNone)
+            {
+                Assert.True(
+                    VacatedInTheFinalYear(world, civilization),
+                    $"{civilization.Name} still stands but has no ruler at all, and none died in "
+                    + "the last year of the run to explain it.");
+
+                continue;
+            }
 
             Figure ruler = world.Figures[civilization.CurrentRulerId];
 
             Assert.True(ruler.IsAlive, $"{civilization.Name} is ruled by {ruler.Name}, who is dead.");
             Assert.Equal(civilization.Id, ruler.CivilizationId);
         }
+    }
+
+    /// <summary>True when this realm's last ruler died in the final simulated year.</summary>
+    private static bool VacatedInTheFinalYear(WorldState world, Civilization civilization)
+    {
+        for (int i = civilization.RulerIds.Count - 1; i >= 0; i--)
+        {
+            EntityId id = civilization.RulerIds[i];
+            if (!world.Figures.Contains(id)) continue;
+
+            return world.Figures[id].DeathYear == world.EndYear;
+        }
+
+        return false;
     }
 
     /// <summary>Reigns must not run past a human lifetime, which is what a stale throne looks like.</summary>

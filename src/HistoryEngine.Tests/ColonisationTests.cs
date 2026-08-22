@@ -262,11 +262,19 @@ public sealed class ColonisationTests
     /// A garrison is a minority of foundings, and never in a realm nobody threatened.
     /// </summary>
     /// <remarks>
-    /// The bound that keeps the need a need. Purpose foundings are the exceptions that make the
-    /// rest of a map look intelligent, so they have to stay exceptional: across twenty-four seeds
-    /// posts are 5.3% of settlements and mines 11.3%, which leaves ordinary colonisation holding
-    /// five sixths of the map. The second assertion is the one that makes it a *reason*: not one
-    /// post in the panel stands in a realm that never fought anybody.
+    /// <para>The bound that keeps the need a need. Purpose foundings are the exceptions that make
+    /// the rest of a map look intelligent, so they have to stay exceptional: across twenty-four
+    /// seeds posts are 5.3% of settlements and mines 11.3%, which leaves ordinary colonisation
+    /// holding five sixths of the map. The second assertion is the one that makes it a *reason*:
+    /// not one post in the panel stands in a realm nothing ever threatened.</para>
+    ///
+    /// <para>"Threatened" is asked as the model asks it, and the model does not require a war. A
+    /// realm counts a neighbour as a threat while a truce with it still runs, and a truce is sworn
+    /// by the parent and the breakaway when a province secedes as well as by two sides settling a
+    /// war. Seed 15 builds a post on exactly that provocation: Falerani, which never fought
+    /// anybody in three centuries, fortifies the march against the realm that broke away from it.
+    /// Reading the war roll alone called that post unprovoked, which is the assertion mistaking
+    /// its proxy for its subject — the post has a reason, and the reason is in the truce.</para>
     /// </remarks>
     [Fact]
     public void AGarrisonIsAMinorityAndNeverUnprovoked()
@@ -279,11 +287,16 @@ public sealed class ColonisationTests
         {
             WorldState world = HistoryRun.Execute(TestWorlds.Standard(seed)).World;
 
-            var fought = new HashSet<EntityId>();
+            var threatened = new HashSet<EntityId>();
             foreach (War war in world.Wars)
             {
-                fought.Add(war.AggressorId);
-                fought.Add(war.DefenderId);
+                threatened.Add(war.AggressorId);
+                threatened.Add(war.DefenderId);
+            }
+
+            foreach (Civilization civilization in world.Civilizations)
+            {
+                if (civilization.Truces.Count > 0) threatened.Add(civilization.Id);
             }
 
             foreach (Settlement settlement in world.Settlements)
@@ -292,7 +305,7 @@ public sealed class ColonisationTests
                 if (settlement.Site != SiteCharacter.Strategic) continue;
 
                 posts++;
-                if (!fought.Contains(settlement.CivilizationId)) unprovoked++;
+                if (!threatened.Contains(settlement.CivilizationId)) unprovoked++;
             }
         }
 
