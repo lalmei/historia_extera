@@ -146,9 +146,10 @@ court casualties they caused, just as battles already link their commanders.
 
 ## Schema
 
-The viewer pins the export's `schemaVersion` (**28**) and refuses a file it does not
+The viewer pins the export's `schemaVersion` (**30**) and refuses a file it does not
 understand rather than misrendering it. Regenerate the world with the matching engine if
-it complains. Version 28 added journeys and the official and scribe occupations. Version 27 added a figure's campaigns — battles a soldier or general stood in,
+it complains. Version 30 records how a journey ended — most travellers came home, and the
+ones who were robbed or never returned now say so on their own page. Version 28 added journeys and the official and scribe occupations. Version 27 added a figure's campaigns — battles a soldier or general stood in,
 wars a sitting ruler led, and sieges endured by anyone living in an invested town. Version 20 added the world's designation — planet or moon, and the proper
 names that go with it. Version 15 added what feeds each standing settlement — its carrying capacity
 itemised into the site, its share of the surrounding fields and what the roads bring — which
