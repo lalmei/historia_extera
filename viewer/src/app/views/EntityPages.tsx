@@ -32,6 +32,7 @@ import {
   ARTIFACT_LABELS,
   CAMPAIGN_ROLE_LABELS,
   JOURNEY_KIND_LABELS,
+  JOURNEY_OUTCOME_LABELS,
   CAUSE_LABELS,
   DEATH_LABELS,
   AFTERLIFE_LABELS,
@@ -828,6 +829,12 @@ function JourneyList({ world, journeys }: { world: World; journeys: Journey[] })
           <EntityLink world={world} id={journey.fromSettlementId} />
           {' to '}
           <EntityLink world={world} id={journey.toSettlementId} />
+          {journey.outcome && journey.outcome !== 'Returned' && (
+            <span className="text-[var(--ink-faint)]">
+              {' — '}
+              {JOURNEY_OUTCOME_LABELS[journey.outcome] ?? journey.outcome}
+            </span>
+          )}
         </li>
       ))}
     </ul>

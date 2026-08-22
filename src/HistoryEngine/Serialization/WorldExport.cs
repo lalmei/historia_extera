@@ -108,7 +108,7 @@ public sealed record WorldExport(
     /// whom. Absent on every route that never earned one, and on every coastal route, which is
     /// sailed.
     /// </remarks>
-    public const int CurrentSchemaVersion = 29;
+    public const int CurrentSchemaVersion = 30;
 }
 
 public sealed record ExportMeta(
