@@ -214,13 +214,25 @@ public sealed class NarrationTests
                     || token.StartsWith("data:", StringComparison.Ordinal)
                     || token.StartsWith("as:", StringComparison.Ordinal)
                     || token.StartsWith("not:", StringComparison.Ordinal)
-                    || token.StartsWith("self:", StringComparison.Ordinal);
+                    || token.StartsWith("self:", StringComparison.Ordinal)
+                    || IsKnownExtraSlot(token);
 
                 Assert.True(valid, $"Template for {pair.Key} uses unknown placeholder '{token}'");
                 i = close;
             }
         }
     }
+
+    /// <summary>
+    /// An <c>{extra:kind}</c> slot must name a kind prefix the engine actually issues.
+    /// </summary>
+    /// <remarks>
+    /// The prefix is the whole of this slot's contract, so a typo in one is a clause that silently
+    /// never renders — the failure mode this whole test exists to catch.
+    /// </remarks>
+    private static bool IsKnownExtraSlot(string token) =>
+        token.StartsWith("extra:", StringComparison.Ordinal)
+        && EntityKindExtensions.TryParsePrefix(token.Substring(6), out _);
 
     /// <summary>Optional segments must be balanced, since the viewer parses the same grammar.</summary>
     [Fact]
@@ -242,4 +254,67 @@ public sealed class NarrationTests
     }
 
     private static string Name(EntityId id) => id.ToString();
+
+    /// <summary>
+    /// <c>{extra:kind}</c> picks the first entity of that kind out of the event's extra ids, and
+    /// is absent when the event carries none — which is what lets one template hold several
+    /// mutually exclusive clauses.
+    /// </summary>
+    /// <remarks>
+    /// The journey line is the case it was added for: a trip's reason is a holy site for a
+    /// pilgrim, a faith for a priest on circuit and a realm for a guest, and one template has to
+    /// say all three without the viewer learning what a journey is.
+    /// </remarks>
+    [Fact]
+    public void ExtraSlotResolvesByKindAndIsAbsentWhenTheKindIsNot()
+    {
+        var pilgrimage = new HistoryEvent(
+            Id: 0,
+            Year: 12,
+            Kind: EventKind.JourneyMade,
+            Subject: EntityId.Figure(1),
+            Object: default,
+            Location: EntityId.Settlement(2),
+            Extra: new[] { EntityId.Settlement(3), EntityId.HolySite(4) },
+            Data: Chronicle.Data(("purpose", "on pilgrimage to")));
+
+        Assert.Equal(
+            "fig:1 travelled to set:2, on pilgrimage to the hol:4.",
+            Narration.Render(pilgrimage, Name));
+
+        // The same template, an errand with no holy site in it: every clause whose kind is absent
+        // drops, and the line stays grammatical.
+        var trade = new HistoryEvent(
+            Id: 1,
+            Year: 12,
+            Kind: EventKind.JourneyMade,
+            Subject: EntityId.Figure(1),
+            Object: default,
+            Location: EntityId.Settlement(2),
+            Extra: new[] { EntityId.Settlement(3), EntityId.TradeRoute(5) },
+            Data: Chronicle.Data(("purpose", "on trade")));
+
+        Assert.Equal("fig:1 travelled to set:2, on trade.", Narration.Render(trade, Name));
+    }
+
+    /// <summary>An unknown kind prefix resolves to nothing rather than throwing.</summary>
+    /// <remarks>
+    /// Templates are data that ships in the export. A typo in one must degrade to a dropped
+    /// segment, not to an exception in whatever is rendering a chronicle.
+    /// </remarks>
+    [Fact]
+    public void AnUnknownExtraKindDropsItsSegment()
+    {
+        var entry = new HistoryEvent(
+            Id: 0,
+            Year: 12,
+            Kind: EventKind.Unknown,
+            Subject: EntityId.Figure(1),
+            Object: default,
+            Location: default,
+            Extra: new[] { EntityId.HolySite(4) });
+
+        Assert.Equal(string.Empty, Narration.RenderTemplate("[{extra:nope}]", entry, Name));
+        Assert.Equal("hol:4", Narration.RenderTemplate("[{extra:hol}]", entry, Name));
+    }
 }

@@ -14,6 +14,10 @@ import { kindOf, type EntityId, type HistoryEvent } from './types';
  *   - `{subject}` `{object}` `{location}` — entity slots, emitted as segments so
  *     the caller can turn them into cross-links.
  *   - `{data:key}` — plain text from the event's data payload.
+ *   - `{extra:kind}` — the first entity of that short kind prefix (`hol`, `rel`, `civ`, …) among
+ *     the event's `extra` ids, emitted as a link like the named slots. Absent when the event
+ *     carries none of that kind, which is what lets one template hold several mutually exclusive
+ *     clauses — a journey's reason is a holy site, a faith or a realm depending on the errand.
  *   - `{self}` `{other}` — the figure whose page is being read, and the other
  *     figure among subject and object.
  *   - `{as:key}` `{not:key}` `{self:subject}` (also object, location, extra) —
@@ -27,7 +31,7 @@ import { kindOf, type EntityId, type HistoryEvent } from './types';
  *
  * `meta.narrationSyntaxVersion` guards against the grammar changing under us.
  */
-export const NARRATION_SYNTAX_VERSION = 2;
+export const NARRATION_SYNTAX_VERSION = 3;
 
 export const SELF_KEY_SUFFIX = '.self';
 
@@ -98,7 +102,28 @@ export function unnarrated(
     if (event.data?.[key]) printed.add(key);
   }
 
-  const named = new Set([event.subject, event.object, event.location, viewpoint]);
+  const named = new Set<EntityId | undefined>([
+    event.subject,
+    event.object,
+    event.location,
+    viewpoint,
+  ]);
+
+  // An extra the template named through {extra:kind} has been printed, so it is not left over.
+  // Only from segments that survived, for the same reason a {data:key} inside a dropped segment
+  // still counts as unprinted.
+  for (const [, inner] of template.matchAll(/\[([^\]]*)\]/g)) {
+    if (!segmentHolds(inner, event, nameOf, viewpoint)) continue;
+    for (const [, prefix] of inner.matchAll(/\{extra:(\w+)\}/g)) {
+      named.add(firstExtraOfKind(event, prefix));
+    }
+  }
+
+  for (const [, prefix] of template
+    .replace(/\[[^\]]*\]/g, '')
+    .matchAll(/\{extra:(\w+)\}/g)) {
+    named.add(firstExtraOfKind(event, prefix));
+  }
 
   return {
     data: Object.entries(event.data ?? {}).filter(([key]) => !printed.has(key)),
@@ -215,6 +240,11 @@ function resolve(
     return value ? { type: 'text', text: value } : null;
   }
 
+  if (token.startsWith('extra:')) {
+    const found = firstExtraOfKind(event, token.slice(6));
+    return found ? { type: 'entity', id: found } : null;
+  }
+
   if (token.startsWith('as:')) {
     if (!viewpoint) return null;
     return event.data?.[token.slice(3)] === nameOf(viewpoint) ? { type: 'text', text: '' } : null;
@@ -261,6 +291,11 @@ function resolve(
   if (!id) return null;
 
   return { type: 'entity', id };
+}
+
+/** The first extra id of the given short kind prefix, in the order the engine wrote them. */
+function firstExtraOfKind(event: HistoryEvent, prefix: string): EntityId | undefined {
+  return (event.extra ?? []).find((id) => kindOf(id) === prefix);
 }
 
 function otherFigure(event: HistoryEvent, self: EntityId | undefined): EntityId | undefined {
