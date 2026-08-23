@@ -22,9 +22,9 @@ the engine.
 | Territory | The event log alone replays to the exported map, across seeds — what the viewer's year slider depends on |
 | Trade routes | Endpoints and modes are valid; active pairs are unique; closure preserves historical entities; split runs preserve the network |
 | Roads | Only sustained-traffic land routes are roaded, and a minority of them; a road runs over dry ground between its two towns and goes round water the direct line would cross; a river route's path stays nearer the water than the same journey cut overland; paving keeps the route's identity and never lengthens the way; cutting a road costs no terrain samples |
-| Travel | Journeys are trips and not moves; some of them end badly and the mishap is written where it happened; a lost traveller died on that journey, that year, of the road; a cut road lowers the hazard, an engineered one lowers it further, and a road dragged the long way round gives some of that back |
+| Travel | Every journey names the thing it was made for and renders as prose; journeys are trips and not moves; some of them end badly and the mishap is written where it happened; a lost traveller died on that journey, that year, of the road; a cut road lowers the hazard, an engineered one lowers it further, and a road dragged the long way round gives some of that back |
 | Flavour | Plague, disaster, faith and artifacts each fire; no plague takes the world; disasters match the ground they struck; provenance agrees with where a thing is |
-| Naming / narration | Stable names and chronicle wording; world designation unique to the seed |
+| Naming / narration | Stable names and chronicle wording; world designation unique to the seed; every event kind has a template, every template uses a known placeholder and a known entity-kind prefix, and segments are balanced |
 | Export / goldens | Fingerprint for the standard seed-42 config |
 
 ## Regenerating the golden
