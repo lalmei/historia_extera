@@ -180,4 +180,59 @@ public sealed class TravelTests
             builtYear: 30,
             pavedYear: grade == RoadGrade.Paved ? 30 : null,
             length: length);
+
+    /// <summary>
+    /// Every journey names the thing it was made for, and the line renders as prose.
+    /// </summary>
+    /// <remarks>
+    /// A journey used to read "travelled to Kaarikkagrad, on pilgrimage" — the destination and a
+    /// category, and a merchant's page was thirty of them. The export always held the answer in
+    /// <see cref="Journey.ViaId"/>; only the template dropped it. This asserts the fact reaches the
+    /// prose for every kind, because a wrong kind prefix in a template is a clause that silently
+    /// never renders.
+    /// </remarks>
+    [Fact]
+    public void AJourneyNamesWhatItWasFor()
+    {
+        WorldState world = HistoryRun.Execute(TestWorlds.Standard(42)).World;
+
+        var seen = new HashSet<JourneyKind>();
+        int rendered = 0;
+
+        foreach (HistoryEvent entry in world.Chronicle.Events)
+        {
+            if (entry.Kind != EventKind.JourneyMade) continue;
+
+            var kind = Enum.Parse<JourneyKind>(entry.DataValue("kind")!);
+            seen.Add(kind);
+
+            string prose = Narration.Render(entry, world.NameOf, entry.Subject);
+            Assert.EndsWith(".", prose);
+            Assert.DoesNotContain("  ", prose);
+
+            // Trade is the one errand with nothing to name: the destination is the reason, and
+            // "along the Aigionanvos–Shche route" says nothing the line has not already said.
+            if (kind == JourneyKind.Trade) continue;
+
+            string named = world.NameOf(ViaOf(world, entry));
+            Assert.Contains(named, prose);
+            rendered++;
+        }
+
+        Assert.Contains(JourneyKind.Trade, seen);
+        Assert.Contains(JourneyKind.Pilgrimage, seen);
+        Assert.Contains(JourneyKind.Mission, seen);
+        Assert.True(rendered > 40, $"Only {rendered} journeys named their reason.");
+    }
+
+    /// <summary>The reason carried on a journey event: the extra that is not where it started.</summary>
+    private static EntityId ViaOf(WorldState world, HistoryEvent entry)
+    {
+        foreach (EntityId id in entry.Extra ?? Array.Empty<EntityId>())
+        {
+            if (id.Kind != EntityKind.Settlement) return id;
+        }
+
+        return EntityId.None;
+    }
 }
