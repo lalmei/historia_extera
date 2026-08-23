@@ -219,6 +219,8 @@ public sealed class TravelSystem : ISystem
         EntityId to = chosen.Other(home);
         if (to.IsNone || to == home) return false;
 
+        // No named target: the destination already is the reason, and "traded to Shche along the
+        // Aigionanvos–Shche route" tells a reader nothing the line did not already say.
         Record(world, figure, JourneyKind.Trade, year, home, to, chosen.Id, "on trade");
         return true;
     }
@@ -238,10 +240,18 @@ public sealed class TravelSystem : ISystem
 
         if (destination is null) return false;
 
-        string purpose = copies ? "to request copies" : "to preach";
-        Record(
-            world, figure, JourneyKind.Mission, year, home, destination.Id,
-            destination.ReligionId, purpose);
+        // A scribe is sent to a particular house, so the errand carries the monastery that made
+        // the town worth the walk. When there is no monastery anywhere to send them to,
+        // PickScriptorium has already handed back an ordinary town of the same communion — so the
+        // journey is recorded as the thing it actually is, a circuit among co-religionists, rather
+        // than as an errand to a library that does not exist.
+        HolySite? scriptorium = copies ? Tomes.ScriptoriumAt(world, destination) : null;
+
+        (EntityId via, string purpose) = scriptorium is not null
+            ? (scriptorium.Id, "to fetch copies from")
+            : (destination.ReligionId, "to preach among");
+
+        Record(world, figure, JourneyKind.Mission, year, home, destination.Id, via, purpose);
         return true;
     }
 
@@ -269,7 +279,7 @@ public sealed class TravelSystem : ISystem
         HolySite chosen = rng.Pick(sites);
         Record(
             world, figure, JourneyKind.Pilgrimage, year, home, chosen.SettlementId,
-            chosen.Id, "on pilgrimage");
+            chosen.Id, "on pilgrimage to");
         return true;
     }
 
@@ -303,7 +313,7 @@ public sealed class TravelSystem : ISystem
         Civilization host = rng.Pick(hosts);
         Record(
             world, figure, JourneyKind.Visit, year, home, host.CapitalId,
-            host.Id, "as a guest");
+            host.Id, "as a guest of");
         return true;
     }
 

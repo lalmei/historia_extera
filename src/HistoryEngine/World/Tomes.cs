@@ -509,7 +509,19 @@ public static class Tomes
         || HasScriptorium(world, settlement);
 
     /// <summary>A monastery at or beside this town, where copying is ordinary work.</summary>
-    public static bool HasScriptorium(WorldState world, Settlement settlement)
+    public static bool HasScriptorium(WorldState world, Settlement settlement) =>
+        ScriptoriumAt(world, settlement) is not null;
+
+    /// <summary>
+    /// The monastery that makes this town a place to fetch copies from, if there is one.
+    /// </summary>
+    /// <remarks>
+    /// The same question <see cref="HasScriptorium"/> asks, answered with the house rather than
+    /// with a yes. A scribe sent for copies is sent to a particular monastery and the chronicle
+    /// should be able to name it; every caller that only wants the yes goes through the predicate
+    /// above, which is now one line over this.
+    /// </remarks>
+    public static HolySite? ScriptoriumAt(WorldState world, Settlement settlement)
     {
         foreach (HolySite site in world.HolySites)
         {
@@ -518,11 +530,11 @@ public static class Tomes
                 continue;
             }
 
-            if (site.SettlementId == settlement.Id) return true;
-            if (site.SettlementId.IsNone && site.RegionId == settlement.RegionId) return true;
+            if (site.SettlementId == settlement.Id) return site;
+            if (site.SettlementId.IsNone && site.RegionId == settlement.RegionId) return site;
         }
 
-        return false;
+        return null;
     }
 
     private static bool KnowsByWriting(WorldState world, Settlement settlement)
