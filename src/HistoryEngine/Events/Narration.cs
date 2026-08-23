@@ -20,6 +20,12 @@ namespace HistoryEngine.Events;
 ///   entity names, and become cross-links in the viewer.</description></item>
 ///   <item><description><c>{data:key}</c> — a string from <see cref="HistoryEvent.Data"/>,
 ///   rendered as plain text.</description></item>
+///   <item><description><c>{extra:kind}</c> — the first entity of that kind among the event's
+///   <see cref="HistoryEvent.Extra"/> ids, by its short prefix (<c>hol</c>, <c>rel</c>,
+///   <c>civ</c>, …), and a cross-link like the named slots. Absent when the event carries none
+///   of that kind, which is what lets one template carry several mutually exclusive clauses: a
+///   journey's reason is a holy site, a faith or a realm depending on why it was made, and only
+///   the segment whose kind is actually present survives.</description></item>
 ///   <item><description><c>{self}</c> — the figure whose page is being read. <c>{other}</c> is
 ///   the other figure among subject and object.</description></item>
 ///   <item><description><c>{as:key}</c> / <c>{not:key}</c> — succeed (as empty text) when a
@@ -46,7 +52,7 @@ public static class Narration
     /// Bumped when the template grammar changes in a way the viewer must match. Exported so a
     /// viewer reading a newer world file can say so instead of rendering it wrongly.
     /// </summary>
-    public const int SyntaxVersion = 2;
+    public const int SyntaxVersion = 3;
 
     /// <summary>Suffix on a world template's key for the wording a figure's page uses.</summary>
     public const string SelfKeySuffix = ".self";
@@ -106,8 +112,13 @@ public static class Narration
             "{subject} was stripped of the office of {data:office}[ of {object}][, {data:cause}].");
         Set(EventKind.OccupationTaken,
             "{subject} took to {data:occupation}[ at {location}].");
+        // One template, four errands. The reason a journey was made is a holy site for a pilgrim,
+        // a monastery for a scribe fetching copies, a faith for a priest on circuit and a realm
+        // for a guest — so each clause is gated on the kind of the thing carried, and exactly one
+        // of them can hold. `purpose` ends in its own preposition and supplies the rest.
         Set(EventKind.JourneyMade,
-            "{subject} travelled to {location}[, {data:purpose}].");
+            "{subject} travelled to {location}[, {data:purpose}]"
+            + "[ the {extra:hol}][ the {extra:rel}][ {extra:civ}].");
         Set(EventKind.JourneyWaylaid,
             "{subject} came to grief[ on the way to {location}][, {data:cause}].");
 
@@ -261,7 +272,8 @@ public static class Narration
         SetSelf(EventKind.OccupationTaken,
             "Took to {data:occupation}[ at {location}].");
         SetSelf(EventKind.JourneyMade,
-            "Travelled to {location}[, {data:purpose}].");
+            "Travelled to {location}[, {data:purpose}]"
+            + "[ the {extra:hol}][ the {extra:rel}][ {extra:civ}].");
         SetSelf(EventKind.JourneyWaylaid,
             "Came to grief[ on the way to {location}][, {data:cause}].");
         SetSelf(EventKind.DynastyFounded,
@@ -381,8 +393,15 @@ public static class Narration
         return prose;
     }
 
-    private static string RenderTemplate(
-        string template, HistoryEvent entry, Func<EntityId, string> nameOf, EntityId viewpoint)
+    /// <summary>
+    /// Renders one template against one event. Internal so the grammar itself can be tested
+    /// without going through a kind that happens to use the construct under test.
+    /// </summary>
+    internal static string RenderTemplate(
+        string template,
+        HistoryEvent entry,
+        Func<EntityId, string> nameOf,
+        EntityId viewpoint = default)
     {
         var result = new StringBuilder(template.Length + 32);
 
@@ -495,6 +514,12 @@ public static class Narration
             return string.IsNullOrEmpty(value) ? null : value;
         }
 
+        if (token.StartsWith("extra:", StringComparison.Ordinal))
+        {
+            EntityId found = FirstExtraOfKind(entry, token.Substring(6));
+            return found.IsNone ? null : nameOf(found);
+        }
+
         if (token.StartsWith("as:", StringComparison.Ordinal))
         {
             if (viewpoint.IsNone) return null;
@@ -534,6 +559,26 @@ public static class Narration
         };
 
         return id.IsNone ? null : nameOf(id);
+    }
+
+    /// <summary>The first entity of the given short kind prefix among an event's extra ids.</summary>
+    /// <remarks>
+    /// First rather than only, because an event may be indexed under several of a kind and a
+    /// template asking for one wants the one the recorder put there first. Order in
+    /// <see cref="HistoryEvent.Extra"/> is fixed by the system that wrote the event, so this is
+    /// as deterministic as the list itself.
+    /// </remarks>
+    private static EntityId FirstExtraOfKind(HistoryEvent entry, string prefix)
+    {
+        if (entry.Extra is null) return EntityId.None;
+        if (!EntityKindExtensions.TryParsePrefix(prefix, out EntityKind kind)) return EntityId.None;
+
+        for (int i = 0; i < entry.Extra.Count; i++)
+        {
+            if (entry.Extra[i].Kind == kind) return entry.Extra[i];
+        }
+
+        return EntityId.None;
     }
 
     private static bool Mentions(HistoryEvent entry, EntityId id)
