@@ -2680,6 +2680,48 @@ mishap gives the class a spine, but whether a merchant's standing circuit should
 recorded fact is a question about the chronicle's shape, not about travel, and it wants measuring
 against the viewer's own filters first.
 
+#### The follow-up: a journey that says what it was for
+
+Landed immediately after, because the hazard made the class worth reading and then the class still
+would not say anything. A journey rendered as *"travelled to Kaarikkagrad, on pilgrimage"* — a
+destination and a category — and the export had held the answer since M16 in `Journey.ViaId`: a
+route for trade, a holy site for a pilgrimage, a faith for a mission, a realm for a visit. Only the
+template dropped it.
+
+**A new grammar slot rather than a name in `Data`.** `{extra:kind}` resolves the first entity of a
+short kind prefix among an event's extra ids, and renders as a cross-link like the named slots. The
+alternative — writing the name into `Data` at record time, as `RevoltBroke` does for its leader —
+needed no syntax version bump and would have produced dead text. A faith or a shrine named in a
+chronicle line is a thing the reader should be able to click, so the grammar route won and
+`SyntaxVersion` went to 3.
+
+**One template, four errands.** The slot is absent when the event carries nothing of that kind,
+which is what lets mutually exclusive clauses live in one template — exactly one of `{extra:hol}`,
+`{extra:rel}` and `{extra:civ}` can hold for any given journey. `purpose` now ends in its own
+preposition and the clause supplies the rest, so the four errands read:
+
+> Tanislavius travelled to Sandomicenik, **on pilgrimage to the Shrine of Volaticula**.
+> Imilk travelled to Tamattim, **to fetch copies from the Monastery of Gebalisarshalim**.
+> Hranislavena travelled to Roshtau, **to preach among the Turovneans**.
+> Kleon travelled to Akkaros, **on trade**.
+
+**Trade names nothing, on purpose.** The route is carried and deliberately not printed: "traded to
+Shche along the Aigionanvos–Shche route" tells a reader nothing the line already said. A slot exists
+so that a template *may* use it, not so that every template must.
+
+**The copying errand stopped lying.** `PickScriptorium` falls back to an ordinary town of the same
+communion when no monastery is reachable, and the old wording said "to request copies" either way.
+The errand now carries the monastery (`Tomes.ScriptoriumAt`, the same question `HasScriptorium`
+asked, answered with the house instead of a yes) and is recorded as what it actually is — a circuit
+among co-religionists — when there is no library to send anyone to. It fires in 11 of 12 seeds;
+seed 42 is the exception, because both its monasteries are founded after year 267.
+
+**No behaviour changed.** Verified rather than asserted: seed 42 exports the same 6,919 events with
+identical `(year, kind, subject, object, location)` skeletons, the same 38 settlements, 1,365
+figures, 5 wars and 63 routes. The 574 events that differ are the non-trade journeys, and they
+differ in their purpose text and one via id. The fingerprint moved because the recorded facts moved,
+which is the case the golden is meant to catch and approve rather than forbid.
+
 ---
 
 ## Milestones

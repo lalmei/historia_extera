@@ -150,6 +150,11 @@ Ownership is explicit and historical facts are not silently rewritten:
 plus a small deterministic data map. Narration templates turn those facts into prose.
 The facts remain filterable and replayable even when wording changes.
 
+A template may name an entity the event is merely indexed under, by kind — the shrine a
+pilgrimage was made to, the faith a priest travelled to preach among. The slot is absent when
+the event carries nothing of that kind, so one template can hold several mutually exclusive
+clauses and stay grammatical whichever one survives.
+
 The chronicle is ordered by `(year, day)` and resolves same-step ties deterministically.
 The export contains persistent entities, the event log, selected time series, terrain
 presentation data, and the seed/config/system provenance needed to identify the run.
@@ -226,6 +231,9 @@ person in the world.
 
 A recorded adult may leave home for a year: a merchant along an open route, a priest to preach
 or to fetch copies, a pilgrim to a shrine of their own faith, a courtier as a guest of an ally.
+The chronicle names the thing the trip was for — the shrine, the monastery, the faith, the host
+realm — and not merely the category of it. Trade is the exception, because for a merchant the
+destination already is the reason.
 Residence does not move — a journey is a trip, and a merchant who vanished from his town every
 year he used a route would be missed by the disasters that reach a residence for no reason the
 chronicle could defend.
@@ -289,7 +297,7 @@ not a runtime architecture. A deployed viewer remains a reader of exported histo
 | M16 | Lives the chronicle follows: occupations, journeys, and campaign memory | Done |
 | M17 | The seed's cosmology, and tomes that draw on it | Done |
 | M18 | Cultural drift: a people that changes over the centuries | Done |
-| M19 | The road has a cost: journeys that can be robbed, drowned, or fatal | Done |
+| M19 | The road has a cost: journeys that can be robbed, drowned, or fatal, and say what they were for | Done |
 
 M13 landed in independently reviewable stages: the clock and dated record first, seasonal
 war and expansion next, then plague travel and outbreak clocks, and finally sieges as
