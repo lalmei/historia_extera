@@ -500,6 +500,8 @@ public static class Warfare
             extra: Participants(war, battle),
             data: record);
 
+        LifeStories.ResolveBattle(world, battle, at.Year);
+
         // Score is kept from the war aggressor's point of view whoever holds the initiative, so
         // the peace can read it without asking who was attacking in which year.
         double swing = Swing(battle, contestedForce);
@@ -812,7 +814,8 @@ public static class Warfare
         // Whether this particular ruler rides out is theirs to decide, so it takes the realm's
         // effective aggression: a cautious king of a warlike people sends someone else, and so
         // does a bold one whose realm has just been bled white.
-        if (rng.Chance(chance * DetMath.Lerp(0.6, 1.3, world.ValuesFor(civilization).Aggression)))
+        if (LifeStories.Fitness(ruler, year) > 0.0
+            && rng.Chance(chance * DetMath.Lerp(0.6, 1.3, world.ValuesFor(civilization).Aggression)))
         {
             return ruler.Id;
         }
@@ -827,6 +830,7 @@ public static class Warfare
         Figure? marshal = Offices.HolderOf(world, civilization, OfficeKind.Marshal);
         if (marshal is not null
             && marshal.AgeIn(year) >= Succession.MajorityAge
+            && LifeStories.Fitness(marshal, year) > 0.0
             && officers.Chance(MarshalTakesTheField))
         {
             return marshal.Id;
@@ -838,6 +842,7 @@ public static class Warfare
             if (!kin.IsAlive || kin.Id == ruler.Id) continue;
             if (kin.CivilizationId != civilization.Id) continue;
             if (kin.AgeIn(year) < Succession.MajorityAge) continue;
+            if (LifeStories.Fitness(kin, year) <= 0.0) continue;
 
             candidates.Add(kin);
         }

@@ -183,6 +183,7 @@ public sealed class TravelSystem : ISystem
         {
             if (!figure.IsAlive) continue;
             if (figure.AgeIn(year) < Succession.MajorityAge) continue;
+            if (LifeStories.Fitness(figure, year) <= 0.0) continue;
 
             EntityId home = world.ResidenceOf(figure);
             if (home.IsNone) continue;
@@ -195,6 +196,21 @@ public sealed class TravelSystem : ISystem
     private static void Consider(
         WorldState world, Figure figure, EntityId home, int year, IRng rng)
     {
+        Undertakings.JourneyPlan? planned = Undertakings.NextJourney(world, figure, home, year, rng);
+        if (planned is not null)
+        {
+            Record(
+                world,
+                figure,
+                planned.Value.Kind,
+                year,
+                home,
+                planned.Value.DestinationId,
+                planned.Value.ViaId,
+                planned.Value.Purpose);
+            return;
+        }
+
         if (TryTrade(world, figure, home, year, rng)) return;
         if (TryMission(world, figure, home, year, rng)) return;
         if (TryPilgrimage(world, figure, home, year, rng)) return;
@@ -363,6 +379,7 @@ public sealed class TravelSystem : ISystem
     {
         var journey = new Journey(kind, year, from, to, via);
         figure.Journeys.Add(journey);
+        FigureUndertaking undertaking = Undertakings.PrepareJourney(world, figure, journey, year);
 
         var extra = new List<EntityId> { from };
         if (!via.IsNone) extra.Add(via);
@@ -377,6 +394,7 @@ public sealed class TravelSystem : ISystem
             significance: Significance.Routine);
 
         Resolve(world, figure, journey, year);
+        Undertakings.NoteJourney(world, figure, undertaking, journey, year);
     }
 
     /// <summary>
@@ -422,6 +440,7 @@ public sealed class TravelSystem : ISystem
         if (road.Chance(fatal))
         {
             journey.Outcome = JourneyOutcome.Lost;
+            journey.ReturnSettlementId = EntityId.None;
 
             // Indexed on the place they were going as well as on their house: a death on the road
             // to somewhere is part of that somewhere's record of what its roads were like.

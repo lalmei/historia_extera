@@ -98,67 +98,12 @@ public sealed class FigureIncidentSystem : ISystem
 
     private static void PoliticalViolence(WorldState world, int year, IRng rng)
     {
+        Conspiracies.Tick(world, year, rng.Fork("conspiracies"));
+
         foreach (Civilization civilization in world.ActiveCivilizations())
         {
             Culture culture = world.CultureOf(civilization);
-            List<Figure> claimants = Succession.Claimants(
-                world, civilization, culture, EntityId.None);
-
-            Figure? claimant = null;
-            foreach (Figure candidate in claimants)
-            {
-                if (candidate.CivilizationId != civilization.Id) continue;
-                if (candidate.AgeIn(year) < Succession.MajorityAge) continue;
-
-                claimant = candidate;
-                break;
-            }
-
-            // Without a credible adult alternative there is no court faction with anything to gain.
-            if (claimant is null) continue;
-
-            double risk = PoliticalRiskFloor
-                + (PoliticalRiskFromAggression * culture.Values.Aggression);
-
-            if (AtWar(world, civilization.Id)) risk *= WartimePoliticalMultiplier;
-
             IRng court = rng.Fork("court", civilization.Id.ToDiscriminator());
-            List<Figure> suspects = Suspects(world, civilization, claimant, year);
-
-            if (world.Figures.Contains(civilization.CurrentRulerId))
-            {
-                Attempt(
-                    world,
-                    world.Figures[civilization.CurrentRulerId],
-                    year,
-                    risk,
-                    culture,
-                    court,
-                    suspects);
-            }
-
-            if (world.Figures.Contains(civilization.RegentId))
-            {
-                Attempt(
-                    world,
-                    world.Figures[civilization.RegentId],
-                    year,
-                    risk * RegentRiskMultiplier,
-                    culture,
-                    court,
-                    suspects);
-            }
-
-            Attempt(
-                world,
-                claimant,
-                year,
-                risk * ClaimantRiskMultiplier,
-                culture,
-                court,
-                suspects);
-
-            BloodDebt(world, civilization, year, risk * KinRiskMultiplier, culture, court, suspects);
             Reckoning(world, civilization, year, culture, court);
             Accusations(world, civilization, year, court);
         }
