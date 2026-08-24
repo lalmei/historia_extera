@@ -115,8 +115,10 @@ public sealed record WorldExport(
     /// cosmology page can put tails on the true-size strip and the full-system map.
     /// Version 33 added a figure's bonds, salient memories, feelings, wounds and undertakings,
     /// so a life page can lead with its causal shape rather than only its raw chronology.
+    /// Version 34 added terminal battle fates, trauma, desertion, battle-earned renown and
+    /// promotion provenance, plus undertaking sponsors, deadlines and motive provenance.
     /// </remarks>
-    public const int CurrentSchemaVersion = 33;
+    public const int CurrentSchemaVersion = 34;
 }
 
 public sealed record ExportMeta(
