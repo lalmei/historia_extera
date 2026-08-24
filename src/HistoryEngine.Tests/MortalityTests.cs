@@ -212,6 +212,35 @@ public sealed class MortalityTests
         return false;
     }
 
+    [Fact]
+    public void AnOrdinaryDeathAppearsInTheSurvivingSpousesChronology()
+    {
+        WorldState world = WorldBuilder.Create(TestWorlds.Small());
+        Civilization civilization = world.Civilizations[0];
+        Culture culture = world.Cultures[civilization.CultureId];
+        Figure deceased = Houses.NewFigure(
+            world, civilization, culture, Sex.Female, birthYear: 1);
+        Figure survivor = Houses.NewFigure(
+            world, civilization, culture, Sex.Male, birthYear: 1);
+
+        deceased.SpouseId = survivor.Id;
+        deceased.SpouseIds.Add(survivor.Id);
+        survivor.SpouseId = deceased.Id;
+        survivor.SpouseIds.Add(deceased.Id);
+        int eventsBefore = world.Chronicle.Count;
+
+        Houses.Die(world, deceased, year: 40, DeathCause.Illness);
+
+        HistoryEvent death = Assert.Single(
+            world.Chronicle.Events.Skip(eventsBefore),
+            entry => entry.Kind == EventKind.FigureDied && entry.Subject == deceased.Id);
+
+        Assert.NotNull(death.Extra);
+        Assert.Contains(survivor.Id, death.Extra!);
+        Assert.True(deceased.SpouseId.IsNone);
+        Assert.True(survivor.SpouseId.IsNone);
+    }
+
     /// <summary>
     /// A campaign may be entrusted to a cadet or heir; command is no longer another word for rule.
     /// </summary>
