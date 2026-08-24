@@ -860,6 +860,7 @@ public static class WorldExporter
                 Feelings: BuildFeelings(figure, figure.DeathYear ?? world.EndYear),
                 Injuries: BuildInjuries(figure),
                 Undertakings: BuildUndertakings(figure),
+                Disputes: BuildDisputes(figure),
                 MotherId: OrNull(figure.MotherId),
                 FatherId: OrNull(figure.FatherId),
                 ChildIds: figure.ChildIds.ToArray(),
@@ -982,12 +983,57 @@ public static class WorldExporter
         foreach (FigureInjury injury in figure.Injuries)
         {
             list.Add(new ExportInjury(
-                injury.BattleId,
+                injury.CauseId,
+                injury.SourceKind,
                 injury.Year,
                 injury.Severity,
                 injury.RecoveryYear,
                 injury.Permanent,
                 injury.Detail));
+        }
+
+        return list;
+    }
+
+    /// <summary>
+    /// Writes each quarrel from the viewpoint of the page it is going on.
+    /// </summary>
+    /// <remarks>
+    /// The two parties share one object in the engine, so the facts here cannot diverge; what
+    /// differs between the two exports is only which id is called the other one.
+    /// </remarks>
+    private static List<ExportDispute> BuildDisputes(Figure figure)
+    {
+        var list = new List<ExportDispute>(figure.Disputes.Count);
+        foreach (FigureDispute dispute in figure.Disputes)
+        {
+            var acts = new List<ExportDisputeAct>(dispute.Acts.Count);
+            foreach (DisputeAct act in dispute.Acts)
+            {
+                acts.Add(new ExportDisputeAct(
+                    act.Year,
+                    act.SourceKind,
+                    act.Stage,
+                    OrNull(act.ActorId),
+                    act.Detail));
+            }
+
+            list.Add(new ExportDispute(
+                dispute.Id,
+                dispute.Other(figure.Id),
+                dispute.OpenerId == figure.Id,
+                dispute.Cause,
+                dispute.SourceKind,
+                OrNull(dispute.SourceEntityId),
+                OrNull(dispute.PlaceId),
+                dispute.Stage,
+                dispute.Outcome,
+                dispute.Resolution,
+                OrNull(dispute.ArbiterId),
+                dispute.StartYear,
+                dispute.EndYear,
+                dispute.LastActionYear,
+                acts));
         }
 
         return list;

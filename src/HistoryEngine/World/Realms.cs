@@ -62,6 +62,7 @@ public static class Realms
             region,
             from,
             to,
+            year,
             settlement =>
             {
                 if (!settlement.IsOccupied) settlement.Fortunes.LandLost();
@@ -105,6 +106,7 @@ public static class Realms
             region,
             from,
             to,
+            year,
             standing =>
             {
                 if (standing.IsOccupied) Warfare.EndOccupation(world, standing, year, ceded: true);
@@ -144,6 +146,7 @@ public static class Realms
         Region region,
         Civilization from,
         Civilization to,
+        int year,
         Action<Settlement> onEach)
     {
         region.Owner = to.Id;
@@ -178,7 +181,56 @@ public static class Realms
             }
         }
 
+        // Repointed here rather than left for the succession system's yearly repair. Territory
+        // moves in a season and succession runs in the year's first one, so a seat lost after it
+        // has already passed leaves the realm with no address until the following spring — and a
+        // seat lost in the final year leaves it with none at all, which is a realm whose living
+        // people are exported as living nowhere.
+        if (from.CapitalId.IsNone) Reseat(world, from, year);
+
         return (moving, taken);
+    }
+
+    /// <summary>Gives a realm that has just lost its seat the largest one it still holds.</summary>
+    private static void Reseat(WorldState world, Civilization civilization, int year)
+    {
+        Settlement? replacement = null;
+        foreach (Settlement candidate in world.ActiveSettlementsOf(civilization))
+        {
+            // Largest surviving settlement, id breaking ties — the same rule the succession
+            // system uses, so a seat moved here and a seat moved there are the same seat.
+            if (replacement is null
+                || candidate.Population > replacement.Population
+                || (candidate.Population == replacement.Population
+                    && candidate.Id.CompareTo(replacement.Id) < 0))
+            {
+                replacement = candidate;
+            }
+        }
+
+        if (replacement is null) return;
+
+        replacement.IsCapital = true;
+        civilization.CapitalId = replacement.Id;
+
+        // A capital is governed by whoever holds the throne, in person, so the town that has just
+        // become one has no governor. The office system drops such a posting on its yearly pass;
+        // territory moves in a season, and one moved after that pass has run would leave a
+        // governor sitting in a capital until the following spring — or for good, in a final year.
+        var seated = new List<Figure>();
+        foreach (Figure figure in world.Figures)
+        {
+            if (!figure.IsAlive) continue;
+            if (figure.OpenOffice(OfficeKind.Governor) is not { } posting) continue;
+            if (posting.ScopeId != replacement.Id) continue;
+
+            seated.Add(figure);
+        }
+
+        foreach (Figure governor in seated)
+        {
+            Offices.Lapse(world, governor, OfficeKind.Governor, year);
+        }
     }
 
     /// <summary>

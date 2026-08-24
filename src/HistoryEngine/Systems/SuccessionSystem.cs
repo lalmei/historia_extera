@@ -220,6 +220,37 @@ public sealed class SuccessionSystem : ISystem
         {
             Houses.Die(world, loser, year, DeathCause.Execution);
         }
+        else
+        {
+            // A claimant who kept his head keeps the grievance too. Until now a contested
+            // succession left nothing behind unless it killed someone, which made the loser of
+            // every survivable dispute a person the rest of the chronicle had no reason to
+            // mention again.
+            LifeStories.AddRivalry(
+                loser,
+                winner,
+                year,
+                EventKind.SuccessionDisputed,
+                civilization.CapitalId,
+                grievance: 0.58,
+                sourceEntity: civilization.Id);
+            LifeStories.Remember(
+                loser,
+                MemoryKind.Humiliation,
+                year,
+                EventKind.SuccessionDisputed,
+                winner.Id,
+                civilization.CapitalId,
+                0.84);
+            Disputes.Consider(
+                world,
+                loser,
+                winner,
+                DisputeCause.SuccessionPassedOver,
+                EventKind.SuccessionDisputed,
+                civilization.Id,
+                year);
+        }
 
         claim = "after a disputed succession";
         return winner;

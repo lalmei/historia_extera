@@ -134,6 +134,18 @@ public static class Narration
             "{subject} drew {object} into a conspiracy against {extra:fig}.");
         Set(EventKind.ConspiracyExposed,
             "The conspiracy of {subject} against {object} was exposed[ at {location}].");
+        // A quarrel names both parties in every line it writes. The one thing a reader of a
+        // personal dispute always wants is who it was with, and it is never the location.
+        Set(EventKind.DisputeOpened,
+            "{subject} fell out with {object}[ at {location}][, over {data:cause}].");
+        Set(EventKind.DisputeEscalated,
+            "{subject} {data:act} {object}[ at {location}].");
+        Set(EventKind.DisputeSettled,
+            "The quarrel between {subject} and {object} ended[ at {location}]"
+            + "[ when {data:manner}][ before {extra:fig}].");
+        Set(EventKind.DuelFought,
+            "{subject} met {object}[ at {location}][ over {data:cause}]"
+            + "[ and {data:result} them][, {data:injury}].");
 
         Set(EventKind.DynastyFounded, "The {subject} rose[ under {object}][ in {location}].");
         Set(EventKind.DynastyEnded, "The {subject} died out[ after {data:years}].");
@@ -318,6 +330,28 @@ public static class Narration
             "[{self:subject}The conspiracy against {other} was exposed.]"
             + "[{self:object}Discovered the conspiracy of {other}.]"
             + "[{self:extra}Was implicated in {subject}'s conspiracy against {object}.]");
+        // The same episode from either side. One record, two readings: the aggrieved party fell
+        // out with someone, and the other party was fallen out with, and neither page is a
+        // separate incident.
+        SetSelf(EventKind.DisputeOpened,
+            "[{self:subject}Fell out with {other}][{self:subject}, over {data:cause}]"
+            + "[{self:subject}.]"
+            + "[{self:object}{other} fell out with them][{self:object}, over {data:cause}]"
+            + "[{self:object}.]");
+        SetSelf(EventKind.DisputeEscalated,
+            "[{self:subject}{data:actSelf} {other}.]"
+            + "[{self:object}{other} {data:act} them.]");
+        SetSelf(EventKind.DisputeSettled,
+            "[{self:subject}The quarrel with {other} ended][{self:subject} when {data:manner}]"
+            + "[{self:subject}.]"
+            + "[{self:object}The quarrel with {other} ended][{self:object} when {data:manner}]"
+            + "[{self:object}.]"
+            + "[{self:extra}Judged between {subject} and {object}.]");
+        SetSelf(EventKind.DuelFought,
+            "[{self:subject}Met {other}][{self:subject} over {data:cause}]"
+            + "[{self:subject} and {data:result} them][{self:subject}.]"
+            + "[{self:object}Was {data:result} by {other}][{self:object} over {data:cause}]"
+            + "[{self:object}.]");
         SetSelf(EventKind.DynastyFounded,
             "[{self:object}Raised the {subject}][{self:object} in {location}].");
         SetSelf(EventKind.DynastyAscended,

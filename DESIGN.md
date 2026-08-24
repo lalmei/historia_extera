@@ -18,7 +18,7 @@ measurements, rejected alternatives, and milestone retrospectives.
 | Space | Expensive terrain is accessed through a budgeted, three-tier atlas |
 | Time | Years remain the spine; seasons and scheduled days are used only where earned |
 | History | Flat events plus persistent entities and sampled series |
-| Personal history | Directed bonds, bounded causal memories, wounds, and multi-year undertakings |
+| Personal history | Directed bonds, bounded causal memories, wounds, quarrels, and multi-year undertakings |
 | Presentation | The viewer reads exports and never drives the simulation |
 | Game integration | Vintage Story is a future terrain host, not an engine dependency |
 
@@ -239,7 +239,7 @@ not every inhabitant, and it does not manufacture drama merely to fill a page. A
 young may have a short life. An adult who crossed a realm, lost family, held office, fought, or
 plotted should have a readable causal thread rather than a bag of unrelated event labels.
 
-That thread is built from four durable forms of state:
+That thread is built from five durable forms of state:
 
 - **Bonds** are directed relationships between two recorded figures. Structural roles such as
   parent/child, patron/client, and mentor/apprentice are reciprocal, while affection, trust,
@@ -278,6 +278,22 @@ death, or its deadline. Only one public undertaking may be current at once; a se
 tracked separately, and a cooldown prevents a terminal arc from immediately becoming a queue of
 replacement goals. Steps must be chronological, unique, and linked to real entities. Death, an
 invalid destination, exposure, success, failure, or loss of office closes the arc explicitly.
+
+- **Quarrels** are personal disputes between two named people, from a wrong the chronicle already
+  recorded to how it ended. Four causes can start one — an office revoked, a succession lost, a
+  relative murdered, an accusation laid — and nothing else can; two people sharing a realm is not
+  a cause. A quarrel climbs a ladder of public visibility one rung at a time, from a grudge held to
+  an insult given, a charge laid, and satisfaction demanded, and it may end at any rung in
+  reconciliation, a judgement imposed by someone with standing, a meeting that draws blood, a
+  death, or nothing at all when death or distance takes one of the parties first. Both people hold
+  the same record and each page reads it from their own side.
+
+Rank decides what a quarrel can become. A subject with a grievance against their own reigning
+ruler cannot demand satisfaction of them, so that anger either cools, is judged, or goes where such
+things historically went, which is a conspiracy. Duels and battles share one wound model: severity,
+recovery, and the permanent tail are the same rule whether the blow was struck on a field or on a
+morning appointed for it, and a duel death goes through the ordinary central death path so
+succession, offices, and bereavement all follow from it.
 
 Conspiracy is the test that this state matters. A plot is not a one-roll assassination label: a
 leader needs motive grounded in grievance, rivalry, memory, disgrace, or a claim; access to the

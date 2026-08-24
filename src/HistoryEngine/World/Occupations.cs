@@ -187,6 +187,17 @@ public static class Occupations
             if (world.Settlements.Contains(home)) faith = world.Settlements[home].ReligionId;
         }
 
+        // Residence, then the realm — the same two questions, in the same order, that
+        // ReligionSystem.ConvertTheFaithless will ask when it hands this person a faith. Asking
+        // only the first left the door open for exactly one person: someone ordained while
+        // professing nothing, in a town professing nothing, in a realm whose own faith is
+        // celibate. They broke no rule at any single moment and were a married priest of a
+        // celibate faith by the time the realm's faith reached them.
+        if (faith.IsNone && world.Civilizations.Contains(figure.CivilizationId))
+        {
+            faith = world.Civilizations[figure.CivilizationId].StateReligionId;
+        }
+
         return !faith.IsNone
             && world.Religions.Contains(faith)
             && world.Religions[faith].Character.CelibateClergy;

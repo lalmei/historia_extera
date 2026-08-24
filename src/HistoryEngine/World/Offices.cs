@@ -249,6 +249,14 @@ public static class Offices
                     ruler.Id,
                     world.ResidenceOf(holder),
                     0.78);
+                Disputes.Consider(
+                    world,
+                    holder,
+                    ruler,
+                    DisputeCause.OfficeRevoked,
+                    EventKind.OfficeRevoked,
+                    held.CivilizationId,
+                    year);
             }
         }
 

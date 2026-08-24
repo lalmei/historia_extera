@@ -275,8 +275,14 @@ public sealed class HouseholdSystem : ISystem
     /// <see cref="Figure.ReligionId"/>, which is what the vow is owed to; the office's scope is
     /// consulted only for a high priest, whose seat may belong to a faith they have not otherwise
     /// professed. The vow is still the faith's rather than the person's, so a realm that changes
-    /// religion mid-life releases them — see <c>MarriedClergyOnlyArriveByAChangeOfFaith</c> for
-    /// the residue that leaves and why it is not a leak.</para>
+    /// religion mid-life releases them.</para>
+    ///
+    /// <para><b>The one case neither direction can catch</b> is a figure who marries and takes
+    /// orders in a realm professing nothing, whom a celibate faith reaches years later. There was
+    /// no vow to consult at either moment, so it is closed at the far end instead:
+    /// <c>ReligionSystem.ConvertTheFaithless</c> declines to enrol them, and they stay faithless.
+    /// <c>OccupationTests.NobodyInHolyOrdersIsMarriedWhereTheFaithForbidsIt</c> is what holds all
+    /// three halves of the rule together.</para>
     ///
     /// <para>This refuses a marriage while the vow holds. It is not the whole of the rule:
     /// ordination is refused to the already-married in <see cref="Occupations.Choose"/> and

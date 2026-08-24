@@ -295,6 +295,15 @@ public static class Conspiracies
             obj: target.Id,
             location: world.ResidenceOf(target),
             extra: plot.ParticipantIds.Count == 0 ? null : plot.ParticipantIds.ToArray());
+
+        Disputes.Consider(
+            world,
+            target,
+            leader,
+            DisputeCause.Accusation,
+            EventKind.ConspiracyExposed,
+            target.Id,
+            year);
     }
 
     private static void Succeed(
@@ -341,6 +350,32 @@ public static class Conspiracies
 
         Houses.Die(world, target, year, cause, detail, extra, data);
         civilization.Fortunes.MurderAtCourt();
+
+        // The court named a suspect, and the dead person's family heard the name. Opened after
+        // the death rather than before it so the bereavement the quarrel rests on is already in
+        // the record it points at.
+        foreach (Figure kin in family)
+        {
+            if (!kin.IsAlive || kin.Id == leader.Id) continue;
+
+            LifeStories.Embitter(
+                kin,
+                leader,
+                year,
+                EventKind.FigureDied,
+                target.Id,
+                world.ResidenceOf(kin),
+                grievance: 0.62,
+                fear: 0.20);
+            Disputes.Consider(
+                world,
+                kin,
+                leader,
+                DisputeCause.KinMurdered,
+                EventKind.FigureDied,
+                target.Id,
+                year);
+        }
     }
 
     internal static double Motive(Figure candidate, Figure target, bool claimant, int year)

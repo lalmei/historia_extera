@@ -154,6 +154,80 @@ public static class LifeStories
         Remember(second, MemoryKind.Rivalry, year, source, first.Id, location, 0.48);
     }
 
+    /// <summary>
+    /// Answers a grievance without erasing that there was one.
+    /// </summary>
+    /// <remarks>
+    /// The <see cref="BondKind.Rival"/> role stays. Two people who quarrelled and made it up are
+    /// not two people who never quarrelled, and the role is the record of what they have been to
+    /// each other; what a settlement changes is how much of it they are still acting on.
+    /// </remarks>
+    public static void Reconcile(
+        Figure first,
+        Figure second,
+        int year,
+        EventKind source,
+        EntityId location,
+        double relief,
+        bool warmly)
+    {
+        relief = DetMath.Clamp01(relief);
+
+        Settle(BondTo(first, second.Id));
+        Settle(BondTo(second, first.Id));
+
+        if (!warmly) return;
+
+        Remember(first, MemoryKind.Gratitude, year, source, second.Id, location, 0.44);
+        Remember(second, MemoryKind.Gratitude, year, source, first.Id, location, 0.44);
+
+        void Settle(FigureBond? bond)
+        {
+            if (bond is null) return;
+
+            bond.Grievance = DetMath.Clamp01(bond.Grievance - relief);
+            bond.Fear = DetMath.Clamp01(bond.Fear - (relief * 0.5));
+            if (warmly)
+            {
+                bond.Affection = DetMath.Clamp(bond.Affection + (relief * 0.35), -1.0, 1.0);
+                bond.Trust = DetMath.Clamp(bond.Trust + (relief * 0.30), -1.0, 1.0);
+            }
+
+            bond.LastCause = BondCause.Conflict;
+            bond.LastChangedYear = year;
+            bond.LastEventKind = source;
+            bond.LastLocationId = location;
+        }
+    }
+
+    /// <summary>Deepens an existing quarrel into declared enmity.</summary>
+    public static void Embitter(
+        Figure first,
+        Figure second,
+        int year,
+        EventKind source,
+        EntityId sourceEntity,
+        EntityId location,
+        double grievance,
+        double fear = 0.0)
+    {
+        Relate(
+            first, second,
+            BondKind.Rival | BondKind.Enemy,
+            BondKind.Rival | BondKind.Enemy,
+            BondCause.Conflict,
+            year,
+            source,
+            sourceEntity,
+            location,
+            affection: -0.18,
+            trust: -0.22,
+            fear: fear,
+            grievance: grievance,
+            reciprocalGrievance: grievance * 0.7,
+            reciprocalFear: fear * 0.6);
+    }
+
     public static void AddConspirators(Figure leader, Figure recruit, int year)
     {
         Relate(
@@ -263,7 +337,8 @@ public static class LifeStories
         bool violent = cause is DeathCause.Battle
             or DeathCause.Assassination
             or DeathCause.Execution
-            or DeathCause.Poisoning;
+            or DeathCause.Poisoning
+            or DeathCause.Duel;
 
         foreach (Figure survivor in family)
         {
@@ -469,6 +544,37 @@ public static class LifeStories
     {
         if (!fate.Chance(risk)) return false;
 
+        Injure(
+            world,
+            figure,
+            battle.Id,
+            EventKind.BattleFought,
+            BattlePlace(battle),
+            year,
+            fate,
+            new[] { battle.WarId });
+        return true;
+    }
+
+    /// <summary>
+    /// Writes one wound, wherever it was got.
+    /// </summary>
+    /// <remarks>
+    /// Shared by the battle resolver and the quarrel resolver so that severity, recovery and the
+    /// permanent tail are one rule rather than two that drift apart. The caller decides whether a
+    /// wound happens at all; this decides how bad it was and what it leaves behind.
+    /// </remarks>
+    internal static FigureInjury Injure(
+        WorldState world,
+        Figure figure,
+        EntityId causeId,
+        EventKind sourceKind,
+        EntityId location,
+        int year,
+        IRng fate,
+        IReadOnlyList<EntityId>? extra = null,
+        bool record = true)
+    {
         double gravity = fate.NextDouble();
         InjurySeverity severity = gravity < 0.62
             ? InjurySeverity.Minor
@@ -484,15 +590,16 @@ public static class LifeStories
         });
         string detail = InjuryDetail(severity, permanent, fate);
 
-        figure.Injuries.Add(
-            new FigureInjury(battle.Id, year, severity, recovery, permanent, detail));
+        var injury = new FigureInjury(
+            causeId, sourceKind, year, severity, recovery, permanent, detail);
+        figure.Injuries.Add(injury);
         Remember(
             figure,
             MemoryKind.Injury,
             year,
             EventKind.FigureWounded,
-            battle.Id,
-            BattlePlace(battle),
+            causeId,
+            location,
             severity switch
             {
                 InjurySeverity.Minor => 0.55,
@@ -500,18 +607,24 @@ public static class LifeStories
                 _ => 0.94,
             });
 
-        world.Chronicle.Record(
-            year,
-            EventKind.FigureWounded,
-            figure.Id,
-            obj: battle.Id,
-            location: BattlePlace(battle),
-            extra: new[] { battle.WarId },
-            data: Chronicle.Data(
-                ("severity", SeverityAdverb(severity)),
-                ("injury", detail),
-                ("permanent", permanent ? "true" : "false")));
-        return true;
+        // A quarrel writes its own event naming both parties, and a second line saying one of
+        // them was hurt at the other would read as a separate incident on the same day.
+        if (record)
+        {
+            world.Chronicle.Record(
+                year,
+                EventKind.FigureWounded,
+                figure.Id,
+                obj: causeId,
+                location: location,
+                extra: extra is null || extra.Count == 0 ? null : extra,
+                data: Chronicle.Data(
+                    ("severity", SeverityAdverb(severity)),
+                    ("injury", detail),
+                    ("permanent", permanent ? "true" : "false")));
+        }
+
+        return injury;
     }
 
     private static EntityId BattlePlace(Battle battle) =>
