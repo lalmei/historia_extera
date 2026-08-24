@@ -57,6 +57,259 @@ public static class Campaigns
         }
     }
 
+    /// <summary>
+    /// Resolves one stable, role-sensitive fate for every named person present at a battle.
+    /// </summary>
+    /// <remarks>
+    /// Each consequence kind is forked from battle id and figure id. Adding a witness therefore
+    /// cannot change anybody already present, and adding renown later cannot move the death roll.
+    /// </remarks>
+    public static void ResolveConsequences(WorldState world, Battle battle, int year)
+    {
+        var witnesses = new List<EntityId>(battle.WitnessIds);
+        witnesses.Sort();
+
+        foreach (EntityId figureId in witnesses)
+        {
+            if (!world.Figures.Contains(figureId)) continue;
+
+            Figure figure = world.Figures[figureId];
+            var memories = new List<CampaignMemory>();
+            foreach (CampaignMemory candidate in figure.Campaigns)
+            {
+                if (candidate.BattleId == battle.Id) memories.Add(candidate);
+            }
+            if (memories.Count == 0) continue;
+
+            CampaignMemory memory = PrimaryRole(memories);
+            if (memory.Fate != CampaignFate.Unresolved)
+            {
+                SetFate(memories, memory.Fate);
+                continue;
+            }
+
+            // A sack is resolved before the rest of the participants so its event can name those
+            // who fell. This pass still owns the stored campaign fate and never rolls them twice.
+            if (!figure.IsAlive && figure.DeathYear == year && figure.DeathCause == DeathCause.Battle)
+            {
+                SetFate(memories, CampaignFate.Killed);
+                continue;
+            }
+
+            double lossRate = LossRate(battle, memory.SideId);
+            IRng consequence = world.Root
+                .Fork("battle-consequence", battle.Id.ToDiscriminator())
+                .Fork("figure", figure.Id.ToDiscriminator());
+
+            bool sackAlreadyResolved = battle.Sacked
+                && memories.Exists(item => item.Role == CampaignRole.EnduredSiege);
+            double fatalRisk = ParticipantFatalRisk(
+                memory.Role,
+                memory.Triumphant == true,
+                battle.SiegeOutcome == SiegeOutcome.Carried,
+                battle.Sacked,
+                lossRate);
+
+            if (!sackAlreadyResolved && consequence.Fork("fatal").Chance(fatalRisk))
+            {
+                SetFate(memories, CampaignFate.Killed);
+                Houses.Die(
+                    world,
+                    figure,
+                    year,
+                    DeathCause.Battle,
+                    "at " + battle.Name,
+                    new[] { battle.Id, battle.WarId });
+                continue;
+            }
+
+            double injuryRisk = ParticipantInjuryRisk(
+                memory.Role,
+                battle.SiegeOutcome == SiegeOutcome.Carried,
+                battle.Sacked,
+                lossRate);
+            bool wounded = LifeStories.Wound(
+                world,
+                figure,
+                memory,
+                battle,
+                year,
+                consequence.Fork("injury"),
+                injuryRisk);
+            SetFate(
+                memories,
+                wounded ? CampaignFate.Wounded : CampaignFate.ReturnedUnharmed);
+
+            if (memory.Triumphant == false)
+            {
+                double traumaRisk = DetMath.Clamp(
+                    0.05 + (0.42 * lossRate)
+                    + (memory.Role == CampaignRole.EnduredSiege ? 0.06 : 0.0),
+                    0.02,
+                    0.34);
+                memory.Traumatized = consequence.Fork("trauma").Chance(traumaRisk);
+
+                if (memory.Role == CampaignRole.Fought)
+                {
+                    double desertionRisk = DetMath.Clamp(0.015 + (0.16 * lossRate), 0.0, 0.09);
+                    memory.Deserted = consequence.Fork("desertion").Chance(desertionRisk);
+                }
+            }
+
+            if (memory.Triumphant == true)
+            {
+                double notice = memory.Role switch
+                {
+                    CampaignRole.Commanded => 0.88,
+                    CampaignRole.Fought => 0.34,
+                    CampaignRole.EnduredSiege => battle.SiegeOutcome == SiegeOutcome.Relieved
+                        ? 0.16
+                        : 0.05,
+                    _ => 0.0,
+                };
+                if (consequence.Fork("renown").Chance(notice))
+                {
+                    memory.RenownGained = memory.Role == CampaignRole.Commanded ? 3 : 1;
+                }
+            }
+        }
+    }
+
+    /// <summary>Whether the separately narrated sack kills this named resident.</summary>
+    internal static bool SackKills(WorldState world, Battle battle, Figure figure)
+    {
+        CampaignMemory? memory = figure.Campaigns.Find(item =>
+            item.BattleId == battle.Id && item.Role == CampaignRole.EnduredSiege);
+        if (memory is null) return false;
+
+        double risk = ParticipantFatalRisk(
+            memory.Role,
+            triumphant: false,
+            siegeCarried: true,
+            sacked: true,
+            LossRate(battle, memory.SideId));
+        return world.Root
+            .Fork("battle-consequence", battle.Id.ToDiscriminator())
+            .Fork("figure", figure.Id.ToDiscriminator())
+            .Fork("fatal")
+            .Chance(risk);
+    }
+
+    /// <summary>Fatal risk is monotone in the recorded loss rate for an otherwise identical role.</summary>
+    internal static double ParticipantFatalRisk(
+        CampaignRole role,
+        bool triumphant,
+        bool siegeCarried,
+        bool sacked,
+        double lossRate)
+    {
+        lossRate = DetMath.Clamp01(lossRate);
+        if (role == CampaignRole.EnduredSiege)
+        {
+            if (sacked) return 0.18;
+            return siegeCarried ? 0.018 : 0.002;
+        }
+
+        double risk = role switch
+        {
+            CampaignRole.Commanded => (triumphant ? 0.012 : 0.042) + (0.18 * lossRate),
+            CampaignRole.Fought => (triumphant ? 0.002 : 0.006) + (0.10 * lossRate),
+            _ => 0.0,
+        };
+        return DetMath.Clamp(risk, 0.0, role == CampaignRole.Commanded ? 0.14 : 0.075);
+    }
+
+    internal static double ParticipantInjuryRisk(
+        CampaignRole role, bool siegeCarried, bool sacked, double lossRate)
+    {
+        lossRate = DetMath.Clamp01(lossRate);
+        double risk = role switch
+        {
+            CampaignRole.Commanded => 0.055 + (0.58 * lossRate),
+            CampaignRole.Fought => 0.075 + (0.72 * lossRate),
+            CampaignRole.EnduredSiege when sacked => 0.24,
+            CampaignRole.EnduredSiege when siegeCarried => 0.12,
+            CampaignRole.EnduredSiege => 0.035,
+            _ => 0.0,
+        };
+        return DetMath.Clamp(risk, 0.0, 0.43);
+    }
+
+    /// <summary>Recent trauma and desertion reduce later service without becoming permanent traits.</summary>
+    public static double Readiness(Figure figure, int year)
+    {
+        double readiness = 1.0;
+        foreach (CampaignMemory memory in figure.Campaigns)
+        {
+            int elapsed = year - memory.Year;
+            if (elapsed <= 0) continue;
+            if (memory.Deserted && elapsed <= 6) readiness = Math.Min(readiness, 0.18);
+            if (memory.Traumatized && elapsed <= 5) readiness = Math.Min(readiness, 0.62);
+        }
+
+        return readiness;
+    }
+
+    public static int Renown(Figure figure)
+    {
+        int renown = 0;
+        foreach (CampaignMemory memory in figure.Campaigns) renown += memory.RenownGained;
+        return renown;
+    }
+
+    /// <summary>The unconsumed battle most responsible for a later marshal appointment.</summary>
+    public static CampaignMemory? PromotionCause(Figure figure)
+    {
+        CampaignMemory? best = null;
+        foreach (CampaignMemory memory in figure.Campaigns)
+        {
+            if (memory.RenownGained <= 0 || memory.PromotionYear is not null) continue;
+            if (best is null
+                || memory.RenownGained > best.RenownGained
+                || (memory.RenownGained == best.RenownGained && memory.Year > best.Year))
+            {
+                best = memory;
+            }
+        }
+
+        return best;
+    }
+
+    private static double LossRate(Battle battle, EntityId sideId)
+    {
+        int losses = sideId == battle.AttackerId
+            ? battle.AttackerLosses
+            : battle.DefenderLosses;
+        int strength = sideId == battle.AttackerId
+            ? battle.AttackerStrength
+            : battle.DefenderStrength;
+        return DetMath.Clamp01((double)losses / Math.Max(1, strength));
+    }
+
+    private static CampaignMemory PrimaryRole(List<CampaignMemory> memories)
+    {
+        CampaignMemory primary = memories[0];
+        foreach (CampaignMemory memory in memories)
+        {
+            if (ExposureRank(memory.Role) < ExposureRank(primary.Role)) primary = memory;
+        }
+
+        return primary;
+    }
+
+    private static int ExposureRank(CampaignRole role) => role switch
+    {
+        CampaignRole.Commanded => 0,
+        CampaignRole.Fought => 1,
+        CampaignRole.EnduredSiege => 2,
+        _ => 3,
+    };
+
+    private static void SetFate(List<CampaignMemory> memories, CampaignFate fate)
+    {
+        foreach (CampaignMemory memory in memories) memory.Fate = fate;
+    }
+
     /// <summary>Names the sitting rulers of every belligerent as having led this war.</summary>
     public static void NoteWar(WorldState world, War war, int year)
     {
@@ -160,7 +413,8 @@ public static class Campaigns
             if (sideId.IsNone) continue;
 
             IRng fate = levy.Fork("figure", figure.Id.ToDiscriminator());
-            if (!fate.Chance(SoldierTakesField * LifeStories.Fitness(figure, year))) continue;
+            double availability = LifeStories.Fitness(figure, year) * Readiness(figure, year);
+            if (!fate.Chance(SoldierTakesField * availability)) continue;
 
             Remember(figure, war.Id, battle.Id, sideId, year, CampaignRole.Fought);
             Witness(battle, figure.Id);

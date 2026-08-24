@@ -300,7 +300,7 @@ public sealed class OfficeSystem : ISystem
         if (mode == FillMode.Mandated && governing is not null)
         {
             List<Figure> candidates = Eligible(world, civilization, kind, Offices.Courtiers(world, civilization, year));
-            holder = candidates.Count == 0 ? null : rng.Pick(candidates);
+            holder = PickCandidate(candidates, kind, rng);
             if (holder is not null) grantedBy = governing.Id;
         }
         else if (kind == OfficeKind.HighPriest && BloodlineFaith(world, civilization))
@@ -311,7 +311,7 @@ public sealed class OfficeSystem : ISystem
             // house holding every seat of its faith — so this branch runs first and a bloodline
             // faith whose court has nobody to spare still falls through to the last priest's heir.
             List<Figure> candidates = Eligible(world, civilization, kind, Offices.Courtiers(world, civilization, year));
-            holder = candidates.Count == 0 ? null : rng.Pick(candidates);
+            holder = PickCandidate(candidates, kind, rng);
         }
         else
         {
@@ -473,6 +473,30 @@ public sealed class OfficeSystem : ISystem
         }
 
         return admitted;
+    }
+
+    /// <summary>Battle renown is a qualification for marshal; other offices keep their own rules.</summary>
+    private static Figure? PickCandidate(List<Figure> candidates, OfficeKind kind, IRng rng)
+    {
+        if (candidates.Count == 0) return null;
+        if (kind != OfficeKind.Marshal) return rng.Pick(candidates);
+
+        Figure? best = null;
+        double bestScore = double.NegativeInfinity;
+        foreach (Figure candidate in candidates)
+        {
+            // A per-candidate tie-break means adding a courtier does not reshuffle everyone else.
+            double score = Campaigns.Renown(candidate)
+                + rng.Fork("marshal-candidate", candidate.Id.ToDiscriminator()).NextDouble();
+            if (score > bestScore
+                || (score == bestScore && best is not null && candidate.Id.CompareTo(best.Id) < 0))
+            {
+                best = candidate;
+                bestScore = score;
+            }
+        }
+
+        return best;
     }
 
     private static string ClaimFor(FillMode mode, OfficeKind kind, Culture culture) => mode switch

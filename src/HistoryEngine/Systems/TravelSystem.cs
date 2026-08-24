@@ -196,8 +196,8 @@ public sealed class TravelSystem : ISystem
     private static void Consider(
         WorldState world, Figure figure, EntityId home, int year, IRng rng)
     {
-        FigureUndertaking? active = Undertakings.CurrentJourney(figure);
-        Undertakings.JourneyPlan? planned = Undertakings.NextJourney(world, figure, home, year, rng);
+        FigureUndertaking? active = Undertakings.CurrentPublic(figure);
+        Undertakings.JourneyPlan? planned = Undertakings.NextJourney(world, figure, home, year);
         if (planned is not null)
         {
             Record(
@@ -215,6 +215,7 @@ public sealed class TravelSystem : ISystem
         // A named goal is a commitment. When its next step is not attempted this year, the
         // traveller does not quietly begin two other "current" ventures beside it.
         if (active is not null) return;
+        if (!Undertakings.CanStartPublic(figure, year)) return;
 
         if (TryTrade(world, figure, home, year, rng)) return;
         if (TryMission(world, figure, home, year, rng)) return;

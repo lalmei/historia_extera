@@ -168,13 +168,16 @@ public static class Conspiracies
         {
             plot.Progress++;
             plot.Secrecy = DetMath.Clamp01(plot.Secrecy - 0.06);
-            plot.Steps.Add(
+            Undertakings.AddStep(
+                world,
+                plot,
                 new UndertakingStep(
                     year,
                     EventKind.UndertakingStarted,
                     world.ResidenceOf(target),
                     target.Id,
                     "Advanced in secret"));
+            plot.LastProgressYear = year;
         }
 
         if (plot.Progress < plot.RequiredProgress) return;
@@ -234,7 +237,9 @@ public static class Conspiracies
         plot.ParticipantIds.Sort();
         plot.Access = Math.Max(plot.Access, Access(world, best, target));
         plot.Secrecy = DetMath.Clamp01(plot.Secrecy - 0.08);
-        plot.Steps.Add(
+        Undertakings.AddStep(
+            world,
+            plot,
             new UndertakingStep(
                 year,
                 EventKind.ConspiratorJoined,
@@ -259,7 +264,9 @@ public static class Conspiracies
         FigureUndertaking plot,
         int year)
     {
-        plot.Steps.Add(
+        Undertakings.AddStep(
+            world,
+            plot,
             new UndertakingStep(
                 year,
                 EventKind.ConspiracyExposed,
@@ -299,7 +306,9 @@ public static class Conspiracies
         int year,
         IRng fate)
     {
-        plot.Steps.Add(
+        Undertakings.AddStep(
+            world,
+            plot,
             new UndertakingStep(
                 year,
                 EventKind.UndertakingCompleted,

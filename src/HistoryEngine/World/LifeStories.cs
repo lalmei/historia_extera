@@ -181,6 +181,9 @@ public static class LifeStories
     public static void ResolveBattle(WorldState world, Battle battle, int year)
     {
         var participants = new List<(Figure Figure, CampaignMemory Memory)>();
+        EventKind source = battle.SiegeOutcome == SiegeOutcome.Lifted
+            ? EventKind.SiegeLifted
+            : EventKind.BattleFought;
 
         foreach (EntityId figureId in battle.WitnessIds)
         {
@@ -197,12 +200,14 @@ public static class LifeStories
                 figure,
                 triumphant ? MemoryKind.Triumph : MemoryKind.Defeat,
                 year,
-                EventKind.BattleFought,
+                source,
                 battle.Id,
                 BattlePlace(battle),
                 triumphant ? 0.64 : 0.72);
-
-            MaybeWound(world, figure, memory, battle, year);
+            if (source == EventKind.BattleFought)
+            {
+                Undertakings.NoteBattle(world, figure, memory, battle, year);
+            }
         }
 
         for (int i = 0; i < participants.Count; i++)
@@ -215,7 +220,7 @@ public static class LifeStories
                 if (firstMemory.SideId == secondMemory.SideId)
                 {
                     AddCompanionship(
-                        first, second, year, battle.Id, BattlePlace(battle));
+                        first, second, year, source, battle.Id, BattlePlace(battle));
                 }
             }
         }
@@ -227,7 +232,7 @@ public static class LifeStories
                 world.Figures[battle.AttackerCommanderId],
                 world.Figures[battle.DefenderCommanderId],
                 year,
-                EventKind.BattleFought,
+                source,
                 BattlePlace(battle),
                 0.24,
                 battle.Id);
@@ -431,7 +436,12 @@ public static class LifeStories
     }
 
     private static void AddCompanionship(
-        Figure first, Figure second, int year, EntityId battleId, EntityId location)
+        Figure first,
+        Figure second,
+        int year,
+        EventKind source,
+        EntityId battleId,
+        EntityId location)
     {
         Relate(
             first, second,
@@ -439,7 +449,7 @@ public static class LifeStories
             BondKind.Companion,
             BondCause.SharedCampaign,
             year,
-            EventKind.BattleFought,
+            source,
             battleId,
             location,
             affection: 0.06,
@@ -447,34 +457,17 @@ public static class LifeStories
             obligation: 0.05);
     }
 
-    private static void MaybeWound(
+    /// <summary>Records one nonfatal consequence selected by the campaign resolver.</summary>
+    internal static bool Wound(
         WorldState world,
         Figure figure,
         CampaignMemory memory,
         Battle battle,
-        int year)
+        int year,
+        IRng fate,
+        double risk)
     {
-        int losses = memory.SideId == battle.AttackerId
-            ? battle.AttackerLosses
-            : battle.DefenderLosses;
-        int strength = memory.SideId == battle.AttackerId
-            ? battle.AttackerStrength
-            : battle.DefenderStrength;
-        double lossRate = DetMath.Clamp01((double)losses / Math.Max(1, strength));
-
-        double exposure = memory.Role switch
-        {
-            CampaignRole.Commanded => 0.10,
-            CampaignRole.Fought => 0.16,
-            CampaignRole.EnduredSiege => battle.SiegeOutcome == SiegeOutcome.Carried ? 0.14 : 0.05,
-            _ => 0.02,
-        };
-        double risk = DetMath.Clamp(exposure + (lossRate * 0.85), 0.02, 0.46);
-
-        IRng fate = world.Root
-            .Fork("battle-consequence", battle.Id.ToDiscriminator())
-            .Fork("figure", figure.Id.ToDiscriminator());
-        if (!fate.Chance(risk)) return;
+        if (!fate.Chance(risk)) return false;
 
         double gravity = fate.NextDouble();
         InjurySeverity severity = gravity < 0.62
@@ -518,6 +511,7 @@ public static class LifeStories
                 ("severity", SeverityAdverb(severity)),
                 ("injury", detail),
                 ("permanent", permanent ? "true" : "false")));
+        return true;
     }
 
     private static EntityId BattlePlace(Battle battle) =>

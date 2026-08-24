@@ -57,6 +57,7 @@ public sealed class FigureIncidentSystem : ISystem
 
     private static void PoliticalViolence(WorldState world, int year, IRng rng)
     {
+        Undertakings.Tick(world, year);
         Conspiracies.Tick(world, year, rng.Fork("conspiracies"));
 
         foreach (Civilization civilization in world.ActiveCivilizations())

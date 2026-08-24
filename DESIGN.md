@@ -256,9 +256,13 @@ That thread is built from four durable forms of state:
   fear, anger, pride, and loyalty are derived without another random roll and are not permanent
   personality labels. The same defeat may harden an aggressive figure and frighten a cautious
   one. When the memories fade, the feeling fades with them.
-- **Wounds and undertakings** carry consequences across years. Wounds remember their battle,
-  recovery, and any permanent cost. An undertaking records an objective, motive, target,
-  participants, progress, event-sized steps, and a succeeded, failed, abandoned, or active end.
+- **Battle consequences and undertakings** carry consequences across years. Every named battle
+  participant receives one role-sensitive bodily fate from a fork keyed by battle and figure:
+  returned unharmed, wounded, or killed. Wounds remember their battle, recovery, and any permanent
+  cost; trauma and desertion reduce later service; battle-earned renown can decide a later command
+  or marshal's appointment and retains the battle that earned it. An undertaking records an
+  objective, sponsor, concrete motive, target, deadline, participants, progress, event-sized steps,
+  and a succeeded, failed, abandoned, or active end.
 
 Ordinary events feed that state. Birth and marriage establish kinship; coming of age may establish
 mentorship; appointment creates patronage and dismissal may turn gratitude into humiliation or
@@ -268,8 +272,12 @@ bereavement memory and its causal obituary appear on the same survivor's page.
 
 Journeys are steps within undertakings, not isolated annual errands. Trade ventures, pilgrimages,
 missionary circuits, and embassies begin with a stated objective and may require several trips.
-Only one public undertaking may be current at once; a secret conspiracy is tracked separately.
-Death, an invalid destination, exposure, success, or loss on the road closes the arc explicitly.
+A martial undertaking can likewise begin in a concrete defeat and end only in a later battle
+against the same opponent, through revenge, another defeat, loss of the office that enabled it,
+death, or its deadline. Only one public undertaking may be current at once; a secret conspiracy is
+tracked separately, and a cooldown prevents a terminal arc from immediately becoming a queue of
+replacement goals. Steps must be chronological, unique, and linked to real entities. Death, an
+invalid destination, exposure, success, failure, or loss of office closes the arc explicitly.
 
 Conspiracy is the test that this state matters. A plot is not a one-roll assassination label: a
 leader needs motive grounded in grievance, rivalry, memory, disgrace, or a claim; access to the
@@ -380,7 +388,7 @@ Beyond the numbered milestones:
 - Deepen ordinary social life with causal interaction episodes: friendships and lovers that
   actually begin in events, courtship, quarrels, favours, betrayals, and reconciliation. Give
   memories event-specific readable summaries, and widen non-travel undertakings toward masterworks,
-  disputed claims, rescues, revenge, and religious disputes. These should consume existing bonds,
+  disputed claims, rescues, and religious disputes. These should consume existing bonds,
   memories, access, and disposition rather than add disconnected flavour rolls.
 - Build the Phase 3 Vintage Story terrain adapter and revalidate framework, calendar,
   hydrology cost, and map-raster cost against the game version actually targeted.
