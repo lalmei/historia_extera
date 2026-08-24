@@ -17,6 +17,8 @@ public static class Conspiracies
 
     public static void Tick(WorldState world, int year, IRng rng)
     {
+        RetireStale(world, year);
+
         foreach (Civilization civilization in world.ActiveCivilizations())
         {
             if (!world.Figures.Contains(civilization.CurrentRulerId)) continue;
@@ -37,6 +39,34 @@ public static class Conspiracies
             if (plot is null || plot.TargetId != target.Id) continue;
 
             Progress(world, civilization, leader, target, plot, year, court);
+        }
+    }
+
+    private static void RetireStale(WorldState world, int year)
+    {
+        foreach (Figure leader in world.Figures)
+        {
+            FigureUndertaking? plot = Undertakings.CurrentConspiracy(leader);
+            if (plot is null) continue;
+
+            if (!leader.IsAlive)
+            {
+                Undertakings.Fail(world, leader, plot, year, "its leader was dead");
+                continue;
+            }
+
+            if (!world.Figures.Contains(plot.TargetId) || !world.Figures[plot.TargetId].IsAlive)
+            {
+                Undertakings.Fail(world, leader, plot, year, "its target was already dead");
+                continue;
+            }
+
+            Figure target = world.Figures[plot.TargetId];
+            if (!world.Civilizations.Contains(target.CivilizationId)
+                || world.Civilizations[target.CivilizationId].CurrentRulerId != target.Id)
+            {
+                Undertakings.Fail(world, leader, plot, year, "its target had left the throne");
+            }
         }
     }
 

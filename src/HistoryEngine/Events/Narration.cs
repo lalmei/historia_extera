@@ -114,11 +114,12 @@ public static class Narration
             "{subject} took to {data:occupation}[ at {location}].");
         // One template, four errands. The reason a journey was made is a holy site for a pilgrim,
         // a monastery for a scribe fetching copies, a faith for a priest on circuit and a realm
-        // for a guest — so each clause is gated on the kind of the thing carried, and exactly one
-        // of them can hold. `purpose` ends in its own preposition and supplies the rest.
+        // for a guest, and a trade route may add the road itself. Each clause is gated on the kind
+        // of thing carried; `purpose` supplies any preposition needed by person, faith or site.
         Set(EventKind.JourneyMade,
             "{subject} travelled to {location}[, {data:purpose}]"
-            + "[ the {extra:hol}][ the {extra:rel}][ {extra:civ}].");
+            + "[ the {extra:hol}][ the {extra:rel}][ {extra:civ}]"
+            + "[ along the {extra:rte}].");
         Set(EventKind.JourneyWaylaid,
             "{subject} came to grief[ on the way to {location}][, {data:cause}].");
         Set(EventKind.FigureWounded,
@@ -257,7 +258,8 @@ public static class Narration
             + "[{self:subject}.]"
             + "[{as:suspect}Was named in the death of {subject}][{as:suspect}, of {data:cause}]"
             + "[{as:suspect}.]"
-            + "[{not:suspect}{self:extra}{subject} was slain][{not:suspect}{self:extra}, of {data:cause}]"
+            + "[{not:suspect}{self:extra}{subject} {data:familyVerb}]"
+            + "[{not:suspect}{self:extra}, of {data:cause}]"
             + "[{not:suspect}{self:extra}, and the court named {data:suspect}]"
             + "[{not:suspect}{self:extra}.]");
         SetSelf(EventKind.RulerCrowned,
@@ -285,17 +287,30 @@ public static class Narration
             "Took to {data:occupation}[ at {location}].");
         SetSelf(EventKind.JourneyMade,
             "Travelled to {location}[, {data:purpose}]"
-            + "[ the {extra:hol}][ the {extra:rel}][ {extra:civ}].");
+            + "[ the {extra:hol}][ the {extra:rel}][ {extra:civ}]"
+            + "[ along the {extra:rte}].");
         SetSelf(EventKind.JourneyWaylaid,
             "Came to grief[ on the way to {location}][, {data:cause}].");
         SetSelf(EventKind.FigureWounded,
             "Was {data:severity} wounded at the {object}[, {data:injury}].");
         SetSelf(EventKind.UndertakingStarted,
-            "Undertook {data:objective}[, bound for {location}].");
+            "[{self:subject}Undertook {data:objective}][{self:subject}, bound for {location}]"
+            + "[{self:subject}.]"
+            + "[{self:object}{subject} undertook {data:objective}]"
+            + "[{self:object}, bound for {location}][{self:object}.]");
         SetSelf(EventKind.UndertakingCompleted,
-            "Completed {data:objective}[ at {location}][, after {data:years} years].");
+            "[{self:subject}Completed {data:objective}][{self:subject} at {location}]"
+            + "[{self:subject}, after {data:years} years][{self:subject}.]"
+            + "[{self:object}{subject} completed {data:objective}]"
+            + "[{self:object} at {location}][{self:object}.]"
+            + "[{self:extra}Helped {subject} complete {data:objective}][{self:extra}.]");
         SetSelf(EventKind.UndertakingFailed,
-            "The undertaking to {data:objective} failed[ at {location}][, {data:cause}].");
+            "[{self:subject}Could not complete {data:objective}][{self:subject} at {location}]"
+            + "[{self:subject}, because {data:cause}][{self:subject}.]"
+            + "[{self:object}{subject} could not complete {data:objective}]"
+            + "[{self:object}, because {data:cause}][{self:object}.]"
+            + "[{self:extra}Was implicated when {subject} failed to complete {data:objective}]"
+            + "[{self:extra}.]");
         SetSelf(EventKind.ConspiratorJoined,
             "[{self:subject}Drew {other} into a conspiracy against {extra:fig}.]"
             + "[{self:object}Joined {other} in a conspiracy against {extra:fig}.]");
@@ -340,7 +355,8 @@ public static class Narration
             "[{self:extra}Took {subject}][{self:extra} to {location}].");
         SetSelf(EventKind.ArtifactGiven,
             "[{self:object}Received {subject}][{self:object} at {location}][{self:object}, {data:manner}]"
-            + "[{self:extra}Gave {subject}][{self:extra} to {object}][{self:extra} at {location}]"
+            + "[{self:extra}{subject} passed from them][{self:extra} to {object}]"
+            + "[{self:extra} at {location}]"
             + "[{self:extra}, {data:manner}].");
         SetSelf(EventKind.ArtifactFound,
             "[{self:object}Found {subject}][{self:object} at {location}].");

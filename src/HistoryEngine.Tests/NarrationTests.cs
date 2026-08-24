@@ -102,6 +102,7 @@ public sealed class NarrationTests
             Data: Chronicle.Data(
                 ("age", "42"),
                 ("cause", "a knife in the dark"),
+                ("familyVerb", "was slain"),
                 ("suspect", "fig:8")));
 
         Assert.Equal(
@@ -116,6 +117,19 @@ public sealed class NarrationTests
         Assert.Equal(
             "Was named in the death of fig:2, of a knife in the dark.",
             Narration.Render(murder, Name, hand));
+    }
+
+    [Fact]
+    public void AnOrdinaryDeathReadsAsDeathRatherThanSlayingToItsFamily()
+    {
+        EntityId victim = EntityId.Figure(2);
+        EntityId child = EntityId.Figure(5);
+        var death = new HistoryEvent(
+            0, 80, EventKind.FigureDied, victim, default, default,
+            Extra: new[] { child },
+            Data: Chronicle.Data(("cause", "old age"), ("familyVerb", "died")));
+
+        Assert.Equal("fig:2 died, of old age.", Narration.Render(death, Name, child));
     }
 
     /// <summary>
@@ -294,7 +308,52 @@ public sealed class NarrationTests
             Extra: new[] { EntityId.Settlement(3), EntityId.TradeRoute(5) },
             Data: Chronicle.Data(("purpose", "on trade")));
 
-        Assert.Equal("fig:1 travelled to set:2, on trade.", Narration.Render(trade, Name));
+        Assert.Equal(
+            "fig:1 travelled to set:2, on trade along the rte:5.",
+            Narration.Render(trade, Name));
+    }
+
+    [Fact]
+    public void AnUndertakingReadsFromItsLeadersAndTargetsViewpoints()
+    {
+        EntityId mourner = EntityId.Figure(1);
+        EntityId deceased = EntityId.Figure(2);
+        var vow = new HistoryEvent(
+            Id: 0,
+            Year: 12,
+            Kind: EventKind.UndertakingStarted,
+            Subject: mourner,
+            Object: deceased,
+            Location: EntityId.Settlement(3),
+            Data: Chronicle.Data(("objective", "a pilgrimage in memory of fig:2")));
+
+        Assert.Equal(
+            "Undertook a pilgrimage in memory of fig:2, bound for set:3.",
+            Narration.Render(vow, Name, mourner));
+        Assert.Equal(
+            "fig:1 undertook a pilgrimage in memory of fig:2, bound for set:3.",
+            Narration.Render(vow, Name, deceased));
+    }
+
+    [Fact]
+    public void InheritedArtifactsDoNotImplyActionAfterTheFormerHoldersDeath()
+    {
+        var artifact = new EntityId(EntityKind.Artifact, 1);
+        EntityId heir = EntityId.Figure(2);
+        EntityId formerHolder = EntityId.Figure(3);
+        var inheritance = new HistoryEvent(
+            Id: 0,
+            Year: 12,
+            Kind: EventKind.ArtifactGiven,
+            Subject: artifact,
+            Object: heir,
+            Location: EntityId.Settlement(4),
+            Extra: new[] { formerHolder },
+            Data: Chronicle.Data(("manner", "inherited with the crown")));
+
+        Assert.Equal(
+            "art:1 passed from them to fig:2 at set:4, inherited with the crown.",
+            Narration.Render(inheritance, Name, formerHolder));
     }
 
     /// <summary>An unknown kind prefix resolves to nothing rather than throwing.</summary>

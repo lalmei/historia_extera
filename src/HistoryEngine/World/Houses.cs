@@ -354,9 +354,9 @@ public static class Houses
     /// systems happen to run in.
     /// </remarks>
     /// <param name="extra">
-    /// Further entities to index the death under, besides the house and surviving spouse.
-    /// Political murders pass living family and a named suspect so the event appears on their
-    /// pages; ordinary deaths leave it empty.
+    /// Further entities to index the death under, besides the house and immediate family.
+    /// Political murders pass a named suspect and any wider concern so the event appears on their
+    /// pages; ordinary deaths need no caller-supplied additions.
     /// </param>
     /// <param name="data">
     /// Further display facts merged onto the obituary — a named suspect, a particular form.
@@ -374,6 +374,7 @@ public static class Houses
         // Read while the marriage still exists. Death clears the live spouse link below, but the
         // relationships and memories it leaves behind are permanent parts of the survivors.
         List<Figure> bereaved = Succession.ImmediateFamily(world, figure);
+        Undertakings.EndAtDeath(world, figure, year);
 
         figure.DeathYear = year;
         figure.DeathCause = cause;
@@ -416,7 +417,8 @@ public static class Houses
 
         var obituary = Chronicle.Data(
             ("age", figure.AgeIn(year).ToString(CultureInfo.InvariantCulture)),
-            ("cause", detail ?? CauseLabel(cause)));
+            ("cause", detail ?? CauseLabel(cause)),
+            ("familyVerb", FamilyDeathVerb(cause)));
 
         // What they were when they died, so that the deaths kept in the chronicle explain
         // themselves. "Thorgill died at the age of 78" is a line a reader skips; "Thorgill,
@@ -437,7 +439,7 @@ public static class Houses
             EventKind.FigureDied,
             figure.Id,
             obj: realm,
-            extra: IndexedOn(figure, survivingSpouse, extra),
+            extra: IndexedOn(figure, survivingSpouse, bereaved, extra),
             data: obituary,
             significance: inPower || IsExceptional(cause)
                 ? Significance.Notable
@@ -449,20 +451,26 @@ public static class Houses
     }
 
     /// <summary>
-    /// The house first, then the surviving spouse and whoever else the death concerns, with none
-    /// repeated.
+    /// The house first, then the surviving household and whoever else the death concerns, with
+    /// none repeated. This is the chronology half of salient bereavement: a memory of a parent's
+    /// death must lead to the death on the survivor's page rather than point at a fact hidden on
+    /// somebody else's.
     /// </summary>
     private static EntityId[]? IndexedOn(
-        Figure figure, EntityId survivingSpouse, IReadOnlyList<EntityId>? extra)
+        Figure figure,
+        EntityId survivingSpouse,
+        IReadOnlyList<Figure> bereaved,
+        IReadOnlyList<EntityId>? extra)
     {
         if (figure.DynastyId.IsNone
             && survivingSpouse.IsNone
+            && bereaved.Count == 0
             && (extra is null || extra.Count == 0))
         {
             return null;
         }
 
-        var ids = new List<EntityId>(2 + (extra?.Count ?? 0));
+        var ids = new List<EntityId>(2 + bereaved.Count + (extra?.Count ?? 0));
 
         void Add(EntityId id)
         {
@@ -479,6 +487,8 @@ public static class Houses
         Add(figure.DynastyId);
         Add(survivingSpouse);
 
+        for (int i = 0; i < bereaved.Count; i++) Add(bereaved[i].Id);
+
         if (extra is not null)
         {
             for (int i = 0; i < extra.Count; i++) Add(extra[i]);
@@ -486,6 +496,13 @@ public static class Houses
 
         return ids.Count == 0 ? null : ids.ToArray();
     }
+
+    private static string FamilyDeathVerb(DeathCause cause) => cause switch
+    {
+        DeathCause.Battle or DeathCause.Assassination or DeathCause.Execution
+            or DeathCause.Poisoning => "was slain",
+        _ => "died",
+    };
 
     /// <summary>
     /// Ends a house when the person just buried was the last of its blood.
