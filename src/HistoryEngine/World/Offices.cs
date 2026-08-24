@@ -188,6 +188,12 @@ public static class Offices
                 ? Significance.Routine
                 : Significance.Notable);
 
+        if (world.Figures.Contains(grantedBy) && grantedBy != holder.Id)
+        {
+            LifeStories.AddPatronage(
+                world.Figures[grantedBy], holder, year, Seat(world, civilization, kind, scope));
+        }
+
         Occupations.Sync(world, holder, year);
     }
 
@@ -217,6 +223,25 @@ public static class Offices
             holder.Id,
             obj: held.CivilizationId,
             data: Chronicle.Data(("office", held.Title), ("cause", cause)));
+
+        if (world.Civilizations.Contains(held.CivilizationId))
+        {
+            EntityId rulerId = world.Civilizations[held.CivilizationId].CurrentRulerId;
+            if (world.Figures.Contains(rulerId) && rulerId != holder.Id)
+            {
+                Figure ruler = world.Figures[rulerId];
+                LifeStories.AddRivalry(
+                    holder, ruler, year, EventKind.OfficeRevoked, world.ResidenceOf(holder), 0.52);
+                LifeStories.Remember(
+                    holder,
+                    MemoryKind.Humiliation,
+                    year,
+                    EventKind.OfficeRevoked,
+                    ruler.Id,
+                    world.ResidenceOf(holder),
+                    0.78);
+            }
+        }
 
         Occupations.Sync(world, holder, year);
     }
