@@ -37,7 +37,10 @@ Order and cadence are part of the run's identity (hashed into the export). As bu
 19. `offices`
 20. `artifacts`
 
-Most systems are annual, `unrest`, `travel` and `cultural-drift` among them. `expansion` and `war` are seasonal. `plague` also answers for
+Most systems are annual, `unrest`, `travel` and `cultural-drift` among them. `expansion`,
+`war` and `artifacts` are seasonal; artifacts still create and circulate only in the opening
+season, and its later ticks exist to settle the estate of an owner killed by a death the
+docket resolved after it. `plague` also answers for
 scheduled outbreak steps and arrivals through the docket, so an active outbreak can keep its own
 clock without creating a daily global loop. `war` answers for scheduled siege decisions: the
 seasonal campaign starts an investment, and the docket carries it to the day it is carried,
