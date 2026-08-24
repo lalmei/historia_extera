@@ -610,7 +610,11 @@ function readWorldName(text) {
  */
 function readWorldKind(text) {
   const match = /"kind"\s*:\s*"(Planet|Moon)"/.exec(text);
-  return match ? match[1] : null;
+  if (match === null) return null;
+
+  // The alternation already limits the capture to these two, but only the comparison
+  // says so in a way the declared return type can be checked against.
+  return match[1] === 'Moon' ? 'Moon' : 'Planet';
 }
 
 /**
