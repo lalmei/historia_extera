@@ -18,6 +18,7 @@ measurements, rejected alternatives, and milestone retrospectives.
 | Space | Expensive terrain is accessed through a budgeted, three-tier atlas |
 | Time | Years remain the spine; seasons and scheduled days are used only where earned |
 | History | Flat events plus persistent entities and sampled series |
+| Personal history | Directed bonds, bounded causal memories, wounds, and multi-year undertakings |
 | Presentation | The viewer reads exports and never drives the simulation |
 | Game integration | Vintage Story is a future terrain host, not an engine dependency |
 
@@ -120,10 +121,12 @@ year and its seasons. `Docket` holds scheduled work in a deterministic total ord
 dispatches due entries to their declared owners. Cost therefore scales with active
 episodes, not with calendar length.
 
-Most systems remain annual, `unrest`, `travel` and `cultural-drift` among them. `expansion` and `war` are seasonal in the current checkout;
-`plague` still performs its annual ignition work and also handles scheduled outbreak
-steps and arrivals, while `war` schedules a siege's decision instead of resolving an
-investment on the campaign day that began it.
+Most systems remain annual, `unrest`, `travel` and `cultural-drift` among them. `expansion`,
+`war`, and `artifacts` are seasonal in the current checkout. Artifact creation and exchange
+still happen only in the opening season; the later ticks settle estates after deaths resolved
+from the docket, including a death in the final winter. `plague` still performs its annual
+ignition work and also handles scheduled outbreak steps and arrivals, while `war` schedules a
+siege's decision instead of resolving an investment on the campaign day that began it.
 
 ### Entities and ownership
 
@@ -138,7 +141,8 @@ Ownership is explicit and historical facts are not silently rewritten:
 - Civilizations own regions at a point in time; territorial history is reconstructed
   from recorded transfers rather than final ownership.
 - Figures belong to houses, can hold offices, follow faiths, marry, inherit, and die
-  from ordinary or exceptional causes.
+  from ordinary or exceptional causes. Their bonds, formative memories, wounds, and
+  undertakings persist as explicit state rather than being inferred from prose.
 - Trade routes and holy sites persist after closure or abandonment so the past remains
   visible.
 - Wars, battles, artifacts, tomes, outbreaks, and offices are records with provenance,
@@ -227,13 +231,60 @@ figures from the simulated population instead of inventing disconnected names. N
 households give those figures family continuity without attempting to simulate every
 person in the world.
 
+### Causal lives
+
+The chronicle is the complete record of what happened; a life story is the smaller set of
+consequences a person still carries and acts on. The engine records a bounded sample of people,
+not every inhabitant, and it does not manufacture drama merely to fill a page. A child who died
+young may have a short life. An adult who crossed a realm, lost family, held office, fought, or
+plotted should have a readable causal thread rather than a bag of unrelated event labels.
+
+That thread is built from four durable forms of state:
+
+- **Bonds** are directed relationships between two recorded figures. Structural roles such as
+  parent/child, patron/client, and mentor/apprentice are reciprocal, while affection, trust,
+  obligation, fear, and grievance may differ on each side. A bond retains both the event facts
+  that began it and the latest material event that changed it; “rival” without a dispute, person,
+  or place is not sufficient provenance.
+- **Salient memories** are at most twelve causal experiences: bereavement, injury, triumph,
+  defeat, humiliation, gratitude, mentorship, rivalry, ambition, betrayal, marriage,
+  parenthood, journeys, and conspiracy. Every memory names the event kind and at least one
+  concrete person, place, battle, route, or other entity. Repetition reinforces it; deterministic
+  fading and eviction keep the set small enough to mean “what still shapes this person,” not a
+  second copy of the chronicle.
+- **Feelings** are a present reading of active memories, interpreted through disposition. Grief,
+  fear, anger, pride, and loyalty are derived without another random roll and are not permanent
+  personality labels. The same defeat may harden an aggressive figure and frighten a cautious
+  one. When the memories fade, the feeling fades with them.
+- **Wounds and undertakings** carry consequences across years. Wounds remember their battle,
+  recovery, and any permanent cost. An undertaking records an objective, motive, target,
+  participants, progress, event-sized steps, and a succeeded, failed, abandoned, or active end.
+
+Ordinary events feed that state. Birth and marriage establish kinship; coming of age may establish
+mentorship; appointment creates patronage and dismissal may turn gratitude into humiliation or
+rivalry. A battle can leave comradeship, rivalry between commanders, pride or defeat, and a wound
+that temporarily prevents travel or fighting. A death is indexed on immediate family so the
+bereavement memory and its causal obituary appear on the same survivor's page.
+
+Journeys are steps within undertakings, not isolated annual errands. Trade ventures, pilgrimages,
+missionary circuits, and embassies begin with a stated objective and may require several trips.
+Only one public undertaking may be current at once; a secret conspiracy is tracked separately.
+Death, an invalid destination, exposure, success, or loss on the road closes the arc explicitly.
+
+Conspiracy is the test that this state matters. A plot is not a one-roll assassination label: a
+leader needs motive grounded in grievance, rivalry, memory, disgrace, or a claim; access to the
+target affects progress; recruits need trust in the leader, grievance against the target, or their
+own access; and every additional participant places pressure on secrecy. The result is a
+multi-year undertaking whose discovery or success can be explained from the relationships and
+memories already on the people involved.
+
 ### Travel
 
-A recorded adult may leave home for a year: a merchant along an open route, a priest to preach
-or to fetch copies, a pilgrim to a shrine of their own faith, a courtier as a guest of an ally.
-The chronicle names the thing the trip was for — the shrine, the monastery, the faith, the host
-realm — and not merely the category of it. Trade is the exception, because for a merchant the
-destination already is the reason.
+A recorded adult may leave home for a year as one step in a larger undertaking: a merchant along
+an open route, a priest to preach or to fetch copies, a pilgrim to a shrine of their own faith, a
+courtier as a guest of an ally. The chronicle names the thing the trip was for — the shrine, the
+monastery, the faith, the host realm — and not merely the category of it. Trade is the exception,
+because for a merchant the destination already is the reason.
 Residence does not move — a journey is a trip, and a merchant who vanished from his town every
 year he used a route would be missed by the disasters that reach a residence for no reason the
 chronicle could defend.
@@ -283,6 +334,12 @@ exports is recognisable without opening a file and still reproducible from the n
 Development may invoke the CLI to generate a world for the viewer, but that is tooling,
 not a runtime architecture. A deployed viewer remains a reader of exported histories.
 
+A figure page leads with **Life at a glance** before family lists, campaigns, travels, and the raw
+chronology. It shows the current undertaking, important relationships with their causal reading,
+formative memories and present feelings, and wounds carried. These are engine-owned facts selected
+and worded for reading; the viewer does not invent emotions or infer relationships from prose.
+The chronology remains immediately below as the evidence behind the summary.
+
 ## Roadmap
 
 | Milestone | Deliverable | State |
@@ -320,6 +377,11 @@ Beyond the numbered milestones:
 - Let a journey end in staying — a merchant's family relocating to the partner city, a
   missionary who remains among his converts. It is a residence change across a realm boundary,
   so it touches houses, offices and membership, and wants reviewing as migration in its own right.
+- Deepen ordinary social life with causal interaction episodes: friendships and lovers that
+  actually begin in events, courtship, quarrels, favours, betrayals, and reconciliation. Give
+  memories event-specific readable summaries, and widen non-travel undertakings toward masterworks,
+  disputed claims, rescues, revenge, and religious disputes. These should consume existing bonds,
+  memories, access, and disposition rather than add disconnected flavour rolls.
 - Build the Phase 3 Vintage Story terrain adapter and revalidate framework, calendar,
   hydrology cost, and map-raster cost against the game version actually targeted.
 
@@ -337,6 +399,7 @@ questions and the evidence behind each proposal.
 - No direct Vintage Story types or packages in `HistoryEngine`.
 - No real-time coupling to a running game server in the current phases.
 - No simulation of every household or every person.
+- No requirement that every recorded figure receive a dramatic arc; honest sparse lives are valid.
 
 ## Documentation map
 
