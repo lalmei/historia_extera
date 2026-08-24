@@ -75,15 +75,45 @@ public sealed class OccupationTests
 
             civilians++;
 
-            HistoryEvent taken = Assert.Single(
-                world.Chronicle.Events,
+            HistoryEvent? taken = world.Chronicle.Events.SingleOrDefault(
                 entry => entry.Kind == EventKind.OccupationTaken && entry.Subject == figure.Id);
+
+            // The closing household pass still assigns a background career to an adult who died
+            // before one was chosen. That fact belongs on the figure, but taking it up after death
+            // does not belong in the chronology.
+            if (taken is null)
+            {
+                Assert.False(figure.IsAlive);
+                Assert.Equal(Succession.MajorityAge, figure.AgeAtDeath);
+                continue;
+            }
 
             Assert.Equal(Significance.Routine, taken.Significance);
             Assert.Equal(Occupations.Phrase(figure.Occupation), taken.DataValue("occupation"));
         }
 
         Assert.True(civilians > 50, $"Only {civilians} people had a trade and no appointed office.");
+    }
+
+    [Fact]
+    public void ADeadAdultKeepsABackgroundCareerWithoutTakingItUpAfterDeath()
+    {
+        WorldState world = WorldBuilder.Create(TestWorlds.Small());
+        Civilization civilization = world.Civilizations[0];
+        Culture culture = world.Cultures[civilization.CultureId];
+        Figure figure = Houses.NewFigure(
+            world, civilization, culture, Sex.Male, birthYear: 1);
+
+        figure.DeathYear = 40;
+        figure.DeathCause = DeathCause.Illness;
+        int eventsBefore = world.Chronicle.Count;
+
+        Occupations.Ensure(world, figure, year: 50);
+
+        Assert.NotEqual(Occupation.None, figure.Occupation);
+        Assert.DoesNotContain(
+            world.Chronicle.Events.Skip(eventsBefore),
+            entry => entry.Kind == EventKind.OccupationTaken && entry.Subject == figure.Id);
     }
 
 

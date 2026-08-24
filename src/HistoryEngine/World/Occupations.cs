@@ -242,7 +242,7 @@ public static class Occupations
         if (figure.Occupation == occupation) return;
 
         figure.Occupation = occupation;
-        if (occupation == Occupation.None) return;
+        if (occupation == Occupation.None || !figure.IsAlive) return;
 
         world.Chronicle.Record(
             year,

@@ -354,9 +354,9 @@ public static class Houses
     /// systems happen to run in.
     /// </remarks>
     /// <param name="extra">
-    /// Further entities to index the death under, besides the house. Political murders pass
-    /// living family and a named suspect so the event appears on their pages; ordinary deaths
-    /// leave it empty.
+    /// Further entities to index the death under, besides the house and surviving spouse.
+    /// Political murders pass living family and a named suspect so the event appears on their
+    /// pages; ordinary deaths leave it empty.
     /// </param>
     /// <param name="data">
     /// Further display facts merged onto the obituary — a named suspect, a particular form.
@@ -385,9 +385,13 @@ public static class Houses
         figure.EndAllOffices(year);
         Occupations.Sync(world, figure, year, died: true);
 
+        EntityId survivingSpouse = EntityId.None;
         if (world.Figures.Contains(figure.SpouseId))
         {
-            world.Figures[figure.SpouseId].SpouseId = EntityId.None;
+            Figure spouse = world.Figures[figure.SpouseId];
+            if (spouse.IsAlive) survivingSpouse = spouse.Id;
+
+            spouse.SpouseId = EntityId.None;
             figure.SpouseId = EntityId.None;
         }
 
@@ -429,7 +433,7 @@ public static class Houses
             EventKind.FigureDied,
             figure.Id,
             obj: realm,
-            extra: IndexedOn(figure, extra),
+            extra: IndexedOn(figure, survivingSpouse, extra),
             data: obituary,
             significance: inPower || IsExceptional(cause)
                 ? Significance.Notable
@@ -439,13 +443,20 @@ public static class Houses
     }
 
     /// <summary>
-    /// The house first, then whoever else the death concerns, with neither repeated.
+    /// The house first, then the surviving spouse and whoever else the death concerns, with none
+    /// repeated.
     /// </summary>
-    private static EntityId[]? IndexedOn(Figure figure, IReadOnlyList<EntityId>? extra)
+    private static EntityId[]? IndexedOn(
+        Figure figure, EntityId survivingSpouse, IReadOnlyList<EntityId>? extra)
     {
-        if (figure.DynastyId.IsNone && (extra is null || extra.Count == 0)) return null;
+        if (figure.DynastyId.IsNone
+            && survivingSpouse.IsNone
+            && (extra is null || extra.Count == 0))
+        {
+            return null;
+        }
 
-        var ids = new List<EntityId>(1 + (extra?.Count ?? 0));
+        var ids = new List<EntityId>(2 + (extra?.Count ?? 0));
 
         void Add(EntityId id)
         {
@@ -460,6 +471,7 @@ public static class Houses
         }
 
         Add(figure.DynastyId);
+        Add(survivingSpouse);
 
         if (extra is not null)
         {
