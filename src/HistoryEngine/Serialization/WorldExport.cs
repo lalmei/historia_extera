@@ -812,7 +812,12 @@ public sealed record ExportCampaign(
     EntityId SideId,
     int Year,
     CampaignRole Role,
-    bool? Triumphant);
+    bool? Triumphant,
+    CampaignFate Fate,
+    int RenownGained,
+    bool Traumatized,
+    bool Deserted,
+    int? PromotionYear);
 
 /// <summary>
 /// One trip a person made and was expected home from. Residence is not this.
@@ -878,6 +883,7 @@ public sealed record ExportUndertaking(
     UndertakingState State,
     int StartYear,
     int? EndYear,
+    string? Outcome,
     string Objective,
     EntityId? TargetId,
     EntityId? DestinationId,
@@ -885,6 +891,12 @@ public sealed record ExportUndertaking(
     int Progress,
     int RequiredProgress,
     MemoryKind Motive,
+    EntityId? MotiveEntityId,
+    EventKind MotiveSourceKind,
+    int DeadlineYear,
+    int LastProgressYear,
+    EntityId? SponsorId,
+    OfficeKind? RequiredOffice,
     IReadOnlyList<EntityId> ParticipantIds,
     double Secrecy,
     double Access,

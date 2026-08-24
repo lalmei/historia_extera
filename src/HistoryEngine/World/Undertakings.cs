@@ -8,6 +8,13 @@ namespace HistoryEngine.World;
 /// <summary>Turns repeated errands into personal arcs with beginnings, steps and endings.</summary>
 public static class Undertakings
 {
+    /// <summary>At least the next annual decision; goals cannot end and restart in one tick.</summary>
+    public const int PublicCooldownYears = 1;
+
+    public const int MaxActivePublic = 1;
+
+    public const int MaxActiveSecret = 1;
+
     public readonly record struct JourneyPlan(
         JourneyKind Kind,
         EntityId DestinationId,
@@ -16,13 +23,13 @@ public static class Undertakings
 
     /// <summary>Offers the next journey an active arc calls for, if this is the year to attempt it.</summary>
     public static JourneyPlan? NextJourney(
-        WorldState world, Figure figure, EntityId home, int year, IRng rng)
+        WorldState world, Figure figure, EntityId home, int year)
     {
         FigureUndertaking? active = CurrentJourney(figure);
         if (active is null) return null;
         if (!ValidDestination(world, active, home))
         {
-            Fail(world, figure, active, year, "its destination had passed away");
+            Fail(world, figure, active, year, "its destination was no longer available");
             return null;
         }
 
@@ -34,7 +41,11 @@ public static class Undertakings
             UndertakingKind.Embassy => 0.22,
             _ => 0.0,
         };
-        if (!rng.Fork("undertaking", active.Id).Chance(chance)) return null;
+        IRng attempt = world.Root
+            .Fork("undertaking", figure.Id.ToDiscriminator())
+            .Fork("goal", active.Id)
+            .Fork("year", year);
+        if (!attempt.Chance(chance)) return null;
 
         return active.Kind switch
         {
@@ -87,14 +98,19 @@ public static class Undertakings
             journey.ToSettlementId,
             journey.ViaId,
             required,
-            MemoryKind.Ambition);
+            MemoryKind.Ambition,
+            journey.ViaId.IsNone ? journey.ToSettlementId : journey.ViaId,
+            EventKind.JourneyMade,
+            year + (kind == UndertakingKind.TradeVenture ? 8 : 6));
     }
 
     /// <summary>Records the journey as one causal step, then settles the arc if it reached an end.</summary>
     public static void NoteJourney(
         WorldState world, Figure figure, FigureUndertaking undertaking, Journey journey, int year)
     {
-        undertaking.Steps.Add(
+        AddStep(
+            world,
+            undertaking,
             new UndertakingStep(
                 year,
                 journey.Outcome == JourneyOutcome.Returned
@@ -126,12 +142,12 @@ public static class Undertakings
 
         if (journey.Outcome == JourneyOutcome.Waylaid) return;
 
-        // Once the founding goal is complete, later travel maintains the relationship it made.
-        // It remains a step in that arc without turning a three-step venture into "17 of 3" or
-        // announcing the same undertaking as new every few years.
+        // A road loss may have ended the goal through the ordinary death path before this method
+        // attaches the final journey step. Do not advance an already terminal arc.
         if (undertaking.State != UndertakingState.Active) return;
 
         undertaking.Progress++;
+        undertaking.LastProgressYear = year;
 
         if (undertaking.Progress < undertaking.RequiredProgress) return;
 
@@ -144,7 +160,7 @@ public static class Undertakings
     {
         if (!mourner.IsAlive || mourner.ReligionId.IsNone) return;
         if (mourner.Disposition.Values.Piety < 0.48) return;
-        if (CurrentJourney(mourner) is not null) return;
+        if (!CanStartPublic(mourner, year)) return;
 
         double resolveChance = BereavementVowChance(mourner, deceased, year);
         if (resolveChance <= 0.0) return;
@@ -177,7 +193,10 @@ public static class Undertakings
             chosen.SettlementId,
             chosen.Id,
             1,
-            MemoryKind.Bereavement);
+            MemoryKind.Bereavement,
+            deceased.Id,
+            EventKind.FigureDied,
+            year + 6);
     }
 
     /// <summary>
@@ -200,9 +219,13 @@ public static class Undertakings
     public static FigureUndertaking? Current(Figure figure) =>
         figure.Undertakings.Find(item => item.State == UndertakingState.Active);
 
-    public static FigureUndertaking? CurrentJourney(Figure figure) =>
+    public static FigureUndertaking? CurrentPublic(Figure figure) =>
         figure.Undertakings.Find(item =>
             item.State == UndertakingState.Active && item.Kind != UndertakingKind.Conspiracy);
+
+    public static FigureUndertaking? CurrentJourney(Figure figure) =>
+        figure.Undertakings.Find(item =>
+            item.State == UndertakingState.Active && IsJourney(item.Kind));
 
     public static FigureUndertaking? CurrentConspiracy(Figure figure) =>
         figure.Undertakings.Find(item =>
@@ -221,10 +244,15 @@ public static class Undertakings
             world.ResidenceOf(target),
             EntityId.None,
             3,
-            MemoryKind.Rivalry);
+            MemoryKind.Rivalry,
+            target.Id,
+            EventKind.UndertakingStarted,
+            world.EndYear);
         undertaking.Access = DetMath.Clamp01(access);
         undertaking.Secrecy = 0.82;
-        undertaking.Steps.Add(
+        AddStep(
+            world,
+            undertaking,
             new UndertakingStep(
                 year,
                 EventKind.UndertakingStarted,
@@ -241,6 +269,7 @@ public static class Undertakings
 
         undertaking.State = UndertakingState.Succeeded;
         undertaking.EndYear = year;
+        undertaking.Outcome = "achieved its objective";
 
         world.Chronicle.Record(
             year,
@@ -267,6 +296,7 @@ public static class Undertakings
 
         undertaking.State = UndertakingState.Failed;
         undertaking.EndYear = year;
+        undertaking.Outcome = cause;
 
         world.Chronicle.Record(
             year,
@@ -286,14 +316,172 @@ public static class Undertakings
                 : Significance.Routine);
     }
 
+    public static void Abandon(
+        WorldState world, Figure figure, FigureUndertaking undertaking, int year, string cause)
+    {
+        if (undertaking.State != UndertakingState.Active) return;
+
+        undertaking.State = UndertakingState.Abandoned;
+        undertaking.EndYear = year;
+        undertaking.Outcome = cause;
+
+        world.Chronicle.Record(
+            year,
+            EventKind.UndertakingFailed,
+            figure.Id,
+            obj: undertaking.TargetId,
+            location: undertaking.DestinationId,
+            extra: undertaking.ParticipantIds.Count == 0
+                ? null
+                : undertaking.ParticipantIds.ToArray(),
+            data: Chronicle.Data(
+                ("kind", undertaking.Kind.ToString()),
+                ("objective", undertaking.Objective),
+                ("cause", cause),
+                ("state", "abandoned")),
+            significance: undertaking.Kind == UndertakingKind.Conspiracy
+                ? Significance.Notable
+                : Significance.Routine);
+    }
+
     /// <summary>Closes every goal a person's death makes impossible.</summary>
     public static void EndAtDeath(WorldState world, Figure figure, int year)
     {
         foreach (FigureUndertaking undertaking in figure.Undertakings)
         {
             if (undertaking.State != UndertakingState.Active) continue;
-            Fail(world, figure, undertaking, year, "their death ended it");
+            Abandon(world, figure, undertaking, year, "their death ended it");
         }
+    }
+
+    /// <summary>Ends a goal that depended on an office at the moment that office is lost.</summary>
+    public static void EndAtLossOfOffice(
+        WorldState world, Figure figure, OfficeKind office, int year)
+    {
+        foreach (FigureUndertaking undertaking in figure.Undertakings)
+        {
+            if (undertaking.State != UndertakingState.Active) continue;
+            if (undertaking.RequiredOffice != office) continue;
+            Abandon(world, figure, undertaking, year, "the loss of office ended it");
+        }
+    }
+
+    /// <summary>Settles deadlines independently of travel or battle frequency.</summary>
+    public static void Tick(WorldState world, int year)
+    {
+        foreach (Figure figure in world.Figures)
+        {
+            foreach (FigureUndertaking undertaking in figure.Undertakings)
+            {
+                if (undertaking.State != UndertakingState.Active) continue;
+                if (year <= undertaking.DeadlineYear) continue;
+                Fail(world, figure, undertaking, year, "its deadline passed");
+            }
+        }
+    }
+
+    /// <summary>Turns a defeat into a bounded martial arc, or advances the one already carried.</summary>
+    public static void NoteBattle(
+        WorldState world, Figure figure, CampaignMemory memory, Battle battle, int year)
+    {
+        if (!figure.IsAlive || memory.Fate == CampaignFate.Killed) return;
+
+        EntityId opponent = memory.SideId == battle.AttackerId
+            ? battle.DefenderId
+            : battle.AttackerId;
+
+        FigureUndertaking? revenge = figure.Undertakings.Find(item =>
+            item.State == UndertakingState.Active
+            && item.Kind == UndertakingKind.Revenge);
+        if (revenge is not null)
+        {
+            if (revenge.TargetId != opponent) return;
+
+            AddStep(
+                world,
+                revenge,
+                new UndertakingStep(
+                    year,
+                    EventKind.BattleFought,
+                    BattlePlace(battle),
+                    battle.Id,
+                    memory.Triumphant == true ? "Won the answering battle" : "Was defeated again"));
+            revenge.Progress++;
+            revenge.LastProgressYear = year;
+
+            if (memory.Triumphant == true)
+            {
+                Complete(world, figure, revenge, year);
+            }
+            else
+            {
+                Fail(world, figure, revenge, year, "another defeat ended the attempt");
+            }
+
+            return;
+        }
+
+        if (memory.Triumphant != false) return;
+        if (memory.Role is not (CampaignRole.Commanded or CampaignRole.Fought)) return;
+        if (figure.Disposition.Values.Aggression < 0.42) return;
+        if (!CanStartPublic(figure, year)) return;
+
+        IRng resolve = world.Root
+            .Fork("undertaking-revenge", battle.Id.ToDiscriminator())
+            .Fork("figure", figure.Id.ToDiscriminator());
+        double chance = 0.14 + (0.34 * figure.Disposition.Values.Aggression);
+        if (!resolve.Chance(chance)) return;
+
+        OfficeKind? requiredOffice = figure.Holds(OfficeKind.Marshal)
+            ? OfficeKind.Marshal
+            : null;
+        EntityId sponsor = EntityId.None;
+        if (world.Civilizations.Contains(figure.CivilizationId))
+        {
+            EntityId ruler = world.Civilizations[figure.CivilizationId].CurrentRulerId;
+            if (ruler != figure.Id && world.Figures.Contains(ruler)) sponsor = ruler;
+        }
+
+        FigureUndertaking undertaking = Start(
+            world,
+            figure,
+            UndertakingKind.Revenge,
+            year,
+            "revenge against " + world.NameOf(opponent),
+            opponent,
+            BattlePlace(battle),
+            battle.Id,
+            2,
+            MemoryKind.Defeat,
+            battle.Id,
+            EventKind.BattleFought,
+            year + 12,
+            sponsor,
+            requiredOffice);
+        undertaking.Progress = 1;
+        AddStep(
+            world,
+            undertaking,
+            new UndertakingStep(
+                year,
+                EventKind.BattleFought,
+                BattlePlace(battle),
+                battle.Id,
+                "Swore to answer the defeat"));
+    }
+
+    public static bool CanStartPublic(Figure figure, int year)
+    {
+        if (CurrentPublic(figure) is not null) return false;
+
+        int latest = int.MinValue;
+        foreach (FigureUndertaking undertaking in figure.Undertakings)
+        {
+            if (undertaking.Kind == UndertakingKind.Conspiracy) continue;
+            if (undertaking.EndYear is int ended) latest = Math.Max(latest, ended);
+        }
+
+        return latest == int.MinValue || year - latest >= PublicCooldownYears;
     }
 
     private static FigureUndertaking Start(
@@ -306,8 +494,23 @@ public static class Undertakings
         EntityId destination,
         EntityId via,
         int required,
-        MemoryKind motive)
+        MemoryKind motive,
+        EntityId motiveEntity,
+        EventKind motiveSource,
+        int deadline,
+        EntityId sponsor = default,
+        OfficeKind? requiredOffice = null)
     {
+        bool secret = kind == UndertakingKind.Conspiracy;
+        int active = figure.Undertakings.Count(item =>
+            item.State == UndertakingState.Active
+            && (item.Kind == UndertakingKind.Conspiracy) == secret);
+        int limit = secret ? MaxActiveSecret : MaxActivePublic;
+        if (active >= limit)
+        {
+            throw new InvalidOperationException("Undertaking concurrency limit exceeded.");
+        }
+
         var undertaking = new FigureUndertaking(
             figure.Undertakings.Count,
             kind,
@@ -317,7 +520,12 @@ public static class Undertakings
             destination,
             via,
             required,
-            motive);
+            motive,
+            motiveEntity,
+            motiveSource,
+            deadline,
+            sponsor,
+            requiredOffice);
         figure.Undertakings.Add(undertaking);
 
         world.Chronicle.Record(
@@ -336,7 +544,7 @@ public static class Undertakings
 
     private static FigureUndertaking? Match(Figure figure, Journey journey) =>
         figure.Undertakings.Find(item =>
-            (item.State is UndertakingState.Active or UndertakingState.Succeeded)
+            item.State == UndertakingState.Active
             && item.Kind == KindOf(journey.Kind)
             && (item.ViaId == journey.ViaId || item.DestinationId == journey.ToSettlementId));
 
@@ -347,6 +555,74 @@ public static class Undertakings
         JourneyKind.Mission => UndertakingKind.MissionaryCircuit,
         _ => UndertakingKind.Embassy,
     };
+
+    private static bool IsJourney(UndertakingKind kind) => kind is
+        UndertakingKind.TradeVenture
+        or UndertakingKind.Pilgrimage
+        or UndertakingKind.MissionaryCircuit
+        or UndertakingKind.Embassy;
+
+    /// <summary>Adds one real, chronological step and rejects corrupt causal arcs immediately.</summary>
+    public static void AddStep(
+        WorldState world, FigureUndertaking undertaking, UndertakingStep step)
+    {
+        // A journey or battle may kill its actor before the caller can attach that very event as
+        // the final step. The same-year terminal cause is valid; later mutation is not.
+        if (undertaking.State != UndertakingState.Active
+            && undertaking.EndYear != step.Year)
+        {
+            throw new InvalidOperationException("A terminal undertaking cannot gain steps.");
+        }
+
+        if (step.Year < undertaking.StartYear
+            || (undertaking.Steps.Count > 0 && step.Year < undertaking.Steps[^1].Year))
+        {
+            throw new InvalidOperationException("Undertaking steps must be chronological.");
+        }
+
+        if (step.PlaceId.IsNone && step.SubjectId.IsNone)
+        {
+            throw new InvalidOperationException("An undertaking step must reference a real entity.");
+        }
+
+        if (step.SourceKind == EventKind.Unknown)
+        {
+            throw new InvalidOperationException("An undertaking step must name a real event kind.");
+        }
+
+        if ((!step.PlaceId.IsNone && !Exists(world, step.PlaceId))
+            || (!step.SubjectId.IsNone && !Exists(world, step.SubjectId)))
+        {
+            throw new InvalidOperationException("An undertaking step references an impossible entity.");
+        }
+
+        if (undertaking.Steps.Contains(step))
+        {
+            throw new InvalidOperationException("An undertaking cannot duplicate a causal step.");
+        }
+
+        undertaking.Steps.Add(step);
+    }
+
+    private static bool Exists(WorldState world, EntityId id) => id.Kind switch
+    {
+        EntityKind.Culture => world.Cultures.Contains(id),
+        EntityKind.Civilization => world.Civilizations.Contains(id),
+        EntityKind.Settlement => world.Settlements.Contains(id),
+        EntityKind.Figure => world.Figures.Contains(id),
+        EntityKind.Dynasty => world.Dynasties.Contains(id),
+        EntityKind.War => world.Wars.Contains(id),
+        EntityKind.Battle => world.Battles.Contains(id),
+        EntityKind.Region => world.Regions.Contains(id),
+        EntityKind.Artifact => world.Artifacts.Contains(id),
+        EntityKind.Religion => world.Religions.Contains(id),
+        EntityKind.TradeRoute => world.TradeRoutes.Contains(id),
+        EntityKind.HolySite => world.HolySites.Contains(id),
+        _ => false,
+    };
+
+    private static EntityId BattlePlace(Battle battle) =>
+        battle.SettlementId.IsNone ? battle.RegionId : battle.SettlementId;
 
     private static bool ValidDestination(
         WorldState world, FigureUndertaking undertaking, EntityId home) =>

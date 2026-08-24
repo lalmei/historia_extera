@@ -20,6 +20,15 @@ public enum CampaignRole
     EnduredSiege = 3,
 }
 
+/// <summary>The bodily fate of a named participant once an engagement is settled.</summary>
+public enum CampaignFate
+{
+    Unresolved = 0,
+    ReturnedUnharmed = 1,
+    Wounded = 2,
+    Killed = 3,
+}
+
 /// <summary>
 /// One war or engagement this person is remembered for.
 /// </summary>
@@ -58,4 +67,19 @@ public sealed class CampaignMemory
 
     /// <summary>Whether their side prevailed. Null while the war or siege is still open, and after a stalemate.</summary>
     public bool? Triumphant { get; set; }
+
+    /// <summary>Every battle participant receives exactly one terminal bodily fate.</summary>
+    public CampaignFate Fate { get; set; } = CampaignFate.Unresolved;
+
+    /// <summary>Standing earned here and later available to command and office selection.</summary>
+    public int RenownGained { get; set; }
+
+    /// <summary>A defeat vivid enough to reduce later willingness to campaign.</summary>
+    public bool Traumatized { get; set; }
+
+    /// <summary>A rank-and-file survivor who left the field and avoids later service.</summary>
+    public bool Deserted { get; set; }
+
+    /// <summary>Set when renown from this battle is later consumed by a marshal appointment.</summary>
+    public int? PromotionYear { get; set; }
 }

@@ -661,15 +661,13 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
     figure.spouseIds.length > 0 ||
     figure.childIds.length > 0;
   const claimed = treasuresOwnedBy(world, figure.id);
-  const currentUndertaking = (figure.undertakings ?? [])
-    .filter((undertaking) => undertaking.state === 'Active')
-    .sort((a, b) =>
-      a.kind === 'Conspiracy' && b.kind !== 'Conspiracy'
-        ? -1
-        : b.kind === 'Conspiracy' && a.kind !== 'Conspiracy'
-          ? 1
-          : a.startYear - b.startYear,
-    )[0];
+  const lifeUndertakings = [...(figure.undertakings ?? [])]
+    .sort((a, b) => {
+      if (a.state === 'Active' && b.state !== 'Active') return -1;
+      if (b.state === 'Active' && a.state !== 'Active') return 1;
+      return (b.endYear ?? b.startYear) - (a.endYear ?? a.startYear);
+    })
+    .slice(0, 4);
   const importantRelationships = [...(figure.bonds ?? [])]
     .sort((a, b) => relationshipImportance(b) - relationshipImportance(a))
     .slice(0, 6);
@@ -677,7 +675,7 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
     .sort((a, b) => b.intensity - a.intensity || b.lastReinforcedYear - a.lastReinforcedYear)
     .slice(0, 6);
   const hasLifeSummary =
-    currentUndertaking !== undefined ||
+    lifeUndertakings.length > 0 ||
     importantRelationships.length > 0 ||
     formativeMemories.length > 0 ||
     (figure.injuries?.length ?? 0) > 0;
@@ -793,8 +791,21 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
       {hasLifeSummary && (
         <Panel title="Life at a glance">
           <div className="space-y-5">
-            {currentUndertaking && (
-              <LifeUndertaking world={world} undertaking={currentUndertaking} />
+            {lifeUndertakings.length > 0 && (
+              <section>
+                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
+                  Undertakings
+                </h3>
+                <div className="space-y-3">
+                  {lifeUndertakings.map((undertaking) => (
+                    <LifeUndertaking
+                      key={`${undertaking.id}:${undertaking.startYear}`}
+                      world={world}
+                      undertaking={undertaking}
+                    />
+                  ))}
+                </div>
+              </section>
             )}
 
             {importantRelationships.length > 0 && (
@@ -921,6 +932,27 @@ function CampaignList({ world, campaigns }: { world: World; campaigns: Campaign[
                 ? 'triumphant'
                 : 'defeated'}
           </span>
+          {campaign.fate !== 'Unresolved' && (
+            <span className="ml-2 text-[var(--ink-faint)]">
+              · {campaign.fate === 'ReturnedUnharmed' ? 'returned unharmed' : campaign.fate.toLowerCase()}
+            </span>
+          )}
+          {campaign.renownGained > 0 && (
+            <span className="ml-2 text-[var(--ink-faint)]">
+              · renown +{campaign.renownGained}
+            </span>
+          )}
+          {campaign.traumatized && (
+            <span className="ml-2 text-[var(--ink-faint)]">· carried trauma</span>
+          )}
+          {campaign.deserted && (
+            <span className="ml-2 text-[var(--ink-faint)]">· deserted</span>
+          )}
+          {campaign.promotionYear !== undefined && (
+            <span className="ml-2 text-[var(--ink-faint)]">
+              · led to promotion in {campaign.promotionYear}
+            </span>
+          )}
         </li>
       ))}
     </ul>
@@ -951,18 +983,30 @@ function JourneyList({ world, journeys }: { world: World; journeys: Journey[] })
 }
 
 function LifeUndertaking({ world, undertaking }: { world: World; undertaking: Undertaking }) {
-  const last = undertaking.steps[undertaking.steps.length - 1];
+  const decisive = undertaking.steps.slice(-3);
   return (
-    <section>
-      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
-        Current undertaking
-      </h3>
-      <p className="text-sm font-medium">{undertaking.objective}</p>
-      <p className="mt-1 text-xs text-[var(--ink-faint)]">
-        Begun {undertaking.startYear} · {undertaking.progress} of {undertaking.requiredProgress}{' '}
-        steps complete
-        {last ? ` · last: ${last.outcome.toLowerCase()} in ${last.year}` : ''}
+    <article className="border-l border-[var(--line)] pl-3">
+      <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
+        <span>{undertaking.objective}</span>
+        <Badge tone={undertaking.state === 'Active' ? 'accent' : 'muted'}>
+          {undertaking.state}
+        </Badge>
       </p>
+      <p className="mt-1 text-xs text-[var(--ink-faint)]">
+        Begun {undertaking.startYear} · motive: {MEMORY_LABELS[undertaking.motive] ?? undertaking.motive}
+        {undertaking.motiveEntityId && (
+          <>
+            {' · '}
+            <EntityLink world={world} id={undertaking.motiveEntityId} />
+          </>
+        )}
+        {' · '}
+        {undertaking.progress} of {undertaking.requiredProgress} stages
+        {undertaking.state === 'Active' ? ` · due by ${undertaking.deadlineYear}` : ''}
+      </p>
+      {undertaking.outcome && (
+        <p className="mt-1 text-xs text-[var(--ink-faint)]">Outcome: {undertaking.outcome}</p>
+      )}
       {undertaking.targetId && (
         <p className="mt-1 text-sm">
           Concerns <EntityLink world={world} id={undertaking.targetId} />
@@ -979,6 +1023,32 @@ function LifeUndertaking({ world, undertaking }: { world: World; undertaking: Un
           ))}
         </p>
       )}
+      {undertaking.sponsorId && (
+        <p className="mt-1 text-sm">
+          Sponsored by <EntityLink world={world} id={undertaking.sponsorId} />
+        </p>
+      )}
+      {decisive.length > 0 && (
+        <ol className="mt-2 space-y-1 text-xs text-[var(--ink-faint)]">
+          {decisive.map((step, index) => (
+            <li key={`${step.year}:${step.sourceKind}:${step.subjectId ?? index}`}>
+              {step.year} · {step.outcome}
+              {step.subjectId && (
+                <>
+                  {' · '}
+                  <EntityLink world={world} id={step.subjectId} />
+                </>
+              )}
+              {!step.subjectId && step.placeId && (
+                <>
+                  {' · '}
+                  <EntityLink world={world} id={step.placeId} />
+                </>
+              )}
+            </li>
+          ))}
+        </ol>
+      )}
       {undertaking.kind === 'Conspiracy' && (
         <p className="mt-1 text-xs text-[var(--ink-faint)]">
           {undertaking.access >= 0.65
@@ -994,7 +1064,7 @@ function LifeUndertaking({ world, undertaking }: { world: World; undertaking: Un
               : 'near exposure'}
         </p>
       )}
-    </section>
+    </article>
   );
 }
 

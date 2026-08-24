@@ -78,25 +78,12 @@ public static class Warfare
     /// </remarks>
     private const int WorthSacking = 250;
 
-    /// <summary>Odds a named figure posted in a sacked town does not survive it.</summary>
-    /// <remarks>
-    /// High, deliberately. A governor is not a bystander when the walls are carried — they are
-    /// whoever the storming party is looking for — and the whole point of giving an office a
-    /// street address was to make a posting somewhere dangerous mean something.
-    /// </remarks>
-    private const double SackedResidentFalls = 0.35;
-
     /// <summary>Odds a standing marshal takes a given field, rather than some other dynast.</summary>
     /// <remarks>
     /// Not one. A realm fights on more than one frontier and a marshal cannot be at both, and a
     /// figure who commands every engagement of a forty-year career is a hero rather than a record.
     /// </remarks>
     private const double MarshalTakesTheField = 0.75;
-
-    /// <summary>Chance the losing commander does not come home, and the winning one's.</summary>
-    private const double LoserCommanderFalls = 0.14;
-
-    private const double VictorCommanderFalls = 0.03;
 
     /// <summary>Chance a court appoints an adult dynast when the ruler stays home.</summary>
     private const double OfficerTakesField = 0.72;
@@ -398,6 +385,9 @@ public static class Warfare
             location: battle.SettlementId,
             extra: Participants(war, battle),
             data: Chronicle.Data(("cause", cause)));
+
+        Campaigns.ResolveConsequences(world, battle, at.Year);
+        LifeStories.ResolveBattle(world, battle, at.Year);
     }
 
     /// <summary>Applies the decision shared by an immediate field battle and a siege's last day.</summary>
@@ -500,15 +490,11 @@ public static class Warfare
             extra: Participants(war, battle),
             data: record);
 
-        LifeStories.ResolveBattle(world, battle, at.Year);
-
         // Score is kept from the war aggressor's point of view whoever holds the initiative, so
         // the peace can read it without asking who was attacking in which year.
         double swing = Swing(battle, contestedForce);
         bool warAttackersWon = war.IsAttacker(battle.VictorId);
         war.Score += warAttackersWon ? swing : -swing;
-
-        Casualty(world, battle, attackerWins, at.Year, rng);
 
         if (attackerWins && contested is not null)
         {
@@ -532,6 +518,11 @@ public static class Warfare
         {
             EndOccupation(world, contested, at.Year, ceded: false, retaken: true);
         }
+
+        // Losses and any sack are final now. Consequences use those recorded facts and one
+        // battle/figure fork apiece; the memories and undertakings then interpret the result.
+        Campaigns.ResolveConsequences(world, battle, at.Year);
+        LifeStories.ResolveBattle(world, battle, at.Year);
     }
 
     /// <summary>Puts a stormed settlement under the storming realm's garrison.</summary>
@@ -815,6 +806,7 @@ public static class Warfare
         // effective aggression: a cautious king of a warlike people sends someone else, and so
         // does a bold one whose realm has just been bled white.
         if (LifeStories.Fitness(ruler, year) > 0.0
+            && Campaigns.Readiness(ruler, year) > 0.0
             && rng.Chance(chance * DetMath.Lerp(0.6, 1.3, world.ValuesFor(civilization).Aggression)))
         {
             return ruler.Id;
@@ -831,6 +823,7 @@ public static class Warfare
         if (marshal is not null
             && marshal.AgeIn(year) >= Succession.MajorityAge
             && LifeStories.Fitness(marshal, year) > 0.0
+            && Campaigns.Readiness(marshal, year) > 0.0
             && officers.Chance(MarshalTakesTheField))
         {
             return marshal.Id;
@@ -843,32 +836,12 @@ public static class Warfare
             if (kin.CivilizationId != civilization.Id) continue;
             if (kin.AgeIn(year) < Succession.MajorityAge) continue;
             if (LifeStories.Fitness(kin, year) <= 0.0) continue;
+            if (Campaigns.Readiness(kin, year) <= 0.0) continue;
 
             candidates.Add(kin);
         }
 
         return candidates.Count == 0 ? EntityId.None : officers.Pick(candidates).Id;
-    }
-
-    /// <summary>Kills a commander who did not come home. Succession runs later the same year.</summary>
-    private static void Casualty(
-        WorldState world, Battle battle, bool attackerWon, int year, IRng rng)
-    {
-        Fall(battle.AttackerCommanderId, attackerWon);
-        Fall(battle.DefenderCommanderId, !attackerWon);
-
-        void Fall(EntityId commanderId, bool won)
-        {
-            if (!world.Figures.Contains(commanderId)) return;
-
-            Figure commander = world.Figures[commanderId];
-            if (!commander.IsAlive) return;
-
-            if (rng.Chance(won ? VictorCommanderFalls : LoserCommanderFalls))
-            {
-                Houses.Die(world, commander, year, DeathCause.Battle);
-            }
-        }
     }
 
     // -----------------------------------------------------------------------
@@ -913,7 +886,7 @@ public static class Warfare
         sacker.Fortunes.SackedATown();
         target.Fortunes.TownSacked();
 
-        List<Figure> fallen = ResidentCasualties(world, target, year, rng);
+        List<Figure> fallen = ResidentCasualties(world, battle, target);
 
         world.Chronicle.Record(
             year,
@@ -927,7 +900,13 @@ public static class Warfare
         // The cause precedes its named casualties, as a disaster's does.
         foreach (Figure figure in fallen)
         {
-            Houses.Die(world, figure, year, DeathCause.Battle, "in the sack of " + target.Name);
+            Houses.Die(
+                world,
+                figure,
+                year,
+                DeathCause.Battle,
+                "in the sack of " + target.Name,
+                new[] { battle.Id, war.Id });
         }
 
         // What the place was keeping goes home with the army, or does not survive the night.
@@ -952,21 +931,19 @@ public static class Warfare
     /// chronicle to record.</para>
     /// </remarks>
     private static List<Figure> ResidentCasualties(
-        WorldState world, Settlement target, int year, IRng rng)
+        WorldState world, Battle battle, Settlement target)
     {
         var fallen = new List<Figure>();
-        IRng storm = rng.Fork("sack-casualties", target.Id.ToDiscriminator());
 
-        // A capital's whole court is not in the streets when the walls come down. Everywhere else,
-        // the people a sack reaches are exactly the people who live there.
+        // A capital's whole court is not in the streets when the walls come down. They still
+        // receive siege wounds and trauma below; this only keeps a sack from treating every
+        // courtier as exposed like a governor living in a provincial posting.
         if (target.IsCapital) return fallen;
 
         foreach (Figure figure in world.Figures)
         {
             if (!figure.IsAlive || world.ResidenceOf(figure) != target.Id) continue;
-
-            IRng fate = storm.Fork("figure", figure.Id.ToDiscriminator());
-            if (fate.Chance(SackedResidentFalls)) fallen.Add(figure);
+            if (Campaigns.SackKills(world, battle, figure)) fallen.Add(figure);
         }
 
         return fallen;

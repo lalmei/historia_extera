@@ -1195,6 +1195,8 @@ export interface Title {
 
 export type CampaignRole = 'Commanded' | 'Fought' | 'Ruled' | 'EnduredSiege';
 
+export type CampaignFate = 'Unresolved' | 'ReturnedUnharmed' | 'Wounded' | 'Killed';
+
 export const CAMPAIGN_ROLE_LABELS: Record<CampaignRole, string> = {
   Commanded: 'Commanded',
   Fought: 'Took the field',
@@ -1212,6 +1214,11 @@ export interface Campaign {
   role: CampaignRole;
   /** Absent while the war or siege is still open, and after a stalemate. */
   triumphant?: boolean;
+  fate: CampaignFate;
+  renownGained: number;
+  traumatized: boolean;
+  deserted: boolean;
+  promotionYear?: number;
 }
 
 export type JourneyKind = 'Visit' | 'Trade' | 'Pilgrimage' | 'Mission';
@@ -1383,7 +1390,8 @@ export type UndertakingKind =
   | 'Pilgrimage'
   | 'MissionaryCircuit'
   | 'Embassy'
-  | 'Conspiracy';
+  | 'Conspiracy'
+  | 'Revenge';
 
 export type UndertakingState = 'Active' | 'Succeeded' | 'Failed' | 'Abandoned';
 
@@ -1401,6 +1409,7 @@ export interface Undertaking {
   state: UndertakingState;
   startYear: number;
   endYear?: number;
+  outcome?: string;
   objective: string;
   targetId?: EntityId;
   destinationId?: EntityId;
@@ -1408,6 +1417,12 @@ export interface Undertaking {
   progress: number;
   requiredProgress: number;
   motive: MemoryKind;
+  motiveEntityId?: EntityId;
+  motiveSourceKind: string;
+  deadlineYear: number;
+  lastProgressYear: number;
+  sponsorId?: EntityId;
+  requiredOffice?: OfficeKind;
   participantIds: EntityId[];
   secrecy: number;
   access: number;

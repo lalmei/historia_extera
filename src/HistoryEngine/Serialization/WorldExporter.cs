@@ -880,7 +880,12 @@ public static class WorldExporter
                 SideId: memory.SideId,
                 Year: memory.Year,
                 Role: memory.Role,
-                Triumphant: memory.Triumphant));
+                Triumphant: memory.Triumphant,
+                Fate: memory.Fate,
+                RenownGained: memory.RenownGained,
+                Traumatized: memory.Traumatized,
+                Deserted: memory.Deserted,
+                PromotionYear: memory.PromotionYear));
         }
 
         return list;
@@ -1010,6 +1015,7 @@ public static class WorldExporter
                 undertaking.State,
                 undertaking.StartYear,
                 undertaking.EndYear,
+                undertaking.Outcome,
                 undertaking.Objective,
                 OrNull(undertaking.TargetId),
                 OrNull(undertaking.DestinationId),
@@ -1017,6 +1023,12 @@ public static class WorldExporter
                 undertaking.Progress,
                 undertaking.RequiredProgress,
                 undertaking.Motive,
+                OrNull(undertaking.MotiveEntityId),
+                undertaking.MotiveSourceKind,
+                undertaking.DeadlineYear,
+                undertaking.LastProgressYear,
+                OrNull(undertaking.SponsorId),
+                undertaking.RequiredOffice,
                 undertaking.ParticipantIds.ToArray(),
                 undertaking.Secrecy,
                 undertaking.Access,

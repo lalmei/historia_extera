@@ -227,6 +227,7 @@ public enum UndertakingKind
     MissionaryCircuit = 2,
     Embassy = 3,
     Conspiracy = 4,
+    Revenge = 5,
 }
 
 public enum UndertakingState
@@ -257,7 +258,12 @@ public sealed class FigureUndertaking
         EntityId destinationId,
         EntityId viaId,
         int requiredProgress,
-        MemoryKind motive)
+        MemoryKind motive,
+        EntityId motiveEntityId,
+        EventKind motiveSourceKind,
+        int deadlineYear,
+        EntityId sponsorId = default,
+        OfficeKind? requiredOffice = null)
     {
         Id = id;
         Kind = kind;
@@ -268,6 +274,12 @@ public sealed class FigureUndertaking
         ViaId = viaId;
         RequiredProgress = requiredProgress;
         Motive = motive;
+        MotiveEntityId = motiveEntityId;
+        MotiveSourceKind = motiveSourceKind;
+        DeadlineYear = deadlineYear;
+        LastProgressYear = startYear;
+        SponsorId = sponsorId;
+        RequiredOffice = requiredOffice;
         ParticipantIds = new List<EntityId>();
         Steps = new List<UndertakingStep>();
     }
@@ -283,6 +295,9 @@ public sealed class FigureUndertaking
 
     public int? EndYear { get; set; }
 
+    /// <summary>Why the arc ended, suitable for the compact life-page summary.</summary>
+    public string? Outcome { get; set; }
+
     public string Objective { get; }
 
     /// <summary>The person, realm, route or sacred object the goal concerns.</summary>
@@ -297,6 +312,22 @@ public sealed class FigureUndertaking
     public int RequiredProgress { get; }
 
     public MemoryKind Motive { get; }
+
+    /// <summary>The concrete memory cause: a battle, person, route, relic, or other entity.</summary>
+    public EntityId MotiveEntityId { get; }
+
+    public EventKind MotiveSourceKind { get; }
+
+    /// <summary>The last year in which the goal may still make progress.</summary>
+    public int DeadlineYear { get; }
+
+    public int LastProgressYear { get; set; }
+
+    /// <summary>The person who backed the goal, if it was not wholly self-directed.</summary>
+    public EntityId SponsorId { get; }
+
+    /// <summary>An office whose loss makes this particular goal impossible.</summary>
+    public OfficeKind? RequiredOffice { get; }
 
     /// <summary>Other people committed to the goal; the owner is implicit.</summary>
     public List<EntityId> ParticipantIds { get; }

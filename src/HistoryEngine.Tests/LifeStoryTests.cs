@@ -11,6 +11,8 @@ namespace HistoryEngine.Tests;
 /// <summary>The durable character state left behind by ordinary historical events.</summary>
 public sealed class LifeStoryTests
 {
+    private static readonly ulong[] Seeds = { 2, 7, 11, 42, 99 };
+
     private readonly ITestOutputHelper _output;
 
     public LifeStoryTests(ITestOutputHelper output) => _output = output;
@@ -330,6 +332,169 @@ public sealed class LifeStoryTests
         Assert.Contains(world.Figures, figure =>
             figure.Undertakings.Exists(undertaking =>
                 undertaking.Motive == MemoryKind.Bereavement));
+    }
+
+    [Fact]
+    public void TravelAndRevengeUndertakingsReachCausalTerminalStatesAcrossSeeds()
+    {
+        var states = new Dictionary<(UndertakingKind Kind, UndertakingState State), int>();
+        int eventVolume = 0;
+        int durations = 0;
+        int durationTotal = 0;
+        int undertakingTotal = 0;
+
+        foreach (ulong seed in Seeds)
+        {
+            WorldState world = HistoryRun.Execute(TestWorlds.Standard(seed)).World;
+            eventVolume += world.Chronicle.Events.Count(entry =>
+                entry.Kind is EventKind.UndertakingStarted
+                    or EventKind.UndertakingCompleted
+                    or EventKind.UndertakingFailed);
+
+            foreach (Figure figure in world.Figures)
+            {
+                Assert.False(!figure.IsAlive && figure.Undertakings.Exists(item =>
+                    item.State == UndertakingState.Active));
+                Assert.True(figure.Undertakings.Count(item =>
+                    item.State == UndertakingState.Active
+                    && item.Kind != UndertakingKind.Conspiracy) <= Undertakings.MaxActivePublic);
+                Assert.True(figure.Undertakings.Count(item =>
+                    item.State == UndertakingState.Active
+                    && item.Kind == UndertakingKind.Conspiracy) <= Undertakings.MaxActiveSecret);
+
+                List<FigureUndertaking> publicArcs = figure.Undertakings
+                    .Where(item => item.Kind != UndertakingKind.Conspiracy)
+                    .OrderBy(item => item.StartYear)
+                    .ToList();
+                for (int i = 1; i < publicArcs.Count; i++)
+                {
+                    if (publicArcs[i - 1].EndYear is int ended)
+                    {
+                        Assert.True(
+                            publicArcs[i].StartYear - ended >= Undertakings.PublicCooldownYears,
+                            $"{figure.FullName} began public undertakings without a cooldown.");
+                    }
+                }
+
+                foreach (FigureUndertaking undertaking in figure.Undertakings)
+                {
+                    undertakingTotal++;
+                    states[(undertaking.Kind, undertaking.State)] =
+                        states.GetValueOrDefault((undertaking.Kind, undertaking.State)) + 1;
+                    Assert.False(undertaking.MotiveEntityId.IsNone);
+                    Assert.True(undertaking.DeadlineYear >= undertaking.StartYear);
+
+                    int priorYear = undertaking.StartYear;
+                    var unique = new HashSet<UndertakingStep>();
+                    foreach (UndertakingStep step in undertaking.Steps)
+                    {
+                        Assert.True(step.Year >= priorYear);
+                        Assert.False(step.PlaceId.IsNone && step.SubjectId.IsNone);
+                        Assert.True(unique.Add(step), "An undertaking duplicated a causal step.");
+                        priorYear = step.Year;
+                    }
+
+                    if (undertaking.State != UndertakingState.Active)
+                    {
+                        Assert.NotNull(undertaking.EndYear);
+                        Assert.False(string.IsNullOrWhiteSpace(undertaking.Outcome));
+                        durations++;
+                        durationTotal += undertaking.EndYear!.Value - undertaking.StartYear;
+                    }
+                }
+            }
+        }
+
+        Assert.True(states.GetValueOrDefault((UndertakingKind.TradeVenture, UndertakingState.Succeeded)) > 0);
+        Assert.True(states.GetValueOrDefault((UndertakingKind.TradeVenture, UndertakingState.Failed)) > 0);
+        Assert.True(states.GetValueOrDefault((UndertakingKind.Revenge, UndertakingState.Succeeded)) > 0);
+        Assert.True(states.GetValueOrDefault((UndertakingKind.Revenge, UndertakingState.Failed)) > 0);
+        Assert.Contains(states, pair =>
+            pair.Key.State == UndertakingState.Abandoned && pair.Value > 0);
+        Assert.True(eventVolume > 0);
+        Assert.True(durations > 0 && durationTotal >= 0);
+        _output.WriteLine(
+            $"Five-seed undertakings: {undertakingTotal}; terminal {durations}; "
+            + $"mean terminal duration {(double)durationTotal / durations:F2} years; "
+            + $"undertaking events {eventVolume}.");
+        foreach (UndertakingKind kind in new[]
+                 {
+                     UndertakingKind.TradeVenture,
+                     UndertakingKind.Revenge,
+                 })
+        {
+            _output.WriteLine(
+                $"{kind}: active {states.GetValueOrDefault((kind, UndertakingState.Active))}, "
+                + $"succeeded {states.GetValueOrDefault((kind, UndertakingState.Succeeded))}, "
+                + $"failed {states.GetValueOrDefault((kind, UndertakingState.Failed))}, "
+                + $"abandoned {states.GetValueOrDefault((kind, UndertakingState.Abandoned))}.");
+        }
+    }
+
+    [Fact]
+    public void UndertakingStepsRejectDuplicatesReorderingAndImpossibleEntities()
+    {
+        WorldState world = HistoryRun.Execute(TestWorlds.Standard(42)).World;
+        Settlement place = world.Settlements[0];
+        var undertaking = new FigureUndertaking(
+            999,
+            UndertakingKind.TradeVenture,
+            world.StartYear,
+            "a test venture",
+            place.Id,
+            place.Id,
+            place.Id,
+            2,
+            MemoryKind.Ambition,
+            place.Id,
+            EventKind.JourneyMade,
+            world.StartYear + 5);
+        var first = new UndertakingStep(
+            world.StartYear,
+            EventKind.JourneyMade,
+            place.Id,
+            place.Id,
+            "Began");
+
+        Undertakings.AddStep(world, undertaking, first);
+        Assert.Throws<InvalidOperationException>(() =>
+            Undertakings.AddStep(world, undertaking, first));
+        Assert.Throws<InvalidOperationException>(() =>
+            Undertakings.AddStep(
+                world,
+                undertaking,
+                first with { Year = world.StartYear - 1, Outcome = "Out of order" }));
+        Assert.Throws<InvalidOperationException>(() =>
+            Undertakings.AddStep(
+                world,
+                undertaking,
+                first with
+                {
+                    SubjectId = EntityId.Settlement(int.MaxValue),
+                    Outcome = "Impossible",
+                }));
+
+        Figure actor = world.Figures[0];
+        var officeBound = new FigureUndertaking(
+            1000,
+            UndertakingKind.Revenge,
+            world.EndYear,
+            "an office-bound test goal",
+            place.CivilizationId,
+            place.Id,
+            place.Id,
+            2,
+            MemoryKind.Defeat,
+            place.Id,
+            EventKind.BattleFought,
+            world.EndYear + 5,
+            requiredOffice: OfficeKind.Marshal);
+        actor.Undertakings.Add(officeBound);
+
+        Undertakings.EndAtLossOfOffice(world, actor, OfficeKind.Marshal, world.EndYear);
+
+        Assert.Equal(UndertakingState.Abandoned, officeBound.State);
+        Assert.Equal("the loss of office ended it", officeBound.Outcome);
     }
 
     [Fact]

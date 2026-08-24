@@ -148,6 +148,14 @@ public static class Offices
         int year)
     {
         string title = culture.TitleFor(kind, holder.Sex);
+        CampaignMemory? promotion = kind == OfficeKind.Marshal
+            ? Campaigns.PromotionCause(holder)
+            : null;
+        if (promotion is not null && world.Battles.Contains(promotion.BattleId))
+        {
+            promotion.PromotionYear = year;
+            claim += " after winning renown at " + world.NameOf(promotion.BattleId);
+        }
 
         holder.Offices.Add(
             new OfficeHolding(kind, title, civilization.Id, year, null)
@@ -211,6 +219,7 @@ public static class Offices
         OfficeHolding? held = holder.OpenOffice(kind);
         if (held is null) return;
 
+        Undertakings.EndAtLossOfOffice(world, holder, kind, year);
         holder.EndOffice(kind, year);
         if (kind == OfficeKind.Governor) SendHome(world, holder);
 
@@ -249,6 +258,7 @@ public static class Offices
     /// <summary>Ends an office quietly: a lapse, a posting that no longer exists, a body that ended.</summary>
     public static void Lapse(WorldState world, Figure holder, OfficeKind kind, int year)
     {
+        Undertakings.EndAtLossOfOffice(world, holder, kind, year);
         holder.EndOffice(kind, year);
         if (kind == OfficeKind.Governor) SendHome(world, holder);
         Occupations.Sync(world, holder, year, died: !holder.IsAlive);
