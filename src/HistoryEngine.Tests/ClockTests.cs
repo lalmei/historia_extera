@@ -227,20 +227,27 @@ public sealed class DocketTests
 public sealed class CadenceTests
 {
     /// <summary>
-    /// War runs on the season; everything else still runs on the year.
+    /// War, expansion and artifacts run on the season; everything else still runs on the year.
     /// </summary>
     /// <remarks>
-    /// The re-phasing is deliberately one system at a time, and this is the record of how far it
-    /// has got. Each system that moves changes every history in the world, so a milestone that
+    /// <para>The re-phasing is deliberately one system at a time, and this is the record of how far
+    /// it has got. Each system that moves changes every history in the world, so a milestone that
     /// moved four of them at once would present one fingerprint change with four calibrations
-    /// inside it and no way to read them apart.
+    /// inside it and no way to read them apart.</para>
+    ///
+    /// <para>Artifacts moved last, and for a narrower reason than the other two: it still creates
+    /// and circulates only in the opening season, and its later ticks exist solely so that an owner
+    /// killed by a season-scheduled death has their estate settled inside the year they died in
+    /// rather than in the next one — or, in the final year of a run, never.</para>
     /// </remarks>
     [Fact]
-    public void OnlyWarAndExpansionHaveLeftTheYear()
+    public void OnlyWarExpansionAndArtifactsHaveLeftTheYear()
     {
         foreach (ISystem system in Simulator.DefaultSystems())
         {
-            Cadence expected = system.Name is "war" or "expansion" ? Cadence.Seasonal : Cadence.Annual;
+            Cadence expected = system.Name is "war" or "expansion" or "artifacts"
+                ? Cadence.Seasonal
+                : Cadence.Annual;
 
             Assert.Equal(expected, system.Cadence);
         }
