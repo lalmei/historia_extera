@@ -148,6 +148,8 @@ public sealed class WorldFlavourTests
         Assert.Equal(expected.MoonIndex, actual.MoonIndex);
         Assert.Equal(expected.Cosmology.StarClass, actual.Cosmology.StarClass);
         Assert.Equal(expected.Cosmology.OrbitalDistanceAu, actual.Cosmology.OrbitalDistanceAu);
+        Assert.Equal(expected.Cosmology.Galaxy, actual.Cosmology.Galaxy);
+        Assert.Equal(expected.Cosmology.Comets, actual.Cosmology.Comets);
         Assert.Equal(expected.Cosmology.Companions.Count, actual.Cosmology.Companions.Count);
         for (int i = 0; i < expected.Cosmology.Companions.Count; i++)
         {

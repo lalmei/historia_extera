@@ -15,8 +15,8 @@ answer to whoever is governing them and to what has lately happened to them, rat
 than to a culture fixed at worldgen and never revisited. Since then: grievance that
 finally bites — a town that rises, breaks away, or whose governor marches on the seat
 (M15); people the chronicle follows given a trade, journeys they return from, and the
-wars they stood in (M16); and a host star rolled from the seed that the world's own
-tomes can describe (M17).
+wars they stood in (M16); and a host star — and, later, a host galaxy — rolled from the
+seed that the world's own tomes can describe (M17).
 
 The four most recent milestones — M15 unrest, M16 figure lives, M17 cosmology and tomes
 — are recorded below as design and contract. Their measurement sweeps are marked pending
@@ -2464,7 +2464,8 @@ the body's orbit within them; surface gravity, escape velocity, albedo, greenhou
 temperature; and, for a habitable exomoon, the parent giant, the Roche limit and the tidal day. It is
 flavour — it feeds no simulation decision, exactly as the world's name does — and it travels in the
 export. A set of `CosmologyCheck`s records whether the rolled system is self-consistent, so an
-implausible draw is visible rather than silently shipped.
+implausible draw is visible rather than silently shipped. The host galaxy was added later, on its
+own stream, so the local system did not reshuffle — see the follow-up after M19.
 
 **Why a book can now be about the sky.** The one place cosmology reaches the simulation's output is
 `Tomes`: a learned faith may compose a cosmology codex, and it draws on the same rolled system rather
@@ -2721,6 +2722,40 @@ identical `(year, kind, subject, object, location)` skeletons, the same 38 settl
 figures, 5 wars and 63 routes. The 574 events that differ are the non-trade journeys, and they
 differ in their purpose text and one via id. The fingerprint moved because the recorded facts moved,
 which is the case the golden is meant to catch and approve rather than forbid.
+
+---
+
+### Follow-up: the host galaxy (M17, not a new milestone)
+
+M17 rolled a star and a habitable body from the seed and stopped at the system. Astra Extera later
+grew a host galaxy around the same idea — morphology, a habitable annulus, an observer's site,
+metallicity enough for an iron core and ores — and Historia now carries that layer too. It is the
+same contract one scale up: flavour, unique to the seed, visible in the export and the cosmology
+tomes, and unread by any simulation decision.
+
+**Its own stream, so the sky does not jump.** The galaxy is rolled from `world.galaxy.morphology`,
+`world.galaxy.elliptical` and `world.galaxy.spiral`, never from `world.cosmology`. Adding it cannot
+reshuffle the host star or the habitable body, which is the same isolation the world's name already
+has from the history. The local-system checks still pass; two new ones record whether the site sits
+in the galactic habitable annulus and whether the crust can hold iron and ores.
+
+**Spirals are the common case; giant ellipticals are rare.** About one world in forty is an
+elliptical. Spirals take a metal-rich ring outside a crowded inner disk, two or four arms, and a
+thin disk a few hundred parsecs thick. Ellipticals are more massive, have no arms, and keep their
+habitable shell farther out in a spheroid — the core is dynamically hostile. A site is rejection-
+sampled until it has [Fe/H] high enough for an iron core (≥ −0.50) and ores (≥ −0.30), a supernova
+rate no worse than 2.5× the solar neighbourhood, and a radius inside the annulus.
+
+**Schema 31.** The export grows `cosmology.galaxy`. Cosmology tomes gain a "The host" section that
+agrees about the galaxy the way they already agree about the star. The cosmology page draws the
+galaxy face-on and edge-on, with the habitable ring and this world's mark. Schema 32 later added
+comets on `world.cosmology.comets` and painted Astra's night sky — unresolved disk glow plus
+resolved stars — from the same observer site, still unread by the simulation.
+
+**Numbers still to sweep.** Elliptical frequency was set to 2.5% by argument, matching Astra. A
+panel across seeds would confirm the rate, that no site falls through the metallicity floors, and
+that the independent stream really does leave star class and orbit untouched — the tests already
+assert the last two on 250 seeds.
 
 ---
 

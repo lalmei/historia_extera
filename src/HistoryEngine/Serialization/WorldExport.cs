@@ -107,8 +107,16 @@ public sealed record WorldExport(
     /// so the map can draw where the traffic physically went rather than only who traded with
     /// whom. Absent on every route that never earned one, and on every coastal route, which is
     /// sailed.
+    /// Version 30 recorded how a journey ended — home, robbed, or never returned.
+    /// Version 31 added the host galaxy: morphology, a habitable annulus, and the observer's
+    /// galactocentric site, so the cosmology page can show where the seed sits as well as
+    /// what it orbits.
+    /// Version 32 added the system's comets — perihelion, aphelion, and a nucleus — so the
+    /// cosmology page can put tails on the true-size strip and the full-system map.
+    /// Version 33 added a figure's bonds, salient memories, feelings, wounds and undertakings,
+    /// so a life page can lead with its causal shape rather than only its raw chronology.
     /// </remarks>
-    public const int CurrentSchemaVersion = 30;
+    public const int CurrentSchemaVersion = 33;
 }
 
 public sealed record ExportMeta(
@@ -182,9 +190,11 @@ public sealed record ExportWorld(
     IReadOnlyList<ExportRiver> Rivers);
 
 /// <summary>
-/// Star-system physics for a habitable planet or exomoon, rolled from the seed.
+/// Star-system physics for a habitable planet or exomoon, rolled from the seed,
+/// plus the host galaxy the system sits in.
 /// </summary>
 public sealed record ExportCosmology(
+    ExportGalaxy Galaxy,
     StarSpectralClass StarClass,
     double StarMassSolar,
     double StarRadiusSolar,
@@ -210,6 +220,7 @@ public sealed record ExportCosmology(
     IReadOnlyList<ExportCompanionPlanet> Companions,
     IReadOnlyList<ExportSystemMoon> Moons,
     int? HabitableMoonIndex,
+    IReadOnlyList<ExportComet> Comets,
     bool IsHabitable,
     IReadOnlyList<ExportCosmologyCheck> Checks);
 
@@ -228,7 +239,48 @@ public sealed record ExportCompanionPlanet(
     double RadiusEarth,
     double OrbitalPeriodDays);
 
+public sealed record ExportComet(
+    int Index,
+    double PerihelionAu,
+    double AphelionAu,
+    double Eccentricity,
+    double InclinationDeg,
+    double ArgumentOfPeriapsisRad,
+    double OrbitalPeriodDays,
+    double NucleusRadiusKm,
+    double MassEarth);
+
 public sealed record ExportCosmologyCheck(string Label, bool Passed, string Detail);
+
+/// <summary>Host galaxy rolled from the seed: morphology and the observer's site inside it.</summary>
+public sealed record ExportGalaxy(
+    GalaxyMorphology Morphology,
+    double StellarMassSolar,
+    double DiskScaleLengthKpc,
+    double ThinDiskScaleHeightPc,
+    double BulgeToDiskMass,
+    double SolarAnalogMetallicityFeH,
+    double MetallicityGradientDexPerKpc,
+    double MetallicityScatterDex,
+    int SpiralArmCount,
+    double SpiralPitchDeg,
+    double InnerHabitableRadiusKpc,
+    double OuterHabitableRadiusKpc,
+    double SersicIndex,
+    double AxisRatio,
+    double MetallicityReferenceRadiusKpc,
+    ExportGalacticLocation Location,
+    bool CanHostIronCore,
+    bool CanHostOres);
+
+public sealed record ExportGalacticLocation(
+    double GalactocentricRadiusKpc,
+    double AzimuthRad,
+    double HeightPc,
+    double MetallicityFeH,
+    bool InSpiralArm,
+    double LocalStellarDensityRelativeToSolar,
+    double SupernovaRateRelativeToSolar);
 
 /// <summary>
 /// One reach of a river, in world coordinates.

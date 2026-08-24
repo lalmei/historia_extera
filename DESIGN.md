@@ -295,7 +295,7 @@ not a runtime architecture. A deployed viewer remains a reader of exported histo
 | M14 | Notable households and office succession | Done |
 | M15 | Grievance made to bite: brigandage, revolt, secession, and usurpation | Done |
 | M16 | Lives the chronicle follows: occupations, journeys, and campaign memory | Done |
-| M17 | The seed's cosmology, and tomes that draw on it | Done |
+| M17 | The seed's cosmology (host galaxy and local system), and tomes that draw on it | Done |
 | M18 | Cultural drift: a people that changes over the centuries | Done |
 | M19 | The road has a cost: journeys that can be robbed, drowned, or fatal, and say what they were for | Done |
 

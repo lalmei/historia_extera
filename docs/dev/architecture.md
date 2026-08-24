@@ -232,7 +232,10 @@ The world itself is named once from the seed, in the same world-level language a
 regions: a planet ("The planet Borion") or a moon ("The 3rd moon of Endor"). That
 designation is flavour — it does not feed any simulation decision — and is unique to the
 seed, so stretching a run cannot rename it. The seed still travels in the export beside
-it, which is what reproduces the history.
+it, which is what reproduces the history. The host galaxy and the local star system travel
+the same way: rolled from the seed (the galaxy on its own stream, so it cannot reshuffle
+the star), shown in the export and the cosmology tomes, and never read by a simulation
+decision.
 
 ## Serialization
 

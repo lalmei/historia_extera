@@ -164,6 +164,7 @@ public static class WorldExporter
         }
 
         return new ExportCosmology(
+            Galaxy: BuildGalaxy(cosmology.Galaxy),
             StarClass: cosmology.StarClass,
             StarMassSolar: cosmology.StarMassSolar,
             StarRadiusSolar: cosmology.StarRadiusSolar,
@@ -189,8 +190,61 @@ public static class WorldExporter
             Companions: BuildCompanions(cosmology.Companions),
             Moons: BuildMoons(cosmology.Moons),
             HabitableMoonIndex: cosmology.HabitableMoonIndex,
+            Comets: BuildComets(cosmology.Comets),
             IsHabitable: cosmology.IsHabitable,
             Checks: checks);
+    }
+
+    private static ExportGalaxy BuildGalaxy(HostGalaxy galaxy)
+    {
+        GalaxyBlueprint blueprint = galaxy.Blueprint;
+        GalacticLocation location = galaxy.Location;
+        return new ExportGalaxy(
+            blueprint.Morphology,
+            blueprint.StellarMassSolar,
+            blueprint.DiskScaleLengthKpc,
+            blueprint.ThinDiskScaleHeightPc,
+            blueprint.BulgeToDiskMass,
+            blueprint.SolarAnalogMetallicityFeH,
+            blueprint.MetallicityGradientDexPerKpc,
+            blueprint.MetallicityScatterDex,
+            blueprint.SpiralArmCount,
+            blueprint.SpiralPitchDeg,
+            blueprint.InnerHabitableRadiusKpc,
+            blueprint.OuterHabitableRadiusKpc,
+            blueprint.SersicIndex,
+            blueprint.AxisRatio,
+            blueprint.MetallicityReferenceRadiusKpc,
+            new ExportGalacticLocation(
+                location.GalactocentricRadiusKpc,
+                location.AzimuthRad,
+                location.HeightPc,
+                location.MetallicityFeH,
+                location.InSpiralArm,
+                location.LocalStellarDensityRelativeToSolar,
+                location.SupernovaRateRelativeToSolar),
+            galaxy.CanHostIronCore,
+            galaxy.CanHostOres);
+    }
+
+    private static List<ExportComet> BuildComets(IReadOnlyList<SystemComet> comets)
+    {
+        var list = new List<ExportComet>(comets.Count);
+        foreach (SystemComet comet in comets)
+        {
+            list.Add(new ExportComet(
+                comet.Index,
+                comet.PerihelionAu,
+                comet.AphelionAu,
+                comet.Eccentricity,
+                comet.InclinationDeg,
+                comet.ArgumentOfPeriapsisRad,
+                comet.OrbitalPeriodDays,
+                comet.NucleusRadiusKm,
+                comet.MassEarth));
+        }
+
+        return list;
     }
 
     private static List<ExportCompanionPlanet> BuildCompanions(IReadOnlyList<CompanionPlanet> companions)
