@@ -2832,6 +2832,51 @@ another system onto the season.
 
 ---
 
+### The sky is a thing that can be wrong about (M20, first slice)
+
+M17 rolled comets on real orbits and left them as flavour: exported, unread, feeding no decision.
+The interesting part was always their periods. Seed 11 carries one on 74.8 years and one on 160.7,
+so a three-century run sees the first four times and the second twice — long enough for the same
+object to be seen by people who never met, which is the only reason an interval can be noticed at
+all.
+
+**The schedule is derived, never stored, and never rolled.** `Skywatch.Apparitions` computes returns
+from the orbit and the argument of periapsis, which serves as the phase so that no comet arrives in
+year one merely because that is when the chronicle starts. A world simulated for three centuries and
+one never simulated at all agree about every return, and a test asserts it. That property is the
+whole point: a prediction made in year 152 can be checked against something the simulation knew
+before the realm existed, rather than against a roll.
+
+**A faint comet has to be rare.** Brightness alone admitted seed 7's ten-year visitor, which returned
+thirty times and was written down a hundred and forty-eight times — a chronicle of the weather. A
+bright comet earns its line at any period; a faint one needs twenty-five years, so that most people
+who see it are seeing it once. Seed 7 went from 33 chronicled returns to 2.
+
+**Looking up is not universal.** A realm records a return only if somebody there keeps records — a
+scribe or a priesthood — and the odds read the realm's learning, the brightness, and whether it was
+at war. Across the panel: seed 42 has nothing in its sky for three centuries, seed 99 has one
+apparition ever, seed 11 has seventeen. The character of a world's astronomy falls out of the seed,
+which is a better argument for the cosmology roll than anything M17 could make on its own.
+
+**The best thing here was not designed in.** The interval an observer derives is what their own
+realm's register held, so a realm that missed a return counts from the one before and gets a clean
+whole multiple of the truth. Across the panel, thirty intervals are the real period and sixteen are
+two, three, five or seven times it. Someone with a century and a half of honest evidence about a
+seventy-five-year comet will name the wrong year, and the sky will refute them. That is a real error
+mode of real astronomy arriving for free, and it is pinned by a test, because every claim #147 will
+adjudicate rests on it.
+
+**Where it runs.** In the artifact pass rather than a system of its own: an observation is a made
+record like the tomes beside it, it needs the year's offices and households settled to know who keeps
+the register, and a system of its own would change the order hash for a pass that writes a handful of
+lines a century.
+
+**Schema 36.** The cosmology gains the true schedule and figures gain what they wrote down, including
+the realm whose register it went into — recorded rather than read off the observer later, because
+people change realms and a book does not follow them.
+
+---
+
 ## Milestones
 
 | # | Deliverable | State |

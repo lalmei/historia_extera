@@ -119,8 +119,10 @@ public sealed record WorldExport(
     /// promotion provenance, plus undertaking sponsors, deadlines and motive provenance.
     /// Version 35 added personal quarrels — cause, escalation, acts and outcome — shared by both
     /// parties, and generalised an injury's cause from a battle to whatever inflicted it.
+    /// Version 36 added the sky's true schedule of comet returns and the observations named people
+    /// wrote down of them, with the interval their own realm's register let them derive.
     /// </remarks>
-    public const int CurrentSchemaVersion = 35;
+    public const int CurrentSchemaVersion = 36;
 }
 
 public sealed record ExportMeta(
@@ -225,8 +227,19 @@ public sealed record ExportCosmology(
     IReadOnlyList<ExportSystemMoon> Moons,
     int? HabitableMoonIndex,
     IReadOnlyList<ExportComet> Comets,
+    IReadOnlyList<ExportApparition> Apparitions,
     bool IsHabitable,
     IReadOnlyList<ExportCosmologyCheck> Checks);
+
+/// <summary>
+/// One return of a comet the chronicle would carry, in a year, at a brightness.
+/// </summary>
+/// <remarks>
+/// The true schedule, derived from the rolled orbit rather than from anything anyone saw. It is
+/// exported beside the observations so a reader — or a later claim — can compare what happened with
+/// what was written down, which is the only reason the observations are worth having.
+/// </remarks>
+public sealed record ExportApparition(int CometIndex, int Year, ApparitionGrade Grade);
 
 public sealed record ExportSystemMoon(
     int Index,
@@ -778,6 +791,7 @@ public sealed record ExportFigure(
     IReadOnlyList<ExportInjury> Injuries,
     IReadOnlyList<ExportUndertaking> Undertakings,
     IReadOnlyList<ExportDispute> Disputes,
+    IReadOnlyList<ExportObservation> Observations,
     EntityId? MotherId,
     EntityId? FatherId,
     IReadOnlyList<EntityId> ChildIds,
@@ -908,6 +922,22 @@ public sealed record ExportUndertaking(
     double Secrecy,
     double Access,
     IReadOnlyList<ExportUndertakingStep> Steps);
+
+/// <summary>
+/// One sighting a named person wrote down, and what their own realm's register let them derive.
+/// </summary>
+/// <param name="PriorYear">
+/// The last time this realm recorded the same body, where it had. Absent means nobody there had it
+/// on record — so this observer could not have known an interval, whatever the true period is.
+/// </param>
+public sealed record ExportObservation(
+    int CometIndex,
+    int Year,
+    EntityId? RealmId,
+    EntityId? SettlementId,
+    int? PriorYear,
+    int? Interval,
+    ApparitionGrade Grade);
 
 public sealed record ExportUndertakingStep(
     int Year,

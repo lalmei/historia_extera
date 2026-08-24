@@ -182,6 +182,7 @@ public sealed class Figure
         Injuries = new List<FigureInjury>();
         Undertakings = new List<FigureUndertaking>();
         Disputes = new List<FigureDispute>();
+        Observations = new List<SkyObservation>();
         ChildIds = new List<EntityId>();
         SpouseIds = new List<EntityId>();
     }
@@ -337,6 +338,9 @@ public sealed class Figure
     /// believe a different version of the same quarrel.
     /// </remarks>
     public List<FigureDispute> Disputes { get; }
+
+    /// <summary>What this figure wrote down about the sky, in the order they saw it.</summary>
+    public List<SkyObservation> Observations { get; }
 
     public EntityId MotherId { get; set; } = EntityId.None;
 

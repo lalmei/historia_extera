@@ -18,7 +18,7 @@ measurements, rejected alternatives, and milestone retrospectives.
 | Space | Expensive terrain is accessed through a budgeted, three-tier atlas |
 | Time | Years remain the spine; seasons and scheduled days are used only where earned |
 | History | Flat events plus persistent entities and sampled series |
-| Personal history | Directed bonds, bounded causal memories, wounds, quarrels, and multi-year undertakings |
+| Personal history | Directed bonds, bounded causal memories, wounds, quarrels, undertakings, and what people saw |
 | Presentation | The viewer reads exports and never drives the simulation |
 | Game integration | Vintage Story is a future terrain host, not an engine dependency |
 
@@ -294,6 +294,15 @@ things historically went, which is a conspiracy. Duels and battles share one wou
 recovery, and the permanent tail are the same rule whether the blow was struck on a field or on a
 morning appointed for it, and a duel death goes through the ordinary central death path so
 succession, offices, and bereavement all follow from it.
+
+- **Observations** are what a named person wrote down about the sky. The comets were rolled at world
+  creation with real orbits, so their returns are a schedule the simulation knows before anybody is
+  born; a bright comet earns a line at any period, a faint one only if it is rare enough that most
+  who see it are seeing it once. Whether a realm records a return depends on having somebody who
+  keeps records, on its learning, and on whether it was at war that year — so an apparition can pass
+  unwritten. The interval an observer derives is what their own realm's register held, not the truth,
+  which is why a realm that missed a return counts double and gets a clean multiple of the real
+  period. That mistake is the point: it is what a later prediction can be wrong about.
 
 Conspiracy is the test that this state matters. A plot is not a one-roll assassination label: a
 leader needs motive grounded in grievance, rivalry, memory, disgrace, or a claim; access to the
