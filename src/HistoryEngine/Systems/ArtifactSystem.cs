@@ -19,8 +19,11 @@ namespace HistoryEngine.Systems;
 /// M1; this is the first thing that turns it into objects, so a chronicle of a mining city reads
 /// differently from one of a holy city in a way a reader notices without being told the rule.</para>
 ///
-/// <para>Runs last in the year, after the houses: a thing made in the reign of a ruler crowned
-/// this spring should be attributed to them rather than to whoever the year began with.</para>
+/// <para>Runs last in each season, after the houses. Creation and circulation still happen only
+/// in the opening season, so a thing made in the reign of a ruler crowned this spring is
+/// attributed to them rather than to whoever the year began with. Estate settlement also runs
+/// after later seasonal docket entries: a ruler killed by a plague in the final winter must not
+/// remain the recorded owner merely because there is no following spring.</para>
 ///
 /// <para>Samples no terrain.</para>
 /// </remarks>
@@ -55,11 +58,19 @@ public sealed class ArtifactSystem : ISystem
 
     public string Name => "artifacts";
 
-    public Cadence Cadence => Cadence.Annual;
+    public Cadence Cadence => Cadence.Seasonal;
 
     public void Tick(WorldState world, Stamp now)
     {
         int year = now.Year;
+
+        // Annual creation and circulation stay on the opening step. Later seasonal ticks exist
+        // solely to settle deaths resolved from the docket after that step.
+        if (now.Day != 0)
+        {
+            Treasures.SettleEstates(world, year);
+            return;
+        }
 
         IRng rng = world.Root.Fork(Name, year);
 
@@ -101,6 +112,7 @@ public sealed class ArtifactSystem : ISystem
 
         Tomes.Commission(world, year);
         Treasures.SettleEstates(world, year);
+        Treasures.ExchangeGifts(world, year);
         Tomes.Distribute(world, year);
         Tomes.Revise(world, year);
     }

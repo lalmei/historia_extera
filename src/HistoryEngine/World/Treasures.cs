@@ -230,8 +230,6 @@ public static class Treasures
     /// </remarks>
     public static void SettleEstates(WorldState world, int year)
     {
-        IRng rng = world.Root.Fork("treasures.estate", year);
-
         foreach (Artifact artifact in world.Artifacts)
         {
             if (!artifact.IsExtant || artifact.OwnerId.IsNone) continue;
@@ -264,9 +262,11 @@ public static class Treasures
                     data: Chronicle.Data(("manner", how)));
             }
         }
-
-        Gift(world, year, rng);
     }
+
+    /// <summary>Offers the year's discretionary gifts after every dead owner's claim is settled.</summary>
+    public static void ExchangeGifts(WorldState world, int year) =>
+        Gift(world, year, world.Root.Fork("treasures.estate", year));
 
     private static void Gift(WorldState world, int year, IRng rng)
     {
