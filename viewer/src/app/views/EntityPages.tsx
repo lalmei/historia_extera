@@ -817,7 +817,14 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
                         ))}
                       </span>
                       <span className="text-xs text-[var(--ink-faint)]">
-                        {relationshipReading(bond)} · since {bond.sinceYear}
+                        {relationshipReading(bond)} · since {bond.sinceYear} ·{' '}
+                        {eventReading(bond.lastEventKind)} in {bond.lastChangedYear}
+                        {bond.lastEntityId && bond.lastEntityId !== bond.otherId && (
+                          <>
+                            {' · '}
+                            <EntityLink world={world} id={bond.lastEntityId} />
+                          </>
+                        )}
                       </span>
                     </li>
                   ))}
@@ -992,13 +999,14 @@ function LifeUndertaking({ world, undertaking }: { world: World; undertaking: Un
 }
 
 function FeelingBadges({ feelings }: { feelings: Figure['feelings'] }) {
-  const visible: [string, number][] = [
+  const entries: [string, number][] = [
     ['Grieving', feelings?.grief ?? 0],
     ['Afraid', feelings?.fear ?? 0],
     ['Angry', feelings?.anger ?? 0],
     ['Proud', feelings?.pride ?? 0],
     ['Loyal', feelings?.loyalty ?? 0],
-  ].filter(([, value]) => value >= 0.18) as [string, number][];
+  ];
+  const visible = entries.filter(([, value]) => value >= 0.18);
 
   if (visible.length === 0) return null;
   return (
@@ -1038,9 +1046,19 @@ function MemoryLine({ world, memory }: { world: World; memory: SalientMemory }) 
 
 function relationshipImportance(bond: FigureBond): number {
   const roleWeight = bond.kinds.some((kind) =>
-    ['Spouse', 'Parent', 'Child', 'Mentor', 'Patron', 'Rival', 'Enemy', 'CoConspirator'].includes(
-      kind,
-    ),
+    [
+      'Spouse',
+      'Parent',
+      'Child',
+      'Sibling',
+      'Friend',
+      'Lover',
+      'Mentor',
+      'Patron',
+      'Rival',
+      'Enemy',
+      'CoConspirator',
+    ].includes(kind),
   )
     ? 0.8
     : 0.2;
@@ -1063,6 +1081,10 @@ function relationshipReading(bond: FigureBond): string {
   if (bond.affection >= 0.45) return 'held dear';
   if (bond.affection <= -0.35) return 'disliked';
   return bond.lastCause.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
+}
+
+function eventReading(kind: string): string {
+  return kind.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
 }
 
 /**

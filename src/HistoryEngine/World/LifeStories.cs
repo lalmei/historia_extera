@@ -15,6 +15,10 @@ public static class LifeStories
 {
     public const int MemoryCapacity = 12;
 
+    public const double ActiveMemoryThreshold = 0.18;
+
+    public const double FormativeMemoryThreshold = 0.72;
+
     private const double MemoryFadePerYear = 0.0125;
 
     public static void Marry(WorldState world, Figure first, Figure second, int year)
@@ -22,6 +26,7 @@ public static class LifeStories
         Relate(
             first, second,
             BondKind.Spouse, BondKind.Spouse, BondCause.Marriage, year,
+            EventKind.FigureMarried, first.Id, world.ResidenceOf(first),
             affection: 0.42, trust: 0.28, obligation: 0.30);
 
         Remember(first, MemoryKind.Marriage, year, EventKind.FigureMarried, second.Id,
@@ -38,9 +43,37 @@ public static class LifeStories
             BondKind.Kin | BondKind.Child,
             BondCause.Parenthood,
             year,
+            EventKind.FigureBorn,
+            child.Id,
+            child.BirthSettlementId,
             affection: 0.36,
             trust: 0.18,
-            obligation: 0.48);
+            obligation: 0.48,
+            reciprocalAffection: 0.30,
+            reciprocalObligation: 0.26);
+
+        foreach (EntityId siblingId in parent.ChildIds)
+        {
+            if (siblingId == child.Id || !world.Figures.Contains(siblingId)) continue;
+
+            Figure sibling = world.Figures[siblingId];
+            if (!sibling.IsAlive) continue;
+            FigureBond? existing = BondTo(child, sibling.Id);
+            if (existing is not null && existing.Kinds.HasFlag(BondKind.Sibling)) continue;
+
+            Relate(
+                child, sibling,
+                BondKind.Kin | BondKind.Sibling,
+                BondKind.Kin | BondKind.Sibling,
+                BondCause.Parenthood,
+                year,
+                EventKind.FigureBorn,
+                child.Id,
+                child.BirthSettlementId,
+                affection: 0.24,
+                trust: 0.15,
+                obligation: 0.20);
+        }
 
         Remember(parent, MemoryKind.Parenthood, year, EventKind.FigureBorn, child.Id,
             child.BirthSettlementId, 0.58);
@@ -55,8 +88,12 @@ public static class LifeStories
             BondKind.Client,
             BondCause.Patronage,
             year,
+            EventKind.OfficeGranted,
+            client.Id,
+            location,
             trust: 0.18,
-            obligation: 0.35);
+            obligation: 0.10,
+            reciprocalObligation: 0.35);
 
         Remember(client, MemoryKind.Gratitude, year, EventKind.OfficeGranted, patron.Id,
             location, 0.55);
@@ -71,9 +108,14 @@ public static class LifeStories
             BondKind.Apprentice,
             BondCause.Mentorship,
             year,
+            EventKind.OccupationTaken,
+            apprentice.Id,
+            location,
             affection: 0.18,
-            trust: 0.35,
-            obligation: 0.28);
+            trust: 0.30,
+            obligation: 0.10,
+            reciprocalTrust: 0.35,
+            reciprocalObligation: 0.28);
 
         Remember(apprentice, MemoryKind.Mentorship, year, EventKind.OccupationTaken, mentor.Id,
             location, 0.62);
@@ -87,17 +129,26 @@ public static class LifeStories
         int year,
         EventKind source,
         EntityId location = default,
-        double grievance = 0.38)
+        double grievance = 0.38,
+        EntityId sourceEntity = default)
     {
+        if (sourceEntity.IsNone) sourceEntity = first.Id;
+
         Relate(
             first, second,
             BondKind.Rival,
             BondKind.Rival,
             BondCause.Conflict,
             year,
+            source,
+            sourceEntity,
+            location,
             affection: -0.24,
             trust: -0.30,
-            grievance: grievance);
+            grievance: grievance,
+            reciprocalAffection: -0.18,
+            reciprocalTrust: -0.24,
+            reciprocalGrievance: grievance * 0.80);
 
         Remember(first, MemoryKind.Rivalry, year, source, second.Id, location, 0.58);
         Remember(second, MemoryKind.Rivalry, year, source, first.Id, location, 0.48);
@@ -111,8 +162,12 @@ public static class LifeStories
             BondKind.CoConspirator,
             BondCause.Conspiracy,
             year,
+            EventKind.UndertakingStarted,
+            leader.Id,
+            EntityId.None,
             trust: 0.24,
-            obligation: 0.20);
+            obligation: 0.12,
+            reciprocalObligation: 0.20);
 
         Remember(
             leader, MemoryKind.Conspiracy, year, EventKind.UndertakingStarted,
@@ -159,7 +214,8 @@ public static class LifeStories
 
                 if (firstMemory.SideId == secondMemory.SideId)
                 {
-                    AddCompanionship(first, second, year);
+                    AddCompanionship(
+                        first, second, year, battle.Id, BattlePlace(battle));
                 }
             }
         }
@@ -173,7 +229,8 @@ public static class LifeStories
                 year,
                 EventKind.BattleFought,
                 BattlePlace(battle),
-                0.24);
+                0.24,
+                battle.Id);
         }
     }
 
@@ -207,9 +264,10 @@ public static class LifeStories
         {
             Relate(
                 survivor, deceased,
-                BondKind.Kin, BondKind.Kin, BondCause.Bereavement, year);
+                BondKind.Kin, BondKind.Kin, BondCause.Bereavement, year,
+                EventKind.FigureDied, deceased.Id, world.ResidenceOf(deceased));
 
-            FigureBond bond = EnsureBond(survivor, deceased, year);
+            FigureBond bond = BondTo(survivor, deceased.Id)!;
             if (violent) bond.Fear = DetMath.Clamp01(bond.Fear + 0.18);
 
             Remember(
@@ -236,6 +294,12 @@ public static class LifeStories
         double intensity = 0.5)
     {
         intensity = DetMath.Clamp01(intensity);
+        if (about.IsNone && location.IsNone)
+        {
+            throw new ArgumentException(
+                "A salient memory must name the person, place, battle, war, or artifact that caused it.",
+                nameof(about));
+        }
 
         SalientMemory? existing = figure.Memories.Find(
             memory => memory.Kind == kind && memory.AboutId == about);
@@ -267,6 +331,12 @@ public static class LifeStories
         DetMath.Clamp01(
             memory.Intensity - (Math.Max(0, year - memory.LastReinforcedYear) * MemoryFadePerYear));
 
+    public static bool IsActive(SalientMemory memory, int year) =>
+        EffectiveIntensity(memory, year) >= ActiveMemoryThreshold;
+
+    public static bool IsFormative(SalientMemory memory) =>
+        memory.Intensity >= FormativeMemoryThreshold;
+
     /// <summary>Derives readable emotional state without introducing another mutable cache.</summary>
     public static FeelingState Feelings(Figure figure, int year)
     {
@@ -279,6 +349,8 @@ public static class LifeStories
         foreach (SalientMemory memory in figure.Memories)
         {
             double weight = EffectiveIntensity(memory, year);
+            if (weight < ActiveMemoryThreshold) continue;
+
             switch (memory.Kind)
             {
                 case MemoryKind.Bereavement:
@@ -305,12 +377,17 @@ public static class LifeStories
             }
         }
 
+        Disposition disposition = figure.Disposition;
+        double reflective = (disposition.Values.Tradition + disposition.Values.Piety) * 0.5;
+        double dutiful =
+            (disposition.Values.Tradition + (1.0 - disposition.Independence)) * 0.5;
+
         return new FeelingState(
-            DetMath.Clamp01(grief),
-            DetMath.Clamp01(fear),
-            DetMath.Clamp01(anger),
-            DetMath.Clamp01(pride),
-            DetMath.Clamp01(loyalty));
+            Temper(grief, DetMath.Lerp(0.82, 1.18, reflective)),
+            Temper(fear, DetMath.Lerp(1.30, 0.70, disposition.Values.Aggression)),
+            Temper(anger, DetMath.Lerp(0.70, 1.30, disposition.Values.Aggression)),
+            Temper(pride, DetMath.Lerp(0.80, 1.20, disposition.Centralism)),
+            Temper(loyalty, DetMath.Lerp(0.72, 1.28, dutiful)));
     }
 
     public static FigureBond? BondTo(Figure figure, EntityId other) =>
@@ -323,21 +400,38 @@ public static class LifeStories
         BondKind secondKinds,
         BondCause cause,
         int year,
+        EventKind sourceKind,
+        EntityId sourceEntity,
+        EntityId sourceLocation,
         double affection = 0.0,
         double trust = 0.0,
         double obligation = 0.0,
         double fear = 0.0,
-        double grievance = 0.0)
+        double grievance = 0.0,
+        double? reciprocalAffection = null,
+        double? reciprocalTrust = null,
+        double? reciprocalObligation = null,
+        double? reciprocalFear = null,
+        double? reciprocalGrievance = null)
     {
         if (first.Id == second.Id) return;
 
-        Change(EnsureBond(first, second, year), firstKinds, cause, year,
+        Change(
+            EnsureBond(first, second, year, sourceKind, sourceEntity, sourceLocation),
+            firstKinds, cause, year, sourceKind, sourceEntity, sourceLocation,
             affection, trust, obligation, fear, grievance);
-        Change(EnsureBond(second, first, year), secondKinds, cause, year,
-            affection, trust, obligation, fear, grievance);
+        Change(
+            EnsureBond(second, first, year, sourceKind, sourceEntity, sourceLocation),
+            secondKinds, cause, year, sourceKind, sourceEntity, sourceLocation,
+            reciprocalAffection ?? affection,
+            reciprocalTrust ?? trust,
+            reciprocalObligation ?? obligation,
+            reciprocalFear ?? fear,
+            reciprocalGrievance ?? grievance);
     }
 
-    private static void AddCompanionship(Figure first, Figure second, int year)
+    private static void AddCompanionship(
+        Figure first, Figure second, int year, EntityId battleId, EntityId location)
     {
         Relate(
             first, second,
@@ -345,6 +439,9 @@ public static class LifeStories
             BondKind.Companion,
             BondCause.SharedCampaign,
             year,
+            EventKind.BattleFought,
+            battleId,
+            location,
             affection: 0.06,
             trust: 0.09,
             obligation: 0.05);
@@ -454,12 +551,19 @@ public static class LifeStories
         _ => "grievously",
     };
 
-    private static FigureBond EnsureBond(Figure owner, Figure other, int year)
+    private static FigureBond EnsureBond(
+        Figure owner,
+        Figure other,
+        int year,
+        EventKind sourceKind,
+        EntityId sourceEntity,
+        EntityId sourceLocation)
     {
         FigureBond? found = BondTo(owner, other.Id);
         if (found is not null) return found;
 
-        var bond = new FigureBond(other.Id, year);
+        var bond = new FigureBond(
+            other.Id, year, sourceKind, sourceEntity, sourceLocation);
         int before = owner.Bonds.FindIndex(existing => existing.OtherId.CompareTo(other.Id) > 0);
         if (before < 0) owner.Bonds.Add(bond);
         else owner.Bonds.Insert(before, bond);
@@ -471,6 +575,9 @@ public static class LifeStories
         BondKind kinds,
         BondCause cause,
         int year,
+        EventKind sourceKind,
+        EntityId sourceEntity,
+        EntityId sourceLocation,
         double affection,
         double trust,
         double obligation,
@@ -480,6 +587,9 @@ public static class LifeStories
         bond.Kinds |= kinds;
         bond.LastCause = cause;
         bond.LastChangedYear = year;
+        bond.LastEventKind = sourceKind;
+        bond.LastEntityId = sourceEntity;
+        bond.LastLocationId = sourceLocation;
         bond.Affection = DetMath.Clamp(bond.Affection + affection, -1.0, 1.0);
         bond.Trust = DetMath.Clamp(bond.Trust + trust, -1.0, 1.0);
         bond.Obligation = DetMath.Clamp01(bond.Obligation + obligation);
@@ -501,4 +611,7 @@ public static class LifeStories
 
         return candidate.AboutId.CompareTo(incumbent.AboutId) < 0;
     }
+
+    private static double Temper(double feeling, double multiplier) =>
+        DetMath.Clamp01(feeling * multiplier);
 }

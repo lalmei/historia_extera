@@ -146,10 +146,13 @@ public static class Undertakings
         if (mourner.Disposition.Values.Piety < 0.48) return;
         if (CurrentJourney(mourner) is not null) return;
 
+        double resolveChance = BereavementVowChance(mourner, deceased, year);
+        if (resolveChance <= 0.0) return;
+
         IRng resolve = world.Root
             .Fork("bereavement-vow", mourner.Id.ToDiscriminator())
             .Fork("for", deceased.Id.ToDiscriminator());
-        if (!resolve.Chance(0.18 + (0.28 * mourner.Disposition.Values.Piety))) return;
+        if (!resolve.Chance(resolveChance)) return;
 
         var sites = new List<HolySite>();
         EntityId home = world.ResidenceOf(mourner);
@@ -175,6 +178,23 @@ public static class Undertakings
             chosen.Id,
             1,
             MemoryKind.Bereavement);
+    }
+
+    /// <summary>
+    /// Resolve available for a memorial vow. Without an active grief-producing memory there is
+    /// no vow; piety controls the same deterministic chance once the experience is present.
+    /// </summary>
+    internal static double BereavementVowChance(Figure mourner, Figure deceased, int year)
+    {
+        SalientMemory? memory = mourner.Memories.Find(item =>
+            item.Kind == MemoryKind.Bereavement && item.AboutId == deceased.Id);
+        if (memory is null || !LifeStories.IsActive(memory, year)) return 0.0;
+        if (LifeStories.Feelings(mourner, year).Grief < LifeStories.ActiveMemoryThreshold)
+        {
+            return 0.0;
+        }
+
+        return 0.18 + (0.28 * mourner.Disposition.Values.Piety);
     }
 
     public static FigureUndertaking? Current(Figure figure) =>
