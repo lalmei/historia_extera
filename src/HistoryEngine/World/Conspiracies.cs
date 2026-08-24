@@ -334,7 +334,7 @@ public static class Conspiracies
         civilization.Fortunes.MurderAtCourt();
     }
 
-    private static double Motive(Figure candidate, Figure target, bool claimant, int year)
+    internal static double Motive(Figure candidate, Figure target, bool claimant, int year)
     {
         FigureBond? bond = LifeStories.BondTo(candidate, target.Id);
         FeelingState feelings = LifeStories.Feelings(candidate, year);

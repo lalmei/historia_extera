@@ -833,6 +833,12 @@ public sealed record ExportBond(
     int SinceYear,
     int LastChangedYear,
     BondCause LastCause,
+    EventKind OriginEventKind,
+    EntityId? OriginEntityId,
+    EntityId? OriginLocationId,
+    EventKind LastEventKind,
+    EntityId? LastEntityId,
+    EntityId? LastLocationId,
     double Affection,
     double Trust,
     double Obligation,
@@ -842,12 +848,14 @@ public sealed record ExportBond(
 /// <summary>One of the bounded experiences still formative at the end of the export.</summary>
 public sealed record ExportMemory(
     MemoryKind Kind,
+    MemoryValence Valence,
     int Year,
     int LastReinforcedYear,
     EventKind SourceKind,
     EntityId? AboutId,
     EntityId? LocationId,
-    double Intensity);
+    double Intensity,
+    bool Active);
 
 public sealed record ExportFeelings(
     double Grief,

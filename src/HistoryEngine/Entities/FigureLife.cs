@@ -26,6 +26,9 @@ public enum BondKind
     Rival = 1 << 9,
     Enemy = 1 << 10,
     CoConspirator = 1 << 11,
+    Sibling = 1 << 12,
+    Friend = 1 << 13,
+    Lover = 1 << 14,
 }
 
 /// <summary>The last material event to alter a bond.</summary>
@@ -47,11 +50,22 @@ public enum BondCause
 /// <summary>A directed, persistent relationship between two recorded people.</summary>
 public sealed class FigureBond
 {
-    public FigureBond(EntityId otherId, int sinceYear)
+    public FigureBond(
+        EntityId otherId,
+        int sinceYear,
+        EventKind originEventKind,
+        EntityId originEntityId,
+        EntityId originLocationId)
     {
         OtherId = otherId;
         SinceYear = sinceYear;
         LastChangedYear = sinceYear;
+        OriginEventKind = originEventKind;
+        OriginEntityId = originEntityId;
+        OriginLocationId = originLocationId;
+        LastEventKind = originEventKind;
+        LastEntityId = originEntityId;
+        LastLocationId = originLocationId;
     }
 
     public EntityId OtherId { get; }
@@ -63,6 +77,20 @@ public sealed class FigureBond
     public int LastChangedYear { get; set; }
 
     public BondCause LastCause { get; set; }
+
+    /// <summary>The stable event facts that first made this relationship historical.</summary>
+    public EventKind OriginEventKind { get; }
+
+    public EntityId OriginEntityId { get; }
+
+    public EntityId OriginLocationId { get; }
+
+    /// <summary>The stable event facts behind the latest material change.</summary>
+    public EventKind LastEventKind { get; set; }
+
+    public EntityId LastEntityId { get; set; }
+
+    public EntityId LastLocationId { get; set; }
 
     /// <summary>Warmth or dislike, in [-1, 1].</summary>
     public double Affection { get; set; }
@@ -99,6 +127,14 @@ public enum MemoryKind
     Conspiracy = 13,
 }
 
+/// <summary>The direction in which an experience pulls before disposition interprets it.</summary>
+public enum MemoryValence
+{
+    Negative = -1,
+    Neutral = 0,
+    Positive = 1,
+}
+
 /// <summary>A bounded, causal memory that can influence later behaviour.</summary>
 /// <remarks>
 /// It stores the source kind rather than a chronicle index. Events in an open step may be sorted
@@ -125,6 +161,22 @@ public sealed class SalientMemory
     }
 
     public MemoryKind Kind { get; }
+
+    public MemoryValence Valence => Kind switch
+    {
+        MemoryKind.Bereavement
+            or MemoryKind.Injury
+            or MemoryKind.Defeat
+            or MemoryKind.Humiliation
+            or MemoryKind.Rivalry
+            or MemoryKind.Betrayal => MemoryValence.Negative,
+        MemoryKind.Triumph
+            or MemoryKind.Gratitude
+            or MemoryKind.Mentorship
+            or MemoryKind.Marriage
+            or MemoryKind.Parenthood => MemoryValence.Positive,
+        _ => MemoryValence.Neutral,
+    };
 
     public int Year { get; }
 

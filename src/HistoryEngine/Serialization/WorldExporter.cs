@@ -921,6 +921,12 @@ public static class WorldExporter
                 bond.SinceYear,
                 bond.LastChangedYear,
                 bond.LastCause,
+                bond.OriginEventKind,
+                OrNull(bond.OriginEntityId),
+                OrNull(bond.OriginLocationId),
+                bond.LastEventKind,
+                OrNull(bond.LastEntityId),
+                OrNull(bond.LastLocationId),
                 bond.Affection,
                 bond.Trust,
                 bond.Obligation,
@@ -936,14 +942,19 @@ public static class WorldExporter
         var list = new List<ExportMemory>(figure.Memories.Count);
         foreach (SalientMemory memory in figure.Memories)
         {
+            bool active = LifeStories.IsActive(memory, year);
+            if (!active && !LifeStories.IsFormative(memory)) continue;
+
             list.Add(new ExportMemory(
                 memory.Kind,
+                memory.Valence,
                 memory.Year,
                 memory.LastReinforcedYear,
                 memory.SourceKind,
                 OrNull(memory.AboutId),
                 OrNull(memory.LocationId),
-                LifeStories.EffectiveIntensity(memory, year)));
+                LifeStories.EffectiveIntensity(memory, year),
+                active));
         }
 
         return list;

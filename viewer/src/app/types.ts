@@ -1257,7 +1257,10 @@ export type BondKind =
   | 'Companion'
   | 'Rival'
   | 'Enemy'
-  | 'CoConspirator';
+  | 'CoConspirator'
+  | 'Sibling'
+  | 'Friend'
+  | 'Lover';
 
 export const BOND_LABELS: Record<BondKind, string> = {
   Kin: 'Kin',
@@ -1272,6 +1275,9 @@ export const BOND_LABELS: Record<BondKind, string> = {
   Rival: 'Rival',
   Enemy: 'Enemy',
   CoConspirator: 'Co-conspirator',
+  Sibling: 'Sibling',
+  Friend: 'Friend',
+  Lover: 'Lover',
 };
 
 export type BondCause =
@@ -1293,6 +1299,12 @@ export interface FigureBond {
   sinceYear: number;
   lastChangedYear: number;
   lastCause: BondCause;
+  originEventKind: string;
+  originEntityId?: EntityId;
+  originLocationId?: EntityId;
+  lastEventKind: string;
+  lastEntityId?: EntityId;
+  lastLocationId?: EntityId;
   affection: number;
   trust: number;
   obligation: number;
@@ -1335,6 +1347,7 @@ export const MEMORY_LABELS: Record<MemoryKind, string> = {
 
 export interface SalientMemory {
   kind: MemoryKind;
+  valence: 'Negative' | 'Neutral' | 'Positive';
   year: number;
   lastReinforcedYear: number;
   sourceKind: string;
@@ -1342,6 +1355,8 @@ export interface SalientMemory {
   locationId?: EntityId;
   /** Effective strength at the export's end year. */
   intensity: number;
+  /** Whether this memory still contributes to derived feelings and decisions. */
+  active: boolean;
 }
 
 export interface Feelings {
