@@ -105,6 +105,17 @@ public enum EventKind
     /// <summary>The two met over it, and the meeting decided it.</summary>
     DuelFought = 334,
 
+    /// <summary>
+    /// A recorded person wrote down a comet the sky actually returned that year.
+    /// </summary>
+    /// <remarks>
+    /// Routine unless the comet was a great one. It is a fact about a person and their register
+    /// rather than about the realm, and most of the value is that the register exists at all —
+    /// but a great comet is the sort of thing a chronicle still mentions a century later, and the
+    /// spine is where a reader would expect to find it.
+    /// </remarks>
+    ApparitionRecorded = 335,
+
     // ---- Territory (400) ----
     // Claims are written so ownership can be replayed year by year; they are marked Routine
     // so the timeline is not a run of "extended its reach". Cessions and releases stay on

@@ -29,6 +29,7 @@ import {
   type World,
 } from '../store';
 import {
+  APPARITION_LABELS,
   ARTIFACT_LABELS,
   BOND_LABELS,
   CAMPAIGN_ROLE_LABELS,
@@ -678,6 +679,7 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
   const formativeMemories = [...(figure.memories ?? [])]
     .sort((a, b) => b.intensity - a.intensity || b.lastReinforcedYear - a.lastReinforcedYear)
     .slice(0, 6);
+  const seenInTheSky = [...(figure.observations ?? [])].sort((a, b) => a.year - b.year);
   const quarrels = [...(figure.disputes ?? [])].sort((a, b) => {
     if (a.outcome === 'Open' && b.outcome !== 'Open') return -1;
     if (b.outcome === 'Open' && a.outcome !== 'Open') return 1;
@@ -688,6 +690,7 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
     importantRelationships.length > 0 ||
     formativeMemories.length > 0 ||
     quarrels.length > 0 ||
+    seenInTheSky.length > 0 ||
     (figure.injuries?.length ?? 0) > 0;
 
   return (
@@ -888,6 +891,33 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
                     />
                   ))}
                 </div>
+              </section>
+            )}
+
+            {seenInTheSky.length > 0 && (
+              <section>
+                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
+                  Recorded in the sky
+                </h3>
+                <ul className="space-y-1.5 text-sm">
+                  {seenInTheSky.map((seen, index) => (
+                    <li key={`${seen.cometIndex}:${seen.year}:${index}`}>
+                      <span className="text-[var(--ink-faint)]">{seen.year} · </span>
+                      {APPARITION_LABELS[seen.grade] ?? seen.grade}
+                      {seen.settlementId && (
+                        <>
+                          {' at '}
+                          <EntityLink world={world} id={seen.settlementId} />
+                        </>
+                      )}
+                      <span className="ml-2 text-xs text-[var(--ink-faint)]">
+                        {seen.interval !== undefined
+                          ? `${seen.interval} years after the last their people had written down`
+                          : 'the first their people had written down'}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
               </section>
             )}
 

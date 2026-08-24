@@ -7,7 +7,7 @@
  * stops moving.
  */
 
-export const SCHEMA_VERSION = 35;
+export const SCHEMA_VERSION = 36;
 
 /**
  * Whether an event carries the history or merely records a life.
@@ -222,6 +222,8 @@ export interface ExportCosmology {
   moons: ExportSystemMoon[];
   habitableMoonIndex?: number;
   comets: ExportComet[];
+  /** Every return the chronicle would carry, from the rolled orbits. */
+  apparitions: Apparition[];
   isHabitable: boolean;
   checks: ExportCosmologyCheck[];
 }
@@ -1431,6 +1433,35 @@ export interface Undertaking {
   steps: UndertakingStep[];
 }
 
+export type ApparitionGrade = 'Faint' | 'Notable' | 'Great';
+
+export const APPARITION_LABELS: Record<ApparitionGrade, string> = {
+  Faint: 'a faint comet',
+  Notable: 'a comet',
+  Great: 'a great comet',
+};
+
+/** One return of a comet, from the orbit the seed rolled — the sky's own schedule. */
+export interface Apparition {
+  cometIndex: number;
+  year: number;
+  grade: ApparitionGrade;
+}
+
+/**
+ * One sighting a named person wrote down. `interval` is what their own realm's register
+ * let them derive, which is not always the comet's true period.
+ */
+export interface SkyObservation {
+  cometIndex: number;
+  year: number;
+  realmId?: EntityId;
+  settlementId?: EntityId;
+  priorYear?: number;
+  interval?: number;
+  grade: ApparitionGrade;
+}
+
 export type DisputeCause =
   | 'OfficeRevoked'
   | 'SuccessionPassedOver'
@@ -1546,6 +1577,7 @@ export interface Figure {
   injuries: FigureInjury[];
   undertakings: Undertaking[];
   disputes: Dispute[];
+  observations: SkyObservation[];
   motherId?: EntityId;
   fatherId?: EntityId;
   childIds: EntityId[];

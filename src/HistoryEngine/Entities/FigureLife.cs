@@ -125,6 +125,16 @@ public enum MemoryKind
     Parenthood = 11,
     Journey = 12,
     Conspiracy = 13,
+
+    /// <summary>
+    /// Something seen that was larger than the life it happened to.
+    /// </summary>
+    /// <remarks>
+    /// The first category that does not come from another person or from the state. A comet is not
+    /// done to anybody, which is exactly why it is worth having: it is the one formative experience
+    /// available to someone the chronicle would otherwise record as having been born and died.
+    /// </remarks>
+    Wonder = 14,
 }
 
 /// <summary>The direction in which an experience pulls before disposition interprets it.</summary>
@@ -189,6 +199,46 @@ public sealed class SalientMemory
     public EntityId LocationId { get; set; }
 
     public double Intensity { get; set; }
+}
+
+/// <summary>How bright a returning comet was, as anyone standing under it would have graded it.</summary>
+/// <remarks>
+/// Not a measurement. It is the distinction between a thing a scribe bothers to write down, a thing
+/// a court talks about for a season, and a thing a chronicle still mentions a century later.
+/// Explicit values — part of the export format.
+/// </remarks>
+public enum ApparitionGrade
+{
+    Faint = 0,
+    Notable = 1,
+    Great = 2,
+}
+
+/// <summary>
+/// A dated, attributed sighting of something the rolled sky actually did.
+/// </summary>
+/// <remarks>
+/// <para><see cref="PriorYear"/> is what the observer's own realm had on record, not what was true.
+/// A scribe knows how long it has been only if the register goes back that far, so a realm that lost
+/// its books starts counting again — and the interval a later reader works from is the one this
+/// person could actually have derived.</para>
+///
+/// <para><see cref="RealmId"/> is the realm whose register it went into, recorded here rather than
+/// read off the observer later. People change realms — by marriage, by conquest, by a border moving
+/// over them — and a book does not follow them when they do. Asking the figure's current realm who
+/// wrote something down two centuries ago gives the wrong register, and it is the register the next
+/// interval is counted from.</para>
+/// </remarks>
+public sealed record SkyObservation(
+    int CometIndex,
+    int Year,
+    EntityId RealmId,
+    EntityId SettlementId,
+    int? PriorYear,
+    ApparitionGrade Grade)
+{
+    /// <summary>Years since this realm last wrote the same body down, where it had.</summary>
+    public int? Interval => PriorYear is int prior ? Year - prior : null;
 }
 
 /// <summary>Feelings derived from the memories still vivid in a life.</summary>

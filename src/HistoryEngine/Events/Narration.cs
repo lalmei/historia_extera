@@ -150,6 +150,11 @@ public static class Narration
         Set(EventKind.DuelFought,
             "{subject} met {object}[ at {location}][ over {data:cause}]"
             + "[ and {data:result} them][, {data:injury}].");
+        // The interval clause is the point of the line. A comet on its own is a portent; a comet
+        // with the years since the last one written beside it is the beginning of an argument.
+        Set(EventKind.ApparitionRecorded,
+            "{subject} recorded {data:grade}[ at {location}]"
+            + "[, {data:since} years after the last].");
 
         Set(EventKind.DynastyFounded, "The {subject} rose[ under {object}][ in {location}].");
         Set(EventKind.DynastyEnded, "The {subject} died out[ after {data:years}].");
@@ -356,6 +361,8 @@ public static class Narration
             + "[{self:subject} and {data:result} them][{self:subject}.]"
             + "[{self:object}Was {data:result} by {other}][{self:object} over {data:cause}]"
             + "[{self:object}.]");
+        SetSelf(EventKind.ApparitionRecorded,
+            "Recorded {data:grade}[ at {location}][, {data:since} years after the last].");
         SetSelf(EventKind.DynastyFounded,
             "[{self:object}Raised the {subject}][{self:object} in {location}].");
         SetSelf(EventKind.DynastyAscended,

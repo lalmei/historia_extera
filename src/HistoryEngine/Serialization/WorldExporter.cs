@@ -142,7 +142,7 @@ public static class WorldExporter
             Designation: world.Flavour.Designation,
             ParentName: world.Flavour.ParentName,
             MoonIndex: world.Flavour.MoonIndex,
-            Cosmology: BuildCosmology(world.Flavour.Cosmology),
+            Cosmology: BuildCosmology(world.Flavour.Cosmology, world.StartYear, world.EndYear),
             MinX: world.Terrain.Bounds.MinX,
             MinZ: world.Terrain.Bounds.MinZ,
             Width: world.Terrain.Bounds.Width,
@@ -155,7 +155,8 @@ public static class WorldExporter
             Rivers: rivers);
     }
 
-    private static ExportCosmology BuildCosmology(WorldCosmology cosmology)
+    private static ExportCosmology BuildCosmology(
+        WorldCosmology cosmology, int startYear, int endYear)
     {
         var checks = new List<ExportCosmologyCheck>(cosmology.Checks.Count);
         foreach (CosmologyCheck check in cosmology.Checks)
@@ -191,6 +192,7 @@ public static class WorldExporter
             Moons: BuildMoons(cosmology.Moons),
             HabitableMoonIndex: cosmology.HabitableMoonIndex,
             Comets: BuildComets(cosmology.Comets),
+            Apparitions: BuildApparitions(cosmology, startYear, endYear),
             IsHabitable: cosmology.IsHabitable,
             Checks: checks);
     }
@@ -861,6 +863,7 @@ public static class WorldExporter
                 Injuries: BuildInjuries(figure),
                 Undertakings: BuildUndertakings(figure),
                 Disputes: BuildDisputes(figure),
+                Observations: BuildObservations(figure),
                 MotherId: OrNull(figure.MotherId),
                 FatherId: OrNull(figure.FatherId),
                 ChildIds: figure.ChildIds.ToArray(),
@@ -1002,6 +1005,38 @@ public static class WorldExporter
     /// The two parties share one object in the engine, so the facts here cannot diverge; what
     /// differs between the two exports is only which id is called the other one.
     /// </remarks>
+    /// <summary>The sky's own schedule, so a reader can check the register against it.</summary>
+    private static List<ExportApparition> BuildApparitions(
+        WorldCosmology cosmology, int startYear, int endYear)
+    {
+        List<Apparition> returns = Skywatch.Apparitions(cosmology, startYear, endYear);
+        var list = new List<ExportApparition>(returns.Count);
+        foreach (Apparition seen in returns)
+        {
+            list.Add(new ExportApparition(seen.CometIndex, seen.Year, seen.Grade));
+        }
+
+        return list;
+    }
+
+    private static List<ExportObservation> BuildObservations(Figure figure)
+    {
+        var list = new List<ExportObservation>(figure.Observations.Count);
+        foreach (SkyObservation seen in figure.Observations)
+        {
+            list.Add(new ExportObservation(
+                seen.CometIndex,
+                seen.Year,
+                OrNull(seen.RealmId),
+                OrNull(seen.SettlementId),
+                seen.PriorYear,
+                seen.Interval,
+                seen.Grade));
+        }
+
+        return list;
+    }
+
     private static List<ExportDispute> BuildDisputes(Figure figure)
     {
         var list = new List<ExportDispute>(figure.Disputes.Count);

@@ -115,6 +115,13 @@ public sealed class ArtifactSystem : ISystem
         Treasures.ExchangeGifts(world, year);
         Tomes.Distribute(world, year);
         Tomes.Revise(world, year);
+
+        // Written down here rather than in a system of its own, and the reason is that an
+        // observation is a made record like the rest of this pass: it needs the year's offices and
+        // households settled to know who keeps the register, and it belongs beside the tomes it
+        // will eventually end up inside. A system of its own would also change the order hash for
+        // a pass that writes at most a handful of lines a century.
+        Skywatch.Record(world, year);
     }
 
     private static EntityId LivingPatron(Civilization civilization, WorldState world)
