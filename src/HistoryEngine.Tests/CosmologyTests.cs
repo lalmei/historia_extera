@@ -18,6 +18,8 @@ public sealed class CosmologyTests
 
         Assert.Equal(first.StarClass, again.StarClass);
         Assert.Equal(first.OrbitalDistanceAu, again.OrbitalDistanceAu);
+        Assert.Equal(first.Galaxy, again.Galaxy);
+        Assert.Equal(first.Comets, again.Comets);
         Assert.Equal(first.Companions.Count, again.Companions.Count);
         for (int i = 0; i < first.Companions.Count; i++)
         {
@@ -124,6 +126,24 @@ public sealed class CosmologyTests
         Assert.True(cosmology.IsHabitable);
         Assert.NotEmpty(cosmology.Checks);
         Assert.Contains(cosmology.Companions, body => body.Role == CompanionRole.ShepherdGiant);
+        Assert.NotNull(cosmology.Galaxy);
+        Assert.True(cosmology.Galaxy.CanHostIronCore);
+        Assert.InRange(cosmology.Comets.Count, 2, 5);
+        Assert.All(cosmology.Comets, comet =>
+        {
+            Assert.True(comet.AphelionAu > comet.PerihelionAu);
+            Assert.InRange(comet.Eccentricity, 0.05, 0.999);
+        });
+    }
+
+    [Fact]
+    public void CometStreamDoesNotReshuffleTheLocalSystem()
+    {
+        WorldCosmology cosmology = WorldCosmology.From(42);
+        Assert.Equal(cosmology.StarClass, WorldCosmology.From(42).StarClass);
+        Assert.Equal(cosmology.OrbitalDistanceAu, WorldCosmology.From(42).OrbitalDistanceAu);
+        Assert.Equal(cosmology.Companions, WorldCosmology.From(42).Companions);
+        Assert.NotEmpty(cosmology.Comets);
     }
 
     [Fact]

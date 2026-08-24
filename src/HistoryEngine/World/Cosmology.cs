@@ -45,6 +45,21 @@ public sealed record SystemMoon(
     double DayLengthDays,
     bool Habitable);
 
+/// <summary>A small icy body on an eccentric orbit, rolled for flavour after the planets are placed.</summary>
+public sealed record SystemComet(
+    int Index,
+    double PerihelionAu,
+    double AphelionAu,
+    double Eccentricity,
+    double InclinationDeg,
+    double ArgumentOfPeriapsisRad,
+    double OrbitalPeriodDays,
+    double NucleusRadiusKm,
+    double MassEarth)
+{
+    public double SemiMajorAxisAu => 0.5 * (PerihelionAu + AphelionAu);
+}
+
 /// <summary>Outcome of one consistency check in the habitable-world pipeline.</summary>
 public sealed record CosmologyCheck(string Label, bool Passed, string Detail);
 
@@ -53,14 +68,17 @@ public sealed record CosmologyCheck(string Label, bool Passed, string Detail);
 /// </summary>
 /// <remarks>
 /// <para>Built once from the seed before any civilization is founded. The same seed always
-/// produces the same cosmology regardless of simulation length or civ count.</para>
+/// produces the same cosmology regardless of simulation length or civ count. The host galaxy
+/// is rolled on a separate stream, so adding it cannot reshuffle the star or the habitable
+/// body.</para>
 ///
 /// <para>The five-step pipeline follows mass–luminosity, habitable-zone placement, body
 /// mass/radius, optional tidal dynamics for moons, and an albedo/greenhouse energy balance.
 /// Parameters are adjusted until liquid water is viable: star lifespan above 2 Gyr, orbit
 /// inside the HZ, escape velocity above 7 km/s, and surface temperature between 273 K and
 /// 343 K. Moons additionally require a day length under seven Earth days and an orbit
-/// outside the Roche limit.</para>
+/// outside the Roche limit. The host galaxy is the same idea one scale up: a habitable
+/// annulus with enough iron for a terrestrial crust.</para>
 /// </remarks>
 public sealed record WorldCosmology(
     StarSpectralClass StarClass,
@@ -88,7 +106,9 @@ public sealed record WorldCosmology(
     double SnowLineAu,
     IReadOnlyList<CompanionPlanet> Companions,
     IReadOnlyList<SystemMoon> Moons,
-    int? HabitableMoonIndex)
+    int? HabitableMoonIndex,
+    HostGalaxy Galaxy,
+    IReadOnlyList<SystemComet> Comets)
 {
     /// <summary>Aligned with <see cref="WorldFlavour"/> — same fork decides moon vs planet.</summary>
     internal const double MoonChance = 0.4;
@@ -140,6 +160,7 @@ public sealed record WorldCosmology(
     /// </summary>
     public static WorldCosmology From(ulong seed)
     {
+        HostGalaxy galaxy = HostGalaxy.From(seed);
         IRng rng = new Pcg32(Hash.Combine(seed, Hash.OfString("world.cosmology")));
 
         StarSpectralClass starClass = rng.Pick(StarClasses);
@@ -222,6 +243,7 @@ public sealed record WorldCosmology(
             outerHz,
             orbitalAu,
             habitableMass);
+        IReadOnlyList<SystemComet> comets = PlaceComets(seed, starMass, companions);
 
         return new WorldCosmology(
             starClass,
@@ -249,24 +271,41 @@ public sealed record WorldCosmology(
             snowLine,
             companions,
             moons,
-            habitableMoonIndex);
+            habitableMoonIndex,
+            galaxy,
+            comets);
     }
 
-    private IReadOnlyList<CosmologyCheck> EvaluateChecks() => BuildChecks(
-        StarLifespanGyr,
-        OrbitalDistanceAu,
-        HabitableZoneInnerAu,
-        HabitableZoneOuterAu,
-        EscapeVelocityKmS,
-        SurfaceTempK,
-        Kind,
-        MoonDayLengthDays,
-        MoonOrbitalDistanceEarthRadii,
-        RocheLimitEarthRadii,
-        StarMassSolar,
-        Kind == WorldKind.Moon ? ParentGiantMassEarth ?? WorldMassEarth : WorldMassEarth,
-        SnowLineAu,
-        Companions);
+    private IReadOnlyList<CosmologyCheck> EvaluateChecks()
+    {
+        List<CosmologyCheck> checks = BuildChecks(
+            StarLifespanGyr,
+            OrbitalDistanceAu,
+            HabitableZoneInnerAu,
+            HabitableZoneOuterAu,
+            EscapeVelocityKmS,
+            SurfaceTempK,
+            Kind,
+            MoonDayLengthDays,
+            MoonOrbitalDistanceEarthRadii,
+            RocheLimitEarthRadii,
+            StarMassSolar,
+            Kind == WorldKind.Moon ? ParentGiantMassEarth ?? WorldMassEarth : WorldMassEarth,
+            SnowLineAu,
+            Companions);
+
+        checks.Add(new CosmologyCheck(
+            "Galactic habitable zone",
+            HostGalaxy.IsHabitable(Galaxy.Blueprint, Galaxy.Location),
+            Invariant(
+                $"R {Galaxy.Location.GalactocentricRadiusKpc:F1} kpc, [Fe/H] {Galaxy.Location.MetallicityFeH:+0.00;-0.00}")));
+        checks.Add(new CosmologyCheck(
+            "Metals for a crust",
+            Galaxy.CanHostIronCore && Galaxy.CanHostOres,
+            Invariant(
+                $"iron {(Galaxy.CanHostIronCore ? "yes" : "no")}, ores {(Galaxy.CanHostOres ? "yes" : "no")}")));
+        return checks;
+    }
 
     private static double EnsureAtmosphereRetention(double massEarth, WorldKind kind)
     {
@@ -611,6 +650,82 @@ public sealed record WorldCosmology(
             mass,
             GiantRadiusEarthRadii(mass),
             ComputeOrbitalPeriodDays(au, starMassSolar));
+    }
+
+    /// <summary>
+    /// Notable comets on their own stream, so adding a tail cannot reshuffle the planets.
+    /// A few Jupiter-family paths hug the shepherd; the rest are Halley-type or long-period.
+    /// </summary>
+    private static IReadOnlyList<SystemComet> PlaceComets(
+        ulong seed,
+        double starMassSolar,
+        IReadOnlyList<CompanionPlanet> companions)
+    {
+        IRng rng = new Pcg32(Hash.Combine(seed, Hash.OfString("world.cosmology.comets")));
+        double shepherdAu = 5.2;
+        foreach (CompanionPlanet body in companions)
+        {
+            if (body.Role == CompanionRole.ShepherdGiant)
+            {
+                shepherdAu = body.SemiMajorAxisAu;
+                break;
+            }
+        }
+
+        int count = rng.NextInt(2, 6);
+        var comets = new List<SystemComet>(count);
+        for (int i = 0; i < count; i++)
+        {
+            double perihelionAu;
+            double aphelionAu;
+            double roll = rng.NextDouble();
+            if (roll < 0.50)
+            {
+                perihelionAu = rng.NextDouble(0.40, 1.80);
+                aphelionAu = shepherdAu * rng.NextDouble(0.85, 1.45);
+            }
+            else if (roll < 0.80)
+            {
+                perihelionAu = rng.NextDouble(0.30, 1.20);
+                aphelionAu = rng.NextDouble(12.0, 38.0);
+            }
+            else
+            {
+                perihelionAu = rng.NextDouble(0.25, 2.40);
+                aphelionAu = rng.NextDouble(45.0, 180.0);
+            }
+
+            if (aphelionAu < perihelionAu + 0.4)
+            {
+                aphelionAu = perihelionAu + 0.4;
+            }
+
+            double semiMajor = 0.5 * (perihelionAu + aphelionAu);
+            double eccentricity = (aphelionAu - perihelionAu) / (aphelionAu + perihelionAu);
+            double nucleusKm = rng.NextDouble(1.2, 14.0);
+            comets.Add(new SystemComet(
+                Index: i + 1,
+                perihelionAu,
+                aphelionAu,
+                eccentricity,
+                InclinationDeg: rng.NextDouble(4.0, 162.0),
+                ArgumentOfPeriapsisRad: rng.NextDouble(0.0, 2.0 * Math.PI),
+                OrbitalPeriodDays: ComputeOrbitalPeriodDays(semiMajor, starMassSolar),
+                NucleusRadiusKm: nucleusKm,
+                MassEarth: CometMassEarth(nucleusKm)));
+        }
+
+        return comets;
+    }
+
+    /// <summary>Ice-rich nucleus at 600 kg/m³, in Earth masses.</summary>
+    internal static double CometMassEarth(double nucleusRadiusKm)
+    {
+        const double densityKgM3 = 600.0;
+        const double earthKg = 5.972e24;
+        double radiusM = nucleusRadiusKm * 1000.0;
+        double volume = (4.0 / 3.0) * Math.PI * radiusM * radiusM * radiusM;
+        return volume * densityKgM3 / earthKg;
     }
 
     internal static double IceGiantRadius(double massEarth) =>

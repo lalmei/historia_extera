@@ -1952,6 +1952,13 @@ public static class Tomes
                 "The " + religion.Name + " holds that several powers share the keeping of the sky.",
         };
 
+        HostGalaxy galaxy = sky.Galaxy;
+        string host = galaxy.Blueprint.IsElliptical
+            ? "The scribes place the world in a round gathering of lights, far from the crowded heart."
+            : galaxy.Location.InSpiralArm
+                ? "The scribes place the world in a winding arm of the " + galaxy.Blueprint.MorphologyLabel + " host, among the denser lights."
+                : "The scribes place the world in a quiet reach between the winding arms of the " + galaxy.Blueprint.MorphologyLabel + " host.";
+
         return new TomeContents(
             TomeContentKind.Cosmology,
             religion.Id,
@@ -1960,6 +1967,7 @@ public static class Tomes
             {
                 ReligionOrigins(world, religion, year),
                 Section("The world", seat + ". " + world.Flavour.Designation + " is the name the scribes use.", references),
+                Section("The host", host, religion.Id),
                 Section("The lights", lights, religion.Id),
                 Section("Teaching", order, religion.Id),
             },

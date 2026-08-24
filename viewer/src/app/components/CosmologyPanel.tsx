@@ -1,15 +1,19 @@
 import type {
   CompanionRole,
   ExportCompanionPlanet,
+  ExportComet,
   ExportCosmology,
+  ExportGalaxy,
   ExportSystemMoon,
   ExportWorld,
+  GalaxyMorphology,
   StarSpectralClass,
   WorldKind,
 } from '../types';
 import { COMPANION_ROLE_LABELS } from '../types';
 import { PageTitle, Panel } from './common';
 import type { World } from '../store';
+import { NightSky } from './NightSky';
 
 export function CosmologyPage({ world }: { world: World }) {
   const { designation, name, kind, cosmology } = world.export.world;
@@ -21,12 +25,15 @@ export function CosmologyPage({ world }: { world: World }) {
         meta={
           cosmology ? (
             <span className="text-[var(--ink-faint)]">
+              {cosmology.galaxy
+                ? `${morphologyLabel(cosmology.galaxy.morphology)} · `
+                : ''}
               {cosmology.starClass}-type · {kind === 'Moon' ? 'habitable moon' : 'habitable planet'}
             </span>
           ) : undefined
         }
       />
-      <CosmologyPanel world={world.export.world} />
+      <CosmologyPanel world={world.export.world} seed={world.export.meta.seed} />
     </div>
   );
 }
@@ -39,7 +46,7 @@ export function CosmologyPage({ world }: { world: World }) {
  * the inner system. The zone view is fitted to liquid-water orbits; the system
  * view is fitted to the outermost planet.
  */
-export function CosmologyPanel({ world }: { world: ExportWorld }) {
+export function CosmologyPanel({ world, seed }: { world: ExportWorld; seed?: number }) {
   const c = world.cosmology;
   if (!c) {
     return (
@@ -64,7 +71,33 @@ export function CosmologyPanel({ world }: { world: ExportWorld }) {
         {world.kind === 'Moon'
           ? 'A tidally locked habitable moon orbiting a gas giant inside the star\'s liquid-water zone. An outer shepherd giant beyond the snow line keeps leftover rock from raining inward.'
           : 'A standalone planet inside the host star\'s liquid-water habitable zone. A shepherd giant beyond the snow line clears leftover planetesimals so the world is not late-bombarded for gigayears.'}
+        {c.galaxy
+          ? ` The system sits in a ${morphologyLabel(c.galaxy.morphology)} galaxy, ${c.galaxy.location.galactocentricRadiusKpc.toFixed(1)} kpc from the centre.`
+          : ''}
       </p>
+
+      {c.galaxy && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div>
+            <div className="he-label mb-2">Host galaxy, face-on</div>
+            <GalaxyView galaxy={c.galaxy} mode="face" />
+            <p className="mt-2 text-xs text-[var(--ink-faint)]">
+              Gold ring is the habitable annulus; the mark is this world
+            </p>
+          </div>
+          <div>
+            <div className="he-label mb-2">Host galaxy, edge-on</div>
+            <GalaxyView galaxy={c.galaxy} mode="edge" />
+            <p className="mt-2 text-xs text-[var(--ink-faint)]">
+              Height against galactocentric radius · same mark
+            </p>
+          </div>
+        </div>
+      )}
+
+      {c.galaxy && (
+        <NightSky galaxy={c.galaxy} seed={seed ?? 0} />
+      )}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <div>
@@ -95,6 +128,32 @@ export function CosmologyPanel({ world }: { world: ExportWorld }) {
               label="Habitable zone"
               value={`${c.habitableZoneInnerAu.toFixed(2)}–${c.habitableZoneOuterAu.toFixed(2)} AU`}
             />
+            {c.galaxy && (
+              <>
+                <Diag
+                  label="Host galaxy"
+                  value={`${morphologyLabel(c.galaxy.morphology)}${c.galaxy.spiralArmCount > 0 ? `, ${c.galaxy.spiralArmCount} arms` : ''}`}
+                />
+                <Diag
+                  label="Galactocentric site"
+                  value={`R ${c.galaxy.location.galactocentricRadiusKpc.toFixed(1)} kpc · z ${c.galaxy.location.heightPc.toFixed(0)} pc`}
+                />
+                <Diag
+                  label="[Fe/H]"
+                  value={`${c.galaxy.location.metallicityFeH >= 0 ? '+' : ''}${c.galaxy.location.metallicityFeH.toFixed(2)} · iron ${c.galaxy.canHostIronCore ? 'yes' : 'no'} · ores ${c.galaxy.canHostOres ? 'yes' : 'no'}`}
+                />
+                <Diag
+                  label="Spiral arm"
+                  value={
+                    c.galaxy.morphology === 'Elliptical'
+                      ? 'none'
+                      : c.galaxy.location.inSpiralArm
+                        ? 'inside an arm'
+                        : 'interarm'
+                  }
+                />
+              </>
+            )}
             <Diag
               label={world.kind === 'Moon' ? 'Parent distance to star' : 'Distance to star'}
               value={`${c.orbitalDistanceAu.toFixed(3)} AU`}
@@ -135,6 +194,13 @@ export function CosmologyPanel({ world }: { world: ExportWorld }) {
                 key={`${body.role}-${body.semiMajorAxisAu}`}
                 label={COMPANION_ROLE_LABELS[body.role] ?? body.role}
                 value={`${body.semiMajorAxisAu.toFixed(2)} AU · ${Math.round(body.orbitalPeriodDays)} d · ${body.massEarth.toFixed(body.role === 'InnerRocky' ? 2 : 0)} M⊕`}
+              />
+            ))}
+            {(c.comets ?? []).map((comet) => (
+              <Diag
+                key={`comet-${comet.index}`}
+                label={`Comet ${comet.index}`}
+                value={`q ${comet.perihelionAu.toFixed(2)} AU · Q ${comet.aphelionAu.toFixed(1)} AU · ${comet.nucleusRadiusKm.toFixed(1)} km · ${formatMassEarth(comet.massEarth)}`}
               />
             ))}
             {c.snowLineAu != null && (
@@ -195,6 +261,24 @@ function Diag({ label, value }: { label: string; value: string }) {
   );
 }
 
+const EARTH_MASSES_PER_SOLAR = 332_946;
+const EARTH_KM = 6371;
+
+function formatMassEarth(massEarth: number, solar?: number): string {
+  if (solar != null) return `${solar.toFixed(2)} M☉`;
+  if (massEarth >= 10) return `${Math.round(massEarth).toLocaleString()} M⊕`;
+  if (massEarth >= 0.01) return `${massEarth.toFixed(2)} M⊕`;
+  const exp = massEarth.toExponential(1);
+  return `${exp.replace('e', '×10^')} M⊕`;
+}
+
+function formatCometPeriod(days: number): string {
+  const years = days / 365.25;
+  if (years >= 100) return `${Math.round(years).toLocaleString()} yr`;
+  if (years >= 2) return `${years.toFixed(1)} yr`;
+  return `${Math.round(days)} d`;
+}
+
 /** Earth radii plus kilometres — moons sit tens of thousands of km out, not AU. */
 function formatMoonOrbit(earthRadii: number): string {
   const km = earthRadii * 6371;
@@ -202,6 +286,211 @@ function formatMoonOrbit(earthRadii: number): string {
     return `${earthRadii.toFixed(0)} R⊕ · ${(km / 1_000_000).toFixed(2)} million km`;
   }
   return `${earthRadii.toFixed(0)} R⊕ · ${Math.round(km).toLocaleString()} km`;
+}
+
+function morphologyLabel(morphology: GalaxyMorphology): string {
+  switch (morphology) {
+    case 'BarredSpiral':
+      return 'barred spiral';
+    case 'UnbarredSpiral':
+      return 'unbarred spiral';
+    case 'Elliptical':
+      return 'elliptical';
+    default:
+      return morphology;
+  }
+}
+
+const GALAXY_DISK_KPC = 16;
+const SOLAR_NEIGHBORHOOD_KPC = 8;
+
+function GalaxyView({ galaxy, mode }: { galaxy: ExportGalaxy; mode: 'face' | 'edge' }) {
+  return mode === 'face' ? <GalaxyFace galaxy={galaxy} /> : <GalaxyEdge galaxy={galaxy} />;
+}
+
+function GalaxyFace({ galaxy }: { galaxy: ExportGalaxy }) {
+  const size = 560;
+  const cx = 280;
+  const cy = 280;
+  const scale = 15.5;
+  const r = (kpc: number) => kpc * scale;
+  const loc = galaxy.location;
+  const ox = cx + loc.galactocentricRadiusKpc * Math.cos(loc.azimuthRad) * scale;
+  const oy = cy - loc.galactocentricRadiusKpc * Math.sin(loc.azimuthRad) * scale;
+
+  return (
+    <svg
+      viewBox={`0 0 ${size} ${size}`}
+      className="h-64 w-full rounded-md border border-[var(--rule)] bg-[var(--canvas)]"
+      role="img"
+      aria-label="Face-on host galaxy"
+    >
+      <circle cx={cx} cy={cy} r={r(GALAXY_DISK_KPC)} fill="none" stroke="var(--outline-variant)" />
+      <circle
+        cx={cx}
+        cy={cy}
+        r={r(galaxy.outerHabitableRadiusKpc)}
+        fill="color-mix(in srgb, var(--tertiary) 28%, transparent)"
+      />
+      <circle cx={cx} cy={cy} r={r(galaxy.innerHabitableRadiusKpc)} fill="var(--canvas)" />
+      <circle
+        cx={cx}
+        cy={cy}
+        r={r(galaxy.outerHabitableRadiusKpc)}
+        fill="none"
+        stroke="var(--tertiary)"
+        strokeWidth="1.5"
+      />
+      <circle
+        cx={cx}
+        cy={cy}
+        r={r(galaxy.innerHabitableRadiusKpc)}
+        fill="none"
+        stroke="var(--tertiary)"
+        strokeWidth="1.5"
+      />
+      {galaxy.morphology === 'Elliptical'
+        ? [0.4, 0.7, 1.0, 1.4, 1.9].map((frac) => (
+            <circle
+              key={frac}
+              cx={cx}
+              cy={cy}
+              r={r(galaxy.diskScaleLengthKpc * frac)}
+              fill="none"
+              stroke="#c4b48a"
+              opacity="0.35"
+            />
+          ))
+        : galaxy.morphology === 'BarredSpiral' && (
+            <rect
+              x={cx - r(galaxy.innerHabitableRadiusKpc * 0.55)}
+              y={cy - 10}
+              width={r(galaxy.innerHabitableRadiusKpc * 0.55) * 2}
+              height="20"
+              rx="8"
+              fill="#6b5a3a"
+              opacity="0.85"
+            />
+          )}
+      <circle cx={cx} cy={cy} r="7" fill="#f2e6c2" />
+      {Array.from({ length: galaxy.spiralArmCount }, (_, arm) => (
+        <path
+          key={arm}
+          d={armPath(galaxy, arm, cx, cy, scale)}
+          fill="none"
+          stroke="#9ec5ff"
+          strokeWidth="2.2"
+          opacity="0.85"
+        />
+      ))}
+      <line
+        x1={cx}
+        y1={cy}
+        x2={ox}
+        y2={oy}
+        stroke="#8ec8ff"
+        strokeWidth="1"
+        strokeDasharray="4 4"
+      />
+      <circle cx={ox} cy={oy} r="6" fill="#ff5a5a" stroke="#fff4e0" strokeWidth="2" />
+    </svg>
+  );
+}
+
+function GalaxyEdge({ galaxy }: { galaxy: ExportGalaxy }) {
+  const width = 400;
+  const height = 280;
+  const padX = 16;
+  const padY = 20;
+  const plotW = width - padX * 2;
+  const plotH = 240;
+  const midY = padY + plotH / 2;
+  const extentPc =
+    galaxy.morphology === 'Elliptical'
+      ? Math.max(1600, galaxy.outerHabitableRadiusKpc * galaxy.axisRatio * 1000 * 1.2)
+      : 1200;
+  const xOf = (kpc: number) => padX + (kpc / GALAXY_DISK_KPC) * plotW;
+  const yOf = (pc: number) => midY - (pc / extentPc) * (plotH / 2);
+  const habitableH = Math.min(
+    plotH - 16,
+    galaxy.morphology === 'Elliptical'
+      ? (galaxy.outerHabitableRadiusKpc * galaxy.axisRatio * 1000) / extentPc * plotH
+      : (3 * galaxy.thinDiskScaleHeightPc) / extentPc * plotH,
+  );
+  const loc = galaxy.location;
+
+  return (
+    <svg
+      viewBox={`0 0 ${width} ${height}`}
+      className="h-64 w-full rounded-md border border-[var(--rule)] bg-[var(--canvas)]"
+      role="img"
+      aria-label="Edge-on host galaxy"
+    >
+      <rect
+        x={padX}
+        y={padY}
+        width={plotW}
+        height={plotH}
+        fill="#121a2e"
+        stroke="var(--outline-variant)"
+      />
+      <line x1={padX} y1={midY} x2={padX + plotW} y2={midY} stroke="#2a3654" />
+      <rect
+        x={xOf(galaxy.innerHabitableRadiusKpc)}
+        y={midY - habitableH / 2}
+        width={xOf(galaxy.outerHabitableRadiusKpc) - xOf(galaxy.innerHabitableRadiusKpc)}
+        height={habitableH}
+        fill="color-mix(in srgb, var(--tertiary) 40%, transparent)"
+      />
+      {galaxy.morphology === 'Elliptical' && (
+        <ellipse
+          cx={padX}
+          cy={midY}
+          rx={xOf(galaxy.diskScaleLengthKpc) - padX}
+          ry={(galaxy.diskScaleLengthKpc * galaxy.axisRatio * 1000) / extentPc * (plotH / 2)}
+          fill="none"
+          stroke="#c4b48a"
+          opacity="0.5"
+        />
+      )}
+      <circle
+        cx={xOf(loc.galactocentricRadiusKpc)}
+        cy={yOf(loc.heightPc)}
+        r="5"
+        fill="#ff5a5a"
+        stroke="#fff4e0"
+        strokeWidth="2"
+      />
+    </svg>
+  );
+}
+
+function armPath(
+  galaxy: ExportGalaxy,
+  arm: number,
+  cx: number,
+  cy: number,
+  scale: number,
+): string {
+  const samples = 80;
+  const inner = 1.2;
+  let d = '';
+  for (let i = 0; i <= samples; i++) {
+    const radius = inner + (GALAXY_DISK_KPC - inner) * (i / samples);
+    const angle = spiralArmAngle(galaxy, arm, radius);
+    const x = cx + radius * Math.cos(angle) * scale;
+    const y = cy - radius * Math.sin(angle) * scale;
+    d += `${i === 0 ? 'M' : 'L'}${x.toFixed(2)} ${y.toFixed(2)} `;
+  }
+  return d;
+}
+
+function spiralArmAngle(galaxy: ExportGalaxy, armIndex: number, radiusKpc: number): number {
+  if (galaxy.spiralArmCount <= 0) return 0;
+  const pitchRad = (galaxy.spiralPitchDeg * Math.PI) / 180;
+  const logTerm = Math.log(Math.max(0.5, radiusKpc) / SOLAR_NEIGHBORHOOD_KPC);
+  const armPhase = logTerm / Math.tan(Math.max(0.05, pitchRad));
+  return (2 * Math.PI * armIndex) / galaxy.spiralArmCount + armPhase;
 }
 
 function starLabel(starClass: StarSpectralClass): string {
@@ -231,13 +520,18 @@ function SystemView({
   mode: 'zone' | 'system';
 }) {
   const companions = c.companions ?? [];
+  const comets = c.comets ?? [];
   const width = 480;
   const height = 300;
   const cx = width / 2;
   const cy = height / 2;
-  const farthest = companions.reduce(
+  const farthestPlanet = companions.reduce(
     (max, body) => Math.max(max, body.semiMajorAxisAu),
     Math.max(c.habitableZoneOuterAu, c.orbitalDistanceAu, c.snowLineAu ?? 0),
+  );
+  const farthest = comets.reduce(
+    (max, comet) => Math.max(max, Math.min(comet.aphelionAu, farthestPlanet * 2.4), comet.perihelionAu),
+    farthestPlanet,
   );
   const maxAu = mode === 'zone' ? c.habitableZoneOuterAu * 1.45 : farthest * 1.12;
   const maxR = Math.min(cx, cy) - 28;
@@ -304,6 +598,10 @@ function SystemView({
           stroke="var(--outline-variant)"
         />
       ))}
+      {mode === 'system' &&
+        comets.map((comet) => (
+          <CometOrbit key={`comet-orbit-${comet.index}`} comet={comet} cx={cx} cy={cy} scale={r} />
+        ))}
 
       <circle cx={cx} cy={cy} r={star.size * 2.8} fill={`url(#${uid}-glow)`} />
       <circle cx={cx} cy={cy} r={star.size} fill={`url(#${uid}-star)`} />
@@ -389,6 +687,10 @@ function MapLegend({
       color: companionColor(body.role),
       label: `${COMPANION_ROLE_LABELS[body.role] ?? body.role} · ${body.semiMajorAxisAu.toFixed(2)} AU from star`,
     })),
+    ...(c.comets ?? []).map((comet) => ({
+      color: '#cbd5e1',
+      label: `Comet ${comet.index} · q ${comet.perihelionAu.toFixed(2)} AU · ${formatCometPeriod(comet.orbitalPeriodDays)}`,
+    })),
   ];
 
   return (
@@ -413,53 +715,87 @@ function SizeStrip({
   name: string;
 }) {
   const starEarth = (c.starRadiusSolar ?? 1) * 109.2;
+  const starMassEarth = (c.starMassSolar ?? 1) * EARTH_MASSES_PER_SOLAR;
   const parentEarth =
     kind === 'Moon' && c.parentGiantMassEarth != null
       ? 2 * Math.sqrt(Math.sqrt(c.parentGiantMassEarth))
       : undefined;
   const moons = c.moons ?? [];
   const habitableMoon = moons.find((moon) => moon.habitable);
+  const comets = c.comets ?? [];
   const bodies = [
     {
       label: starLabel(c.starClass),
-      detail: `${(c.starRadiusSolar ?? 1).toFixed(2)} R☉`,
+      radiusDetail: `${(c.starRadiusSolar ?? 1).toFixed(2)} R☉`,
+      massDetail: formatMassEarth(starMassEarth, c.starMassSolar),
       radius: starEarth,
+      mass: starMassEarth,
       color: '#fbbf24',
     },
     ...(c.companions ?? [])
       .filter((body) => body.role === 'InnerRocky')
       .map((body) => ({
         label: 'Inner rocky',
-        detail: `${body.radiusEarth.toFixed(2)} R⊕`,
+        radiusDetail: `${body.radiusEarth.toFixed(2)} R⊕`,
+        massDetail: formatMassEarth(body.massEarth),
         radius: body.radiusEarth,
+        mass: body.massEarth,
         color: companionColor(body.role),
       })),
-    ...(parentEarth != null
-      ? [{ label: 'Parent giant', detail: `${parentEarth.toFixed(1)} R⊕`, radius: parentEarth, color: '#c48a3a' }]
+    ...(parentEarth != null && c.parentGiantMassEarth != null
+      ? [{
+          label: 'Parent giant',
+          radiusDetail: `${parentEarth.toFixed(1)} R⊕`,
+          massDetail: formatMassEarth(c.parentGiantMassEarth),
+          radius: parentEarth,
+          mass: c.parentGiantMassEarth,
+          color: '#c48a3a',
+        }]
       : []),
     ...moons.map((moon) => ({
       label: moon.habitable ? name : `Moon ${moon.index}`,
-      detail: `${moon.radiusEarth.toFixed(2)} R⊕`,
+      radiusDetail: `${moon.radiusEarth.toFixed(2)} R⊕`,
+      massDetail: formatMassEarth(moon.massEarth),
       radius: moon.radiusEarth,
+      mass: moon.massEarth,
       color: moon.habitable ? '#4ade80' : '#94a3b8',
     })),
     ...(kind === 'Planet' || !habitableMoon
-      ? [{ label: name, detail: `${c.worldRadiusEarth.toFixed(2)} R⊕`, radius: c.worldRadiusEarth, color: '#4ade80' }]
+      ? [{
+          label: name,
+          radiusDetail: `${c.worldRadiusEarth.toFixed(2)} R⊕`,
+          massDetail: formatMassEarth(c.worldMassEarth),
+          radius: c.worldRadiusEarth,
+          mass: c.worldMassEarth,
+          color: '#4ade80',
+        }]
       : []),
     ...(c.companions ?? [])
       .filter((body) => body.role !== 'InnerRocky')
       .map((body) => ({
         label: COMPANION_ROLE_LABELS[body.role] ?? body.role,
-        detail: `${body.radiusEarth.toFixed(1)} R⊕`,
+        radiusDetail: `${body.radiusEarth.toFixed(1)} R⊕`,
+        massDetail: formatMassEarth(body.massEarth),
         radius: body.radiusEarth,
+        mass: body.massEarth,
         color: companionColor(body.role),
       })),
+    ...comets.map((comet) => ({
+      label: `Comet ${comet.index}`,
+      radiusDetail: `${comet.nucleusRadiusKm.toFixed(1)} km`,
+      massDetail: formatMassEarth(comet.massEarth),
+      radius: comet.nucleusRadiusKm / EARTH_KM,
+      mass: comet.massEarth,
+      color: '#cbd5e1',
+    })),
   ];
   const minR = Math.min(...bodies.map((b) => b.radius));
   const maxR = Math.max(...bodies.map((b) => b.radius));
-  const widthOf = (radius: number) => {
-    if (maxR <= minR) return 28;
-    const t = (Math.log10(radius) - Math.log10(minR)) / (Math.log10(maxR) - Math.log10(minR));
+  const minM = Math.min(...bodies.map((b) => b.mass));
+  const maxM = Math.max(...bodies.map((b) => b.mass));
+  const widthOf = (value: number, lo: number, hi: number) => {
+    if (hi <= lo) return 28;
+    const t = (Math.log10(value) - Math.log10(lo)) / (Math.log10(hi) - Math.log10(lo));
     return 12 + t * 56;
   };
 
@@ -468,22 +804,40 @@ function SizeStrip({
       <div className="he-label mb-2">True radii</div>
       <div className="flex flex-wrap items-end gap-6">
         {bodies.map((body) => {
-          const size = widthOf(body.radius);
+          const size = widthOf(body.radius, minR, maxR);
           return (
-            <div key={`${body.label}-${body.detail}`} className="flex flex-col items-center gap-1.5">
+            <div key={`${body.label}-${body.radiusDetail}`} className="flex flex-col items-center gap-1.5">
               <span
                 className="rounded-full"
                 style={{ width: size, height: size, background: body.color }}
               />
               <span className="text-[11px] text-[var(--ink)]">{body.label}</span>
-              <span className="he-data text-[11px] text-[var(--ink-faint)]">{body.detail}</span>
+              <span className="he-data text-[11px] text-[var(--ink-faint)]">{body.radiusDetail}</span>
+              <span className="he-data text-[11px] text-[var(--ink-faint)]">{body.massDetail}</span>
+            </div>
+          );
+        })}
+      </div>
+      <div className="he-label mb-2 mt-4">Relative masses</div>
+      <div className="flex flex-wrap items-end gap-6">
+        {bodies.map((body) => {
+          const size = widthOf(body.mass, minM, maxM);
+          return (
+            <div key={`mass-${body.label}-${body.massDetail}`} className="flex flex-col items-center gap-1.5">
+              <span
+                className="rounded-full"
+                style={{ width: size, height: size, background: body.color }}
+              />
+              <span className="text-[11px] text-[var(--ink)]">{body.label}</span>
+              <span className="he-data text-[11px] text-[var(--ink-faint)]">{body.massDetail}</span>
             </div>
           );
         })}
       </div>
       <p className="mt-2 text-[11px] text-[var(--ink-faint)]">
-        Log-scaled so the star and the world can share a row. The orbital maps above use fixed
-        marker sizes — a star drawn at the world&apos;s pixel scale would cover the whole diagram.
+        Both rows are log-scaled so the star and a comet nucleus can share a strip. The orbital
+        maps above use fixed marker sizes — a star drawn at the world&apos;s pixel scale would
+        cover the whole diagram.
       </p>
     </div>
   );
@@ -535,6 +889,41 @@ function PaintDefs({
         <stop offset="100%" stopColor="#431407" />
       </radialGradient>
     </defs>
+  );
+}
+
+function CometOrbit({
+  comet,
+  cx,
+  cy,
+  scale,
+}: {
+  comet: ExportComet;
+  cx: number;
+  cy: number;
+  scale: (au: number) => number;
+}) {
+  const a = 0.5 * (comet.perihelionAu + comet.aphelionAu);
+  const e = comet.eccentricity;
+  const b = a * Math.sqrt(Math.max(0, 1 - e * e));
+  const omega = comet.argumentOfPeriapsisRad;
+  const focusOffset = scale(a * e);
+  const ox = cx - Math.cos(omega) * focusOffset;
+  const oy = cy - Math.sin(omega) * focusOffset;
+  const deg = (omega * 180) / Math.PI;
+  return (
+    <ellipse
+      cx={ox}
+      cy={oy}
+      rx={scale(a)}
+      ry={scale(b)}
+      transform={`rotate(${deg} ${ox} ${oy})`}
+      fill="none"
+      stroke="#94a3b8"
+      strokeWidth="0.85"
+      strokeDasharray="2 5"
+      opacity="0.55"
+    />
   );
 }
 

@@ -7,7 +7,7 @@
  * stops moving.
  */
 
-export const SCHEMA_VERSION = 30;
+export const SCHEMA_VERSION = 33;
 
 /**
  * Whether an event carries the history or merely records a life.
@@ -133,6 +133,18 @@ export interface ExportCompanionPlanet {
   orbitalPeriodDays: number;
 }
 
+export interface ExportComet {
+  index: number;
+  perihelionAu: number;
+  aphelionAu: number;
+  eccentricity: number;
+  inclinationDeg: number;
+  argumentOfPeriapsisRad: number;
+  orbitalPeriodDays: number;
+  nucleusRadiusKm: number;
+  massEarth: number;
+}
+
 export interface ExportSystemMoon {
   index: number;
   orbitalDistanceEarthRadii: number;
@@ -148,8 +160,42 @@ export interface ExportCosmologyCheck {
   detail: string;
 }
 
-/** Host-star and habitable-body physics derived from the seed. */
+export type GalaxyMorphology = 'UnbarredSpiral' | 'BarredSpiral' | 'Elliptical';
+
+export interface ExportGalacticLocation {
+  galactocentricRadiusKpc: number;
+  azimuthRad: number;
+  heightPc: number;
+  metallicityFeH: number;
+  inSpiralArm: boolean;
+  localStellarDensityRelativeToSolar: number;
+  supernovaRateRelativeToSolar: number;
+}
+
+export interface ExportGalaxy {
+  morphology: GalaxyMorphology;
+  stellarMassSolar: number;
+  diskScaleLengthKpc: number;
+  thinDiskScaleHeightPc: number;
+  bulgeToDiskMass: number;
+  solarAnalogMetallicityFeH: number;
+  metallicityGradientDexPerKpc: number;
+  metallicityScatterDex: number;
+  spiralArmCount: number;
+  spiralPitchDeg: number;
+  innerHabitableRadiusKpc: number;
+  outerHabitableRadiusKpc: number;
+  sersicIndex: number;
+  axisRatio: number;
+  metallicityReferenceRadiusKpc: number;
+  location: ExportGalacticLocation;
+  canHostIronCore: boolean;
+  canHostOres: boolean;
+}
+
+/** Host-star and habitable-body physics derived from the seed, plus the host galaxy. */
 export interface ExportCosmology {
+  galaxy: ExportGalaxy;
   starClass: StarSpectralClass;
   starMassSolar: number;
   starRadiusSolar: number;
@@ -175,6 +221,7 @@ export interface ExportCosmology {
   companions: ExportCompanionPlanet[];
   moons: ExportSystemMoon[];
   habitableMoonIndex?: number;
+  comets: ExportComet[];
   isHabitable: boolean;
   checks: ExportCosmologyCheck[];
 }
