@@ -36,6 +36,9 @@ import {
   JOURNEY_OUTCOME_LABELS,
   CAUSE_LABELS,
   DEATH_LABELS,
+  DISPUTE_CAUSE_LABELS,
+  DISPUTE_OUTCOME_LABELS,
+  DISPUTE_STAGE_LABELS,
   AFTERLIFE_LABELS,
   AUTHORITY_LABELS,
   CLERGY_LABELS,
@@ -70,6 +73,7 @@ import {
   type Dynasty,
   type EntityId,
   type Figure,
+  type Dispute,
   type FigureBond,
   type Fortunes,
   type FaithCharacter,
@@ -674,10 +678,16 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
   const formativeMemories = [...(figure.memories ?? [])]
     .sort((a, b) => b.intensity - a.intensity || b.lastReinforcedYear - a.lastReinforcedYear)
     .slice(0, 6);
+  const quarrels = [...(figure.disputes ?? [])].sort((a, b) => {
+    if (a.outcome === 'Open' && b.outcome !== 'Open') return -1;
+    if (b.outcome === 'Open' && a.outcome !== 'Open') return 1;
+    return (b.endYear ?? b.startYear) - (a.endYear ?? a.startYear);
+  });
   const hasLifeSummary =
     lifeUndertakings.length > 0 ||
     importantRelationships.length > 0 ||
     formativeMemories.length > 0 ||
+    quarrels.length > 0 ||
     (figure.injuries?.length ?? 0) > 0;
 
   return (
@@ -830,7 +840,9 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
                       <span className="text-xs text-[var(--ink-faint)]">
                         {relationshipReading(bond)} · since {bond.sinceYear} ·{' '}
                         {eventReading(bond.lastEventKind)} in {bond.lastChangedYear}
-                        {bond.lastEntityId && bond.lastEntityId !== bond.otherId && (
+                        {bond.lastEntityId &&
+                          bond.lastEntityId !== bond.otherId &&
+                          bond.lastEntityId !== figure.id && (
                           <>
                             {' · '}
                             <EntityLink world={world} id={bond.lastEntityId} />
@@ -861,6 +873,24 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
               </section>
             )}
 
+            {quarrels.length > 0 && (
+              <section>
+                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
+                  Quarrels
+                </h3>
+                <div className="space-y-3">
+                  {quarrels.map((dispute) => (
+                    <Quarrel
+                      key={`${dispute.id}:${dispute.otherId}:${dispute.startYear}`}
+                      world={world}
+                      dispute={dispute}
+                      self={figure.id}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
             {(figure.injuries?.length ?? 0) > 0 && (
               <section>
                 <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
@@ -868,9 +898,11 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
                 </h3>
                 <ul className="space-y-1.5 text-sm">
                   {figure.injuries.map((injury, index) => (
-                    <li key={`${injury.battleId}:${injury.year}:${index}`}>
+                    <li key={`${injury.causeId}:${injury.year}:${index}`}>
                       <span className="text-[var(--ink-faint)]">{injury.year} · </span>
-                      {injury.detail} at <EntityLink world={world} id={injury.battleId} />
+                      {injury.detail}{' '}
+                      {injury.sourceKind === 'DuelFought' ? 'at the hand of' : 'at'}{' '}
+                      <EntityLink world={world} id={injury.causeId} />
                       <span className="ml-2 text-xs text-[var(--ink-faint)]">
                         {injury.permanent
                           ? 'permanent'
@@ -979,6 +1011,74 @@ function JourneyList({ world, journeys }: { world: World; journeys: Journey[] })
         </li>
       ))}
     </ul>
+  );
+}
+
+/**
+ * One quarrel, read from the page it is on.
+ *
+ * The record is shared by both parties, so the only thing that changes between their two
+ * pages is the voice: the aggrieved party fell out with someone, and the other party was
+ * fallen out with. Printing the same episode twice with two different subjects is the
+ * point — it is one fact about two lives, not two facts.
+ */
+function Quarrel({
+  world,
+  dispute,
+  self,
+}: {
+  world: World;
+  dispute: Dispute;
+  self: EntityId;
+}) {
+  const open = dispute.outcome === 'Open';
+  // The cause is worth a link only when it points somewhere the line does not already name.
+  // An exposed plot's cause is the person it was against, which on their own page is this page.
+  const cause =
+    dispute.sourceEntityId && dispute.sourceEntityId !== self && dispute.sourceEntityId !== dispute.otherId
+      ? dispute.sourceEntityId
+      : undefined;
+  return (
+    <article className="border-l border-[var(--line)] pl-3">
+      <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
+        <span>
+          {dispute.opened ? 'Fell out with' : 'Was fallen out with by'}{' '}
+          <EntityLink world={world} id={dispute.otherId} />
+        </span>
+        <Badge tone={open ? 'accent' : 'muted'}>
+          {open ? DISPUTE_STAGE_LABELS[dispute.stage] : DISPUTE_OUTCOME_LABELS[dispute.outcome]}
+        </Badge>
+      </p>
+      <p className="mt-1 text-xs text-[var(--ink-faint)]">
+        {DISPUTE_CAUSE_LABELS[dispute.cause] ?? dispute.cause} · {dispute.startYear}
+        {dispute.endYear !== undefined && dispute.endYear !== dispute.startYear
+          ? `–${dispute.endYear}`
+          : ''}
+        {cause && (
+          <>
+            {' · '}
+            <EntityLink world={world} id={cause} />
+          </>
+        )}
+      </p>
+      {dispute.resolution && (
+        <p className="mt-1 text-xs text-[var(--ink-faint)]">Ended when {dispute.resolution}</p>
+      )}
+      {dispute.arbiterId && (
+        <p className="mt-1 text-sm">
+          Judged by <EntityLink world={world} id={dispute.arbiterId} />
+        </p>
+      )}
+      {dispute.acts.length > 0 && (
+        <ol className="mt-2 space-y-1 text-xs text-[var(--ink-faint)]">
+          {dispute.acts.map((act, index) => (
+            <li key={`${act.year}:${act.stage}:${index}`}>
+              {act.year} · {act.detail}
+            </li>
+          ))}
+        </ol>
+      )}
+    </article>
   );
 }
 

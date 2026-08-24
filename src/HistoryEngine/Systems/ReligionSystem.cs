@@ -672,11 +672,21 @@ public sealed class ReligionSystem : ISystem
     /// Gives a faith to living people who have never had one, once one reaches them.
     /// </summary>
     /// <remarks>
-    /// Founding rulers, and everyone born before the first sermon, were raised with nothing to
-    /// follow. Their disposition was already rolled, and converting a town does not rewrite a
+    /// <para>Founding rulers, and everyone born before the first sermon, were raised with nothing
+    /// to follow. Their disposition was already rolled, and converting a town does not rewrite a
     /// person — but leaving them faithless forever would make personal religion a property of
     /// the late-born only. Residence first, then the realm: the same order a newborn uses,
-    /// without walking parents, because a grown figure's parents are not who they live among.
+    /// without walking parents, because a grown figure's parents are not who they live among.</para>
+    ///
+    /// <para><b>A celibate faith does not enrol a married priest.</b> This is the one way a vow
+    /// could reach someone no guard could have stopped: a figure who married and took orders in a
+    /// realm that had no faith at all breaks no rule doing it, and a celibate faith arriving in
+    /// the town twenty years later would make them a married priest of it retroactively. The
+    /// alternatives are worse — releasing them from orders rewrites a career the chronicle already
+    /// recorded, and ending the marriage lets a faith reach into a household it did not govern
+    /// when the household was made. They keep both and stay faithless, which is what they were.
+    /// If the ambient faith later changes to one that permits it, they convert like anyone
+    /// else.</para>
     /// </remarks>
     private static void ConvertTheFaithless(WorldState world)
     {
@@ -690,6 +700,8 @@ public sealed class ReligionSystem : ISystem
                 EntityId held = world.Settlements[home].ReligionId;
                 if (!held.IsNone)
                 {
+                    if (WouldBreakAVow(world, figure, held)) continue;
+
                     figure.ReligionId = held;
                     continue;
                 }
@@ -698,7 +710,16 @@ public sealed class ReligionSystem : ISystem
             if (!world.Civilizations.Contains(figure.CivilizationId)) continue;
 
             EntityId state = world.Civilizations[figure.CivilizationId].StateReligionId;
-            if (!state.IsNone) figure.ReligionId = state;
+            if (state.IsNone || WouldBreakAVow(world, figure, state)) continue;
+
+            figure.ReligionId = state;
         }
     }
+
+    /// <summary>Whether professing this faith would put a married cleric under its vow.</summary>
+    private static bool WouldBreakAVow(WorldState world, Figure figure, EntityId faithId) =>
+        figure.Occupation == Occupation.Clergy
+        && figure.IsMarried
+        && world.Religions.Contains(faithId)
+        && world.Religions[faithId].Character.CelibateClergy;
 }

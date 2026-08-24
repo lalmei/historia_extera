@@ -287,7 +287,7 @@ public sealed class CampaignTests
                     if (memory.Fate == CampaignFate.Wounded)
                     {
                         wounded[memory.Role] = wounded.GetValueOrDefault(memory.Role) + 1;
-                        Assert.Contains(figure.Injuries, injury => injury.BattleId == memory.BattleId);
+                        Assert.Contains(figure.Injuries, injury => injury.CauseId == memory.BattleId);
                         if (memory.Role != CampaignRole.Commanded) nonCommanderWounds++;
                     }
 

@@ -7,7 +7,7 @@
  * stops moving.
  */
 
-export const SCHEMA_VERSION = 34;
+export const SCHEMA_VERSION = 35;
 
 /**
  * Whether an event carries the history or merely records a life.
@@ -1337,7 +1337,7 @@ export type MemoryKind =
 
 export const MEMORY_LABELS: Record<MemoryKind, string> = {
   Bereavement: 'Bereavement',
-  Injury: 'Battle wound',
+  Injury: 'Wound',
   Triumph: 'Triumph',
   Defeat: 'Defeat',
   Humiliation: 'Humiliation',
@@ -1377,7 +1377,9 @@ export interface Feelings {
 export type InjurySeverity = 'Minor' | 'Serious' | 'Grievous';
 
 export interface FigureInjury {
-  battleId: EntityId;
+  /** The battle that did it, or the person who did it in a quarrel. */
+  causeId: EntityId;
+  sourceKind: string;
   year: number;
   severity: InjurySeverity;
   recoveryYear: number;
@@ -1429,6 +1431,75 @@ export interface Undertaking {
   steps: UndertakingStep[];
 }
 
+export type DisputeCause =
+  | 'OfficeRevoked'
+  | 'SuccessionPassedOver'
+  | 'KinMurdered'
+  | 'Accusation';
+
+export type DisputeStage = 'Grudge' | 'Insult' | 'Accusation' | 'Challenge';
+
+export type DisputeOutcome =
+  | 'Open'
+  | 'Reconciled'
+  | 'Settled'
+  | 'Wounded'
+  | 'Killed'
+  | 'Lapsed';
+
+export const DISPUTE_CAUSE_LABELS: Record<DisputeCause, string> = {
+  OfficeRevoked: 'Over an office taken from them',
+  SuccessionPassedOver: 'Over a succession they lost',
+  KinMurdered: 'Over the murder of their kin',
+  Accusation: 'Over an accusation',
+};
+
+export const DISPUTE_STAGE_LABELS: Record<DisputeStage, string> = {
+  Grudge: 'A grudge held',
+  Insult: 'Insults exchanged',
+  Accusation: 'A charge laid',
+  Challenge: 'Satisfaction demanded',
+};
+
+export const DISPUTE_OUTCOME_LABELS: Record<DisputeOutcome, string> = {
+  Open: 'Unresolved',
+  Reconciled: 'Reconciled',
+  Settled: 'Judged',
+  Wounded: 'Blood drawn',
+  Killed: 'Ended in death',
+  Lapsed: 'Never answered',
+};
+
+export interface DisputeAct {
+  year: number;
+  sourceKind: string;
+  stage: DisputeStage;
+  actorId?: EntityId;
+  detail: string;
+}
+
+/**
+ * One quarrel. Both parties carry the same record; `opened` says which side this page is,
+ * so the viewer can say "was challenged by" where the other page says "challenged".
+ */
+export interface Dispute {
+  id: number;
+  otherId: EntityId;
+  opened: boolean;
+  cause: DisputeCause;
+  sourceKind: string;
+  sourceEntityId?: EntityId;
+  placeId?: EntityId;
+  stage: DisputeStage;
+  outcome: DisputeOutcome;
+  resolution?: string;
+  arbiterId?: EntityId;
+  startYear: number;
+  endYear?: number;
+  lastActionYear: number;
+  acts: DisputeAct[];
+}
+
 /**
  * One person, with enough of the family tree attached to draw it.
  *
@@ -1474,6 +1545,7 @@ export interface Figure {
   feelings: Feelings;
   injuries: FigureInjury[];
   undertakings: Undertaking[];
+  disputes: Dispute[];
   motherId?: EntityId;
   fatherId?: EntityId;
   childIds: EntityId[];

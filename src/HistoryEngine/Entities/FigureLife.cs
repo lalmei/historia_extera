@@ -207,9 +207,15 @@ public enum InjurySeverity
     Grievous = 2,
 }
 
-/// <summary>A physical consequence that outlasts the battle that caused it.</summary>
+/// <summary>A physical consequence that outlasts the engagement that caused it.</summary>
+/// <remarks>
+/// <see cref="CauseId"/> is a battle when a battle did it and the other party when a quarrel did.
+/// Duels reuse this record rather than growing a second wound model, so "cannot ride this year"
+/// means the same thing however the wound was got, and one recovery rule covers both.
+/// </remarks>
 public sealed record FigureInjury(
-    EntityId BattleId,
+    EntityId CauseId,
+    EventKind SourceKind,
     int Year,
     InjurySeverity Severity,
     int RecoveryYear,
@@ -339,4 +345,143 @@ public sealed class FigureUndertaking
 
     /// <summary>Used by conspiracies; how close the undertaking is to its target.</summary>
     public double Access { get; set; }
+}
+
+/// <summary>The grounded wrong a personal quarrel began from.</summary>
+/// <remarks>
+/// Every value names an event the world already wrote. There is deliberately no "took a dislike":
+/// two people sharing a realm is not a cause, and a quarrel that cannot name its origin is the
+/// random tavern brawl this model exists to avoid.
+/// </remarks>
+public enum DisputeCause
+{
+    OfficeRevoked = 0,
+    SuccessionPassedOver = 1,
+    KinMurdered = 2,
+    Accusation = 3,
+}
+
+/// <summary>How far a quarrel has been carried into the open.</summary>
+/// <remarks>
+/// The ladder is public visibility, not anger. A grudge is felt, an insult is heard, an accusation
+/// is laid before someone with authority to judge it, and a challenge asks for satisfaction that
+/// only a meeting can give. Each rung is harder to withdraw from than the one below it, which is
+/// why de-escalation gets rarer as the quarrel climbs.
+/// </remarks>
+public enum DisputeStage
+{
+    Grudge = 0,
+    Insult = 1,
+    Accusation = 2,
+    Challenge = 3,
+}
+
+/// <summary>How a quarrel ended, or that it has not.</summary>
+public enum DisputeOutcome
+{
+    Open = 0,
+
+    /// <summary>The two settled it themselves; the bond keeps the scar and loses the grievance.</summary>
+    Reconciled = 1,
+
+    /// <summary>A third party with standing imposed terms and both were held to them.</summary>
+    Settled = 2,
+
+    /// <summary>They met, and one of them carried a wound away.</summary>
+    Wounded = 3,
+
+    /// <summary>They met, and one of them did not walk away from it.</summary>
+    Killed = 4,
+
+    /// <summary>Death elsewhere, or distance, ended it without resolving it.</summary>
+    Lapsed = 5,
+}
+
+/// <summary>One thing that was done in the course of a quarrel.</summary>
+public sealed record DisputeAct(
+    int Year,
+    EventKind SourceKind,
+    DisputeStage Stage,
+    EntityId ActorId,
+    string Detail);
+
+/// <summary>
+/// A persistent quarrel between two named people, from its cause to how it ended.
+/// </summary>
+/// <remarks>
+/// <para>One object, held by both parties. A quarrel is a single fact about two lives and storing
+/// it twice invites the two copies to disagree about what happened; the viewpoint each page shows
+/// is derived at the edge from which of <see cref="OpenerId"/> and <see cref="RivalId"/> is being
+/// read, not from a second record.</para>
+///
+/// <para>The relationship itself stays in the bond. This carries only what a bond cannot: that the
+/// grievance is currently being acted on, how far into the open it has been carried, and what
+/// finally answered it.</para>
+/// </remarks>
+public sealed class FigureDispute
+{
+    public FigureDispute(
+        int id,
+        EntityId openerId,
+        EntityId rivalId,
+        int startYear,
+        DisputeCause cause,
+        EventKind sourceKind,
+        EntityId sourceEntityId,
+        EntityId placeId)
+    {
+        Id = id;
+        OpenerId = openerId;
+        RivalId = rivalId;
+        StartYear = startYear;
+        LastActionYear = startYear;
+        Cause = cause;
+        SourceKind = sourceKind;
+        SourceEntityId = sourceEntityId;
+        PlaceId = placeId;
+        Acts = new List<DisputeAct>();
+    }
+
+    /// <summary>Stable within the person who opened it.</summary>
+    public int Id { get; }
+
+    /// <summary>The aggrieved party: the one the cause was done to.</summary>
+    public EntityId OpenerId { get; }
+
+    /// <summary>The party held responsible for the cause.</summary>
+    public EntityId RivalId { get; }
+
+    public int StartYear { get; }
+
+    public int? EndYear { get; set; }
+
+    public DisputeCause Cause { get; }
+
+    /// <summary>The event family that caused it, and the entity that event was about.</summary>
+    public EventKind SourceKind { get; }
+
+    public EntityId SourceEntityId { get; }
+
+    public EntityId PlaceId { get; set; }
+
+    public DisputeStage Stage { get; set; }
+
+    public int LastActionYear { get; set; }
+
+    public DisputeOutcome Outcome { get; set; }
+
+    /// <summary>Why it ended, in the words the life page prints.</summary>
+    public string? Resolution { get; set; }
+
+    /// <summary>The third party who judged or mediated it, when one did.</summary>
+    public EntityId ArbiterId { get; set; } = EntityId.None;
+
+    public List<DisputeAct> Acts { get; }
+
+    public bool IsOpen => Outcome == DisputeOutcome.Open;
+
+    /// <summary>The other party, read from whichever side is asking.</summary>
+    public EntityId Other(EntityId self) => self == OpenerId ? RivalId : OpenerId;
+
+    public bool Involves(EntityId id) => id == OpenerId || id == RivalId;
 }

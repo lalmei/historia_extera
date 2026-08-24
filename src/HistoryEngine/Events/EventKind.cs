@@ -88,6 +88,23 @@ public enum EventKind
     ConspiratorJoined = 329,
     ConspiracyExposed = 330,
 
+    /// <summary>Two named people fell out over something the chronicle already recorded.</summary>
+    /// <remarks>
+    /// Routine on its own. A quarrel opening is a fact about two people rather than about the
+    /// realm, and a timeline that carried every one of them on the spine would bury the year's
+    /// actual violence under courtiers not speaking to each other.
+    /// </remarks>
+    DisputeOpened = 331,
+
+    /// <summary>A quarrel was carried a rung further into the open.</summary>
+    DisputeEscalated = 332,
+
+    /// <summary>A quarrel ended without blood: withdrawn, forgiven, or judged.</summary>
+    DisputeSettled = 333,
+
+    /// <summary>The two met over it, and the meeting decided it.</summary>
+    DuelFought = 334,
+
     // ---- Territory (400) ----
     // Claims are written so ownership can be replayed year by year; they are marked Routine
     // so the timeline is not a run of "extended its reach". Cessions and releases stay on

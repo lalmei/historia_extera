@@ -2759,6 +2759,79 @@ assert the last two on 250 seeds.
 
 ---
 
+### Personal quarrels: what a grievance does when it cannot start a war
+
+The world could already produce a wrong done to a named person — an office taken away, a succession
+lost, a relative murdered, a plot exposed and a name given to the court — and #128 gave those wrongs
+somewhere to live, as a directed grievance on a bond. What none of it could do was be *acted on*.
+Between not speaking at dinner and raising an army there was nothing, so two people who hated each
+other for forty years produced exactly as much history as two people who had never met.
+
+**The four causes are the whole permission.** A quarrel is opened by the event that caused it, not
+by an annual survey of who dislikes whom. `Offices.Revoke`, the surviving loser of a contested
+succession, an exposed conspiracy and a murdered relative each offer one; nothing else can, and a
+grievance below 0.30 is not offered at all. That is deliberately a narrow door. A model that can
+find hostility by scanning pairs will find a great deal of it, all of it plausible and none of it
+about anything, and the export becomes a list of courtiers who dislike each other for no year.
+
+**The ladder is visibility, not anger.** Grudge, insult, charge laid, satisfaction demanded. A rung
+cannot be skipped, so a duel always has the record of the years it took to get there, and each rung
+is harder to step back from than the one below it — the withdrawal chance is braked from 1.00 at a
+grudge to 0.45 at a challenge. Climbing reads the grievance already in the bond, the anger derived
+from memory, both dispositions and the realm's aggression; pulling back reads piety, custom,
+whether anyone with standing is available to judge it, and rank.
+
+**Rank is why this system is not the conspiracy system.** A subject with a grievance against their
+own reigning ruler cannot call them out, so a power gap adds up to 0.30 of restraint and the quarrel
+cools, is judged, or goes where such things went historically. `Conspiracies` and `Disputes` read
+the same bonds and the same grievances and deliberately answer different halves of the same anger:
+one is what you do to someone you can face, the other is what you do to someone you cannot. A
+regression across the panel holds duels against reigning rulers at or below duels between equals.
+
+**One wound model.** A duel wound goes through `LifeStories.Injure` — the same severity draw,
+recovery years and permanent tail as a battle wound — and a duel death goes through `Houses.Die`
+with `DeathCause.Duel`, so succession, offices, estates and bereavement all follow from it without
+a private path. `FigureInjury.BattleId` became `CauseId` with a `SourceKind` beside it, which is the
+only honest way to say that the cause is a battle in one case and a person in the other.
+
+**Both pages, one record.** The two parties share the object rather than each holding a copy; the
+viewpoint is derived at the export edge from which side is being read. Two copies of a quarrel is
+two chances to disagree about what happened in it.
+
+**Measured across seeds 2, 7, 11, 42 and 99.** Five to nine quarrels per 300-year world among
+1,100–1,350 adults, the longest running 8–17 years, and 13–23 chronicle lines out of 9,000–16,000
+events — 0.08% to 0.20% of the timeline. All four causes appear. Across the panel the outcomes are
+20 lapsed (death or distance took a party first), 10 reconciled, 2 judged, 3 ending in a wound and
+1 in a death. The tests hold the count under one per twenty adults and the event share under 2%,
+which is the bound this system most needs: a world with two hundred feuding courtiers is not a
+livelier world, it is a timeline in which nothing else can be read.
+
+**Schema 35.** Figures gain `disputes[]` and an injury names its cause rather than its battle.
+
+**Three latent faults it shook loose.** Moving every history is also a sweep, and it found three
+things that were reachable before and simply had not been reached. A realm whose seat was taken in
+a season after `succession` had run for the year kept a null capital until the following spring —
+and for ever if it happened in the last year — so its living people exported as living nowhere;
+`Realms` now reseats at the moment of the transfer instead of leaving the repair to an annual pass
+that has already gone by. A figure who married and took orders in a realm professing nothing broke
+no rule doing it, and a celibate faith arriving in their town twenty years later made them a
+married priest of it retroactively; `ConvertTheFaithless` now declines to enrol them rather than
+rewriting a career or a household after the fact. Reseating in turn had to release the governorship on the town it
+promotes, for the same reason and with the same timing: a capital is governed by whoever holds the
+throne in person, the office system drops such a posting on its yearly pass, and a seat promoted
+after that pass has run would otherwise leave a governor sitting in a capital. And the road
+ceiling, a per-world share, was being asked of an eighteen-route network where one road moves it
+six points — it is now asked only where the share carries information, with the pooled bound doing
+the work it always did.
+
+The common shape of the first three is worth naming, because it is the same one the artifact
+system's estate settlement hit a milestone earlier: an annual repair cannot see damage a seasonal
+system does after it has run for the year, and in the last year of a run it never sees it at all.
+Where the repair is cheap, doing it at the moment of the damage is strictly better than moving
+another system onto the season.
+
+---
+
 ## Milestones
 
 | # | Deliverable | State |

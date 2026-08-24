@@ -16,6 +16,14 @@ public enum DeathCause
     Plague = 8,
     Disaster = 9,
     Poisoning = 10,
+
+    /// <summary>Killed by a named person in a quarrel that both had agreed to settle.</summary>
+    /// <remarks>
+    /// Distinct from <see cref="Assassination"/>, which is done to someone who did not consent to
+    /// meet, and from <see cref="Execution"/>, which a realm carries out. The whole point of the
+    /// quarrel model is that this death has two people, a cause and a record of the climb to it.
+    /// </remarks>
+    Duel = 11,
 }
 
 /// <summary>
@@ -173,6 +181,7 @@ public sealed class Figure
         Memories = new List<SalientMemory>();
         Injuries = new List<FigureInjury>();
         Undertakings = new List<FigureUndertaking>();
+        Disputes = new List<FigureDispute>();
         ChildIds = new List<EntityId>();
         SpouseIds = new List<EntityId>();
     }
@@ -314,11 +323,20 @@ public sealed class Figure
     /// <summary>The bounded set of experiences this figure still carries.</summary>
     public List<SalientMemory> Memories { get; }
 
-    /// <summary>Battle wounds, including their recovery and any permanent consequence.</summary>
+    /// <summary>Wounds got in battle or in a quarrel, with their recovery and any permanent result.</summary>
     public List<FigureInjury> Injuries { get; }
 
     /// <summary>Goals whose individual journeys, setbacks and attempts form a larger arc.</summary>
     public List<FigureUndertaking> Undertakings { get; }
+
+    /// <summary>
+    /// Personal quarrels this figure stands on one side of, in the order they were opened.
+    /// </summary>
+    /// <remarks>
+    /// The entries are shared with the other party rather than copied, so neither page can come to
+    /// believe a different version of the same quarrel.
+    /// </remarks>
+    public List<FigureDispute> Disputes { get; }
 
     public EntityId MotherId { get; set; } = EntityId.None;
 

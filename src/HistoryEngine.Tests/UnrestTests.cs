@@ -36,11 +36,17 @@ public sealed class UnrestTests
     /// question here is whether the path exists at all, and a coin-flip sample cannot answer it.
     /// If a change empties this, check the rate before widening the net again — four occurrences
     /// going to zero is a behaviour change, one going to zero is a resample.
+    ///
+    /// <b>Resampled after personal quarrels landed</b>, which moved every history: 3 of the first
+    /// 120 seeds, 2.5%, still the measured rate. The tail was 26, 64, 98 and 139 and is now the
+    /// seeds that carry it in the current checkout. This is the resample the paragraph above
+    /// describes and not a behaviour change, and it is the second time the tail has moved — a
+    /// pinned-seed list is the cost of asserting that a 3% path exists at all.
     /// </remarks>
     private static readonly ulong[] RareSeeds =
     {
         2, 7, 11, 42, 99, 123, 777, 2024, 3, 5, 13, 17, 19, 23, 29, 31, 37, 41, 47, 53, 61, 71,
-        26, 64, 98, 139,
+        16, 51, 112,
     };
 
     /// <summary>

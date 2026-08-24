@@ -117,8 +117,10 @@ public sealed record WorldExport(
     /// so a life page can lead with its causal shape rather than only its raw chronology.
     /// Version 34 added terminal battle fates, trauma, desertion, battle-earned renown and
     /// promotion provenance, plus undertaking sponsors, deadlines and motive provenance.
+    /// Version 35 added personal quarrels — cause, escalation, acts and outcome — shared by both
+    /// parties, and generalised an injury's cause from a battle to whatever inflicted it.
     /// </remarks>
-    public const int CurrentSchemaVersion = 34;
+    public const int CurrentSchemaVersion = 35;
 }
 
 public sealed record ExportMeta(
@@ -775,6 +777,7 @@ public sealed record ExportFigure(
     ExportFeelings Feelings,
     IReadOnlyList<ExportInjury> Injuries,
     IReadOnlyList<ExportUndertaking> Undertakings,
+    IReadOnlyList<ExportDispute> Disputes,
     EntityId? MotherId,
     EntityId? FatherId,
     IReadOnlyList<EntityId> ChildIds,
@@ -871,8 +874,10 @@ public sealed record ExportFeelings(
     double Pride,
     double Loyalty);
 
+/// <param name="CauseId">The battle that did it, or the person who did it in a quarrel.</param>
 public sealed record ExportInjury(
-    EntityId BattleId,
+    EntityId CauseId,
+    EventKind SourceKind,
     int Year,
     InjurySeverity Severity,
     int RecoveryYear,
@@ -910,6 +915,40 @@ public sealed record ExportUndertakingStep(
     EntityId? PlaceId,
     EntityId? SubjectId,
     string Outcome);
+
+/// <summary>
+/// One quarrel, written the same way on both parties' pages.
+/// </summary>
+/// <param name="OtherId">
+/// The party this page is not about, so a consumer never has to work out which side it is reading.
+/// </param>
+/// <param name="Opened">
+/// Whether the figure this record hangs on is the aggrieved party. The facts are identical either
+/// way; this is what lets a viewer say "was challenged by" rather than "challenged".
+/// </param>
+public sealed record ExportDispute(
+    int Id,
+    EntityId OtherId,
+    bool Opened,
+    DisputeCause Cause,
+    EventKind SourceKind,
+    EntityId? SourceEntityId,
+    EntityId? PlaceId,
+    DisputeStage Stage,
+    DisputeOutcome Outcome,
+    string? Resolution,
+    EntityId? ArbiterId,
+    int StartYear,
+    int? EndYear,
+    int LastActionYear,
+    IReadOnlyList<ExportDisputeAct> Acts);
+
+public sealed record ExportDisputeAct(
+    int Year,
+    EventKind SourceKind,
+    DisputeStage Stage,
+    EntityId? ActorId,
+    string Detail);
 
 /// <summary>
 /// One person's own inclinations, on the same dials their culture has.

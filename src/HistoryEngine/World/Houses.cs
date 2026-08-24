@@ -375,6 +375,7 @@ public static class Houses
         // relationships and memories it leaves behind are permanent parts of the survivors.
         List<Figure> bereaved = Succession.ImmediateFamily(world, figure);
         Undertakings.EndAtDeath(world, figure, year);
+        Disputes.EndAtDeath(world, figure, year);
 
         figure.DeathYear = year;
         figure.DeathCause = cause;
@@ -500,7 +501,7 @@ public static class Houses
     private static string FamilyDeathVerb(DeathCause cause) => cause switch
     {
         DeathCause.Battle or DeathCause.Assassination or DeathCause.Execution
-            or DeathCause.Poisoning => "was slain",
+            or DeathCause.Poisoning or DeathCause.Duel => "was slain",
         _ => "died",
     };
 
@@ -623,6 +624,7 @@ public static class Houses
         DeathCause.Plague => "plague",
         DeathCause.Disaster => "a disaster",
         DeathCause.Poisoning => "poisoning",
+        DeathCause.Duel => "a quarrel settled with steel",
         _ => "unknown causes",
     };
 }
