@@ -1241,6 +1241,162 @@ export interface Journey {
   viaId?: EntityId;
   /** Absent on worlds exported before schema 30, where every journey ended well. */
   outcome?: JourneyOutcome;
+  /** The home reached after the trip; absent when the traveller did not return. */
+  returnSettlementId?: EntityId;
+}
+
+export type BondKind =
+  | 'Kin'
+  | 'Spouse'
+  | 'Parent'
+  | 'Child'
+  | 'Patron'
+  | 'Client'
+  | 'Mentor'
+  | 'Apprentice'
+  | 'Companion'
+  | 'Rival'
+  | 'Enemy'
+  | 'CoConspirator';
+
+export const BOND_LABELS: Record<BondKind, string> = {
+  Kin: 'Kin',
+  Spouse: 'Spouse',
+  Parent: 'Parent',
+  Child: 'Child',
+  Patron: 'Patron',
+  Client: 'Client',
+  Mentor: 'Mentor',
+  Apprentice: 'Apprentice',
+  Companion: 'Companion in arms',
+  Rival: 'Rival',
+  Enemy: 'Enemy',
+  CoConspirator: 'Co-conspirator',
+};
+
+export type BondCause =
+  | 'Unknown'
+  | 'Kinship'
+  | 'Marriage'
+  | 'Parenthood'
+  | 'Patronage'
+  | 'Mentorship'
+  | 'SharedCampaign'
+  | 'Bereavement'
+  | 'Conflict'
+  | 'Conspiracy'
+  | 'Undertaking';
+
+export interface FigureBond {
+  otherId: EntityId;
+  kinds: BondKind[];
+  sinceYear: number;
+  lastChangedYear: number;
+  lastCause: BondCause;
+  affection: number;
+  trust: number;
+  obligation: number;
+  fear: number;
+  grievance: number;
+}
+
+export type MemoryKind =
+  | 'Bereavement'
+  | 'Injury'
+  | 'Triumph'
+  | 'Defeat'
+  | 'Humiliation'
+  | 'Gratitude'
+  | 'Mentorship'
+  | 'Rivalry'
+  | 'Ambition'
+  | 'Betrayal'
+  | 'Marriage'
+  | 'Parenthood'
+  | 'Journey'
+  | 'Conspiracy';
+
+export const MEMORY_LABELS: Record<MemoryKind, string> = {
+  Bereavement: 'Bereavement',
+  Injury: 'Battle wound',
+  Triumph: 'Triumph',
+  Defeat: 'Defeat',
+  Humiliation: 'Humiliation',
+  Gratitude: 'Debt of gratitude',
+  Mentorship: 'Mentorship',
+  Rivalry: 'Rivalry',
+  Ambition: 'Ambition',
+  Betrayal: 'Betrayal',
+  Marriage: 'Marriage',
+  Parenthood: 'Parenthood',
+  Journey: 'Journey',
+  Conspiracy: 'Conspiracy',
+};
+
+export interface SalientMemory {
+  kind: MemoryKind;
+  year: number;
+  lastReinforcedYear: number;
+  sourceKind: string;
+  aboutId?: EntityId;
+  locationId?: EntityId;
+  /** Effective strength at the export's end year. */
+  intensity: number;
+}
+
+export interface Feelings {
+  grief: number;
+  fear: number;
+  anger: number;
+  pride: number;
+  loyalty: number;
+}
+
+export type InjurySeverity = 'Minor' | 'Serious' | 'Grievous';
+
+export interface FigureInjury {
+  battleId: EntityId;
+  year: number;
+  severity: InjurySeverity;
+  recoveryYear: number;
+  permanent: boolean;
+  detail: string;
+}
+
+export type UndertakingKind =
+  | 'TradeVenture'
+  | 'Pilgrimage'
+  | 'MissionaryCircuit'
+  | 'Embassy'
+  | 'Conspiracy';
+
+export type UndertakingState = 'Active' | 'Succeeded' | 'Failed' | 'Abandoned';
+
+export interface UndertakingStep {
+  year: number;
+  sourceKind: string;
+  placeId?: EntityId;
+  subjectId?: EntityId;
+  outcome: string;
+}
+
+export interface Undertaking {
+  id: number;
+  kind: UndertakingKind;
+  state: UndertakingState;
+  startYear: number;
+  endYear?: number;
+  objective: string;
+  targetId?: EntityId;
+  destinationId?: EntityId;
+  viaId?: EntityId;
+  progress: number;
+  requiredProgress: number;
+  motive: MemoryKind;
+  participantIds: EntityId[];
+  secrecy: number;
+  access: number;
+  steps: UndertakingStep[];
 }
 
 /**
@@ -1281,6 +1437,13 @@ export interface Figure {
   campaigns: Campaign[];
   /** Trips they made and returned from. Distinct from where they live. */
   journeys: Journey[];
+  /** Persistent directed relationships, one per other recorded figure. */
+  bonds: FigureBond[];
+  /** The bounded experiences still formative at the export's end. */
+  memories: SalientMemory[];
+  feelings: Feelings;
+  injuries: FigureInjury[];
+  undertakings: Undertaking[];
   motherId?: EntityId;
   fatherId?: EntityId;
   childIds: EntityId[];

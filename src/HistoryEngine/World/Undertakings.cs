@@ -18,8 +18,7 @@ public static class Undertakings
     public static JourneyPlan? NextJourney(
         WorldState world, Figure figure, EntityId home, int year, IRng rng)
     {
-        FigureUndertaking? active = figure.Undertakings.Find(item =>
-            item.State == UndertakingState.Active && item.Kind != UndertakingKind.Conspiracy);
+        FigureUndertaking? active = CurrentJourney(figure);
         if (active is null) return null;
         if (!ValidDestination(world, active, home))
         {
@@ -42,9 +41,14 @@ public static class Undertakings
             UndertakingKind.Pilgrimage => new JourneyPlan(
                 JourneyKind.Pilgrimage, active.DestinationId, active.ViaId, "to fulfil a vow at"),
             UndertakingKind.TradeVenture => new JourneyPlan(
-                JourneyKind.Trade, active.DestinationId, active.ViaId, "to establish trade with"),
+                JourneyKind.Trade, active.DestinationId, active.ViaId, "to establish lasting trade"),
             UndertakingKind.MissionaryCircuit => new JourneyPlan(
-                JourneyKind.Mission, active.DestinationId, active.ViaId, "to continue a circuit among"),
+                JourneyKind.Mission,
+                active.DestinationId,
+                active.ViaId,
+                active.ViaId.Kind == EntityKind.HolySite
+                    ? "to fetch copies from"
+                    : "to continue preaching among"),
             _ => new JourneyPlan(
                 JourneyKind.Visit, active.DestinationId, active.ViaId, "on an embassy to"),
         };
@@ -106,17 +110,28 @@ public static class Undertakings
             return;
         }
 
-        if (journey.Outcome == JourneyOutcome.Waylaid) return;
-
-        undertaking.Progress++;
         LifeStories.Remember(
             figure,
             MemoryKind.Journey,
             year,
-            EventKind.JourneyMade,
+            journey.Outcome == JourneyOutcome.Waylaid
+                ? EventKind.JourneyWaylaid
+                : EventKind.JourneyMade,
             undertaking.TargetId,
             journey.ToSettlementId,
-            0.42 + (0.10 * undertaking.Progress));
+            journey.Outcome == JourneyOutcome.Waylaid
+                ? 0.72
+                : 0.42 + (0.10 * Math.Min(
+                    undertaking.RequiredProgress, undertaking.Progress + 1)));
+
+        if (journey.Outcome == JourneyOutcome.Waylaid) return;
+
+        // Once the founding goal is complete, later travel maintains the relationship it made.
+        // It remains a step in that arc without turning a three-step venture into "17 of 3" or
+        // announcing the same undertaking as new every few years.
+        if (undertaking.State != UndertakingState.Active) return;
+
+        undertaking.Progress++;
 
         if (undertaking.Progress < undertaking.RequiredProgress) return;
 
@@ -129,12 +144,7 @@ public static class Undertakings
     {
         if (!mourner.IsAlive || mourner.ReligionId.IsNone) return;
         if (mourner.Disposition.Values.Piety < 0.48) return;
-        if (mourner.Undertakings.Exists(item =>
-                item.State == UndertakingState.Active
-                && item.Kind == UndertakingKind.Pilgrimage))
-        {
-            return;
-        }
+        if (CurrentJourney(mourner) is not null) return;
 
         IRng resolve = world.Root
             .Fork("bereavement-vow", mourner.Id.ToDiscriminator())
@@ -169,6 +179,10 @@ public static class Undertakings
 
     public static FigureUndertaking? Current(Figure figure) =>
         figure.Undertakings.Find(item => item.State == UndertakingState.Active);
+
+    public static FigureUndertaking? CurrentJourney(Figure figure) =>
+        figure.Undertakings.Find(item =>
+            item.State == UndertakingState.Active && item.Kind != UndertakingKind.Conspiracy);
 
     public static FigureUndertaking? CurrentConspiracy(Figure figure) =>
         figure.Undertakings.Find(item =>
@@ -220,7 +234,10 @@ public static class Undertakings
             data: Chronicle.Data(
                 ("kind", undertaking.Kind.ToString()),
                 ("objective", undertaking.Objective),
-                ("years", (year - undertaking.StartYear).ToString(CultureInfo.InvariantCulture))));
+                ("years", (year - undertaking.StartYear).ToString(CultureInfo.InvariantCulture))),
+            significance: undertaking.Kind == UndertakingKind.Conspiracy
+                ? Significance.Notable
+                : Significance.Routine);
     }
 
     public static void Fail(
@@ -243,7 +260,20 @@ public static class Undertakings
             data: Chronicle.Data(
                 ("kind", undertaking.Kind.ToString()),
                 ("objective", undertaking.Objective),
-                ("cause", cause)));
+                ("cause", cause)),
+            significance: undertaking.Kind == UndertakingKind.Conspiracy
+                ? Significance.Notable
+                : Significance.Routine);
+    }
+
+    /// <summary>Closes every goal a person's death makes impossible.</summary>
+    public static void EndAtDeath(WorldState world, Figure figure, int year)
+    {
+        foreach (FigureUndertaking undertaking in figure.Undertakings)
+        {
+            if (undertaking.State != UndertakingState.Active) continue;
+            Fail(world, figure, undertaking, year, "their death ended it");
+        }
     }
 
     private static FigureUndertaking Start(
@@ -276,14 +306,17 @@ public static class Undertakings
             figure.Id,
             obj: target,
             location: destination,
-            data: Chronicle.Data(("kind", kind.ToString()), ("objective", objective)));
+            data: Chronicle.Data(("kind", kind.ToString()), ("objective", objective)),
+            significance: kind == UndertakingKind.Conspiracy || motive == MemoryKind.Bereavement
+                ? Significance.Notable
+                : Significance.Routine);
 
         return undertaking;
     }
 
     private static FigureUndertaking? Match(Figure figure, Journey journey) =>
         figure.Undertakings.Find(item =>
-            item.State == UndertakingState.Active
+            (item.State is UndertakingState.Active or UndertakingState.Succeeded)
             && item.Kind == KindOf(journey.Kind)
             && (item.ViaId == journey.ViaId || item.DestinationId == journey.ToSettlementId));
 

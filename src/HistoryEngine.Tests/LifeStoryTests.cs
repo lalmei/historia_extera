@@ -1,6 +1,7 @@
 using HistoryEngine.Core;
 using HistoryEngine.Entities;
 using HistoryEngine.Events;
+using HistoryEngine.Serialization;
 using HistoryEngine.World;
 using Xunit;
 
@@ -55,6 +56,28 @@ public sealed class LifeStoryTests
             figure.Memories.Exists(memory => memory.Kind == MemoryKind.Mentorship));
         Assert.Contains(world.Figures, figure =>
             figure.Memories.Exists(memory => memory.Kind == MemoryKind.Humiliation));
+
+        var indexedDeaths = new HashSet<(EntityId Deceased, EntityId Survivor)>();
+        foreach (HistoryEvent entry in world.Chronicle.Events)
+        {
+            if (entry.Kind != EventKind.FigureDied || entry.Extra is null) continue;
+            foreach (EntityId indexed in entry.Extra)
+            {
+                if (indexed.Kind == EntityKind.Figure)
+                {
+                    indexedDeaths.Add((entry.Subject, indexed));
+                }
+            }
+        }
+
+        foreach (Figure survivor in world.Figures)
+        {
+            foreach (SalientMemory memory in survivor.Memories)
+            {
+                if (memory.Kind != MemoryKind.Bereavement) continue;
+                Assert.Contains((memory.AboutId, survivor.Id), indexedDeaths);
+            }
+        }
     }
 
     [Fact]
@@ -145,6 +168,17 @@ public sealed class LifeStoryTests
     }
 
     [Fact]
+    public void BereavementDoesNotStartASecondPublicUndertaking()
+    {
+        WorldState world = HistoryRun.Execute(TestWorlds.Standard(1630161754)).World;
+
+        Assert.DoesNotContain(world.Figures, figure =>
+            figure.Undertakings.Count(item =>
+                item.State == UndertakingState.Active
+                && item.Kind != UndertakingKind.Conspiracy) > 1);
+    }
+
+    [Fact]
     public void ConspiraciesUseParticipantsAccessAndMultipleStepsBeforeResolution()
     {
         WorldState world = HistoryRun.Execute(TestWorlds.Standard(42)).World;
@@ -160,5 +194,61 @@ public sealed class LifeStoryTests
         Assert.Contains(plots, plot => plot.State != UndertakingState.Active);
         Assert.Contains(world.Figures, figure =>
             figure.Bonds.Exists(bond => bond.Kinds.HasFlag(BondKind.CoConspirator)));
+
+        Assert.DoesNotContain(world.Figures, figure =>
+            !figure.IsAlive
+            && figure.Undertakings.Exists(item => item.State == UndertakingState.Active));
+        Assert.DoesNotContain(world.Figures, figure =>
+            figure.Undertakings.Count(item =>
+                item.State == UndertakingState.Active
+                && item.Kind != UndertakingKind.Conspiracy) > 1);
+
+        foreach (FigureUndertaking active in plots.Where(plot =>
+                     plot.State == UndertakingState.Active))
+        {
+            Figure target = world.Figures[active.TargetId];
+            Assert.True(target.IsAlive);
+            Assert.Equal(
+                target.Id,
+                world.Civilizations[target.CivilizationId].CurrentRulerId);
+        }
+    }
+
+    [Fact]
+    public void ExportCarriesTheCausalSummaryUsedByTheLifePage()
+    {
+        HistoryRun run = HistoryRun.Execute(TestWorlds.Standard(42));
+        WorldExport export = run.ToExport();
+        ExportFigure figure = export.Figures.First(item =>
+            item.Bonds.Count > 0
+            && item.Memories.Count > 0
+            && item.Undertakings.Count > 0);
+
+        Assert.Equal(WorldExport.CurrentSchemaVersion, export.SchemaVersion);
+        Assert.NotEmpty(figure.Bonds);
+        Assert.NotEmpty(figure.Memories);
+        Assert.NotEmpty(figure.Undertakings);
+        Assert.All(figure.Memories, memory => Assert.InRange(memory.Intensity, 0.0, 1.0));
+        Assert.Equal(
+            figure.Journeys.Count,
+            figure.Undertakings.Sum(undertaking =>
+                undertaking.Steps.Count(step =>
+                    step.SourceKind is EventKind.JourneyMade or EventKind.JourneyWaylaid)));
+
+        for (int i = 0; i < export.Figures.Count; i++)
+        {
+            Figure source = run.World.Figures[i];
+            ExportFigure carried = export.Figures[i];
+            int at = source.DeathYear ?? run.World.EndYear;
+
+            Assert.Equal(source.Memories.Count, carried.Memories.Count);
+            for (int j = 0; j < source.Memories.Count; j++)
+            {
+                Assert.Equal(
+                    LifeStories.EffectiveIntensity(source.Memories[j], at),
+                    carried.Memories[j].Intensity,
+                    12);
+            }
+        }
     }
 }

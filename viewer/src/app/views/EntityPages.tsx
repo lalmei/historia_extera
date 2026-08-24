@@ -30,6 +30,7 @@ import {
 } from '../store';
 import {
   ARTIFACT_LABELS,
+  BOND_LABELS,
   CAMPAIGN_ROLE_LABELS,
   JOURNEY_KIND_LABELS,
   JOURNEY_OUTCOME_LABELS,
@@ -46,6 +47,7 @@ import {
   HOLY_SITE_DEDICATION_LABELS,
   HOLY_SITE_LABELS,
   KIND_LABELS,
+  MEMORY_LABELS,
   OCCUPATION_LABELS,
   ORIGIN_LABELS,
   OUTCOME_LABELS,
@@ -62,22 +64,25 @@ import {
   type Artifact,
   type Battle,
   type Campaign,
-  type Journey,
   type Civilization,
   type Culture,
   type Disposition,
   type Dynasty,
   type EntityId,
   type Figure,
+  type FigureBond,
   type Fortunes,
   type FaithCharacter,
   type HolySite,
   type HolySiteDedicationKind,
+  type Journey,
   type Region,
   type Relation,
   type Religion,
   type Settlement,
+  type SalientMemory,
   type TradeRoute,
+  type Undertaking,
   type Values,
   type War,
 } from '../types';
@@ -656,6 +661,26 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
     figure.spouseIds.length > 0 ||
     figure.childIds.length > 0;
   const claimed = treasuresOwnedBy(world, figure.id);
+  const currentUndertaking = (figure.undertakings ?? [])
+    .filter((undertaking) => undertaking.state === 'Active')
+    .sort((a, b) =>
+      a.kind === 'Conspiracy' && b.kind !== 'Conspiracy'
+        ? -1
+        : b.kind === 'Conspiracy' && a.kind !== 'Conspiracy'
+          ? 1
+          : a.startYear - b.startYear,
+    )[0];
+  const importantRelationships = [...(figure.bonds ?? [])]
+    .sort((a, b) => relationshipImportance(b) - relationshipImportance(a))
+    .slice(0, 6);
+  const formativeMemories = [...(figure.memories ?? [])]
+    .sort((a, b) => b.intensity - a.intensity || b.lastReinforcedYear - a.lastReinforcedYear)
+    .slice(0, 6);
+  const hasLifeSummary =
+    currentUndertaking !== undefined ||
+    importantRelationships.length > 0 ||
+    formativeMemories.length > 0 ||
+    (figure.injuries?.length ?? 0) > 0;
 
   return (
     <div className="space-y-5">
@@ -765,6 +790,83 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
         </p>
       </Panel>
 
+      {hasLifeSummary && (
+        <Panel title="Life at a glance">
+          <div className="space-y-5">
+            {currentUndertaking && (
+              <LifeUndertaking world={world} undertaking={currentUndertaking} />
+            )}
+
+            {importantRelationships.length > 0 && (
+              <section>
+                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
+                  Important relationships
+                </h3>
+                <ul className="space-y-2 text-sm">
+                  {importantRelationships.map((bond) => (
+                    <li key={bond.otherId} className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                      <EntityLink world={world} id={bond.otherId} />
+                      <span className="flex flex-wrap gap-1">
+                        {bond.kinds.map((kind) => (
+                          <Badge
+                            key={kind}
+                            tone={kind === 'Rival' || kind === 'Enemy' ? 'muted' : 'neutral'}
+                          >
+                            {BOND_LABELS[kind] ?? kind}
+                          </Badge>
+                        ))}
+                      </span>
+                      <span className="text-xs text-[var(--ink-faint)]">
+                        {relationshipReading(bond)} · since {bond.sinceYear}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {formativeMemories.length > 0 && (
+              <section>
+                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
+                  Formative memories
+                </h3>
+                <FeelingBadges feelings={figure.feelings} />
+                <ul className="mt-2 space-y-1.5 text-sm">
+                  {formativeMemories.map((memory, index) => (
+                    <MemoryLine
+                      key={`${memory.kind}:${memory.year}:${memory.aboutId ?? index}`}
+                      world={world}
+                      memory={memory}
+                    />
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {(figure.injuries?.length ?? 0) > 0 && (
+              <section>
+                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
+                  Wounds carried
+                </h3>
+                <ul className="space-y-1.5 text-sm">
+                  {figure.injuries.map((injury, index) => (
+                    <li key={`${injury.battleId}:${injury.year}:${index}`}>
+                      <span className="text-[var(--ink-faint)]">{injury.year} · </span>
+                      {injury.detail} at <EntityLink world={world} id={injury.battleId} />
+                      <span className="ml-2 text-xs text-[var(--ink-faint)]">
+                        {injury.permanent
+                          ? 'permanent'
+                          : `recovered by ${injury.recoveryYear}`}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+          </div>
+        </Panel>
+      )}
+
       {hasFamily && (
         <Panel title="Family">
           <FamilyTree world={world} figure={figure} />
@@ -839,6 +941,128 @@ function JourneyList({ world, journeys }: { world: World; journeys: Journey[] })
       ))}
     </ul>
   );
+}
+
+function LifeUndertaking({ world, undertaking }: { world: World; undertaking: Undertaking }) {
+  const last = undertaking.steps[undertaking.steps.length - 1];
+  return (
+    <section>
+      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
+        Current undertaking
+      </h3>
+      <p className="text-sm font-medium">{undertaking.objective}</p>
+      <p className="mt-1 text-xs text-[var(--ink-faint)]">
+        Begun {undertaking.startYear} · {undertaking.progress} of {undertaking.requiredProgress}{' '}
+        steps complete
+        {last ? ` · last: ${last.outcome.toLowerCase()} in ${last.year}` : ''}
+      </p>
+      {undertaking.targetId && (
+        <p className="mt-1 text-sm">
+          Concerns <EntityLink world={world} id={undertaking.targetId} />
+        </p>
+      )}
+      {undertaking.participantIds.length > 0 && (
+        <p className="mt-1 text-sm">
+          With{' '}
+          {undertaking.participantIds.map((id, index) => (
+            <span key={id}>
+              {index > 0 ? ', ' : ''}
+              <EntityLink world={world} id={id} />
+            </span>
+          ))}
+        </p>
+      )}
+      {undertaking.kind === 'Conspiracy' && (
+        <p className="mt-1 text-xs text-[var(--ink-faint)]">
+          {undertaking.access >= 0.65
+            ? 'Close access to the target'
+            : undertaking.access >= 0.35
+              ? 'Some access to the target'
+              : 'Little access to the target'}
+          {' · '}
+          {undertaking.secrecy >= 0.7
+            ? 'closely guarded'
+            : undertaking.secrecy >= 0.4
+              ? 'rumours spreading'
+              : 'near exposure'}
+        </p>
+      )}
+    </section>
+  );
+}
+
+function FeelingBadges({ feelings }: { feelings: Figure['feelings'] }) {
+  const visible: [string, number][] = [
+    ['Grieving', feelings?.grief ?? 0],
+    ['Afraid', feelings?.fear ?? 0],
+    ['Angry', feelings?.anger ?? 0],
+    ['Proud', feelings?.pride ?? 0],
+    ['Loyal', feelings?.loyalty ?? 0],
+  ].filter(([, value]) => value >= 0.18) as [string, number][];
+
+  if (visible.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1">
+      {visible.map(([label, value]) => (
+        <Badge key={label} tone={value >= 0.65 ? 'accent' : 'muted'}>
+          {label}
+        </Badge>
+      ))}
+    </div>
+  );
+}
+
+function MemoryLine({ world, memory }: { world: World; memory: SalientMemory }) {
+  return (
+    <li>
+      <span className="text-[var(--ink-faint)]">{memory.year} · </span>
+      {MEMORY_LABELS[memory.kind] ?? memory.kind}
+      {memory.aboutId && (
+        <>
+          {' · '}
+          <EntityLink world={world} id={memory.aboutId} />
+        </>
+      )}
+      {memory.locationId && memory.locationId !== memory.aboutId && (
+        <span className="text-[var(--ink-faint)]">
+          {' at '}
+          <EntityLink world={world} id={memory.locationId} />
+        </span>
+      )}
+      <span className="ml-2 text-xs text-[var(--ink-faint)]">
+        {memory.intensity >= 0.7 ? 'vivid' : memory.intensity >= 0.35 ? 'enduring' : 'fading'}
+      </span>
+    </li>
+  );
+}
+
+function relationshipImportance(bond: FigureBond): number {
+  const roleWeight = bond.kinds.some((kind) =>
+    ['Spouse', 'Parent', 'Child', 'Mentor', 'Patron', 'Rival', 'Enemy', 'CoConspirator'].includes(
+      kind,
+    ),
+  )
+    ? 0.8
+    : 0.2;
+  return (
+    roleWeight +
+    Math.abs(bond.affection) +
+    Math.abs(bond.trust) +
+    bond.obligation +
+    bond.fear +
+    bond.grievance
+  );
+}
+
+function relationshipReading(bond: FigureBond): string {
+  if (bond.grievance >= 0.65) return 'a bitter grievance';
+  if (bond.fear >= 0.55) return 'feared';
+  if (bond.trust <= -0.45) return 'deeply distrusted';
+  if (bond.obligation >= 0.55) return 'bound by duty';
+  if (bond.trust >= 0.55) return 'deeply trusted';
+  if (bond.affection >= 0.45) return 'held dear';
+  if (bond.affection <= -0.35) return 'disliked';
+  return bond.lastCause.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
 }
 
 /**

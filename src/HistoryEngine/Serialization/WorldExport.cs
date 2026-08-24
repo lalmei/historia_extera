@@ -768,6 +768,11 @@ public sealed record ExportFigure(
     IReadOnlyList<ExportTitle> Titles,
     IReadOnlyList<ExportCampaign> Campaigns,
     IReadOnlyList<ExportJourney> Journeys,
+    IReadOnlyList<ExportBond> Bonds,
+    IReadOnlyList<ExportMemory> Memories,
+    ExportFeelings Feelings,
+    IReadOnlyList<ExportInjury> Injuries,
+    IReadOnlyList<ExportUndertaking> Undertakings,
     EntityId? MotherId,
     EntityId? FatherId,
     IReadOnlyList<EntityId> ChildIds,
@@ -818,7 +823,71 @@ public sealed record ExportJourney(
     EntityId FromSettlementId,
     EntityId ToSettlementId,
     EntityId? ViaId,
-    JourneyOutcome Outcome);
+    JourneyOutcome Outcome,
+    EntityId? ReturnSettlementId);
+
+/// <summary>One directed relationship, with every role it accumulated.</summary>
+public sealed record ExportBond(
+    EntityId OtherId,
+    IReadOnlyList<BondKind> Kinds,
+    int SinceYear,
+    int LastChangedYear,
+    BondCause LastCause,
+    double Affection,
+    double Trust,
+    double Obligation,
+    double Fear,
+    double Grievance);
+
+/// <summary>One of the bounded experiences still formative at the end of the export.</summary>
+public sealed record ExportMemory(
+    MemoryKind Kind,
+    int Year,
+    int LastReinforcedYear,
+    EventKind SourceKind,
+    EntityId? AboutId,
+    EntityId? LocationId,
+    double Intensity);
+
+public sealed record ExportFeelings(
+    double Grief,
+    double Fear,
+    double Anger,
+    double Pride,
+    double Loyalty);
+
+public sealed record ExportInjury(
+    EntityId BattleId,
+    int Year,
+    InjurySeverity Severity,
+    int RecoveryYear,
+    bool Permanent,
+    string Detail);
+
+public sealed record ExportUndertaking(
+    int Id,
+    UndertakingKind Kind,
+    UndertakingState State,
+    int StartYear,
+    int? EndYear,
+    string Objective,
+    EntityId? TargetId,
+    EntityId? DestinationId,
+    EntityId? ViaId,
+    int Progress,
+    int RequiredProgress,
+    MemoryKind Motive,
+    IReadOnlyList<EntityId> ParticipantIds,
+    double Secrecy,
+    double Access,
+    IReadOnlyList<ExportUndertakingStep> Steps);
+
+public sealed record ExportUndertakingStep(
+    int Year,
+    EventKind SourceKind,
+    EntityId? PlaceId,
+    EntityId? SubjectId,
+    string Outcome);
 
 /// <summary>
 /// One person's own inclinations, on the same dials their culture has.

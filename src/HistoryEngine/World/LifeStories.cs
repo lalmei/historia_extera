@@ -418,7 +418,7 @@ public static class LifeStories
             location: BattlePlace(battle),
             extra: new[] { battle.WarId },
             data: Chronicle.Data(
-                ("severity", severity.ToString().ToLowerInvariant()),
+                ("severity", SeverityAdverb(severity)),
                 ("injury", detail),
                 ("permanent", permanent ? "true" : "false")));
     }
@@ -446,6 +446,13 @@ public static class LifeStories
 
         return permanent ? detail + " that never fully healed" : detail;
     }
+
+    private static string SeverityAdverb(InjurySeverity severity) => severity switch
+    {
+        InjurySeverity.Minor => "lightly",
+        InjurySeverity.Serious => "seriously",
+        _ => "grievously",
+    };
 
     private static FigureBond EnsureBond(Figure owner, Figure other, int year)
     {

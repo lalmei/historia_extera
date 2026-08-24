@@ -855,6 +855,11 @@ public static class WorldExporter
                 Titles: titles,
                 Campaigns: BuildCampaigns(figure),
                 Journeys: BuildJourneys(figure),
+                Bonds: BuildBonds(figure),
+                Memories: BuildMemories(figure, figure.DeathYear ?? world.EndYear),
+                Feelings: BuildFeelings(figure, figure.DeathYear ?? world.EndYear),
+                Injuries: BuildInjuries(figure),
+                Undertakings: BuildUndertakings(figure),
                 MotherId: OrNull(figure.MotherId),
                 FatherId: OrNull(figure.FatherId),
                 ChildIds: figure.ChildIds.ToArray(),
@@ -892,7 +897,119 @@ public static class WorldExporter
                 FromSettlementId: journey.FromSettlementId,
                 ToSettlementId: journey.ToSettlementId,
                 ViaId: OrNull(journey.ViaId),
-                Outcome: journey.Outcome));
+                Outcome: journey.Outcome,
+                ReturnSettlementId: OrNull(journey.ReturnSettlementId)));
+        }
+
+        return list;
+    }
+
+    private static List<ExportBond> BuildBonds(Figure figure)
+    {
+        var list = new List<ExportBond>(figure.Bonds.Count);
+        foreach (FigureBond bond in figure.Bonds)
+        {
+            var kinds = new List<BondKind>();
+            foreach (BondKind kind in Enum.GetValues<BondKind>())
+            {
+                if (kind != BondKind.None && bond.Kinds.HasFlag(kind)) kinds.Add(kind);
+            }
+
+            list.Add(new ExportBond(
+                bond.OtherId,
+                kinds,
+                bond.SinceYear,
+                bond.LastChangedYear,
+                bond.LastCause,
+                bond.Affection,
+                bond.Trust,
+                bond.Obligation,
+                bond.Fear,
+                bond.Grievance));
+        }
+
+        return list;
+    }
+
+    private static List<ExportMemory> BuildMemories(Figure figure, int year)
+    {
+        var list = new List<ExportMemory>(figure.Memories.Count);
+        foreach (SalientMemory memory in figure.Memories)
+        {
+            list.Add(new ExportMemory(
+                memory.Kind,
+                memory.Year,
+                memory.LastReinforcedYear,
+                memory.SourceKind,
+                OrNull(memory.AboutId),
+                OrNull(memory.LocationId),
+                LifeStories.EffectiveIntensity(memory, year)));
+        }
+
+        return list;
+    }
+
+    private static ExportFeelings BuildFeelings(Figure figure, int year)
+    {
+        FeelingState feelings = LifeStories.Feelings(figure, year);
+        return new ExportFeelings(
+            feelings.Grief,
+            feelings.Fear,
+            feelings.Anger,
+            feelings.Pride,
+            feelings.Loyalty);
+    }
+
+    private static List<ExportInjury> BuildInjuries(Figure figure)
+    {
+        var list = new List<ExportInjury>(figure.Injuries.Count);
+        foreach (FigureInjury injury in figure.Injuries)
+        {
+            list.Add(new ExportInjury(
+                injury.BattleId,
+                injury.Year,
+                injury.Severity,
+                injury.RecoveryYear,
+                injury.Permanent,
+                injury.Detail));
+        }
+
+        return list;
+    }
+
+    private static List<ExportUndertaking> BuildUndertakings(Figure figure)
+    {
+        var list = new List<ExportUndertaking>(figure.Undertakings.Count);
+        foreach (FigureUndertaking undertaking in figure.Undertakings)
+        {
+            var steps = new List<ExportUndertakingStep>(undertaking.Steps.Count);
+            foreach (UndertakingStep step in undertaking.Steps)
+            {
+                steps.Add(new ExportUndertakingStep(
+                    step.Year,
+                    step.SourceKind,
+                    OrNull(step.PlaceId),
+                    OrNull(step.SubjectId),
+                    step.Outcome));
+            }
+
+            list.Add(new ExportUndertaking(
+                undertaking.Id,
+                undertaking.Kind,
+                undertaking.State,
+                undertaking.StartYear,
+                undertaking.EndYear,
+                undertaking.Objective,
+                OrNull(undertaking.TargetId),
+                OrNull(undertaking.DestinationId),
+                OrNull(undertaking.ViaId),
+                undertaking.Progress,
+                undertaking.RequiredProgress,
+                undertaking.Motive,
+                undertaking.ParticipantIds.ToArray(),
+                undertaking.Secrecy,
+                undertaking.Access,
+                steps));
         }
 
         return list;
