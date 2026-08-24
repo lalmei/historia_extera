@@ -169,6 +169,8 @@ public sealed class Figure
         Offices = new List<OfficeHolding>();
         Campaigns = new List<CampaignMemory>();
         Journeys = new List<Journey>();
+        Bonds = new List<FigureBond>();
+        Memories = new List<SalientMemory>();
         ChildIds = new List<EntityId>();
         SpouseIds = new List<EntityId>();
     }
@@ -303,6 +305,12 @@ public sealed class Figure
 
     /// <summary>Trips they made and came back from, in the order they were recorded.</summary>
     public List<Journey> Journeys { get; }
+
+    /// <summary>Persistent, directed relationships to other people, in other-id order.</summary>
+    public List<FigureBond> Bonds { get; }
+
+    /// <summary>The bounded set of experiences this figure still carries.</summary>
+    public List<SalientMemory> Memories { get; }
 
     public EntityId MotherId { get; set; } = EntityId.None;
 

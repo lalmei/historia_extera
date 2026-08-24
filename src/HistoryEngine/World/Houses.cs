@@ -371,6 +371,10 @@ public static class Houses
         IReadOnlyList<EntityId>? extra = null,
         DetMap<string, string>? data = null)
     {
+        // Read while the marriage still exists. Death clears the live spouse link below, but the
+        // relationships and memories it leaves behind are permanent parts of the survivors.
+        List<Figure> bereaved = Succession.ImmediateFamily(world, figure);
+
         figure.DeathYear = year;
         figure.DeathCause = cause;
         figure.DeathDetail = detail;
@@ -438,6 +442,8 @@ public static class Houses
             significance: inPower || IsExceptional(cause)
                 ? Significance.Notable
                 : Significance.Routine);
+
+        LifeStories.Bereave(world, figure, bereaved, year, cause);
 
         CloseHouseIfLast(world, figure, year);
     }
