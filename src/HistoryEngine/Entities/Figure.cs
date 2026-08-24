@@ -171,6 +171,8 @@ public sealed class Figure
         Journeys = new List<Journey>();
         Bonds = new List<FigureBond>();
         Memories = new List<SalientMemory>();
+        Injuries = new List<FigureInjury>();
+        Undertakings = new List<FigureUndertaking>();
         ChildIds = new List<EntityId>();
         SpouseIds = new List<EntityId>();
     }
@@ -311,6 +313,12 @@ public sealed class Figure
 
     /// <summary>The bounded set of experiences this figure still carries.</summary>
     public List<SalientMemory> Memories { get; }
+
+    /// <summary>Battle wounds, including their recovery and any permanent consequence.</summary>
+    public List<FigureInjury> Injuries { get; }
+
+    /// <summary>Goals whose individual journeys, setbacks and attempts form a larger arc.</summary>
+    public List<FigureUndertaking> Undertakings { get; }
 
     public EntityId MotherId { get; set; } = EntityId.None;
 

@@ -160,7 +160,7 @@ public static class Campaigns
             if (sideId.IsNone) continue;
 
             IRng fate = levy.Fork("figure", figure.Id.ToDiscriminator());
-            if (!fate.Chance(SoldierTakesField)) continue;
+            if (!fate.Chance(SoldierTakesField * LifeStories.Fitness(figure, year))) continue;
 
             Remember(figure, war.Id, battle.Id, sideId, year, CampaignRole.Fought);
             Witness(battle, figure.Id);

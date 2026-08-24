@@ -146,3 +146,114 @@ public readonly record struct FeelingState(
     double Anger,
     double Pride,
     double Loyalty);
+
+/// <summary>How badly a named person was hurt in an engagement.</summary>
+public enum InjurySeverity
+{
+    Minor = 0,
+    Serious = 1,
+    Grievous = 2,
+}
+
+/// <summary>A physical consequence that outlasts the battle that caused it.</summary>
+public sealed record FigureInjury(
+    EntityId BattleId,
+    int Year,
+    InjurySeverity Severity,
+    int RecoveryYear,
+    bool Permanent,
+    string Detail)
+{
+    public bool IsRecovering(int year) => year < RecoveryYear;
+}
+
+/// <summary>A goal large enough to give several otherwise isolated events a shared arc.</summary>
+public enum UndertakingKind
+{
+    TradeVenture = 0,
+    Pilgrimage = 1,
+    MissionaryCircuit = 2,
+    Embassy = 3,
+    Conspiracy = 4,
+}
+
+public enum UndertakingState
+{
+    Active = 0,
+    Succeeded = 1,
+    Failed = 2,
+    Abandoned = 3,
+}
+
+/// <summary>One event-sized step inside a larger undertaking.</summary>
+public sealed record UndertakingStep(
+    int Year,
+    EventKind SourceKind,
+    EntityId PlaceId,
+    EntityId SubjectId,
+    string Outcome);
+
+/// <summary>A persistent personal objective and the causal steps taken toward it.</summary>
+public sealed class FigureUndertaking
+{
+    public FigureUndertaking(
+        int id,
+        UndertakingKind kind,
+        int startYear,
+        string objective,
+        EntityId targetId,
+        EntityId destinationId,
+        EntityId viaId,
+        int requiredProgress,
+        MemoryKind motive)
+    {
+        Id = id;
+        Kind = kind;
+        StartYear = startYear;
+        Objective = objective;
+        TargetId = targetId;
+        DestinationId = destinationId;
+        ViaId = viaId;
+        RequiredProgress = requiredProgress;
+        Motive = motive;
+        ParticipantIds = new List<EntityId>();
+        Steps = new List<UndertakingStep>();
+    }
+
+    /// <summary>Stable within the owning figure.</summary>
+    public int Id { get; }
+
+    public UndertakingKind Kind { get; }
+
+    public UndertakingState State { get; set; } = UndertakingState.Active;
+
+    public int StartYear { get; }
+
+    public int? EndYear { get; set; }
+
+    public string Objective { get; }
+
+    /// <summary>The person, realm, route or sacred object the goal concerns.</summary>
+    public EntityId TargetId { get; }
+
+    public EntityId DestinationId { get; set; }
+
+    public EntityId ViaId { get; set; }
+
+    public int Progress { get; set; }
+
+    public int RequiredProgress { get; }
+
+    public MemoryKind Motive { get; }
+
+    /// <summary>Other people committed to the goal; the owner is implicit.</summary>
+    public List<EntityId> ParticipantIds { get; }
+
+    public List<UndertakingStep> Steps { get; }
+
+    /// <summary>Used by conspiracies; zero on public undertakings.</summary>
+    public double Secrecy { get; set; }
+
+    /// <summary>Used by conspiracies; how close the undertaking is to its target.</summary>
+    public double Access { get; set; }
+}

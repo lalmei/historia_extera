@@ -78,6 +78,16 @@ public enum EventKind
     /// </remarks>
     JourneyWaylaid = 324,
 
+    /// <summary>A named participant carried a wound away from an engagement.</summary>
+    FigureWounded = 325,
+
+    UndertakingStarted = 326,
+    UndertakingCompleted = 327,
+    UndertakingFailed = 328,
+
+    ConspiratorJoined = 329,
+    ConspiracyExposed = 330,
+
     // ---- Territory (400) ----
     // Claims are written so ownership can be replayed year by year; they are marked Routine
     // so the timeline is not a run of "extended its reach". Cessions and releases stay on

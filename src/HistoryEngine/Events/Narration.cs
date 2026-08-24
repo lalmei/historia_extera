@@ -121,6 +121,18 @@ public static class Narration
             + "[ the {extra:hol}][ the {extra:rel}][ {extra:civ}].");
         Set(EventKind.JourneyWaylaid,
             "{subject} came to grief[ on the way to {location}][, {data:cause}].");
+        Set(EventKind.FigureWounded,
+            "{subject} was {data:severity} wounded at the {object}[, {data:injury}].");
+        Set(EventKind.UndertakingStarted,
+            "{subject} undertook {data:objective}[, bound for {location}].");
+        Set(EventKind.UndertakingCompleted,
+            "{subject} completed {data:objective}[ at {location}][, after {data:years} years].");
+        Set(EventKind.UndertakingFailed,
+            "{subject}'s undertaking, {data:objective}, failed[ at {location}][, {data:cause}].");
+        Set(EventKind.ConspiratorJoined,
+            "{subject} drew {object} into a conspiracy against {extra:fig}.");
+        Set(EventKind.ConspiracyExposed,
+            "The conspiracy of {subject} against {object} was exposed[ at {location}].");
 
         Set(EventKind.DynastyFounded, "The {subject} rose[ under {object}][ in {location}].");
         Set(EventKind.DynastyEnded, "The {subject} died out[ after {data:years}].");
@@ -276,6 +288,21 @@ public static class Narration
             + "[ the {extra:hol}][ the {extra:rel}][ {extra:civ}].");
         SetSelf(EventKind.JourneyWaylaid,
             "Came to grief[ on the way to {location}][, {data:cause}].");
+        SetSelf(EventKind.FigureWounded,
+            "Was {data:severity} wounded at the {object}[, {data:injury}].");
+        SetSelf(EventKind.UndertakingStarted,
+            "Undertook {data:objective}[, bound for {location}].");
+        SetSelf(EventKind.UndertakingCompleted,
+            "Completed {data:objective}[ at {location}][, after {data:years} years].");
+        SetSelf(EventKind.UndertakingFailed,
+            "The undertaking to {data:objective} failed[ at {location}][, {data:cause}].");
+        SetSelf(EventKind.ConspiratorJoined,
+            "[{self:subject}Drew {other} into a conspiracy against {extra:fig}.]"
+            + "[{self:object}Joined {other} in a conspiracy against {extra:fig}.]");
+        SetSelf(EventKind.ConspiracyExposed,
+            "[{self:subject}The conspiracy against {other} was exposed.]"
+            + "[{self:object}Discovered the conspiracy of {other}.]"
+            + "[{self:extra}Was implicated in {subject}'s conspiracy against {object}.]");
         SetSelf(EventKind.DynastyFounded,
             "[{self:object}Raised the {subject}][{self:object} in {location}].");
         SetSelf(EventKind.DynastyAscended,

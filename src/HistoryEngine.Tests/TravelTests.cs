@@ -114,7 +114,7 @@ public sealed class TravelTests
     }
 
     /// <summary>
-    /// A mishap is still not a move: whoever survived one is at home at the end of it.
+    /// A mishap is still not a move: whoever survived one returned to the home they left.
     /// </summary>
     [Fact]
     public void BeingRobbedDoesNotRelocateAnyone()
@@ -127,7 +127,8 @@ public sealed class TravelTests
             {
                 if (journey.Outcome != JourneyOutcome.Waylaid) continue;
 
-                Assert.NotEqual(journey.ToSettlementId, figure.ResidenceSettlementId);
+                Assert.Equal(journey.FromSettlementId, journey.ReturnSettlementId);
+                Assert.NotEqual(journey.ToSettlementId, journey.ReturnSettlementId);
             }
         }
     }

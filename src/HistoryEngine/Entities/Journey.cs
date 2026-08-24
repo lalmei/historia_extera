@@ -62,6 +62,7 @@ public sealed class Journey
         FromSettlementId = fromSettlementId;
         ToSettlementId = toSettlementId;
         ViaId = viaId;
+        ReturnSettlementId = fromSettlementId;
     }
 
     public JourneyKind Kind { get; }
@@ -76,6 +77,13 @@ public sealed class Journey
     /// The route, holy site or host realm that made the journey make sense, or none.
     /// </summary>
     public EntityId ViaId { get; }
+
+    /// <summary>Where the traveller came back to, or none when they never came home.</summary>
+    /// <remarks>
+    /// Kept explicitly because a figure may move years later. Comparing an old journey with their
+    /// final residence confuses that later move with what the journey itself did.
+    /// </remarks>
+    public EntityId ReturnSettlementId { get; set; }
 
     /// <summary>
     /// How it ended. Set once, in the year of the journey, and never revised.

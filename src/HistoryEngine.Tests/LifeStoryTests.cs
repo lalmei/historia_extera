@@ -95,4 +95,70 @@ public sealed class LifeStoryTests
         Assert.Contains(figure.Memories, memory => memory.AboutId == EntityId.Figure(1));
         Assert.Contains(figure.Memories, memory => memory.AboutId == EntityId.Figure(99));
     }
+
+    [Fact]
+    public void BattlesLeaveWoundsMemoriesAndRelationshipsThatOutlastThem()
+    {
+        WorldState world = HistoryRun.Execute(TestWorlds.Standard(42)).World;
+        var wounded = world.Figures.Where(figure => figure.Injuries.Count > 0).ToList();
+
+        Assert.NotEmpty(wounded);
+        Assert.All(wounded, figure =>
+        {
+            Assert.All(figure.Injuries, injury =>
+            {
+                Assert.True(world.Battles.Contains(injury.BattleId));
+                Assert.True(injury.RecoveryYear > injury.Year);
+            });
+        });
+
+        Assert.Equal(
+            wounded.Sum(figure => figure.Injuries.Count),
+            world.Chronicle.Events.Count(entry => entry.Kind == EventKind.FigureWounded));
+
+        Assert.Contains(world.Figures, figure =>
+            figure.Bonds.Exists(bond => bond.Kinds.HasFlag(BondKind.Companion)));
+        Assert.Contains(world.Figures, figure =>
+            figure.Bonds.Exists(bond => bond.Kinds.HasFlag(BondKind.Rival)));
+    }
+
+    [Fact]
+    public void EveryJourneyIsAStepInAnUndertakingWithACausalEnding()
+    {
+        WorldState world = HistoryRun.Execute(TestWorlds.Standard(42)).World;
+        int journeys = world.Figures.Sum(figure => figure.Journeys.Count);
+        int journeySteps = world.Figures.Sum(figure =>
+            figure.Undertakings.Sum(undertaking =>
+                undertaking.Steps.Count(step =>
+                    step.SourceKind is EventKind.JourneyMade or EventKind.JourneyWaylaid)));
+
+        Assert.True(journeys > 40);
+        Assert.Equal(journeys, journeySteps);
+        Assert.Contains(world.Figures, figure =>
+            figure.Undertakings.Exists(undertaking => undertaking.Steps.Count >= 2));
+        Assert.Contains(world.Figures, figure =>
+            figure.Undertakings.Exists(undertaking =>
+                undertaking.State == UndertakingState.Succeeded));
+        Assert.Contains(world.Figures, figure =>
+            figure.Undertakings.Exists(undertaking =>
+                undertaking.Motive == MemoryKind.Bereavement));
+    }
+
+    [Fact]
+    public void ConspiraciesUseParticipantsAccessAndMultipleStepsBeforeResolution()
+    {
+        WorldState world = HistoryRun.Execute(TestWorlds.Standard(42)).World;
+        List<FigureUndertaking> plots = world.Figures
+            .SelectMany(figure => figure.Undertakings)
+            .Where(undertaking => undertaking.Kind == UndertakingKind.Conspiracy)
+            .ToList();
+
+        Assert.NotEmpty(plots);
+        Assert.Contains(plots, plot => plot.Steps.Count >= 2);
+        Assert.All(plots, plot => Assert.InRange(plot.Access, 0.0, 1.0));
+        Assert.All(plots, plot => Assert.InRange(plot.Secrecy, 0.0, 1.0));
+        Assert.Contains(plots, plot => plot.State != UndertakingState.Active);
+        Assert.Contains(world.Figures, figure =>
+            figure.Bonds.Exists(bond => bond.Kinds.HasFlag(BondKind.CoConspirator)));
+    }
 }
