@@ -376,6 +376,7 @@ public static class Houses
         List<Figure> bereaved = Succession.ImmediateFamily(world, figure);
         Undertakings.EndAtDeath(world, figure, year);
         Disputes.EndAtDeath(world, figure, year);
+        Conspiracies.EndAtDeath(world, figure, year);
 
         figure.DeathYear = year;
         figure.DeathCause = cause;

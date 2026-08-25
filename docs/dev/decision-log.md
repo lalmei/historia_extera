@@ -3998,6 +3998,91 @@ the "astride the pass" line for a post that holds one — but letting `Pass` win
 character mean "sent for the march, unless the march had a pass in it", after which no reader and
 no test could count the posts.
 
+### Conspiracies: a plot people run, not a roll a court passes
+
+`FigureIncidentSystem` already spoke the language of plots — a claimant, a disgraced officer, a
+named suspect, a blood debt — but no plot existed anywhere in world state. An assassination was one
+annual probability check that went from motive to corpse inside a single tick, and #130's
+conspiracy was an undertaking with two extra floats bolted to it. Nothing between wanting a ruler
+dead and a ruler being dead was representable: no recruitment, no access, no failed attempt, no
+discovery, no defection, and no decade of a court knowing something was wrong.
+
+**A plot is now a record with an objective and a cause.** `FigurePlot` carries a leader, a target,
+the realm, an objective (the ruler's death, or the ruler unseated), the grounded cause it began
+from, the members and what recruited each of them, secrecy, suspicion, access, phase, progress, and
+how it ended. Four causes can open one — a succession lost, an office taken away, a murdered
+relative, and a quarrel rank forbade its holder to answer — and nothing else can. A realm passing an
+annual chance is not a cause, which is the entire difference from what this replaced.
+
+**The fourth cause is where #132 empties into this system.** `Disputes` says that a subject cannot
+demand satisfaction of their own reigning ruler, and that the anger goes where such things went
+historically. It now actually goes there: an open or lapsed quarrel with the person on the throne is
+a plot's most specific possible origin, and it is asked for first.
+
+**Recruitment is tested, or nobody joins.** An obligation to the leader, trust in the leader, the
+recruit's own grievance against the target, or a claim of their own — each is read off a bond or the
+claimant list before any roll is made, and the tie that did it is stored on the member. There is
+deliberately no fallback branch. A plot of one is a legitimate plot and a better history than three
+courtiers picked because three were wanted. Loyalty to the target vetoes every reason to join, which
+is what keeps plots small. The one member who need not believe in anything is the household member
+whose access is used without their knowing what it was for: recorded in the retrospective truth,
+absent from their own page, and carrying no memory of a thing they were never told.
+
+**The chronicle gets what got out, and nothing else.** A plot writes no event while it is secret. An
+abandoned one — the commonest ending — leaves no trace in the timeline at all, so a reader of that
+year sees exactly what a contemporary saw, and `PublicYear` plus a per-act `Known` flag is how the
+export says which facts only a later reader has. This is the first place the engine deliberately
+knows more than its own chronicle, and the split has to live in the data rather than in a viewer
+convention, or the first consumer to forget it narrates a secret in the year it was kept.
+
+**Endings reuse the paths that already exist.** A murder goes through `Houses.Die` with the named
+suspect, the family's `KinMurderedYear`, `RealmFortunes.MurderAtCourt` and the bereavement quarrels
+it opens; the accusation it leaves is what makes the incident system's scaffold reachable. A
+deposition vacates the throne exactly as a rising does, records `RulerDeposed`, disgraces rather
+than kills the deposed ruler — which puts them on the same road as any other fallen office-holder —
+and leaves the leader on the throne only where they could lawfully have held it. Where they could
+not, the seat is empty and the ordinary succession decides, which is what makes a plot a political
+act rather than a private promotion.
+
+**Two objectives, not seven.** Assassination and deposition are enough to prove the lifecycle
+carries an objective rather than assuming one, and they end the world differently — a corpse and a
+succession, or a living man with a grievance and no office. Poisoning stays the manner of a murder
+rather than a third objective, because it changes the death detail and nothing else.
+
+**Forks are keyed on the pair.** Every decision a plot makes forks from leader, target, year and
+question, so adding a courtier elsewhere in the realm cannot reshuffle a plot already running —
+the same rule `Disputes` follows and for the same reason.
+
+**Measured across seeds 11, 16, 22, 42 and 43.** Forty-six plots over five 300-year worlds, four
+to seventeen per world, the longest running 10 years, with 52 people recruited into them. Every
+ending is represented: 21 abandoned, 7 exposed by the court, 7 betrayed from within, 4 attempted
+and missed, 7 successful — 4 murders and 3 depositions. Half never became public at all. Three of
+the four causes appear at this length; `KinMurdered` needs a murderer who later reigns, which is
+reachable and rare. Plots write 3 to 6 lines into timelines of 10,000 to 15,000 events, because
+almost everything they do is secret. The panel test holds plots under one per forty adults, which
+is the bound this system most needs — a court that is nothing but conspirators is not a livelier
+world.
+
+**A throne can be vacated after the annual pass has run, and in the last year it never runs again.**
+A plot whose target abdicates, stands down at the end of a term, is unseated by a rising, or loses
+the realm out from under them has to close where the damage happens, not next spring — the same
+shape as the three faults personal quarrels shook loose, and it was caught by the invariant test
+rather than by reading the code. `Conspiracies.EndAtLossOfThrone` is called from each of those four
+places for the same reason `EndAtDeath` is called from `Houses.Die`.
+
+**Four seed panels were resampled, and one of them found a real gap.** Political murder is now the
+ending of a plot rather than an annual roll, so it lands in different worlds; the mortality, quarrel
+and sky panels were resampled against the current checkout and the secession tail with them — 4 of
+the first 140 seeds, 2.9%, the same rate that list has measured twice before. The quarrel panel then
+failed on a cause it had never seen: `SkyClaims` has been opening disputes from a refuted public
+claim since #131, and no seed in the old panel carried one, so the test's list of permitted origins
+had been incomplete for two milestones without failing. Resampling is the cost of asserting that a
+rare path exists at all; occasionally it is also what finds one.
+
+**Schema 38.** Figures gain `plots[]`; `UndertakingKind.Conspiracy` and the `secrecy`/`access`
+fields the inline version borrowed from `FigureUndertaking` are gone, because a plot is now a
+record with somewhere of its own to put them.
+
 ---
 
 ## Notes for Phase 2

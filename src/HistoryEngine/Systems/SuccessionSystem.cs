@@ -114,6 +114,7 @@ public sealed class SuccessionSystem : ISystem
         Figure ruler = world.Figures[civilization.CurrentRulerId];
         ruler.EndOffice(OfficeKind.Ruler, year);
         Occupations.Sync(world, ruler, year);
+        Conspiracies.EndAtLossOfThrone(world, ruler, year);
 
         civilization.CurrentRulerId = EntityId.None;
         civilization.RegentId = EntityId.None;

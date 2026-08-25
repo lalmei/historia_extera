@@ -11,7 +11,12 @@ namespace HistoryEngine.Tests;
 /// </summary>
 public sealed class MortalityTests
 {
-    private static readonly ulong[] Seeds = { 2, 7, 11, 42, 99 };
+    /// <summary>
+    /// Seeds sampled for the panel. Resampled when persistent conspiracies landed, which moved
+    /// every history and made political murder a plot's ending rather than an annual roll; these
+    /// are seeds that carry one in the current checkout.
+    /// </summary>
+    private static readonly ulong[] Seeds = { 16, 21, 42, 47, 99 };
 
     /// <summary>
     /// Variety is a model outcome, not an excuse to turn a court chronicle into a casualty list.

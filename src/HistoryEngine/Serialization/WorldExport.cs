@@ -123,8 +123,12 @@ public sealed record WorldExport(
     /// wrote down of them, with the interval their own realm's register let them derive.
     /// Version 37 added what they claimed those sightings meant, the year a measured claim named,
     /// and the verdict the sky returned on it.
+    /// Version 38 made conspiracies persistent plots: objective, grounded cause, members and the
+    /// tie that recruited each of them, secrecy, suspicion, phase, outcome, and the year any of it
+    /// became public — with each act carrying whether it was known when it happened. Undertakings
+    /// lost the secrecy and access fields the old inline conspiracy borrowed them for.
     /// </remarks>
-    public const int CurrentSchemaVersion = 37;
+    public const int CurrentSchemaVersion = 38;
 }
 
 public sealed record ExportMeta(
@@ -793,6 +797,7 @@ public sealed record ExportFigure(
     IReadOnlyList<ExportInjury> Injuries,
     IReadOnlyList<ExportUndertaking> Undertakings,
     IReadOnlyList<ExportDispute> Disputes,
+    IReadOnlyList<ExportPlot> Plots,
     IReadOnlyList<ExportObservation> Observations,
     IReadOnlyList<ExportSkyClaim> Claims,
     EntityId? MotherId,
@@ -922,8 +927,6 @@ public sealed record ExportUndertaking(
     EntityId? SponsorId,
     OfficeKind? RequiredOffice,
     IReadOnlyList<EntityId> ParticipantIds,
-    double Secrecy,
-    double Access,
     IReadOnlyList<ExportUndertakingStep> Steps);
 
 /// <summary>
@@ -1007,6 +1010,63 @@ public sealed record ExportDisputeAct(
     DisputeStage Stage,
     EntityId? ActorId,
     string Detail);
+
+/// <summary>
+/// One conspiracy, written the same way on the page of everyone who knew of it.
+/// </summary>
+/// <param name="Led">
+/// Whether the figure this record hangs on was its leader. The facts are identical either way;
+/// this is what lets a viewer say "joined the conspiracy of" rather than "conspired against".
+/// </param>
+/// <param name="PublicYear">
+/// The year the world learned of it, absent where it never did. A consumer must use this to
+/// separate what a contemporary could have known from what only a later reader has: an abandoned
+/// plot has no public year and no event anywhere in the timeline.
+/// </param>
+public sealed record ExportPlot(
+    int Id,
+    EntityId LeaderId,
+    EntityId TargetId,
+    EntityId? RealmId,
+    bool Led,
+    PlotObjective Objective,
+    PlotCause Cause,
+    EventKind SourceKind,
+    EntityId? SourceEntityId,
+    EntityId? PlaceId,
+    PlotPhase Phase,
+    PlotOutcome Outcome,
+    string? Resolution,
+    EntityId? BetrayerId,
+    int StartYear,
+    int? EndYear,
+    int? PublicYear,
+    int Progress,
+    int RequiredProgress,
+    double Secrecy,
+    double Suspicion,
+    double Access,
+    IReadOnlyList<ExportPlotMember> Members,
+    IReadOnlyList<ExportPlotAct> Acts);
+
+/// <param name="Witting">
+/// False for someone whose access was used without their knowing what it was for. They are named
+/// in the retrospective truth and carry no record of the plot on their own page.
+/// </param>
+public sealed record ExportPlotMember(
+    EntityId FigureId,
+    int JoinedYear,
+    PlotTie Tie,
+    bool Witting);
+
+/// <param name="Known">Whether this was public in the year it happened. Most acts are not.</param>
+public sealed record ExportPlotAct(
+    int Year,
+    EventKind SourceKind,
+    PlotPhase Phase,
+    EntityId? ActorId,
+    string Detail,
+    bool Known);
 
 /// <summary>
 /// One person's own inclinations, on the same dials their culture has.

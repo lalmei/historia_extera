@@ -9,11 +9,10 @@ namespace HistoryEngine.World;
 public static class Undertakings
 {
     /// <summary>At least the next annual decision; goals cannot end and restart in one tick.</summary>
-    public const int PublicCooldownYears = 1;
+    public const int CooldownYears = 1;
 
-    public const int MaxActivePublic = 1;
-
-    public const int MaxActiveSecret = 1;
+    /// <summary>One goal at a time. A conspiracy is no longer one of these — see <see cref="Conspiracies"/>.</summary>
+    public const int MaxActive = 1;
 
     public readonly record struct JourneyPlan(
         JourneyKind Kind,
@@ -160,7 +159,7 @@ public static class Undertakings
     {
         if (!mourner.IsAlive || mourner.ReligionId.IsNone) return;
         if (mourner.Disposition.Values.Piety < 0.48) return;
-        if (!CanStartPublic(mourner, year)) return;
+        if (!CanStart(mourner, year)) return;
 
         double resolveChance = BereavementVowChance(mourner, deceased, year);
         if (resolveChance <= 0.0) return;
@@ -219,48 +218,9 @@ public static class Undertakings
     public static FigureUndertaking? Current(Figure figure) =>
         figure.Undertakings.Find(item => item.State == UndertakingState.Active);
 
-    public static FigureUndertaking? CurrentPublic(Figure figure) =>
-        figure.Undertakings.Find(item =>
-            item.State == UndertakingState.Active && item.Kind != UndertakingKind.Conspiracy);
-
     public static FigureUndertaking? CurrentJourney(Figure figure) =>
         figure.Undertakings.Find(item =>
             item.State == UndertakingState.Active && IsJourney(item.Kind));
-
-    public static FigureUndertaking? CurrentConspiracy(Figure figure) =>
-        figure.Undertakings.Find(item =>
-            item.State == UndertakingState.Active && item.Kind == UndertakingKind.Conspiracy);
-
-    public static FigureUndertaking BeginConspiracy(
-        WorldState world, Figure leader, Figure target, int year, double access)
-    {
-        FigureUndertaking undertaking = Start(
-            world,
-            leader,
-            UndertakingKind.Conspiracy,
-            year,
-            "the removal of " + target.FullName,
-            target.Id,
-            world.ResidenceOf(target),
-            EntityId.None,
-            3,
-            MemoryKind.Rivalry,
-            target.Id,
-            EventKind.UndertakingStarted,
-            world.EndYear);
-        undertaking.Access = DetMath.Clamp01(access);
-        undertaking.Secrecy = 0.82;
-        AddStep(
-            world,
-            undertaking,
-            new UndertakingStep(
-                year,
-                EventKind.UndertakingStarted,
-                world.ResidenceOf(target),
-                target.Id,
-                "Conceived"));
-        return undertaking;
-    }
 
     public static void Complete(
         WorldState world, Figure figure, FigureUndertaking undertaking, int year)
@@ -284,9 +244,7 @@ public static class Undertakings
                 ("kind", undertaking.Kind.ToString()),
                 ("objective", undertaking.Objective),
                 ("years", (year - undertaking.StartYear).ToString(CultureInfo.InvariantCulture))),
-            significance: undertaking.Kind == UndertakingKind.Conspiracy
-                ? Significance.Notable
-                : Significance.Routine);
+            significance: Significance.Routine);
     }
 
     public static void Fail(
@@ -311,9 +269,7 @@ public static class Undertakings
                 ("kind", undertaking.Kind.ToString()),
                 ("objective", undertaking.Objective),
                 ("cause", cause)),
-            significance: undertaking.Kind == UndertakingKind.Conspiracy
-                ? Significance.Notable
-                : Significance.Routine);
+            significance: Significance.Routine);
     }
 
     public static void Abandon(
@@ -339,9 +295,7 @@ public static class Undertakings
                 ("objective", undertaking.Objective),
                 ("cause", cause),
                 ("state", "abandoned")),
-            significance: undertaking.Kind == UndertakingKind.Conspiracy
-                ? Significance.Notable
-                : Significance.Routine);
+            significance: Significance.Routine);
     }
 
     /// <summary>Closes every goal a person's death makes impossible.</summary>
@@ -424,7 +378,7 @@ public static class Undertakings
         if (memory.Triumphant != false) return;
         if (memory.Role is not (CampaignRole.Commanded or CampaignRole.Fought)) return;
         if (figure.Disposition.Values.Aggression < 0.42) return;
-        if (!CanStartPublic(figure, year)) return;
+        if (!CanStart(figure, year)) return;
 
         IRng resolve = world.Root
             .Fork("undertaking-revenge", battle.Id.ToDiscriminator())
@@ -470,18 +424,17 @@ public static class Undertakings
                 "Swore to answer the defeat"));
     }
 
-    public static bool CanStartPublic(Figure figure, int year)
+    public static bool CanStart(Figure figure, int year)
     {
-        if (CurrentPublic(figure) is not null) return false;
+        if (Current(figure) is not null) return false;
 
         int latest = int.MinValue;
         foreach (FigureUndertaking undertaking in figure.Undertakings)
         {
-            if (undertaking.Kind == UndertakingKind.Conspiracy) continue;
             if (undertaking.EndYear is int ended) latest = Math.Max(latest, ended);
         }
 
-        return latest == int.MinValue || year - latest >= PublicCooldownYears;
+        return latest == int.MinValue || year - latest >= CooldownYears;
     }
 
     private static FigureUndertaking Start(
@@ -501,12 +454,8 @@ public static class Undertakings
         EntityId sponsor = default,
         OfficeKind? requiredOffice = null)
     {
-        bool secret = kind == UndertakingKind.Conspiracy;
-        int active = figure.Undertakings.Count(item =>
-            item.State == UndertakingState.Active
-            && (item.Kind == UndertakingKind.Conspiracy) == secret);
-        int limit = secret ? MaxActiveSecret : MaxActivePublic;
-        if (active >= limit)
+        int active = figure.Undertakings.Count(item => item.State == UndertakingState.Active);
+        if (active >= MaxActive)
         {
             throw new InvalidOperationException("Undertaking concurrency limit exceeded.");
         }
@@ -535,7 +484,7 @@ public static class Undertakings
             obj: target,
             location: destination,
             data: Chronicle.Data(("kind", kind.ToString()), ("objective", objective)),
-            significance: kind == UndertakingKind.Conspiracy || motive == MemoryKind.Bereavement
+            significance: motive == MemoryKind.Bereavement
                 ? Significance.Notable
                 : Significance.Routine);
 

@@ -18,7 +18,7 @@ measurements, rejected alternatives, and milestone retrospectives.
 | Space | Expensive terrain is accessed through a budgeted, three-tier atlas |
 | Time | Years remain the spine; seasons and scheduled days are used only where earned |
 | History | Flat events plus persistent entities and sampled series |
-| Personal history | Directed bonds, bounded causal memories, wounds, quarrels, undertakings, and what people saw |
+| Personal history | Directed bonds, bounded causal memories, wounds, quarrels, plots, undertakings, and what people saw |
 | Presentation | The viewer reads exports and never drives the simulation |
 | Game integration | Vintage Story is a future terrain host, not an engine dependency |
 
@@ -274,9 +274,8 @@ Journeys are steps within undertakings, not isolated annual errands. Trade ventu
 missionary circuits, and embassies begin with a stated objective and may require several trips.
 A martial undertaking can likewise begin in a concrete defeat and end only in a later battle
 against the same opponent, through revenge, another defeat, loss of the office that enabled it,
-death, or its deadline. Only one public undertaking may be current at once; a secret conspiracy is
-tracked separately, and a cooldown prevents a terminal arc from immediately becoming a queue of
-replacement goals. Steps must be chronological, unique, and linked to real entities. Death, an
+death, or its deadline. Only one undertaking may be current at once, and a cooldown prevents a
+terminal arc from immediately becoming a queue of replacement goals. Steps must be chronological, unique, and linked to real entities. Death, an
 invalid destination, exposure, success, failure, or loss of office closes the arc explicitly.
 
 - **Quarrels** are personal disputes between two named people, from a wrong the chronicle already
@@ -315,12 +314,28 @@ succession, offices, and bereavement all follow from it.
   is often long dead when the sky answers, which is left as it is because it is the more interesting
   outcome and it is what happened to Halley.
 
-Conspiracy is the test that this state matters. A plot is not a one-roll assassination label: a
-leader needs motive grounded in grievance, rivalry, memory, disgrace, or a claim; access to the
-target affects progress; recruits need trust in the leader, grievance against the target, or their
-own access; and every additional participant places pressure on secrecy. The result is a
-multi-year undertaking whose discovery or success can be explained from the relationships and
-memories already on the people involved.
+- **Conspiracies** are persistent plots against a reigning ruler, and they are the test that all of
+  this state matters. A plot names an objective — the ruler's death, or the ruler unseated — a
+  leader, a target, and a cause the world already wrote: a succession lost, an office taken, a
+  murdered relative, or a quarrel rank forbade its holder to answer. Nothing starts one because a
+  realm passed an annual chance. Recruitment is tested against something real — an obligation to
+  the leader, trust in the leader, the recruit's own grievance against the target, or a claim of
+  their own — and where no such tie exists nobody joins; there is no fallback that picks a courtier
+  because one was wanted. A household member's access may also be used without their knowing what
+  it was for, which is recorded but is not belief and leaves nothing on their page. Years pass in
+  gathering people, then in finding a way to the target; secrecy is spent by every member and every
+  year, suspicion accrues against a watching court, and a plot may be abandoned, exposed, betrayed
+  from within, attempted and missed, or reach its objective.
+
+The engine keeps a plot's whole truth; the chronicle keeps only what got out. A secret plot writes
+nothing to the timeline, so one that was abandoned leaves no event anywhere and a reader of that
+year sees what a contemporary saw. The year the world learned of it is recorded, along with whether
+each act was known when it happened, and the viewer separates the two rather than leaking a secret
+into the year it was kept. Endings reuse what exists: a murder goes through the central death path
+with its named suspect, family blood debt and bereavement quarrels; a deposition vacates the throne
+exactly as a rising does and leaves the ordinary succession to fill it, with the deposed ruler
+disgraced rather than dead and reachable by the same court that settles accounts with any other
+fallen office-holder.
 
 ### Travel
 

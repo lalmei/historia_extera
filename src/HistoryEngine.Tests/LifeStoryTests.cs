@@ -363,14 +363,9 @@ public sealed class LifeStoryTests
                 Assert.False(!figure.IsAlive && figure.Undertakings.Exists(item =>
                     item.State == UndertakingState.Active));
                 Assert.True(figure.Undertakings.Count(item =>
-                    item.State == UndertakingState.Active
-                    && item.Kind != UndertakingKind.Conspiracy) <= Undertakings.MaxActivePublic);
-                Assert.True(figure.Undertakings.Count(item =>
-                    item.State == UndertakingState.Active
-                    && item.Kind == UndertakingKind.Conspiracy) <= Undertakings.MaxActiveSecret);
+                    item.State == UndertakingState.Active) <= Undertakings.MaxActive);
 
                 List<FigureUndertaking> publicArcs = figure.Undertakings
-                    .Where(item => item.Kind != UndertakingKind.Conspiracy)
                     .OrderBy(item => item.StartYear)
                     .ToList();
                 for (int i = 1; i < publicArcs.Count; i++)
@@ -378,7 +373,7 @@ public sealed class LifeStoryTests
                     if (publicArcs[i - 1].EndYear is int ended)
                     {
                         Assert.True(
-                            publicArcs[i].StartYear - ended >= Undertakings.PublicCooldownYears,
+                            publicArcs[i].StartYear - ended >= Undertakings.CooldownYears,
                             $"{figure.FullName} began public undertakings without a cooldown.");
                     }
                 }
@@ -510,45 +505,7 @@ public sealed class LifeStoryTests
         WorldState world = HistoryRun.Execute(TestWorlds.Standard(1630161754)).World;
 
         Assert.DoesNotContain(world.Figures, figure =>
-            figure.Undertakings.Count(item =>
-                item.State == UndertakingState.Active
-                && item.Kind != UndertakingKind.Conspiracy) > 1);
-    }
-
-    [Fact]
-    public void ConspiraciesUseParticipantsAccessAndMultipleStepsBeforeResolution()
-    {
-        WorldState world = HistoryRun.Execute(TestWorlds.Standard(42)).World;
-        List<FigureUndertaking> plots = world.Figures
-            .SelectMany(figure => figure.Undertakings)
-            .Where(undertaking => undertaking.Kind == UndertakingKind.Conspiracy)
-            .ToList();
-
-        Assert.NotEmpty(plots);
-        Assert.Contains(plots, plot => plot.Steps.Count >= 2);
-        Assert.All(plots, plot => Assert.InRange(plot.Access, 0.0, 1.0));
-        Assert.All(plots, plot => Assert.InRange(plot.Secrecy, 0.0, 1.0));
-        Assert.Contains(plots, plot => plot.State != UndertakingState.Active);
-        Assert.Contains(world.Figures, figure =>
-            figure.Bonds.Exists(bond => bond.Kinds.HasFlag(BondKind.CoConspirator)));
-
-        Assert.DoesNotContain(world.Figures, figure =>
-            !figure.IsAlive
-            && figure.Undertakings.Exists(item => item.State == UndertakingState.Active));
-        Assert.DoesNotContain(world.Figures, figure =>
-            figure.Undertakings.Count(item =>
-                item.State == UndertakingState.Active
-                && item.Kind != UndertakingKind.Conspiracy) > 1);
-
-        foreach (FigureUndertaking active in plots.Where(plot =>
-                     plot.State == UndertakingState.Active))
-        {
-            Figure target = world.Figures[active.TargetId];
-            Assert.True(target.IsAlive);
-            Assert.Equal(
-                target.Id,
-                world.Civilizations[target.CivilizationId].CurrentRulerId);
-        }
+            figure.Undertakings.Count(item => item.State == UndertakingState.Active) > 1);
     }
 
     [Fact]

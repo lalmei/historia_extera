@@ -381,7 +381,9 @@ public enum UndertakingKind
     Pilgrimage = 1,
     MissionaryCircuit = 2,
     Embassy = 3,
-    Conspiracy = 4,
+
+    // 4 was Conspiracy, before a plot became a record of its own with members, phases, secrecy
+    // and an outcome an undertaking has nowhere to put. See <see cref="FigurePlot"/>.
     Revenge = 5,
 }
 
@@ -488,12 +490,6 @@ public sealed class FigureUndertaking
     public List<EntityId> ParticipantIds { get; }
 
     public List<UndertakingStep> Steps { get; }
-
-    /// <summary>Used by conspiracies; zero on public undertakings.</summary>
-    public double Secrecy { get; set; }
-
-    /// <summary>Used by conspiracies; how close the undertaking is to its target.</summary>
-    public double Access { get; set; }
 }
 
 /// <summary>The grounded wrong a personal quarrel began from.</summary>
@@ -633,4 +629,244 @@ public sealed class FigureDispute
     public EntityId Other(EntityId self) => self == OpenerId ? RivalId : OpenerId;
 
     public bool Involves(EntityId id) => id == OpenerId || id == RivalId;
+}
+
+/// <summary>What a plot is trying to do to the person it names.</summary>
+/// <remarks>
+/// Two, because two are enough to prove the lifecycle carries an objective rather than assuming
+/// one. Killing a ruler and unseating a ruler need different backing, run different risks and end
+/// the same world state differently — a corpse and a succession, or a deposed man who is still
+/// alive to be executed, exiled, or restored. Anything further reuses this lifecycle rather than
+/// widening it.
+/// </remarks>
+public enum PlotObjective
+{
+    Assassinate = 0,
+    Depose = 1,
+}
+
+/// <summary>The recorded wrong or claim a plot began from.</summary>
+/// <remarks>
+/// Every value names something the world already wrote down about this person. There is no
+/// "ambitious courtier": a plot that cannot say which year and which event it came from is the
+/// annual assassination roll this model replaced.
+/// </remarks>
+public enum PlotCause
+{
+    SuccessionPassedOver = 0,
+    OfficeRevoked = 1,
+    KinMurdered = 2,
+
+    /// <summary>A quarrel with someone rank forbade them to call out. See <see cref="FigureDispute"/>.</summary>
+    QuarrelBeyondReach = 3,
+}
+
+/// <summary>How far a plot has got, in the order a plot has to get there.</summary>
+/// <remarks>
+/// Not a difficulty ladder. Gathering is people, Access is the route to the target those people
+/// open, and Ready is the year the thing is attempted. A plot can be exposed, betrayed or
+/// abandoned in any of them, which is why most plots never reach the third.
+/// </remarks>
+public enum PlotPhase
+{
+    Gathering = 0,
+    Access = 1,
+    Ready = 2,
+}
+
+/// <summary>How a plot ended, or that it has not.</summary>
+public enum PlotOutcome
+{
+    Ongoing = 0,
+
+    /// <summary>Nobody ever knew. The leader let it go, or lost the reason for it.</summary>
+    Abandoned = 1,
+
+    /// <summary>The court found it.</summary>
+    Exposed = 2,
+
+    /// <summary>One of its own gave it up.</summary>
+    Betrayed = 3,
+
+    /// <summary>It was attempted, and the attempt missed.</summary>
+    Failed = 4,
+
+    Succeeded = 5,
+}
+
+/// <summary>What actually bound one person to a plot on the year they joined it.</summary>
+/// <remarks>
+/// Recorded per member rather than derived later, because the whole claim of this model is that
+/// recruitment is grounded: the tie was tested against a bond, a grievance or an office that
+/// existed at the time, and a reader can see which. <see cref="Household"/> is the one that does
+/// not require belief in the plot — see <see cref="PlotMember.Witting"/>.
+/// </remarks>
+public enum PlotTie
+{
+    ObligationToLeader = 0,
+    TrustInLeader = 1,
+    GrievanceAgainstTarget = 2,
+    Ambition = 3,
+    Household = 4,
+}
+
+/// <summary>
+/// One person committed to a plot, and what committed them.
+/// </summary>
+/// <param name="Witting">
+/// False for the servant, kinsman or officer whose access was used without their knowing what it
+/// was for. They carry no memory of it and no record of it on their own page; they are named here
+/// because the retrospective truth of how the plot reached its target includes them.
+/// </param>
+public sealed record PlotMember(EntityId FigureId, int JoinedYear, PlotTie Tie, bool Witting);
+
+/// <summary>
+/// One thing that was done in the course of a plot.
+/// </summary>
+/// <param name="Known">
+/// Whether this was public in the year it happened. Almost nothing is: a plot's own record is the
+/// retrospective truth, and <see cref="FigurePlot.PublicYear"/> is the year any of it became
+/// something the world could say out loud.
+/// </param>
+public sealed record PlotAct(
+    int Year,
+    EventKind SourceKind,
+    PlotPhase Phase,
+    EntityId ActorId,
+    string Detail,
+    bool Known);
+
+/// <summary>
+/// A persistent conspiracy: who wanted whom removed, who joined them, and what became of it.
+/// </summary>
+/// <remarks>
+/// <para><b>The engine keeps the whole truth; the chronicle keeps what got out.</b> A plot writes
+/// nothing to the timeline while it is secret, and most plots are secret for their whole lives —
+/// an abandoned one never becomes an event at all. <see cref="PublicYear"/> is the year the world
+/// learned of it, absent while it never did, and it is what separates a fact a contemporary could
+/// have known from one only a later reader has.</para>
+///
+/// <para>One record, held by the leader and by every witting member, on the same reasoning as
+/// <see cref="FigureDispute"/>: a conspiracy is a single fact about several lives, and storing it
+/// once per participant invites the copies to disagree about what happened.</para>
+/// </remarks>
+public sealed class FigurePlot
+{
+    public FigurePlot(
+        int id,
+        EntityId leaderId,
+        EntityId targetId,
+        EntityId realmId,
+        PlotObjective objective,
+        int startYear,
+        PlotCause cause,
+        EventKind sourceKind,
+        EntityId sourceEntityId,
+        EntityId placeId,
+        int requiredProgress)
+    {
+        Id = id;
+        LeaderId = leaderId;
+        TargetId = targetId;
+        RealmId = realmId;
+        Objective = objective;
+        StartYear = startYear;
+        LastActionYear = startYear;
+        Cause = cause;
+        SourceKind = sourceKind;
+        SourceEntityId = sourceEntityId;
+        PlaceId = placeId;
+        RequiredProgress = requiredProgress;
+        Members = new List<PlotMember>();
+        Acts = new List<PlotAct>();
+    }
+
+    /// <summary>Stable within the leader.</summary>
+    public int Id { get; }
+
+    public EntityId LeaderId { get; }
+
+    public EntityId TargetId { get; }
+
+    /// <summary>The realm the plot sits in, kept so a fallen realm can close its plots.</summary>
+    public EntityId RealmId { get; }
+
+    public PlotObjective Objective { get; }
+
+    public int StartYear { get; }
+
+    public int? EndYear { get; set; }
+
+    public PlotCause Cause { get; }
+
+    /// <summary>
+    /// The event family the cause came from, and the entity the grievance is held against.
+    /// </summary>
+    /// <remarks>
+    /// The target, in every current cause, because every current cause is a wrong this person holds
+    /// the target responsible for. It is stored rather than implied so a later cause that blames
+    /// somebody else — a faction, a realm — does not have to change the record's shape.
+    /// </remarks>
+    public EventKind SourceKind { get; }
+
+    public EntityId SourceEntityId { get; }
+
+    public EntityId PlaceId { get; set; }
+
+    public PlotPhase Phase { get; set; }
+
+    public int Progress { get; set; }
+
+    public int RequiredProgress { get; }
+
+    /// <summary>How well the plot is still kept, in [0, 1].</summary>
+    public double Secrecy { get; set; }
+
+    /// <summary>What the court has come to suspect, in [0, 1].</summary>
+    public double Suspicion { get; set; }
+
+    /// <summary>How close the plot can get to its target, in [0, 1].</summary>
+    public double Access { get; set; }
+
+    public PlotOutcome Outcome { get; set; }
+
+    /// <summary>Why it ended, in the words the life page prints.</summary>
+    public string? Resolution { get; set; }
+
+    /// <summary>The member who gave it up, where one did.</summary>
+    public EntityId BetrayerId { get; set; } = EntityId.None;
+
+    /// <summary>The year the world learned of it, or absent if the world never did.</summary>
+    public int? PublicYear { get; set; }
+
+    public int LastActionYear { get; set; }
+
+    public List<PlotMember> Members { get; }
+
+    public List<PlotAct> Acts { get; }
+
+    public bool IsOpen => Outcome == PlotOutcome.Ongoing;
+
+    /// <summary>Whether anything about it ever became public.</summary>
+    public bool WasKnown => PublicYear is not null;
+
+    public bool Involves(EntityId id) =>
+        id == LeaderId || id == TargetId || Members.Exists(member => member.FigureId == id);
+
+    public bool HasMember(EntityId id) => Members.Exists(member => member.FigureId == id);
+
+    /// <summary>Members who knew what they were part of, in the order they joined.</summary>
+    public int WittingCount
+    {
+        get
+        {
+            int count = 0;
+            foreach (PlotMember member in Members)
+            {
+                if (member.Witting) count++;
+            }
+
+            return count;
+        }
+    }
 }

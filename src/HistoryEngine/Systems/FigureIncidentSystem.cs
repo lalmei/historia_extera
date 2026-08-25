@@ -13,12 +13,13 @@ namespace HistoryEngine.Systems;
 /// hazardous event itself, and whoever survives it remains available to the ordinary mortality
 /// pass later in the year.</para>
 ///
-/// <para><b>Political violence develops through conspiracies and quarrels.</b> Bonds, grievances,
-/// access and undertakings determine who joins a plot, how it advances and whether the court
-/// exposes it; the same bonds carry personal disputes up the ladder from a grudge to a meeting, or
-/// back down to a settlement. Which of the two an anger can take is decided by rank — see
-/// <see cref="World.Disputes"/>. This system only schedules both processes and resolves later
-/// consequences for disgraced or accused residents.</para>
+/// <para><b>Political violence develops through conspiracies and quarrels.</b> Bonds, grievances
+/// and access decide who joins a plot, how it advances and whether the court finds it, and a plot
+/// is a persistent record with its own objective and outcome rather than an event this system
+/// rolls — see <see cref="World.Conspiracies"/>. The same bonds carry personal disputes up the
+/// ladder from a grudge to a meeting, or back down to a settlement, and which of the two an anger
+/// can take is decided by rank — see <see cref="World.Disputes"/>. This system only schedules both
+/// processes and resolves later consequences for disgraced or accused residents.</para>
 ///
 /// <para><b>Accidents are broad and rare.</b> Adult figures may die by misadventure, with travel and
 /// martial cultures somewhat more exposed. A separate per-figure random stream means adding a
@@ -60,7 +61,7 @@ public sealed class FigureIncidentSystem : ISystem
     private static void PoliticalViolence(WorldState world, int year, IRng rng)
     {
         Undertakings.Tick(world, year);
-        Conspiracies.Tick(world, year, rng.Fork("conspiracies"));
+        Conspiracies.Tick(world, year);
         Disputes.Tick(world, year);
 
         foreach (Civilization civilization in world.ActiveCivilizations())

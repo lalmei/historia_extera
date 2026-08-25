@@ -98,7 +98,8 @@ public static class Narration
             + "[, and the court named {data:suspect}].");
         Set(EventKind.RulerCrowned,
             "{subject} became {data:title} of {object}[ at {location}][, {data:claim}].");
-        Set(EventKind.RulerDeposed, "{subject} was deposed as {data:title} of {object}.");
+        Set(EventKind.RulerDeposed,
+            "{subject} was deposed as {data:title} of {object}[, {data:cause}].");
         Set(EventKind.FigureMarried, "{subject} married {object}[ at {location}].");
         Set(EventKind.RulerTermEnded,
             "{subject} laid down the office of {data:title}[ of {object}][ after {data:years} years].");
@@ -137,7 +138,10 @@ public static class Narration
         Set(EventKind.ConspiratorJoined,
             "{subject} drew {object} into a conspiracy against {extra:fig}.");
         Set(EventKind.ConspiracyExposed,
-            "The conspiracy of {subject} against {object} was exposed[ at {location}].");
+            "The conspiracy of {subject} against {object} was exposed[ at {location}]"
+            + "[, {data:manner}][, after {data:years} years].");
+        Set(EventKind.ConspiracyAttempted,
+            "{subject} moved against {object} and failed[ at {location}][, seeking {data:objective}].");
         // A quarrel names both parties in every line it writes. The one thing a reader of a
         // personal dispute always wants is who it was with, and it is never the location.
         Set(EventKind.DisputeOpened,
@@ -291,7 +295,8 @@ public static class Narration
             + "[{not:suspect}{self:extra}.]");
         SetSelf(EventKind.RulerCrowned,
             "Became {data:title} of {object}[ at {location}][, {data:claim}].");
-        SetSelf(EventKind.RulerDeposed, "Was deposed as {data:title} of {object}.");
+        SetSelf(EventKind.RulerDeposed,
+            "Was deposed as {data:title} of {object}[, {data:cause}].");
         SetSelf(EventKind.FigureMarried, "Married {other}[ at {location}].");
         SetSelf(EventKind.RulerTermEnded,
             "Laid down the office of {data:title}[ of {object}][ after {data:years} years].");
@@ -342,9 +347,14 @@ public static class Narration
             "[{self:subject}Drew {other} into a conspiracy against {extra:fig}.]"
             + "[{self:object}Joined {other} in a conspiracy against {extra:fig}.]");
         SetSelf(EventKind.ConspiracyExposed,
-            "[{self:subject}The conspiracy against {other} was exposed.]"
+            "[{self:subject}The conspiracy against {other} was exposed][{self:subject}, {data:manner}]"
+            + "[{self:subject}.]"
             + "[{self:object}Discovered the conspiracy of {other}.]"
             + "[{self:extra}Was implicated in {subject}'s conspiracy against {object}.]");
+        SetSelf(EventKind.ConspiracyAttempted,
+            "[{self:subject}Moved against {other}, and failed.]"
+            + "[{self:object}Survived an attempt by {other}.]"
+            + "[{self:extra}Was implicated in {subject}'s attempt on {object}.]");
         // The same episode from either side. One record, two readings: the aggrieved party fell
         // out with someone, and the other party was fallen out with, and neither page is a
         // separate incident.

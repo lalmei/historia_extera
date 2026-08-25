@@ -129,6 +129,16 @@ public enum EventKind
     /// <summary>It did not.</summary>
     SkyClaimRefuted = 338,
 
+    /// <summary>
+    /// A conspiracy moved against the person it named, and missed.
+    /// </summary>
+    /// <remarks>
+    /// The one plot ending that is neither a discovery nor a death: the attempt itself is what
+    /// made it public. Notable, because a court that survived one is a court whose next decade
+    /// reads differently.
+    /// </remarks>
+    ConspiracyAttempted = 339,
+
     // ---- Territory (400) ----
     // Claims are written so ownership can be replayed year by year; they are marked Routine
     // so the timeline is not a run of "extended its reach". Cessions and releases stay on

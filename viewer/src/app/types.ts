@@ -1394,7 +1394,6 @@ export type UndertakingKind =
   | 'Pilgrimage'
   | 'MissionaryCircuit'
   | 'Embassy'
-  | 'Conspiracy'
   | 'Revenge';
 
 export type UndertakingState = 'Active' | 'Succeeded' | 'Failed' | 'Abandoned';
@@ -1428,8 +1427,6 @@ export interface Undertaking {
   sponsorId?: EntityId;
   requiredOffice?: OfficeKind;
   participantIds: EntityId[];
-  secrecy: number;
-  access: number;
   steps: UndertakingStep[];
 }
 
@@ -1534,6 +1531,119 @@ export const DISPUTE_OUTCOME_LABELS: Record<DisputeOutcome, string> = {
   Lapsed: 'Never answered',
 };
 
+export type PlotObjective = 'Assassinate' | 'Depose';
+
+export type PlotCause =
+  | 'SuccessionPassedOver'
+  | 'OfficeRevoked'
+  | 'KinMurdered'
+  | 'QuarrelBeyondReach';
+
+export type PlotPhase = 'Gathering' | 'Access' | 'Ready';
+
+export type PlotOutcome =
+  | 'Ongoing'
+  | 'Abandoned'
+  | 'Exposed'
+  | 'Betrayed'
+  | 'Failed'
+  | 'Succeeded';
+
+export type PlotTie =
+  | 'ObligationToLeader'
+  | 'TrustInLeader'
+  | 'GrievanceAgainstTarget'
+  | 'Ambition'
+  | 'Household';
+
+export const PLOT_OBJECTIVE_LABELS: Record<PlotObjective, string> = {
+  Assassinate: 'To kill the ruler',
+  Depose: 'To unseat the ruler',
+};
+
+export const PLOT_CAUSE_LABELS: Record<PlotCause, string> = {
+  SuccessionPassedOver: 'Over a succession they lost',
+  OfficeRevoked: 'Over an office taken from them',
+  KinMurdered: 'Over the murder of their kin',
+  QuarrelBeyondReach: 'Over a quarrel they could not answer',
+};
+
+export const PLOT_PHASE_LABELS: Record<PlotPhase, string> = {
+  Gathering: 'Gathering support',
+  Access: 'Seeking a way in',
+  Ready: 'Ready to move',
+};
+
+export const PLOT_OUTCOME_LABELS: Record<PlotOutcome, string> = {
+  Ongoing: 'Still unfolding',
+  Abandoned: 'Came to nothing',
+  Exposed: 'Exposed',
+  Betrayed: 'Betrayed from within',
+  Failed: 'Attempted and failed',
+  Succeeded: 'Succeeded',
+};
+
+export const PLOT_TIE_LABELS: Record<PlotTie, string> = {
+  ObligationToLeader: 'for what they owed its leader',
+  TrustInLeader: 'out of trust in its leader',
+  GrievanceAgainstTarget: 'for their own grievance',
+  Ambition: 'with a claim of their own',
+  Household: 'through their household, unknowing',
+};
+
+export interface PlotMember {
+  figureId: EntityId;
+  joinedYear: number;
+  tie: PlotTie;
+  /** False for someone whose access was used without their knowing what it was for. */
+  witting: boolean;
+}
+
+export interface PlotAct {
+  year: number;
+  sourceKind: string;
+  phase: PlotPhase;
+  actorId?: EntityId;
+  detail: string;
+  /** Whether this was public in the year it happened. Most acts are not. */
+  known: boolean;
+}
+
+/**
+ * One conspiracy, carried by its leader and by everyone who knowingly joined it.
+ *
+ * The engine keeps the whole truth; `publicYear` is the year the world learned of it, and is
+ * absent where the world never did. A viewer must not present a secret act as something a
+ * contemporary knew — that is what `publicYear` and each act's `known` flag are for.
+ */
+export interface Plot {
+  id: number;
+  leaderId: EntityId;
+  targetId: EntityId;
+  realmId?: EntityId;
+  /** Whether the page this hangs on led it, rather than joined it. */
+  led: boolean;
+  objective: PlotObjective;
+  cause: PlotCause;
+  sourceKind: string;
+  sourceEntityId?: EntityId;
+  placeId?: EntityId;
+  phase: PlotPhase;
+  outcome: PlotOutcome;
+  resolution?: string;
+  betrayerId?: EntityId;
+  startYear: number;
+  endYear?: number;
+  publicYear?: number;
+  progress: number;
+  requiredProgress: number;
+  secrecy: number;
+  suspicion: number;
+  access: number;
+  members: PlotMember[];
+  acts: PlotAct[];
+}
+
 export interface DisputeAct {
   year: number;
   sourceKind: string;
@@ -1610,6 +1720,8 @@ export interface Figure {
   injuries: FigureInjury[];
   undertakings: Undertaking[];
   disputes: Dispute[];
+  /** Conspiracies they led or knowingly joined. Retrospective: see Plot.publicYear. */
+  plots: Plot[];
   observations: SkyObservation[];
   claims: SkyClaim[];
   motherId?: EntityId;
