@@ -426,6 +426,7 @@ public static class Realms
             {
                 ruler.EndOffice(OfficeKind.Ruler, year);
                 Occupations.Sync(world, ruler, year);
+                Conspiracies.EndAtLossOfThrone(world, ruler, year);
             }
             civilization.CurrentRulerId = EntityId.None;
         }

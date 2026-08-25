@@ -13,7 +13,12 @@ namespace HistoryEngine.Tests;
 /// </summary>
 public sealed class SkyClaimTests
 {
-    private static readonly ulong[] Seeds = { 2, 7, 11, 42, 99 };
+    /// <summary>
+    /// Resampled when persistent conspiracies landed and moved every history. Nothing here reads
+    /// the political model; these are simply seeds whose skies still carry both registers and
+    /// every verdict, including the early refutation the panel exists to reach.
+    /// </summary>
+    private static readonly ulong[] Seeds = { 6, 17, 29, 46, 47 };
 
     private readonly ITestOutputHelper _output;
 
@@ -139,7 +144,7 @@ public sealed class SkyClaimTests
     [Fact]
     public void AnIntervalTooLongIsRefutedByTheReturnItDeniedWasComing()
     {
-        WorldState world = HistoryRun.Execute(TestWorlds.Standard(11)).World;
+        WorldState world = HistoryRun.Execute(TestWorlds.Standard(17)).World;
         WorldCosmology sky = world.Flavour.Cosmology;
 
         var early = new List<SkyClaim>();

@@ -42,11 +42,15 @@ public sealed class UnrestTests
     /// seeds that carry it in the current checkout. This is the resample the paragraph above
     /// describes and not a behaviour change, and it is the second time the tail has moved — a
     /// pinned-seed list is the cost of asserting that a 3% path exists at all.
+    ///
+    /// <b>Resampled again when persistent conspiracies landed</b>, for the third time and for the
+    /// same reason: 4 of the first 140 seeds, 2.9%, the same rate the paragraph above measured.
+    /// The tail was 16, 51 and 112 and is now 8, 94, 107 and 136.
     /// </remarks>
     private static readonly ulong[] RareSeeds =
     {
         2, 7, 11, 42, 99, 123, 777, 2024, 3, 5, 13, 17, 19, 23, 29, 31, 37, 41, 47, 53, 61, 71,
-        16, 51, 112,
+        8, 94, 107, 136,
     };
 
     /// <summary>

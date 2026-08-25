@@ -182,6 +182,7 @@ public sealed class Figure
         Injuries = new List<FigureInjury>();
         Undertakings = new List<FigureUndertaking>();
         Disputes = new List<FigureDispute>();
+        Plots = new List<FigurePlot>();
         Observations = new List<SkyObservation>();
         Claims = new List<SkyClaim>();
         ChildIds = new List<EntityId>();
@@ -339,6 +340,16 @@ public sealed class Figure
     /// believe a different version of the same quarrel.
     /// </remarks>
     public List<FigureDispute> Disputes { get; }
+
+    /// <summary>
+    /// Conspiracies this figure led or knowingly joined, in the order they began.
+    /// </summary>
+    /// <remarks>
+    /// Shared with the other conspirators rather than copied, for the same reason a quarrel is.
+    /// The target does not carry the plot against them, and neither does anybody whose access was
+    /// used without their knowing it: this is the list of people who knew.
+    /// </remarks>
+    public List<FigurePlot> Plots { get; }
 
     /// <summary>What this figure wrote down about the sky, in the order they saw it.</summary>
     public List<SkyObservation> Observations { get; }

@@ -61,6 +61,11 @@ import {
   SITE_LABELS,
   SOUL_LABELS,
   SPECIALIZATION_LABELS,
+  PLOT_CAUSE_LABELS,
+  PLOT_OBJECTIVE_LABELS,
+  PLOT_OUTCOME_LABELS,
+  PLOT_PHASE_LABELS,
+  PLOT_TIE_LABELS,
   SUCCESSION_LABELS,
   TIER_ORDER,
   TOME_CONTENT_LABELS,
@@ -82,6 +87,7 @@ import {
   type HolySite,
   type HolySiteDedicationKind,
   type Journey,
+  type Plot,
   type Region,
   type Relation,
   type Religion,
@@ -687,7 +693,11 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
     if (b.outcome === 'Open' && a.outcome !== 'Open') return 1;
     return (b.endYear ?? b.startYear) - (a.endYear ?? a.startYear);
   });
+  const conspiracies = [...(figure.plots ?? [])].sort(
+    (a, b) => (b.endYear ?? b.startYear) - (a.endYear ?? a.startYear),
+  );
   const hasLifeSummary =
+    conspiracies.length > 0 ||
     lifeUndertakings.length > 0 ||
     importantRelationships.length > 0 ||
     formativeMemories.length > 0 ||
@@ -890,6 +900,24 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
                       key={`${dispute.id}:${dispute.otherId}:${dispute.startYear}`}
                       world={world}
                       dispute={dispute}
+                      self={figure.id}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {conspiracies.length > 0 && (
+              <section>
+                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
+                  Conspiracies
+                </h3>
+                <div className="space-y-3">
+                  {conspiracies.map((plot) => (
+                    <Conspiracy
+                      key={`${plot.leaderId}:${plot.id}`}
+                      world={world}
+                      plot={plot}
                       self={figure.id}
                     />
                   ))}
@@ -1158,6 +1186,95 @@ function Quarrel({
   );
 }
 
+/**
+ * One conspiracy, read from the page of someone who was in it.
+ *
+ * Two clocks, and keeping them apart is the point. `startYear` is when it began, which almost
+ * nobody knew at the time; `publicYear` is when the world found out, and where it is absent the
+ * world never did — so the page says so rather than quietly presenting a secret as public record.
+ */
+function Conspiracy({ world, plot, self }: { world: World; plot: Plot; self: EntityId }) {
+  const open = plot.outcome === 'Ongoing';
+  const revealed = plot.publicYear !== undefined;
+
+  return (
+    <article className="border-l border-[var(--line)] pl-3">
+      <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
+        <span>
+          {plot.led ? 'Conspired against' : 'Joined a conspiracy against'}{' '}
+          <EntityLink world={world} id={plot.targetId} />
+          {!plot.led && (
+            <>
+              {', led by '}
+              <EntityLink world={world} id={plot.leaderId} />
+            </>
+          )}
+        </span>
+        <Badge tone={open ? 'accent' : 'muted'}>
+          {open ? PLOT_PHASE_LABELS[plot.phase] : PLOT_OUTCOME_LABELS[plot.outcome]}
+        </Badge>
+      </p>
+      <p className="mt-1 text-xs text-[var(--ink-faint)]">
+        {PLOT_OBJECTIVE_LABELS[plot.objective] ?? plot.objective} ·{' '}
+        {PLOT_CAUSE_LABELS[plot.cause] ?? plot.cause} · {plot.startYear}
+        {plot.endYear !== undefined && plot.endYear !== plot.startYear ? `–${plot.endYear}` : ''}
+      </p>
+      <p className="mt-1 text-xs text-[var(--ink-faint)]">
+        {revealed
+          ? `Known to the world from ${plot.publicYear}`
+          : 'Never known to the world; recorded here in retrospect'}
+      </p>
+      {plot.resolution && (
+        <p className="mt-1 text-xs text-[var(--ink-faint)]">Ended when {plot.resolution}</p>
+      )}
+      {plot.members.length > 0 && (
+        <ul className="mt-2 space-y-1 text-sm">
+          {plot.members.map((member) => (
+            <li key={`${member.figureId}:${member.joinedYear}`}>
+              <span className="text-[var(--ink-faint)]">{member.joinedYear} · </span>
+              <EntityLink world={world} id={member.figureId} />
+              <span className="text-[var(--ink-faint)]">
+                {', '}
+                {PLOT_TIE_LABELS[member.tie] ?? member.tie}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {plot.betrayerId && (
+        <p className="mt-1 text-sm">
+          Given up by <EntityLink world={world} id={plot.betrayerId} />
+        </p>
+      )}
+      {plot.acts.length > 0 && (
+        <ol className="mt-2 space-y-1 text-xs text-[var(--ink-faint)]">
+          {plot.acts.map((act, index) => (
+            <li key={`${act.year}:${act.phase}:${index}`}>
+              {act.year} · {act.detail}
+              {!act.known && <span className="ml-1 italic">— secret at the time</span>}
+            </li>
+          ))}
+        </ol>
+      )}
+      {plot.targetId !== self && open && (
+        <p className="mt-1 text-xs text-[var(--ink-faint)]">
+          {plot.access >= 0.65
+            ? 'Close access to the target'
+            : plot.access >= 0.35
+              ? 'Some access to the target'
+              : 'Little access to the target'}
+          {' · '}
+          {plot.suspicion >= 0.5
+            ? 'the court is watching'
+            : plot.secrecy >= 0.7
+              ? 'closely guarded'
+              : 'rumours spreading'}
+        </p>
+      )}
+    </article>
+  );
+}
+
 function LifeUndertaking({ world, undertaking }: { world: World; undertaking: Undertaking }) {
   const decisive = undertaking.steps.slice(-3);
   return (
@@ -1224,21 +1341,6 @@ function LifeUndertaking({ world, undertaking }: { world: World; undertaking: Un
             </li>
           ))}
         </ol>
-      )}
-      {undertaking.kind === 'Conspiracy' && (
-        <p className="mt-1 text-xs text-[var(--ink-faint)]">
-          {undertaking.access >= 0.65
-            ? 'Close access to the target'
-            : undertaking.access >= 0.35
-              ? 'Some access to the target'
-              : 'Little access to the target'}
-          {' · '}
-          {undertaking.secrecy >= 0.7
-            ? 'closely guarded'
-            : undertaking.secrecy >= 0.4
-              ? 'rumours spreading'
-              : 'near exposure'}
-        </p>
       )}
     </article>
   );

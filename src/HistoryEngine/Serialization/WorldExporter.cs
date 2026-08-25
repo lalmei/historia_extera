@@ -863,6 +863,7 @@ public static class WorldExporter
                 Injuries: BuildInjuries(figure),
                 Undertakings: BuildUndertakings(figure),
                 Disputes: BuildDisputes(figure),
+                Plots: BuildPlots(figure),
                 Observations: BuildObservations(figure),
                 Claims: BuildClaims(figure),
                 MotherId: OrNull(figure.MotherId),
@@ -1098,6 +1099,68 @@ public static class WorldExporter
         return list;
     }
 
+    /// <summary>
+    /// Every conspiracy this person knew about, from their own side.
+    /// </summary>
+    /// <remarks>
+    /// The retrospective truth, including the years it was secret. What a consumer must not do is
+    /// present a secret act as contemporary knowledge, which is what
+    /// <see cref="ExportPlot.PublicYear"/> and <see cref="ExportPlotAct.Known"/> are for.
+    /// </remarks>
+    private static List<ExportPlot> BuildPlots(Figure figure)
+    {
+        var list = new List<ExportPlot>(figure.Plots.Count);
+        foreach (FigurePlot plot in figure.Plots)
+        {
+            var members = new List<ExportPlotMember>(plot.Members.Count);
+            foreach (PlotMember member in plot.Members)
+            {
+                members.Add(new ExportPlotMember(
+                    member.FigureId, member.JoinedYear, member.Tie, member.Witting));
+            }
+
+            var acts = new List<ExportPlotAct>(plot.Acts.Count);
+            foreach (PlotAct act in plot.Acts)
+            {
+                acts.Add(new ExportPlotAct(
+                    act.Year,
+                    act.SourceKind,
+                    act.Phase,
+                    OrNull(act.ActorId),
+                    act.Detail,
+                    act.Known));
+            }
+
+            list.Add(new ExportPlot(
+                plot.Id,
+                plot.LeaderId,
+                plot.TargetId,
+                OrNull(plot.RealmId),
+                plot.LeaderId == figure.Id,
+                plot.Objective,
+                plot.Cause,
+                plot.SourceKind,
+                OrNull(plot.SourceEntityId),
+                OrNull(plot.PlaceId),
+                plot.Phase,
+                plot.Outcome,
+                plot.Resolution,
+                OrNull(plot.BetrayerId),
+                plot.StartYear,
+                plot.EndYear,
+                plot.PublicYear,
+                plot.Progress,
+                plot.RequiredProgress,
+                plot.Secrecy,
+                plot.Suspicion,
+                plot.Access,
+                members,
+                acts));
+        }
+
+        return list;
+    }
+
     private static List<ExportUndertaking> BuildUndertakings(Figure figure)
     {
         var list = new List<ExportUndertaking>(figure.Undertakings.Count);
@@ -1135,8 +1198,6 @@ public static class WorldExporter
                 OrNull(undertaking.SponsorId),
                 undertaking.RequiredOffice,
                 undertaking.ParticipantIds.ToArray(),
-                undertaking.Secrecy,
-                undertaking.Access,
                 steps));
         }
 

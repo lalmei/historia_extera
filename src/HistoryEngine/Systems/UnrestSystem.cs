@@ -578,6 +578,7 @@ public sealed class UnrestSystem : ISystem
 
         ruler.EndOffice(OfficeKind.Ruler, year);
         Occupations.Sync(world, ruler, year);
+        Conspiracies.EndAtLossOfThrone(world, ruler, year);
         realm.CurrentRulerId = EntityId.None;
         realm.RegentId = EntityId.None;
 
@@ -616,6 +617,7 @@ public sealed class UnrestSystem : ISystem
 
             ruler.EndOffice(OfficeKind.Ruler, year);
             Occupations.Sync(world, ruler, year);
+            Conspiracies.EndAtLossOfThrone(world, ruler, year);
             realm.CurrentRulerId = EntityId.None;
             realm.RegentId = EntityId.None;
 
