@@ -7,7 +7,7 @@
  * stops moving.
  */
 
-export const SCHEMA_VERSION = 36;
+export const SCHEMA_VERSION = 37;
 
 /**
  * Whether an event carries the history or merely records a life.
@@ -1462,6 +1462,39 @@ export interface SkyObservation {
   grade: ApparitionGrade;
 }
 
+export type ClaimRegister = 'Mythic' | 'Measured';
+
+export type ClaimVerdict =
+  | 'Standing'
+  | 'Confirmed'
+  | 'Refuted'
+  | 'Untested'
+  | 'NotTestable';
+
+export const CLAIM_VERDICT_LABELS: Record<ClaimVerdict, string> = {
+  Standing: 'Awaiting the year they named',
+  Confirmed: 'The sky bore them out',
+  Refuted: 'The sky did not',
+  Untested: 'The year they named lies beyond the record',
+  NotTestable: 'Not a thing the sky could answer',
+};
+
+/** What one person said a light in the sky was, and what became of the saying. */
+export interface SkyClaim {
+  id: number;
+  cometIndex: number;
+  year: number;
+  realmId?: EntityId;
+  register: ClaimRegister;
+  reading: string;
+  restsOnYears: number[];
+  intervalYears: number;
+  predictedYear?: number;
+  verdict: ClaimVerdict;
+  settledYear?: number;
+  claimantSawTheAnswer: boolean;
+}
+
 export type DisputeCause =
   | 'OfficeRevoked'
   | 'SuccessionPassedOver'
@@ -1578,6 +1611,7 @@ export interface Figure {
   undertakings: Undertaking[];
   disputes: Dispute[];
   observations: SkyObservation[];
+  claims: SkyClaim[];
   motherId?: EntityId;
   fatherId?: EntityId;
   childIds: EntityId[];

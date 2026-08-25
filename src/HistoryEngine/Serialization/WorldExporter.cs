@@ -864,6 +864,7 @@ public static class WorldExporter
                 Undertakings: BuildUndertakings(figure),
                 Disputes: BuildDisputes(figure),
                 Observations: BuildObservations(figure),
+                Claims: BuildClaims(figure),
                 MotherId: OrNull(figure.MotherId),
                 FatherId: OrNull(figure.FatherId),
                 ChildIds: figure.ChildIds.ToArray(),
@@ -1032,6 +1033,29 @@ public static class WorldExporter
                 seen.PriorYear,
                 seen.Interval,
                 seen.Grade));
+        }
+
+        return list;
+    }
+
+    private static List<ExportSkyClaim> BuildClaims(Figure figure)
+    {
+        var list = new List<ExportSkyClaim>(figure.Claims.Count);
+        foreach (SkyClaim claim in figure.Claims)
+        {
+            list.Add(new ExportSkyClaim(
+                claim.Id,
+                claim.CometIndex,
+                claim.Year,
+                OrNull(claim.RealmId),
+                claim.Register,
+                claim.Reading,
+                claim.RestsOnYears.ToArray(),
+                claim.IntervalYears,
+                claim.PredictedYear,
+                claim.Verdict,
+                claim.SettledYear,
+                claim.ClaimantSawTheAnswer));
         }
 
         return list;

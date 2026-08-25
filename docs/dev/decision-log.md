@@ -2877,6 +2877,61 @@ people change realms and a book does not follow them.
 
 ---
 
+### Letting the sky answer back (M20, second slice)
+
+The observations of the first slice were only worth having if somebody drew a conclusion from them
+and the world could say whether the conclusion held. This is that: a claim, in one of two registers,
+and an adjudication that reads the rolled orbit and nothing else.
+
+**Two wrong turns, both worth recording.**
+
+The first was a phase bug with a lesson in it. `Apparitions(sky, from, to)` measures the phase from
+its first argument, because that argument is normally the year the history opens. Asking it "did
+anything return around here" by passing a three-year window silently re-anchors the entire sky to
+that window and reports returns that never happened — which is what the adjudication did, and every
+verdict it produced was noise. The fix is a `ReturnsIn` that always anchors at the history's start,
+and a docstring on the other one saying why it cannot be used for that question.
+
+The second was the design, and it is the more interesting one. Checking only *did the comet arrive
+in the year you named* makes refutation unreachable. Every interval anybody derives is a whole
+multiple of the true period, so a man who believes the comet returns every hundred and fifty years
+looks up in the right year and sees it. His prediction is correct. His theory is not, and what shows
+it is **the return in between** — the one his period says cannot happen. Refutation by an unpredicted
+return is how a period is actually falsified, and it turns the doubled intervals of the first slice
+from a curiosity into the failure mode they deserve to be. Seed 11 carries the case: someone derives
+fifty-six years for a comet on twenty-eight and is caught out twenty-eight years later.
+
+A third correction followed from the second. The rival a refuted claimant falls out with cannot be
+required to be *vindicated*, because an early return arrives before anybody else's prediction has
+come due. Nobody is shown up by a verdict the world has not delivered yet. They are shown up in
+front of the person who disagreed with them, which is who they have to look at afterwards.
+
+**The claimant is usually dead.** Across the panel every verdict lands after its author is gone,
+because a period worth deriving is longer than the rest of a life. This is left exactly as it is: a
+prediction that outlives its author and is then borne out is the best thing the system produces, and
+it is what happened to Halley, who died sixteen years early. The living case gets a focused test
+rather than a tuning knob.
+
+**Measured across seeds 2, 7, 11, 42 and 99.** Forty-one claims, thirty-one mythic and ten measured;
+four confirmed, one refuted, five never tested because the year they named lies past the end of the
+record. Under one line in a hundred of the timeline, and two of the five worlds produce no claims at
+all because their skies have nothing in them.
+
+**Schema 37.** Figures carry what they held, the evidence it rested on, the year it named and the
+verdict.
+
+**Two things the wider suite caught that the panel could not.** A claimant can outlive their realm,
+and when the sky answered, the residence lookup correctly returned nowhere and the memory had neither
+a person nor a place to be about — one bug arriving as ten failures. Memories of a verdict now name
+the realm, which is also the truer answer: a claim is entered in a realm's register and answered in
+front of it, not in a particular building. And the plague reach band, 2–5 settlements per completed
+outbreak, turned out to be a property of that test's five seeds rather than of the model: measured
+across twelve, a completed outbreak reaches 2.1 to 7.0 and the pooled figure is 4.3, so the panel's
+own pooled value sat a hair under a ceiling no measurement supported. Widened to the spread the model
+has, with the abandonment share left to do the work it was written for.
+
+---
+
 ## Milestones
 
 | # | Deliverable | State |

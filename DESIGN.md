@@ -304,6 +304,17 @@ succession, offices, and bereavement all follow from it.
   which is why a realm that missed a return counts double and gets a clean multiple of the real
   period. That mistake is the point: it is what a later prediction can be wrong about.
 
+- **Claims** are what somebody said an observation meant. A mythic reading explains and does not
+  predict, drawn from the faith's own character; a measured one states the interval its claimant
+  derived and names the year it implies. Which register a person reaches for comes from their
+  learning against their piety and their faith's temper, and neither is written as the foolish one.
+  A measured claim is settled by the orbit and by nothing else — not the claimant's rank, not their
+  realm's learning. A period that is too long is refuted not by a missed appointment but by the
+  return it says cannot happen, which is how a period is really falsified; and because the intervals
+  people derive are honest multiples of the truth, that is the mechanism doing the work. A claimant
+  is often long dead when the sky answers, which is left as it is because it is the more interesting
+  outcome and it is what happened to Halley.
+
 Conspiracy is the test that this state matters. A plot is not a one-roll assassination label: a
 leader needs motive grounded in grievance, rivalry, memory, disgrace, or a claim; access to the
 target affects progress; recruits need trust in the leader, grievance against the target, or their

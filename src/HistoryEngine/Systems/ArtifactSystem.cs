@@ -122,6 +122,7 @@ public sealed class ArtifactSystem : ISystem
         // will eventually end up inside. A system of its own would also change the order hash for
         // a pass that writes at most a handful of lines a century.
         Skywatch.Record(world, year);
+        Skywatch.Answer(world, year);
     }
 
     private static EntityId LivingPatron(Civilization civilization, WorldState world)

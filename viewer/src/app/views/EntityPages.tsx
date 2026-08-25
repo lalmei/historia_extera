@@ -36,6 +36,7 @@ import {
   JOURNEY_KIND_LABELS,
   JOURNEY_OUTCOME_LABELS,
   CAUSE_LABELS,
+  CLAIM_VERDICT_LABELS,
   DEATH_LABELS,
   DISPUTE_CAUSE_LABELS,
   DISPUTE_OUTCOME_LABELS,
@@ -680,6 +681,7 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
     .sort((a, b) => b.intensity - a.intensity || b.lastReinforcedYear - a.lastReinforcedYear)
     .slice(0, 6);
   const seenInTheSky = [...(figure.observations ?? [])].sort((a, b) => a.year - b.year);
+  const heldAboutTheSky = [...(figure.claims ?? [])].sort((a, b) => a.year - b.year);
   const quarrels = [...(figure.disputes ?? [])].sort((a, b) => {
     if (a.outcome === 'Open' && b.outcome !== 'Open') return -1;
     if (b.outcome === 'Open' && a.outcome !== 'Open') return 1;
@@ -691,6 +693,7 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
     formativeMemories.length > 0 ||
     quarrels.length > 0 ||
     seenInTheSky.length > 0 ||
+    heldAboutTheSky.length > 0 ||
     (figure.injuries?.length ?? 0) > 0;
 
   return (
@@ -915,6 +918,49 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
                           ? `${seen.interval} years after the last their people had written down`
                           : 'the first their people had written down'}
                       </span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {heldAboutTheSky.length > 0 && (
+              <section>
+                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
+                  Held about the sky
+                </h3>
+                <ul className="space-y-2 text-sm">
+                  {heldAboutTheSky.map((claim) => (
+                    <li key={`${claim.id}:${claim.year}`} className="border-l border-[var(--line)] pl-3">
+                      <p className="flex flex-wrap items-baseline gap-2">
+                        <span>
+                          {claim.year} · {claim.reading}
+                        </span>
+                        <Badge
+                          tone={
+                            claim.verdict === 'Confirmed'
+                              ? 'accent'
+                              : claim.verdict === 'Refuted'
+                                ? 'muted'
+                                : 'neutral'
+                          }
+                        >
+                          {claim.register}
+                        </Badge>
+                      </p>
+                      <p className="mt-0.5 text-xs text-[var(--ink-faint)]">
+                        {CLAIM_VERDICT_LABELS[claim.verdict] ?? claim.verdict}
+                        {claim.predictedYear !== undefined && ` · looked for it in ${claim.predictedYear}`}
+                        {claim.settledYear !== undefined && ` · settled ${claim.settledYear}`}
+                        {claim.settledYear !== undefined &&
+                          !claim.claimantSawTheAnswer &&
+                          ', after their death'}
+                      </p>
+                      {claim.restsOnYears.length > 0 && (
+                        <p className="mt-0.5 text-xs text-[var(--ink-faint)]">
+                          From sightings in {claim.restsOnYears.join(', ')}
+                        </p>
+                      )}
                     </li>
                   ))}
                 </ul>

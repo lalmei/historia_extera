@@ -77,7 +77,15 @@ public static class Skywatch
     public static List<Apparition> Apparitions(WorldState world) =>
         Apparitions(world.Flavour.Cosmology, world.StartYear, world.EndYear);
 
-    /// <summary>Every return of every chronicled comet in a span, in year then comet order.</summary>
+    /// <summary>
+    /// Every return of every chronicled comet between two years, in year then comet order.
+    /// </summary>
+    /// <remarks>
+    /// <paramref name="startYear"/> is the anchor as well as the lower bound: the phase is measured
+    /// from it, because that is when the history opens. Passing a narrower window to ask "did
+    /// anything return around here" therefore re-anchors the whole sky and answers a different
+    /// question — <see cref="ReturnsIn"/> is what that question wants.
+    /// </remarks>
     public static List<Apparition> Apparitions(WorldCosmology sky, int startYear, int endYear)
     {
         var found = new List<Apparition>();
@@ -173,6 +181,27 @@ public static class Skywatch
     // Who was watching
     // -----------------------------------------------------------------------
 
+    /// <summary>
+    /// Whether this comet came back in a given year, give or take.
+    /// </summary>
+    /// <remarks>
+    /// Anchored at the history's own start year, whatever window the caller cares about. This is the
+    /// question an adjudication asks and it must be asked this way: the alternative — building a
+    /// short list of apparitions around the year in question — re-anchors the phase to that window
+    /// and cheerfully reports returns that never happened.
+    /// </remarks>
+    public static bool ReturnsIn(
+        WorldCosmology sky, SystemComet comet, int year, int startYear, int slack)
+    {
+        for (int at = year - slack; at <= year + slack; at++)
+        {
+            if (at < startYear) continue;
+            if (ReturnsThisYear(sky, comet, at, startYear, out _)) return true;
+        }
+
+        return false;
+    }
+
     /// <summary>Records this year's returns, in whichever realms had anyone to record them.</summary>
     public static void Record(WorldState world, int year)
     {
@@ -192,6 +221,14 @@ public static class Skywatch
             }
         }
     }
+
+    /// <summary>Settles anything the sky was due to answer this year.</summary>
+    /// <remarks>
+    /// Run after the year's sightings so that a prediction and the return it named are settled in
+    /// the order a reader would expect: the comet is written down, and then the person who said it
+    /// would be there is borne out.
+    /// </remarks>
+    public static void Answer(WorldState world, int year) => SkyClaims.Settle(world, year);
 
     private static bool ReturnsThisYear(
         WorldCosmology sky,
@@ -293,6 +330,9 @@ public static class Skywatch
             significance: grade == ApparitionGrade.Great
                 ? Significance.Notable
                 : Significance.Routine);
+
+        // Offered here so that a claim rests on exactly what its claimant had in front of them.
+        SkyClaims.Consider(world, watcher, watcher.Observations[^1], year);
     }
 
     /// <summary>
