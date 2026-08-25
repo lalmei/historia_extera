@@ -241,6 +241,105 @@ public sealed record SkyObservation(
     public int? Interval => PriorYear is int prior ? Year - prior : null;
 }
 
+/// <summary>The two ways a person can answer the question of what a light in the sky was.</summary>
+/// <remarks>
+/// Neither is a strawman. The mythic register explains and does not predict, which is not a
+/// failure of nerve — it is what an explanation is for when nobody has a register going back far
+/// enough to count from. The measured register says something checkable and can therefore be
+/// wrong, which is the only advantage it has and the whole of it.
+/// </remarks>
+public enum ClaimRegister
+{
+    Mythic = 0,
+    Measured = 1,
+}
+
+/// <summary>What the sky did about a claim that named a year.</summary>
+public enum ClaimVerdict
+{
+    /// <summary>It named a year that has not come yet.</summary>
+    Standing = 0,
+
+    /// <summary>The comet returned in the year it named.</summary>
+    Confirmed = 1,
+
+    /// <summary>It did not.</summary>
+    Refuted = 2,
+
+    /// <summary>The year it named lies beyond the end of the record.</summary>
+    Untested = 3,
+
+    /// <summary>It never named a year. Every mythic claim ends here.</summary>
+    NotTestable = 4,
+}
+
+/// <summary>
+/// What one person said a light in the sky was, and what became of the saying.
+/// </summary>
+/// <remarks>
+/// <para>A claim rests on observations its claimant could actually have read — their own realm's
+/// register and nothing else. <see cref="RestsOnYears"/> is that evidence, kept so a reader can see
+/// what the person was working from rather than taking the conclusion on trust.</para>
+///
+/// <para>A measured claim names <see cref="PredictedYear"/>, and the sky settles it. Nothing else
+/// does: not the claimant's rank, not their realm's learning, not how pious they were. If a roll
+/// could make a prediction come true then this is flavour with extra steps.</para>
+/// </remarks>
+public sealed class SkyClaim
+{
+    public SkyClaim(
+        int id,
+        EntityId claimantId,
+        EntityId realmId,
+        int cometIndex,
+        int year,
+        ClaimRegister register,
+        string reading)
+    {
+        Id = id;
+        ClaimantId = claimantId;
+        RealmId = realmId;
+        CometIndex = cometIndex;
+        Year = year;
+        Register = register;
+        Reading = reading;
+        RestsOnYears = new List<int>();
+    }
+
+    /// <summary>Stable within the claimant.</summary>
+    public int Id { get; }
+
+    public EntityId ClaimantId { get; }
+
+    /// <summary>The realm whose register it was made from, and whose argument it becomes.</summary>
+    public EntityId RealmId { get; }
+
+    public int CometIndex { get; }
+
+    public int Year { get; }
+
+    public ClaimRegister Register { get; }
+
+    /// <summary>What they said it was, in the words their own world would have used.</summary>
+    public string Reading { get; }
+
+    /// <summary>The sightings they had to work from, earliest first.</summary>
+    public List<int> RestsOnYears { get; }
+
+    /// <summary>The period they derived. Zero on a mythic claim.</summary>
+    public int IntervalYears { get; set; }
+
+    /// <summary>The year they said it would come back. Absent on a mythic claim.</summary>
+    public int? PredictedYear { get; set; }
+
+    public ClaimVerdict Verdict { get; set; }
+
+    public int? SettledYear { get; set; }
+
+    /// <summary>Whether its author was alive to hear the answer.</summary>
+    public bool ClaimantSawTheAnswer { get; set; }
+}
+
 /// <summary>Feelings derived from the memories still vivid in a life.</summary>
 public readonly record struct FeelingState(
     double Grief,

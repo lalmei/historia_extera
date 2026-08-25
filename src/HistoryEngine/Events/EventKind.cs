@@ -116,6 +116,19 @@ public enum EventKind
     /// </remarks>
     ApparitionRecorded = 335,
 
+    /// <summary>Somebody said what a light in the sky was, and sometimes when it would return.</summary>
+    /// <remarks>
+    /// Notable when it names a year, because that is a claim the world can answer and a reader will
+    /// want to be there when it does. Routine when it only explains.
+    /// </remarks>
+    SkyClaimMade = 336,
+
+    /// <summary>The comet came back in the year somebody said it would.</summary>
+    SkyClaimConfirmed = 337,
+
+    /// <summary>It did not.</summary>
+    SkyClaimRefuted = 338,
+
     // ---- Territory (400) ----
     // Claims are written so ownership can be replayed year by year; they are marked Routine
     // so the timeline is not a run of "extended its reach". Cessions and releases stay on

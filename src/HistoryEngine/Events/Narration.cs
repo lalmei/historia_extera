@@ -155,6 +155,12 @@ public static class Narration
         Set(EventKind.ApparitionRecorded,
             "{subject} recorded {data:grade}[ at {location}]"
             + "[, {data:since} years after the last].");
+        Set(EventKind.SkyClaimMade,
+            "{subject} held {data:reading}[, and looked for it in {data:due}].");
+        Set(EventKind.SkyClaimConfirmed,
+            "The sky bore out {subject}, who held {data:reading}[, in {data:made}].");
+        Set(EventKind.SkyClaimRefuted,
+            "The sky did not bear out {subject}, who held {data:reading}[, in {data:made}].");
 
         Set(EventKind.DynastyFounded, "The {subject} rose[ under {object}][ in {location}].");
         Set(EventKind.DynastyEnded, "The {subject} died out[ after {data:years}].");
@@ -363,6 +369,12 @@ public static class Narration
             + "[{self:object}.]");
         SetSelf(EventKind.ApparitionRecorded,
             "Recorded {data:grade}[ at {location}][, {data:since} years after the last].");
+        SetSelf(EventKind.SkyClaimMade,
+            "Held {data:reading}[, and looked for it in {data:due}].");
+        SetSelf(EventKind.SkyClaimConfirmed,
+            "The sky bore out what they held[, {data:reading}][ — said in {data:made}].");
+        SetSelf(EventKind.SkyClaimRefuted,
+            "The sky did not bear out what they held[, {data:reading}][ — said in {data:made}].");
         SetSelf(EventKind.DynastyFounded,
             "[{self:object}Raised the {subject}][{self:object} in {location}].");
         SetSelf(EventKind.DynastyAscended,

@@ -121,8 +121,10 @@ public sealed record WorldExport(
     /// parties, and generalised an injury's cause from a battle to whatever inflicted it.
     /// Version 36 added the sky's true schedule of comet returns and the observations named people
     /// wrote down of them, with the interval their own realm's register let them derive.
+    /// Version 37 added what they claimed those sightings meant, the year a measured claim named,
+    /// and the verdict the sky returned on it.
     /// </remarks>
-    public const int CurrentSchemaVersion = 36;
+    public const int CurrentSchemaVersion = 37;
 }
 
 public sealed record ExportMeta(
@@ -792,6 +794,7 @@ public sealed record ExportFigure(
     IReadOnlyList<ExportUndertaking> Undertakings,
     IReadOnlyList<ExportDispute> Disputes,
     IReadOnlyList<ExportObservation> Observations,
+    IReadOnlyList<ExportSkyClaim> Claims,
     EntityId? MotherId,
     EntityId? FatherId,
     IReadOnlyList<EntityId> ChildIds,
@@ -938,6 +941,31 @@ public sealed record ExportObservation(
     int? PriorYear,
     int? Interval,
     ApparitionGrade Grade);
+
+/// <summary>
+/// What one person said a light in the sky was, and what became of the saying.
+/// </summary>
+/// <param name="RestsOnYears">
+/// The sightings the claimant had to work from. A reader can see what they were reasoning over
+/// rather than taking the conclusion on trust.
+/// </param>
+/// <param name="ClaimantSawTheAnswer">
+/// Whether they were alive when the sky settled it. False is the more interesting case and not a
+/// rare one: a period long enough to be worth deriving is usually longer than the rest of a life.
+/// </param>
+public sealed record ExportSkyClaim(
+    int Id,
+    int CometIndex,
+    int Year,
+    EntityId? RealmId,
+    ClaimRegister Register,
+    string Reading,
+    IReadOnlyList<int> RestsOnYears,
+    int IntervalYears,
+    int? PredictedYear,
+    ClaimVerdict Verdict,
+    int? SettledYear,
+    bool ClaimantSawTheAnswer);
 
 public sealed record ExportUndertakingStep(
     int Year,
