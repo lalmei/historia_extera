@@ -2291,8 +2291,59 @@ export function ArtifactTable({ world, artifacts }: { world: World; artifacts: A
   );
 }
 
+type CultureTitleStyle = {
+  office: string;
+  titles: readonly string[];
+};
+
+/** The culture-specific vocabulary behind the offices recorded on figure pages. */
+const CULTURE_OFFICE_STYLES: Record<
+  Culture['government'],
+  readonly CultureTitleStyle[]
+> = {
+  Chiefdom: [
+    { office: 'Regent', titles: ['Regent'] },
+    { office: 'Consort', titles: ["Chief's Wife", "Chief's Husband"] },
+    { office: 'Marshal', titles: ['War-leader'] },
+    { office: 'High priest', titles: ['Elder'] },
+    { office: 'Governor', titles: ['Headman'] },
+  ],
+  Monarchy: [
+    { office: 'Regent', titles: ['Regent'] },
+    { office: 'Consort', titles: ['Queen', 'Prince Consort'] },
+    { office: 'Marshal', titles: ['Marshal'] },
+    { office: 'High priest', titles: ['High Priest'] },
+    { office: 'Governor', titles: ['Governor'] },
+  ],
+  Theocracy: [
+    { office: 'Regent', titles: ['Regent'] },
+    { office: 'Consort', titles: ['Consort'] },
+    { office: 'Marshal', titles: ['Champion'] },
+    { office: 'High priest', titles: ['Hierophant'] },
+    { office: 'Governor', titles: ['Warden'] },
+  ],
+  Oligarchy: [
+    { office: 'Regent', titles: ['Regent'] },
+    { office: 'Consort', titles: ['Consort'] },
+    { office: 'Marshal', titles: ['Strategos'] },
+    { office: 'High priest', titles: ['High Priest'] },
+    { office: 'Governor', titles: ['Eparch'] },
+  ],
+  Republic: [
+    { office: 'Regent', titles: ['Regent'] },
+    { office: 'Consort', titles: ['Consort'] },
+    { office: 'Marshal', titles: ['Praetor'] },
+    { office: 'High priest', titles: ['Pontifex'] },
+    { office: 'Governor', titles: ['Prefect'] },
+  ],
+};
+
 export function CulturePage({ world, culture }: { world: World; culture: Culture }) {
   const civs = world.export.civilizations.filter((civ) => civ.cultureId === culture.id);
+  const titleStyles: readonly CultureTitleStyle[] = [
+    { office: 'Ruler', titles: [culture.rulerTitle] },
+    ...CULTURE_OFFICE_STYLES[culture.government],
+  ];
 
   // No event kind currently references a culture, so this is normally empty. Rendered
   // conditionally rather than removed, since later milestones may add culture-level events.
@@ -2309,7 +2360,6 @@ export function CulturePage({ world, culture }: { world: World; culture: Culture
       <Panel title="Details">
         <dl>
           <Field label="Government">{culture.government}</Field>
-          <Field label="Rulers styled">{culture.rulerTitle}</Field>
           <Field label="Succession">
             {SUCCESSION_LABELS[culture.successionLaw] ?? culture.successionLaw}
           </Field>
@@ -2320,6 +2370,16 @@ export function CulturePage({ world, culture }: { world: World; culture: Culture
               <span className="text-[var(--ink-faint)]">Held for life</span>
             )}
           </Field>
+        </dl>
+      </Panel>
+
+      <Panel title="Titles">
+        <dl>
+          {titleStyles.map(({ office, titles }) => (
+            <Field key={office} label={office}>
+              {titles.join(' / ')}
+            </Field>
+          ))}
         </dl>
       </Panel>
 
