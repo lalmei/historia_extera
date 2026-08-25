@@ -17,6 +17,7 @@ import { NightSky } from './NightSky';
 
 export function CosmologyPage({ world }: { world: World }) {
   const { designation, name, kind, cosmology } = world.export.world;
+  const beginning = world.export.events.find((event) => event.kind === 'WorldCreated');
   return (
     <div className="space-y-5">
       <PageTitle
@@ -33,8 +34,114 @@ export function CosmologyPage({ world }: { world: World }) {
           ) : undefined
         }
       />
+      <CosmicTimeline
+        data={beginning?.data}
+        startYear={world.export.meta.startYear}
+        metallicityFeH={cosmology?.galaxy?.location.metallicityFeH}
+      />
       <CosmologyPanel world={world.export.world} seed={world.export.meta.seed} />
     </div>
+  );
+}
+
+function CosmicTimeline({
+  data,
+  startYear,
+  metallicityFeH,
+}: {
+  data?: Record<string, string>;
+  startYear: number;
+  metallicityFeH?: number;
+}) {
+  if (
+    !data?.universeAgeGyr ||
+    !data.galaxyAgeGyr ||
+    !data.starAgeGyr ||
+    !data.worldAgeGyr ||
+    !data.stellarEnrichmentGyr ||
+    !data.worldFormationDelayMyr ||
+    !data.starRemainingGyr ||
+    !data.starNextStage ||
+    !data.stellarFuture
+  ) {
+    return null;
+  }
+
+  const iron = metallicityFeH == null
+    ? 'metal-rich gas'
+    : `gas at [Fe/H] ${metallicityFeH >= 0 ? '+' : ''}${metallicityFeH.toFixed(2)}`;
+
+  return (
+    <Panel title="Cosmic timeline">
+      <p className="mb-4 text-sm text-[var(--ink-soft)]">
+        Lookback dates are measured from Year {startYear}. The Chronicle begins there; it does not
+        use civic years for events billions of years earlier.
+      </p>
+      <ol className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <CosmicMoment
+          when={`${data.universeAgeGyr} Gyr ago`}
+          title="The universe began"
+          detail="Hydrogen and helium came first; the iron and rock needed by this world did not yet exist."
+        />
+        <CosmicMoment
+          when={`${data.galaxyAgeGyr} Gyr ago`}
+          title="The host galaxy began assembling"
+          detail="Its first stars formed from nearly pristine gas while the galaxy was still growing."
+        />
+        <CosmicMoment
+          when={`${data.stellarEnrichmentGyr} Gyr of enrichment`}
+          title="Earlier stellar generations lived and died"
+          detail={`Massive-star explosions and delayed Type Ia supernovae enriched ${iron}, supplying the iron and other heavy elements used by the later system.`}
+        />
+        <CosmicMoment
+          when={`${data.starAgeGyr} Gyr ago`}
+          title="The host star and its disk formed"
+          detail="A metal-enriched molecular cloud collapsed into the star and a surrounding protoplanetary disk."
+        />
+        <CosmicMoment
+          when={`${data.worldAgeGyr} Gyr ago`}
+          title="The history world assembled"
+          detail={`Its last large accretion followed the star by about ${data.worldFormationDelayMyr} million years.`}
+        />
+        <CosmicMoment
+          when={`Year ${startYear}`}
+          title="Recorded history began"
+          detail="This is the Chronicle's first year, not the physical creation date of the galaxy, system, or world."
+        />
+        <CosmicMoment
+          when={`In ${data.starRemainingGyr} Gyr`}
+          title={`The host star becomes a ${data.starNextStage}`}
+          detail={data.stellarFuture}
+          future
+        />
+      </ol>
+    </Panel>
+  );
+}
+
+function CosmicMoment({
+  when,
+  title,
+  detail,
+  future = false,
+}: {
+  when: string;
+  title: string;
+  detail: string;
+  future?: boolean;
+}) {
+  return (
+    <li
+      className={`rounded-md border p-3 ${
+        future
+          ? 'border-[color-mix(in_srgb,var(--primary)_45%,var(--rule))] bg-[color-mix(in_srgb,var(--primary)_7%,var(--panel))]'
+          : 'border-[var(--rule)] bg-[var(--input)]'
+      }`}
+    >
+      <div className="he-label mb-1">{when}</div>
+      <div className="text-sm font-semibold text-[var(--ink)]">{title}</div>
+      <p className="mt-1 text-xs leading-relaxed text-[var(--ink-soft)]">{detail}</p>
+    </li>
   );
 }
 

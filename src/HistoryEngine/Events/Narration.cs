@@ -68,7 +68,11 @@ public static class Narration
         void SetSelf(EventKind kind, string template) =>
             map[kind.ToString() + SelfKeySuffix] = template;
 
-        Set(EventKind.WorldCreated, "{data:designation} took shape.");
+        // The enum name is retained for old event contracts. This line is the beginning of the
+        // human record, not the creation of a planet billions of years after its galaxy.
+        Set(EventKind.WorldCreated,
+            "Recorded history on {data:designation} began; the world was already "
+            + "{data:worldAgeGyr} billion years old.");
 
         Set(EventKind.CivilizationFounded, "{subject} was founded[, with its seat at {location}].");
         Set(EventKind.CivilizationFell,
