@@ -116,7 +116,7 @@ public sealed class WorldFlavourTests
     }
 
     [Fact]
-    public void WorldCreatedNamesTheWorldAndExportCarriesIt()
+    public void RecordedHistoryBeginsOnAnAlreadyAncientWorldAndExportCarriesIt()
     {
         HistoryRun run = HistoryRun.Execute(TestWorlds.Small());
         WorldExport export = run.ToExport();
@@ -127,7 +127,18 @@ public sealed class WorldFlavourTests
         Assert.Equal(run.World.Flavour.Designation, created.Data!["designation"]);
         Assert.Equal(run.World.Flavour.Name, created.Data["name"]);
         Assert.Equal(run.World.Flavour.Kind.ToString(), created.Data["kind"]);
-        Assert.Contains(run.World.Flavour.Designation, run.World.Narrate(created));
+        Assert.Equal(
+            run.World.Flavour.Cosmology.Chronology.WorldFormationLookbackGyr.ToString(
+                "F2", System.Globalization.CultureInfo.InvariantCulture),
+            created.Data["worldAgeGyr"]);
+        Assert.Equal(
+            run.World.Flavour.Cosmology.Chronology.NextStageLabel,
+            created.Data["starNextStage"]);
+
+        string narration = run.World.Narrate(created);
+        Assert.Contains(run.World.Flavour.Designation, narration);
+        Assert.StartsWith("Recorded history on ", narration, StringComparison.Ordinal);
+        Assert.DoesNotContain("took shape", narration, StringComparison.OrdinalIgnoreCase);
 
         Assert.Equal(run.World.Flavour.Name, export.World.Name);
         Assert.Equal(run.World.Flavour.Kind, export.World.Kind);

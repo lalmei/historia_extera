@@ -108,7 +108,8 @@ public sealed record WorldCosmology(
     IReadOnlyList<SystemMoon> Moons,
     int? HabitableMoonIndex,
     HostGalaxy Galaxy,
-    IReadOnlyList<SystemComet> Comets)
+    IReadOnlyList<SystemComet> Comets,
+    CosmicChronology Chronology)
 {
     /// <summary>Aligned with <see cref="WorldFlavour"/> — same fork decides moon vs planet.</summary>
     internal const double MoonChance = 0.4;
@@ -244,6 +245,7 @@ public sealed record WorldCosmology(
             orbitalAu,
             habitableMass);
         IReadOnlyList<SystemComet> comets = PlaceComets(seed, starMass, companions);
+        CosmicChronology chronology = CosmicChronology.From(seed, galaxy, starMass, lifespan);
 
         return new WorldCosmology(
             starClass,
@@ -273,7 +275,8 @@ public sealed record WorldCosmology(
             moons,
             habitableMoonIndex,
             galaxy,
-            comets);
+            comets,
+            chronology);
     }
 
     private IReadOnlyList<CosmologyCheck> EvaluateChecks()

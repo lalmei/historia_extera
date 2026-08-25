@@ -158,4 +158,59 @@ public sealed class CosmologyTests
         Assert.Equal(1.373, outer, 2);
         Assert.Equal(2.7, WorldCosmology.SnowLine(1.0), 2);
     }
+
+    [Fact]
+    public void DeepTimeIsOrderedAndLeavesRoomForEarlierStellarGenerations()
+    {
+        var stages = new HashSet<StellarNextStage>();
+
+        for (ulong seed = 1; seed <= 256; seed++)
+        {
+            WorldCosmology cosmology = WorldCosmology.From(seed);
+            CosmicChronology time = cosmology.Chronology;
+            stages.Add(time.NextStage);
+
+            Assert.Equal(CosmicChronology.ObservableUniverseAgeGyr, time.UniverseAgeGyr);
+            Assert.True(time.UniverseAgeGyr > time.GalaxyFormationLookbackGyr);
+            Assert.True(time.GalaxyFormationLookbackGyr > time.StarFormationLookbackGyr);
+            Assert.True(time.StarFormationLookbackGyr > time.WorldFormationLookbackGyr);
+            Assert.True(time.WorldFormationLookbackGyr > 0.0);
+            Assert.True(
+                time.PriorStellarEnrichmentGyr >= CosmicChronology.MinimumPriorEnrichmentGyr,
+                $"Seed {seed} allowed only {time.PriorStellarEnrichmentGyr:F2} Gyr for enrichment.");
+            Assert.InRange(
+                time.WorldFormationDelayMyr,
+                CosmicChronology.MinimumWorldFormationDelayMyr,
+                CosmicChronology.MaximumWorldFormationDelayMyr);
+            Assert.Equal(
+                cosmology.StarLifespanGyr - time.StarFormationLookbackGyr,
+                time.MainSequenceRemainingGyr,
+                9);
+            Assert.True(time.MainSequenceRemainingGyr > 0.0);
+            Assert.Contains("white dwarf", time.StellarFuture, StringComparison.Ordinal);
+            Assert.Contains("not explode as a supernova", time.StellarFuture, StringComparison.Ordinal);
+
+            StellarNextStage expected = cosmology.StarMassSolar
+                <= CosmicChronology.BlueDwarfMaximumMassSolar
+                    ? StellarNextStage.BlueDwarf
+                    : StellarNextStage.Subgiant;
+            Assert.Equal(expected, time.NextStage);
+        }
+
+        Assert.Contains(StellarNextStage.BlueDwarf, stages);
+        Assert.Contains(StellarNextStage.Subgiant, stages);
+    }
+
+    [Fact]
+    public void ChronologyHasItsOwnStreamAndDoesNotMoveTheSystem()
+    {
+        WorldCosmology first = WorldCosmology.From(42);
+        WorldCosmology again = WorldCosmology.From(42);
+
+        Assert.Equal(first.Chronology, again.Chronology);
+        Assert.Equal(first.StarClass, again.StarClass);
+        Assert.Equal(first.OrbitalDistanceAu, again.OrbitalDistanceAu);
+        Assert.Equal(first.Companions, again.Companions);
+        Assert.Equal(first.Comets, again.Comets);
+    }
 }

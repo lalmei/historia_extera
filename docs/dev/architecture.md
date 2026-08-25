@@ -238,7 +238,12 @@ seed, so stretching a run cannot rename it. The seed still travels in the export
 it, which is what reproduces the history. The host galaxy and the local star system travel
 the same way: rolled from the seed (the galaxy on its own stream, so it cannot reshuffle
 the star), shown in the export and the cosmology tomes, and never read by a simulation
-decision.
+decision. Cosmic time is kept beside that physical model rather than forced into the civic
+calendar: the host galaxy begins assembling, earlier stellar generations enrich its gas,
+the star and protoplanetary disk form, and the world finishes accreting tens of millions of
+years later. Year 1 is only the beginning of recorded history. The same chronology records
+the host star's remaining main-sequence lifetime and its mass-dependent next phase, including
+the outward-moving habitable zone and eventual white-dwarf remnant.
 
 ## Serialization
 

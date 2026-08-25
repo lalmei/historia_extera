@@ -59,6 +59,8 @@ public static class WorldBuilder
 
         RegionGrid.Build(atlas, config.RegionSize, world.Regions);
 
+        CosmicChronology time = world.Flavour.Cosmology.Chronology;
+
         world.Chronicle.Record(
             config.StartYear,
             EventKind.WorldCreated,
@@ -66,7 +68,16 @@ public static class WorldBuilder
             data: Chronicle.Data(
                 ("name", world.Flavour.Name),
                 ("kind", world.Flavour.Kind.ToString()),
-                ("designation", world.Flavour.Designation)));
+                ("designation", world.Flavour.Designation),
+                ("universeAgeGyr", time.UniverseAgeGyr.ToString("F1", CultureInfo.InvariantCulture)),
+                ("galaxyAgeGyr", time.GalaxyFormationLookbackGyr.ToString("F1", CultureInfo.InvariantCulture)),
+                ("starAgeGyr", time.StarFormationLookbackGyr.ToString("F2", CultureInfo.InvariantCulture)),
+                ("worldAgeGyr", time.WorldFormationLookbackGyr.ToString("F2", CultureInfo.InvariantCulture)),
+                ("stellarEnrichmentGyr", time.PriorStellarEnrichmentGyr.ToString("F1", CultureInfo.InvariantCulture)),
+                ("worldFormationDelayMyr", time.WorldFormationDelayMyr.ToString("F0", CultureInfo.InvariantCulture)),
+                ("starRemainingGyr", time.MainSequenceRemainingGyr.ToString("F1", CultureInfo.InvariantCulture)),
+                ("starNextStage", time.NextStageLabel),
+                ("stellarFuture", time.StellarFuture)));
 
         FoundInitialCivilizations(world);
         return world;
