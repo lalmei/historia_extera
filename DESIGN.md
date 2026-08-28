@@ -242,13 +242,13 @@ plotted should have a readable causal thread rather than a bag of unrelated even
 That thread is built from five durable forms of state:
 
 - **Bonds** are directed relationships between two recorded figures. Structural roles such as
-  parent/child, patron/client, and mentor/apprentice are reciprocal, while affection, trust,
-  obligation, fear, and grievance may differ on each side. A bond retains both the event facts
-  that began it and the latest material event that changed it; “rival” without a dispute, person,
-  or place is not sufficient provenance.
+  parent/child, guardian/ward, patron/client, and mentor/apprentice are reciprocal, while affection,
+  trust, obligation, fear, and grievance may differ on each side. A bond retains both the event
+  facts that began it and the latest material event that changed it; “rival” without a dispute,
+  person, or place is not sufficient provenance.
 - **Salient memories** are at most twelve causal experiences: bereavement, injury, triumph,
   defeat, humiliation, gratitude, mentorship, rivalry, ambition, betrayal, marriage,
-  parenthood, journeys, and conspiracy. Every memory names the event kind and at least one
+  parenthood, journeys, conspiracy, wonder, and a childhood siege. Every memory names the event kind and at least one
   concrete person, place, battle, route, or other entity. Repetition reinforces it; deterministic
   fading and eviction keep the set small enough to mean “what still shapes this person,” not a
   second copy of the chronicle.
@@ -269,6 +269,15 @@ mentorship; appointment creates patronage and dismissal may turn gratitude into 
 rivalry. A battle can leave comradeship, rivalry between commanders, pride or defeat, and a wound
 that temporarily prevents travel or fighting. A death is indexed on immediate family so the
 bereavement memory and its causal obituary appear on the same survivor's page.
+
+Childhood remains event-sized rather than annual. When a recorded child loses the last available
+parent, one reachable adult becomes guardian: kin first, then a relationship to the parent or a
+real office or faith institution. The shared duty ends at majority or either person's death and its
+guardian/ward bond remains as history. At majority a sparse mentor may pull the first-career weights
+toward arms, faith, trade/craft, or letters/office without deciding the draw. A siege endured as a
+minor becomes a salient memory that changes later martial risk according to disposition. Adults
+raised into the record receive only facts known at their introduction — origin settlement,
+institution, broad career family, and any actual sponsor — never invented earlier events.
 
 Journeys are steps within undertakings, not isolated annual errands. Trade ventures, pilgrimages,
 missionary circuits, and embassies begin with a stated objective and may require several trips.
@@ -393,11 +402,16 @@ exports is recognisable without opening a file and still reproducible from the n
 Development may invoke the CLI to generate a world for the viewer, but that is tooling,
 not a runtime architecture. A deployed viewer remains a reader of exported histories.
 
-A figure page leads with **Life at a glance** before family lists, campaigns, travels, and the raw
-chronology. It shows the current undertaking, important relationships with their causal reading,
-formative memories and present feelings, and wounds carried. These are engine-owned facts selected
-and worded for reading; the viewer does not invent emotions or infer relationships from prose.
-The chronology remains immediately below as the evidence behind the summary.
+A figure page leads with **Life at a glance** before its structured episode ledger and raw
+chronology. It shows current or last position and place, grounded upbringing, important
+relationships, formative memories and wounds, open undertakings or conflicts, and a deterministic
+selection of completed causal episodes. Every selected episode retains the exported entity links,
+years, and source-event ids that support it; the viewer does not invent motives, emotions, or
+chronology. Repeated routine returns along the same journey are one line, while a waylay or loss is
+always separate. A year control hides later relationship mutations, memories, outcomes, plot
+revelations, and other facts that have no historical snapshot. The complete filtered chronicle
+remains available through an explicit disclosure rather than competing with the biography by
+default.
 
 ## Roadmap
 
