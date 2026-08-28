@@ -155,9 +155,11 @@ its icon rail so the reading column remains usable.
 
 ## Schema
 
-The viewer pins the export's `schemaVersion` (**40**) and refuses a file it does not
+The viewer pins the export's `schemaVersion` (**41**) and refuses a file it does not
 understand rather than misrendering it. Regenerate the world with the matching engine if
-it complains. Version 40 adds grounded backgrounds, guardianships and mentorships. Version 39
+it complains. Version 41 adds the hardship memory, carried by people who lived through a
+famine, plague, sack or disaster in the town it fell on. Version 40 adds grounded
+backgrounds, guardianships and mentorships. Version 39
 adds an explicit leader/member/target viewpoint to exported plots and puts a revealed plot on its
 target's page. Version 38 adds persistent conspiracies. Version 32 adds the system's comets to
 cosmology. Version 31 adds the host galaxy to cosmology — morphology, the observer's

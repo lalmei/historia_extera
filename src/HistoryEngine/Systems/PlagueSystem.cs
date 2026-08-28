@@ -477,6 +477,17 @@ public sealed class PlagueSystem : ISystem, IEpisodic
             obj: settlement.CivilizationId,
             location: from.Id,
             data: data);
+
+        // A town's plague episode is the year the plague reached it, which is the one moment the
+        // chronicle writes down and the one that is naturally once per town per outbreak. The
+        // silent steps that follow are the same epidemic, not four more of them.
+        Hardships.Record(
+            world,
+            settlement,
+            HardshipKind.Plague,
+            Exposure(settlement, lost, outbreak),
+            year,
+            EventKind.PlagueSpread);
     }
 
     private static void Recover(WorldState world, Outbreak outbreak, double share, IRng rng)
@@ -622,6 +633,32 @@ public sealed class PlagueSystem : ISystem, IEpisodic
             obj: origin.CivilizationId,
             location: origin.RegionId,
             data: data);
+
+        Hardships.Record(
+            world,
+            origin,
+            HardshipKind.Plague,
+            Exposure(origin, lost, outbreak),
+            year,
+            EventKind.PlagueBegan);
+    }
+
+    /// <summary>
+    /// What a plague's arrival was worth as an episode, on the shared severity scale.
+    /// </summary>
+    /// <remarks>
+    /// The arrival's own toll understates the epidemic: a plague that settles into a town kills
+    /// across the years it stays, and the arrival is only the first of those. Taking the greater of
+    /// what it took on the day and what its lethality says it is means a virulent plague reaching a
+    /// town in a mild year is still recorded as the thing it turned out to be.
+    /// </remarks>
+    private static double Exposure(Settlement settlement, int lost, Outbreak outbreak)
+    {
+        double taken = settlement.Population + lost <= 0
+            ? 0.0
+            : lost / (double)(settlement.Population + lost);
+
+        return Math.Max(taken, outbreak.Lethality);
     }
 
     /// <summary>Population and live commercial movement which can ignite an outbreak.</summary>

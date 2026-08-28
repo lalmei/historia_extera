@@ -225,6 +225,16 @@ public sealed class DisasterSystem : ISystem
         {
             Houses.Die(world, figure, year, DeathCause.Disaster, Label(kind));
         }
+
+        // And then everyone it did not kill, who until now walked out of an earthquake carrying
+        // nothing. The dead above are skipped by the pass itself rather than by a second rule.
+        Hardships.Record(
+            world,
+            settlement,
+            HardshipKind.Disaster,
+            severity,
+            year,
+            EventKind.DisasterStruck);
     }
 
     /// <summary>
