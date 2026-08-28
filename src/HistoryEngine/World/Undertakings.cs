@@ -112,7 +112,9 @@ public static class Undertakings
             undertaking,
             new UndertakingStep(
                 year,
-                journey.Outcome == JourneyOutcome.Returned
+                // Staying is a way the trip succeeded, not a way it went wrong: the venture
+                // reached its destination and the traveller simply did not come back from it.
+                journey.Outcome is JourneyOutcome.Returned or JourneyOutcome.Stayed
                     ? EventKind.JourneyMade
                     : EventKind.JourneyWaylaid,
                 journey.ToSettlementId,

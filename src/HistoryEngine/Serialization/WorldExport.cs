@@ -132,7 +132,7 @@ public sealed record WorldExport(
     /// Version 40 added bounded guardianships, mentorship starts and structured backgrounds for
     /// adults raised into the record, plus guardian/ward bonds and formative childhood siege memories.
     /// </remarks>
-    public const int CurrentSchemaVersion = 42;
+    public const int CurrentSchemaVersion = 43;
 }
 
 public sealed record ExportMeta(

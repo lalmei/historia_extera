@@ -7,7 +7,7 @@
  * stops moving.
  */
 
-export const SCHEMA_VERSION = 42;
+export const SCHEMA_VERSION = 43;
 
 /**
  * Whether an event carries the history or merely records a life.
@@ -1251,12 +1251,13 @@ export const JOURNEY_KIND_LABELS: Record<JourneyKind, string> = {
 };
 
 /** How a journey ended. Most end the dull way; the other two are why the road is worth drawing. */
-export type JourneyOutcome = 'Returned' | 'Waylaid' | 'Lost';
+export type JourneyOutcome = 'Returned' | 'Waylaid' | 'Lost' | 'Stayed';
 
 export const JOURNEY_OUTCOME_LABELS: Record<JourneyOutcome, string> = {
   Returned: '',
   Waylaid: 'waylaid',
   Lost: 'never returned',
+  Stayed: 'stayed',
 };
 
 export interface Journey {
@@ -1391,7 +1392,8 @@ export type ResidenceReason =
   | 'Accession'
   | 'Regency'
   | 'RealmChangedHands'
-  | 'Flight';
+  | 'Flight'
+  | 'Settled';
 
 export const RESIDENCE_REASON_LABELS: Record<ResidenceReason, string> = {
   Birth: 'born there',
@@ -1402,6 +1404,7 @@ export const RESIDENCE_REASON_LABELS: Record<ResidenceReason, string> = {
   Regency: 'to govern for the heir',
   RealmChangedHands: 'the realm having changed hands',
   Flight: 'the town being abandoned',
+  Settled: 'having stayed after the journey there',
 };
 
 /**

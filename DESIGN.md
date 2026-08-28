@@ -287,6 +287,15 @@ with nothing to join them up. Every move now goes through one helper, which reco
 the cause and takes the household with it. Removals stay off the spine: the office grant, the
 recall and the accession are each already there and each already say where the person went.
 
+A journey may also end in staying. A small share of trade ventures, missionary circuits and
+pilgrimages — around one in a hundred — end with the traveller not coming home, because the business
+was at the far end or the shrine needed a keeper. **Membership follows residence**, because it must:
+a figure whose recorded address is not held by their own realm is resolved back to their realm's
+capital, so settling somebody abroad without moving their membership records a move the engine then
+declines to honour. That is why the guards are wide — nobody stays who holds an office, sits a
+throne, acts as regent, belongs to the ruling house, or has a household to abandon, since for all of
+them membership is load-bearing. A visit never ends in staying; a guest goes home.
+
 **Presence that the engine asserted is now presence it records.** Two paths used to relocate people
 silently, by falling back to the realm's capital rather than by moving them: a town changing hands
 without its sitting ruler, and a town being abandoned under the people the chronicle follows. Both
@@ -455,6 +464,7 @@ default.
 | M19 | The road has a cost: journeys that can be robbed, drowned, or fatal, and say what they were for | Done |
 | M20 | Lives the record reaches: upbringing, causal biographies, and a town's hardship on its people | Done |
 | M21 | A life has an address history, so a page can tell a move from a trip | Done |
+| M22 | A journey can end in staying, so a life can leave home for a reason the chronicle recorded | Done |
 
 M13 landed in independently reviewable stages: the clock and dated record first, seasonal
 war and expansion next, then plague travel and outbreak clocks, and finally sieges as
@@ -474,9 +484,6 @@ Beyond the numbered milestones:
   a declared east/west topology the loader can check against the seam.
 - Let campaign movement or travel *time* consume road geometry as well, now that safety does.
   The same condition applies: it must read something the route's traffic does not already say.
-- Let a journey end in staying — a merchant's family relocating to the partner city, a
-  missionary who remains among his converts. It is a residence change across a realm boundary,
-  so it touches houses, offices and membership, and wants reviewing as migration in its own right.
 - Deepen ordinary social life with causal interaction episodes: friendships and lovers that
   actually begin in events, courtship, quarrels, favours, betrayals, and reconciliation. Give
   memories event-specific readable summaries, and widen non-travel undertakings toward masterworks,

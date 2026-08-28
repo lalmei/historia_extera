@@ -4324,6 +4324,59 @@ third time and still not acted on.
 **Schema 42.** Figures gain `residences[]`; `residenceSettlementId` stays as the last entry so a
 reader that only wants the current address does not walk the list.
 
+### A journey that ends in staying, and the membership question it forced
+
+M19 gave a journey three outcomes, two of which are misfortunes. The third way a trip can fail to
+end at the traveller's own hearth is that they arrive and do not leave, and it was not modelled — so
+the only reasons anybody in this world left the town they were born in were administrative: a
+marriage, a posting, a recall, an accession, a regency.
+
+**The open question had an answer in the code, not in taste.** The issue asked whether residence or
+membership should follow an emigrant, and left it open as the reason the work was not folded into
+M19. `WorldState.ResidenceOf` settles it: a figure whose recorded address is not held by their own
+realm is resolved back to their realm's capital. Settling somebody abroad while leaving their
+membership behind would therefore write an emigration the engine immediately declines to honour —
+the exact silent relocation the residence work had just finished removing. Membership follows
+residence, which is also the precedent `Realms.TransferResidents` sets in the other direction: when
+a town changes hands, the people standing in it change realm with it.
+
+**Because membership is load-bearing, the guards are wide.** Changing realm takes a person out of
+their old realm's succession pool and out of reach of its offices. So nobody stays who holds an
+office, sits a throne, acts as regent, or belongs to the ruling house — a claim is as much a tether
+as an office — and nobody married stays either, because a household moves as a household and that
+rule is `HouseholdSystem`'s. A visit is excluded outright: a guest of an allied court goes home, and
+admitting it there would make every diplomatic courtesy a coin flip over whether the realm keeps its
+envoy.
+
+**Two defects, both found by the panel rather than by reading.** The first: the outcome was written
+before the move was attempted, and `Houses.Settle` declines a move to an address the figure already
+holds — which the resolved check cannot see when raw and resolved disagree. One traveller per five
+worlds was recorded as having stayed somewhere without going anywhere. The move is now attempted
+first and the membership change rolled back if it fails. The second was in the test, not the engine:
+it read the office ledger at final state and caught a merchant who stayed in the spring and was a
+consort by the winter. `travel` runs ahead of `household`, `succession` and `office`, so an office
+beginning in the journey's own year was granted after the traveller had already gone.
+
+**A third defect, in a test two milestones old.** The resampled stream produced a posthumous child,
+and `ConspiracyTests` asserts that every member of a murdered ruler's immediate family carries the
+bereavement year. `Succession.ImmediateFamily` is read at final state, so it included a daughter
+born the year *after* her father was killed. The assertion now covers only kin alive at the time.
+Whether a posthumous child should later inherit that grievance is a real question and a possible
+piece of work; it is not something an assertion about the household present at the death should be
+quietly deciding.
+
+**Measured across seeds 2, 7, 11, 42 and 99.** Between 0.70% and 1.13% of journeys end in staying —
+19 to 32 per world, 17 to 28 people — reached by trade, mission and pilgrimage and never by a visit.
+Nine to eighteen of those settle outside the realm they were born in. Ten to nineteen people per
+world now die in a town they chose, having neither been born there nor been posted to it, which is
+the measurable point of the whole change.
+
+**The viewer needed nothing.** `biography.ts` already treats any outcome other than `Returned` as
+non-routine, so a stay is never folded into a compressed range of repeated journeys — it gets its
+own line, which is what it deserves.
+
+**Schema 43.** `JourneyOutcome` gains `Stayed`; `ResidenceReason` gains `Settled`.
+
 ---
 
 ## Notes for Phase 2

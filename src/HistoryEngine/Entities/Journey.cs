@@ -38,6 +38,18 @@ public enum JourneyOutcome
 
     /// <summary>They did not come home. The death is recorded where the road was, not where they lived.</summary>
     Lost = 2,
+
+    /// <summary>
+    /// They arrived and did not leave. The destination became home.
+    /// </summary>
+    /// <remarks>
+    /// The third way a trip can fail to end at the traveller's own hearth, and the only one that is
+    /// not a misfortune. Until this existed the sole reasons anybody in this world left the town
+    /// they were born in were administrative — a marriage, a posting, a recall, an accession, a
+    /// regency — so nobody ever emigrated because the trade at the far end was better or because
+    /// the shrine they walked to needed a keeper.
+    /// </remarks>
+    Stayed = 3,
 }
 
 /// <summary>
