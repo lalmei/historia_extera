@@ -4083,6 +4083,120 @@ rare path exists at all; occasionally it is also what finds one.
 fields the inline version borrowed from `FigureUndertaking` are gone, because a plot is now a
 record with somewhere of its own to put them.
 
+### Upbringing: a few grounded ties, not an annual childhood simulation
+
+A recorded child now receives a guardian only when a parent's death leaves no living, available
+parent. Selection is deterministic and evidence-constrained: living kin first, then a person tied
+to a parent, then a reachable office or faith institution. Guardian and ward share one bounded
+record and reciprocal bond. The duty closes at majority or either person's death, and a dead
+guardian can be replaced without rewriting the first relationship.
+
+**Mentorship is one weighted interruption at majority.** Thirty-two per cent of eligible children
+test for a mentor; the candidate must be at least eight years older, alive, practising a real
+occupation, and share either a place or a career-relevant institution. Arms, faith, trade/craft and
+letters/office are broad pulls on the first-career weights, not an inherited occupation. The
+standard panel proves that distinction: 681 of 1,002 apprentices finished outside the mentor's
+career family.
+
+**A siege can be childhood without becoming childhood event spam.** A named minor already caught
+inside a siege receives one salient siege memory from that battle. At majority its decayed
+intensity and the person's aggression shift the martial and settled-career weights in opposite
+directions; the event is not replayed every year and the test compares the weights with and without
+that consumer.
+
+**Raised adults begin where the record begins.** An office-created notable carries the year they
+were introduced, a real origin settlement, the broad career path, the actual institution and any
+actual grantor. None of that becomes a synthetic birth, training or battle event. The panel rejects
+any chronicle reference before introduction and verifies that every exported link names an entity
+that exists.
+
+**Measured across seeds 2, 7, 11, 42 and 99.** The five 300-year worlds produced 496
+guardianships, 1,002 apprenticeships (613 arms, 112 faith, 112 trade/craft and 165 letters/office),
+750 grounded raised-adult backgrounds and 310 retained childhood-siege memories. Eight
+guardianships remained active only because their wards were still minors at the export boundary;
+every other record ended at majority or death. The same panel checks both sides of every shared
+record, living/reachable participants at its start, all four career families, and a measurable
+mentor and siege pull.
+
+**Schema 40.** Figures gain `background`, `guardianships[]` and `mentorships[]`; bonds gain
+guardian/ward roles, and memories gain the childhood-siege kind.
+
+### Causal biographies: a reading layer with its receipts attached
+
+The figure page is no longer seven ledgers followed by a longer ledger. It opens with current or
+last occupation, office and place, grounded upbringing, the strongest visible relationships,
+formative memories and wounds, open concerns, and at most three completed episodes. Diversity is
+intentional: after the strongest episode, the selector prefers a different causal kind before
+repeating one. Every episode retains entity ids, years and the ids of the chronicle events that
+support it; where the structured record has no public event, the UI says that its evidence is the
+structured life record instead of inventing a citation.
+
+**The year control is an honesty boundary.** A future bond mutation or memory reinforcement cannot
+be reconstructed as an earlier snapshot, so that fact is hidden rather than shown with its final
+reading. Undertakings and quarrels are truncated to their known steps, later outcomes and recovery
+dates disappear, and a plot does not enter a historical cut until it became public. The final-year
+page remains explicitly retrospective, preserving #133's complete leader/member record — including
+a secret plot that ended — while a revealed target receives the same plot through an explicit
+target viewpoint.
+That target-side export was the integration defect found while reviewing #133; schema 39 replaced
+the old `led` boolean with leader/member/target.
+
+**Compression never deletes evidence.** Routine returned journeys with the same kind, endpoints
+and grounding route or institution become one dated range. A waylay or loss is always its own line.
+The complete event list remains behind **Show chronicle** and is filtered by the same year, so the
+summary and its evidence cannot disagree. Exact-year input supplements the slider for keyboard use,
+and a phone-width viewport forces a remembered expanded world index back to its usable icon rail.
+
+**Measured on seed `2786531018`.** The review sample was the twenty figures with the most indexed
+events. Their 317 journey lines became 107, a 66% reduction, while all eight waylaid or lost
+journeys remained separate. A 104-event ruler, a one-event raised adult and a two-event infant were
+read at 1440px and 390px; the narrow page retained the year controls and links without horizontal
+overflow. Moving the ruler to year 210 removed later family state and capped the disclosed
+chronicle at 210. Pure viewer fixtures separately lock stable ordering, source-event ids, journey
+exception handling, and the four future-leak boundaries.
+
+### The fourth resample, and one assertion that was never about the field
+
+Upbringings move every history, so the pinned rare-event panels were checked rather than assumed.
+Six of the seven failures were absence in a panel and one was not, and separating them was the
+whole of the work.
+
+**`CampaignTests` was asserting something it did not mean.** A wounded figure must not take the
+field while recovering; the assertion excluded `EnduredSiege` and nothing else, so a `Ruled`
+memory — a ruler whose realm entered a war while they were laid up — read as a violation. Ruling
+through a war and enduring a siege are both things that happen to a person where they already are.
+The same test already skips `BattleId.IsNone || Role == Ruled` in its main loop, so the assertion
+disagreed with its own file rather than with the engine; `Commanded` and `Fought` are still fully
+asserted. This is the one change here that makes a red test green by editing the test, which is
+worth saying plainly.
+
+**One sweep, not two hunts.** Scoring 160 seeds in parallel for quarrel causes, outcomes, duels,
+secessions and post-start foundings at once took 90 seconds — the engine holds no mutable static
+state, so per-seed worlds are independent — and it replaced resampling each panel by trial. It also
+priced the phenomena: three of the four dispute causes are near-universal, while `KinMurdered`
+appears in 37 of 160 seeds, because a murdered relative needs a murderer the chronicle can name.
+The old dispute panel kept its death and lost both its wound and that cause.
+
+**Panels are now chosen with margin.** The dispute panel is five seeds that each carry all four
+causes, with a wound in three and a death in two, rather than five seeds that clear the bar
+exactly. `ExportCarriesTheQuarrelOnBothPages` had pinned seed 2 independently of the panel and
+seed 2 no longer quarrels at all; it reads `Seeds[0]` now, so it resamples with the panel instead
+of drifting on its own.
+
+**Secession measured 3 of 160, 1.9%.** That is the lowest of four readings — 3%, 2.5%, 2.9%, 1.9% —
+but three occurrences cannot separate it from 2.9%, and the rule the panel states for itself is
+about whether the path is carried at all, not about the point estimate. It is carried, so the tail
+moved from 8, 94, 107 and 136 to 40, 104 and 149.
+
+**Four resamples in four milestones is the cost worth watching.** Each one is half an hour of
+compute and a judgement about whether absence means moved or broken. A directed generator would
+test the secession path without the drift, but it would stop asserting that secession *arises*,
+which is the only reason these tests are seed panels. Recorded here rather than acted on.
+
+**The golden moved to `689a2afd`.** Regenerating in Debug reproduced the Release value byte for
+byte, which is the determinism claim holding across configurations and is also what makes a
+Release sweep valid evidence for a Debug panel.
+
 ---
 
 ## Notes for Phase 2

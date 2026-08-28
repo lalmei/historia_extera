@@ -144,11 +144,23 @@ filters such as plague, disaster and poisoning, while `deathDetail` shows the na
 specific calamity or form of accident when the engine knows it. Disaster events link the named
 court casualties they caused, just as battles already link their commanders.
 
+A figure page now opens as a causal biography. **Life at a glance** names the person's current or
+last position, upbringing, important relationships, formative memories, wounds, open concerns, and
+up to three completed episodes. Episode lines retain their supporting entity links, years, and
+event ids. The year slider or exact year field turns the page into a contemporary cut: later bond
+changes, memories, outcomes, and plot revelations disappear. Routine returns along the same route
+are compressed without folding in a waylay or loss. **Show chronicle** exposes the complete raw
+event ledger through the same selected year. On a phone-sized display the world index collapses to
+its icon rail so the reading column remains usable.
+
 ## Schema
 
-The viewer pins the export's `schemaVersion` (**32**) and refuses a file it does not
+The viewer pins the export's `schemaVersion` (**40**) and refuses a file it does not
 understand rather than misrendering it. Regenerate the world with the matching engine if
-it complains. Version 32 adds the system's comets to cosmology. Version 31 adds the host galaxy to cosmology — morphology, the observer's
+it complains. Version 40 adds grounded backgrounds, guardianships and mentorships. Version 39
+adds an explicit leader/member/target viewpoint to exported plots and puts a revealed plot on its
+target's page. Version 38 adds persistent conspiracies. Version 32 adds the system's comets to
+cosmology. Version 31 adds the host galaxy to cosmology — morphology, the observer's
 site, and whether the crust can hold iron and ores — which is what the cosmology page
 draws face-on and edge-on. Version 30 records how a journey ended — most travellers came home, and the
 ones who were robbed or never returned now say so on their own page. Version 28 added journeys and the official and scribe occupations. Version 27 added a figure's campaigns — battles a soldier or general stood in,
