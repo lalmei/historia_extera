@@ -112,7 +112,7 @@ public static class Realms
                 if (standing.IsOccupied) Warfare.EndOccupation(world, standing, year, ceded: true);
             });
 
-        TransferResidents(world, moving, from, to);
+        TransferResidents(world, moving, from, to, year);
         Recount(world, from);
         Recount(world, to);
 
@@ -337,16 +337,43 @@ public static class Realms
         WorldState world,
         List<Settlement> moving,
         Civilization from,
-        Civilization to)
+        Civilization to,
+        int year)
     {
+        var stranded = new List<Figure>();
+
         foreach (Figure figure in world.Figures)
         {
             if (!figure.IsAlive) continue;
             if (figure.CivilizationId != from.Id) continue;
-            if (from.CurrentRulerId == figure.Id) continue;
             if (!LivesIn(moving, figure.ResidenceSettlementId)) continue;
 
+            // The sitting ruler stays a subject of their own crown, and so does anyone else the
+            // transfer refuses to hand over — but their address has just left their realm, and
+            // they cannot go on living at it.
+            if (from.CurrentRulerId == figure.Id)
+            {
+                stranded.Add(figure);
+                continue;
+            }
+
             figure.CivilizationId = to.Id;
+        }
+
+        // Recorded rather than resolved. `WorldState.ResidenceOf` would quietly answer "at the
+        // capital" for these people from now on, which is a relocation the chronicle never made:
+        // their siege, their famine and their page would all place them somewhere they were never
+        // recorded arriving. They did not travel — the border moved — and that is what the reason
+        // says.
+        foreach (Figure figure in stranded)
+        {
+            Houses.Settle(
+                world,
+                figure,
+                from.CapitalId,
+                ResidenceReason.RealmChangedHands,
+                year,
+                withHousehold: true);
         }
     }
 

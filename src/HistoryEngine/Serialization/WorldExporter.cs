@@ -843,6 +843,7 @@ public static class WorldExporter
                 DeathDetail: figure.DeathDetail,
                 BirthSettlementId: OrNull(figure.BirthSettlementId),
                 ResidenceSettlementId: OrNull(figure.ResidenceSettlementId),
+                Residences: BuildResidences(figure),
                 Origin: figure.Origin,
                 Background: BuildBackground(figure.Background),
                 Occupation: figure.Occupation,
@@ -992,6 +993,18 @@ public static class WorldExporter
                 bond.Obligation,
                 bond.Fear,
                 bond.Grievance));
+        }
+
+        return list;
+    }
+
+    private static List<ExportResidence> BuildResidences(Figure figure)
+    {
+        var list = new List<ExportResidence>(figure.Residences.Count);
+        foreach (Residence residence in figure.Residences)
+        {
+            list.Add(new ExportResidence(
+                residence.SettlementId, residence.FromYear, residence.Reason));
         }
 
         return list;

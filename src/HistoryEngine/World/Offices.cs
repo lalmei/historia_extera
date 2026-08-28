@@ -169,7 +169,7 @@ public static class Offices
         // everything that happens there. Offices over a realm or a faith leave them at court.
         if (kind == OfficeKind.Governor && world.Settlements.Contains(scope))
         {
-            holder.ResidenceSettlementId = scope;
+            Houses.Settle(world, holder, scope, ResidenceReason.Posting, year, withHousehold: true);
         }
 
         // Taking holy office is entering the church. A faithless courtier who is named high
@@ -227,7 +227,7 @@ public static class Offices
 
         Undertakings.EndAtLossOfOffice(world, holder, kind, year);
         holder.EndOffice(kind, year);
-        if (kind == OfficeKind.Governor) SendHome(world, holder);
+        if (kind == OfficeKind.Governor) SendHome(world, holder, year);
 
         // Remembered, because losing an office badly is the sort of thing a court acts on later.
         holder.DisgracedYear = year;
@@ -274,7 +274,7 @@ public static class Offices
     {
         Undertakings.EndAtLossOfOffice(world, holder, kind, year);
         holder.EndOffice(kind, year);
-        if (kind == OfficeKind.Governor) SendHome(world, holder);
+        if (kind == OfficeKind.Governor) SendHome(world, holder, year);
         Occupations.Sync(world, holder, year, died: !holder.IsAlive);
     }
 
@@ -286,29 +286,18 @@ public static class Offices
     /// than only where they hold office: a governor recalled to court does not leave his wife and
     /// children in a provincial town to be counted among its casualties.
     /// </remarks>
-    private static void SendHome(WorldState world, Figure holder)
+    private static void SendHome(WorldState world, Figure holder, int year)
     {
         if (!world.Civilizations.Contains(holder.CivilizationId)) return;
 
-        EntityId seat = world.Civilizations[holder.CivilizationId].CapitalId;
-        EntityId was = holder.ResidenceSettlementId;
-
-        holder.ResidenceSettlementId = seat;
-
-        if (world.Figures.Contains(holder.SpouseId))
-        {
-            Figure spouse = world.Figures[holder.SpouseId];
-            if (spouse.ResidenceSettlementId == was) spouse.ResidenceSettlementId = seat;
-        }
-
-        foreach (EntityId childId in holder.ChildIds)
-        {
-            Figure child = world.Figures[childId];
-            if (child.IsAlive && child.ResidenceSettlementId == was)
-            {
-                child.ResidenceSettlementId = seat;
-            }
-        }
+        // The household rule this method used to own now lives in one place, with the move itself.
+        Houses.Settle(
+            world,
+            holder,
+            world.Civilizations[holder.CivilizationId].CapitalId,
+            ResidenceReason.Recall,
+            year,
+            withHousehold: true);
     }
 
     /// <summary>

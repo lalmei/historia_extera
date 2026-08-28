@@ -222,6 +222,40 @@ public sealed class SettlementLifecycleSystem : ISystem
             location: settlement.RegionId);
     }
 
+    /// <summary>
+    /// Takes the recorded people out of a town that no longer exists.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Disperse"/> has always sent the unnamed population somewhere; the named people
+    /// were left standing in the ruin, and <c>WorldState.ResidenceOf</c> then answered "at the
+    /// capital" for them without anything being written down. They go where their neighbours went
+    /// if that refuge is their realm's, and to their own capital otherwise — which is the same
+    /// answer the resolver was already giving, now as a fact rather than a guess.
+    /// </remarks>
+    private static void Evacuate(
+        WorldState world, Settlement settlement, Settlement? refuge, int year)
+    {
+        var leaving = new List<Figure>();
+        foreach (Figure figure in world.Figures)
+        {
+            if (!figure.IsAlive) continue;
+            if (figure.ResidenceSettlementId != settlement.Id) continue;
+
+            leaving.Add(figure);
+        }
+
+        foreach (Figure figure in leaving)
+        {
+            EntityId to = refuge is not null && refuge.CivilizationId == figure.CivilizationId
+                ? refuge.Id
+                : world.Civilizations.Contains(figure.CivilizationId)
+                    ? world.Civilizations[figure.CivilizationId].CapitalId
+                    : EntityId.None;
+
+            Houses.Settle(world, figure, to, ResidenceReason.Flight, year);
+        }
+    }
+
     private static void Abandon(WorldState world, Settlement settlement, int year, string cause)
     {
         settlement.AbandonedYear = year;
@@ -236,6 +270,7 @@ public sealed class SettlementLifecycleSystem : ISystem
         }
 
         Settlement? refuge = Disperse(world, settlement, out int resettled);
+        Evacuate(world, settlement, refuge, year);
 
         DetMap<string, string> data = Chronicle.Data(
             ("years", (year - settlement.FoundedYear).ToString(CultureInfo.InvariantCulture)),

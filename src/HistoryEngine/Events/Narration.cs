@@ -146,6 +146,7 @@ public static class Narration
             "{subject} took {object} into their care[ at {location}][, {data:cause}].");
         Set(EventKind.GuardianshipEnded,
             "The guardianship of {object} by {subject} ended[, {data:cause}].");
+        Set(EventKind.FigureMoved, "{subject} removed to {location}[, {data:cause}].");
         // A quarrel names both parties in every line it writes. The one thing a reader of a
         // personal dispute always wants is who it was with, and it is never the location.
         Set(EventKind.DisputeOpened,
@@ -366,6 +367,7 @@ public static class Narration
             "[{self:subject}Their care of {other} ended][{self:subject}, {data:cause}][{self:subject}.]"
             + "[{self:object}Their guardianship under {other} ended][{self:object}, {data:cause}]"
             + "[{self:object}.]");
+        SetSelf(EventKind.FigureMoved, "Removed to {location}[, {data:cause}].");
         // The same episode from either side. One record, two readings: the aggrieved party fell
         // out with someone, and the other party was fallen out with, and neither page is a
         // separate incident.

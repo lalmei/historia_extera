@@ -132,7 +132,7 @@ public sealed record WorldExport(
     /// Version 40 added bounded guardianships, mentorship starts and structured backgrounds for
     /// adults raised into the record, plus guardian/ward bonds and formative childhood siege memories.
     /// </remarks>
-    public const int CurrentSchemaVersion = 41;
+    public const int CurrentSchemaVersion = 42;
 }
 
 public sealed record ExportMeta(
@@ -789,6 +789,7 @@ public sealed record ExportFigure(
     string? DeathDetail,
     EntityId? BirthSettlementId,
     EntityId? ResidenceSettlementId,
+    IReadOnlyList<ExportResidence> Residences,
     FigureOrigin Origin,
     ExportBackground? Background,
     Occupation Occupation,
@@ -892,6 +893,17 @@ public sealed record ExportJourney(
     EntityId? ViaId,
     JourneyOutcome Outcome,
     EntityId? ReturnSettlementId);
+
+/// <summary>
+/// One period of living somewhere, with the year it began and what caused it.
+/// </summary>
+/// <remarks>
+/// Enough on its own to answer where a figure lived in any year: the entries are ordered and the
+/// last one before the year in question is the address. The final entry is
+/// <c>residenceSettlementId</c>, which is retained so a reader that only wants "where are they now"
+/// does not have to walk the list.
+/// </remarks>
+public sealed record ExportResidence(EntityId SettlementId, int FromYear, ResidenceReason Reason);
 
 /// <summary>One directed relationship, with every role it accumulated.</summary>
 public sealed record ExportBond(

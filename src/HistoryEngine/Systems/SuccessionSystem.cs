@@ -438,10 +438,7 @@ public sealed class SuccessionSystem : ISystem
         // a mother who married out — is the person the walk prefers, and leaving them where
         // they are would put the office in one realm and its holder in another.
         regent.CivilizationId = civilization.Id;
-        if (world.Settlements.Contains(civilization.CapitalId))
-        {
-            regent.ResidenceSettlementId = civilization.CapitalId;
-        }
+        Houses.Settle(world, regent, civilization.CapitalId, ResidenceReason.Regency, year);
 
         if (world.Figures.Contains(regent.SpouseId))
         {
@@ -451,7 +448,12 @@ public sealed class SuccessionSystem : ISystem
                 && (held is null || held.Kind == OfficeKind.Consort))
             {
                 consort.CivilizationId = civilization.Id;
-                consort.ResidenceSettlementId = regent.ResidenceSettlementId;
+                Houses.Settle(
+                    world,
+                    consort,
+                    regent.ResidenceSettlementId,
+                    ResidenceReason.Regency,
+                    year);
             }
         }
 

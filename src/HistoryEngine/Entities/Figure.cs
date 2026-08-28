@@ -3,6 +3,71 @@ using HistoryEngine.Core;
 namespace HistoryEngine.Entities;
 
 /// <summary>How a notable figure's life ended. Explicit values — part of the export format.</summary>
+/// <summary>Why a recorded person's address changed. Explicit values — part of the export.</summary>
+/// <remarks>
+/// Every reason here is one a caller already knew and threw away. The engine has always moved
+/// people — into a spouse's household, out to a governorship, home from one, to a capital on
+/// accession or regency — and it always knew why; the assignment simply did not write it down.
+/// </remarks>
+public enum ResidenceReason
+{
+    /// <summary>Where they were born, which is where everyone starts.</summary>
+    Birth = 0,
+
+    /// <summary>Into the household of the partner with the stronger claim.</summary>
+    Marriage = 1,
+
+    /// <summary>Out to a town they were given to govern.</summary>
+    Posting = 2,
+
+    /// <summary>Back to the seat, the governorship over.</summary>
+    Recall = 3,
+
+    /// <summary>To the capital, having taken the throne.</summary>
+    Accession = 4,
+
+    /// <summary>To the capital, to govern for a child.</summary>
+    Regency = 5,
+
+    /// <summary>
+    /// Their address left their realm and they did not go with it.
+    /// </summary>
+    /// <remarks>
+    /// The one reason here that is not a decision anybody made. When a town changes hands the
+    /// people standing in it change realm with it, but whoever the transfer refuses to hand over —
+    /// the sitting ruler — keeps their crown and loses their address. The engine used to answer
+    /// "at the capital" for them by resolution and write nothing down, which put them at sieges
+    /// and famines they were never recorded arriving at.
+    /// </remarks>
+    RealmChangedHands = 6,
+
+    /// <summary>
+    /// The town they lived in was abandoned, and they left with everyone else.
+    /// </summary>
+    /// <remarks>
+    /// The settlement lifecycle already disperses a dying town's population to a refuge and always
+    /// left the recorded people standing in the ruin, where the resolver quietly answered "at the
+    /// capital" for them instead. They go where their neighbours went.
+    /// </remarks>
+    Flight = 7,
+}
+
+/// <summary>One period of living somewhere, and what put them there.</summary>
+/// <remarks>
+/// <para>The same shape <c>titles</c> already has, and for the same reason: the current value is
+/// the last entry, and the history is what makes a year answerable. Without it a life page can say
+/// a figure took a trade at one town, married at a second and endured a siege at a third, with
+/// nothing to join them up — because only the final address was ever written down.</para>
+///
+/// <para><b>A cession is mostly not a move, and once is.</b> When a town changes hands the people
+/// standing in it change realm with it and nobody goes anywhere. But the transfer refuses to hand
+/// over the sitting ruler, whose address then sits in somebody else's realm — and for them
+/// <c>WorldState.ResidenceOf</c> silently began answering "at the capital" instead. That is a
+/// relocation the engine asserts and the chronicle never made, so it is now recorded like any
+/// other.</para>
+/// </remarks>
+public sealed record Residence(EntityId SettlementId, int FromYear, ResidenceReason Reason);
+
 public enum DeathCause
 {
     Unknown = 0,
@@ -446,7 +511,17 @@ public sealed class Figure
     /// within their realm, never between realms — see <c>HouseholdSystem.WhoMoves</c> for what
     /// happened the last time a figure was moved across a border carelessly.</para>
     /// </remarks>
+    /// <summary>
+    /// Where they live now. The last entry of <see cref="Residences"/>.
+    /// </summary>
+    /// <remarks>
+    /// Assigned only by <c>Houses.Settle</c>, which is what keeps the field and the history from
+    /// disagreeing. It stays settable because construction seeds it at birth.
+    /// </remarks>
     public EntityId ResidenceSettlementId { get; set; } = EntityId.None;
+
+    /// <summary>Everywhere they have lived, in order, starting at the settlement of their birth.</summary>
+    public List<Residence> Residences { get; } = new();
 
     public int AgeIn(int year) => year - BirthYear;
 

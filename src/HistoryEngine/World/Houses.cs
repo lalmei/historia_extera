@@ -70,6 +70,13 @@ public static class Houses
                 culture, world.Root.Fork("disposition", id.ToDiscriminator()), teaching),
         };
 
+        // Everyone's history starts where they were born, seeded rather than recorded: the birth
+        // is already in the chronicle, and a removal line for it would say the same thing twice.
+        if (world.Settlements.Contains(bornAt))
+        {
+            figure.Residences.Add(new Residence(bornAt, birthYear, ResidenceReason.Birth));
+        }
+
         world.Figures.Add(figure);
         return figure;
     }
@@ -228,7 +235,7 @@ public static class Houses
         // freezes the other's for ever. Two sovereigns married to each other simply keep their own
         // courts, and the union between them is Milestone 6's business.
         ruler.CivilizationId = civilization.Id;
-        ruler.ResidenceSettlementId = civilization.CapitalId;
+        Settle(world, ruler, civilization.CapitalId, ResidenceReason.Accession, year);
 
         if (world.Figures.Contains(ruler.SpouseId))
         {
@@ -236,7 +243,7 @@ public static class Houses
             if (!Succession.HoldsAThrone(world, consort))
             {
                 consort.CivilizationId = civilization.Id;
-                consort.ResidenceSettlementId = civilization.CapitalId;
+                Settle(world, consort, civilization.CapitalId, ResidenceReason.Accession, year);
             }
         }
 
@@ -362,6 +369,104 @@ public static class Houses
     /// Further display facts merged onto the obituary — a named suspect, a particular form.
     /// The age, cause and office are always written here and win if the caller repeats them.
     /// </param>
+    /// <summary>
+    /// Moves a recorded person's home, and writes it down.
+    /// </summary>
+    /// <remarks>
+    /// <para>The only thing in the engine that may change where somebody lives. Residence was a
+    /// single assignable field with no history, changed in six places that each knew why and none
+    /// of which recorded it; the export then carried the final value alone, so a life page could
+    /// show a trade taken at one town, a marriage at a second and a siege endured at a third with
+    /// nothing to join them up. Routing every site through one helper is what makes "where did this
+    /// person live in year N" answerable from the export.</para>
+    ///
+    /// <para><b>The household moves with the person, in one place.</b> A governor recalled to court
+    /// does not leave his wife and children in a provincial town to be counted among its casualties,
+    /// and that rule previously existed in one caller and was missing from the others. Only those
+    /// who actually shared the old address come along — a grown child who has married out has an
+    /// address of their own and keeps it.</para>
+    /// </remarks>
+    /// <returns>Whether the person actually moved.</returns>
+    public static bool Settle(
+        WorldState world,
+        Figure figure,
+        EntityId to,
+        ResidenceReason reason,
+        int year,
+        bool withHousehold = false)
+    {
+        if (!world.Settlements.Contains(to)) return false;
+        if (figure.ResidenceSettlementId == to) return false;
+
+        // Resolved rather than raw. A spouse who married into this household was settled at the
+        // address `ResidenceOf` reported at the time, which is not always the field's raw value —
+        // so comparing raw fields would leave exactly those households behind.
+        EntityId was = world.ResidenceOf(figure);
+        figure.ResidenceSettlementId = to;
+        figure.Residences.Add(new Residence(to, year, reason));
+
+        if (figure.IsAlive)
+        {
+            world.Chronicle.Record(
+                year,
+                EventKind.FigureMoved,
+                figure.Id,
+                location: to,
+                data: Chronicle.Data(("cause", ReasonLabel(reason))),
+
+                // Never on the spine. The issue proposed Notable where an office or a throne
+                // caused the move, and the measurement it asked for refused it: postings and
+                // recalls alone put 744 removals into a 16,430-event timeline, 4.5% of the whole
+                // history. They are also redundant there — the office grant, the recall and the
+                // accession are each already on the spine and each already say where the person
+                // went. A removal is what makes the life page answerable, not what makes the news.
+                significance: Significance.Routine);
+        }
+
+        if (!withHousehold) return true;
+
+        // The household follows on the same reason, but never on the spine: the governor going out
+        // to his province is the event, and his wife going with him is a detail of it.
+        if (world.Figures.Contains(figure.SpouseId))
+        {
+            Figure spouse = world.Figures[figure.SpouseId];
+            if (spouse.IsAlive && world.ResidenceOf(spouse) == was)
+            {
+                Settle(world, spouse, to, reason, year);
+            }
+        }
+
+        foreach (EntityId childId in figure.ChildIds)
+        {
+            if (!world.Figures.Contains(childId)) continue;
+
+            Figure child = world.Figures[childId];
+            if (!child.IsAlive || world.ResidenceOf(child) != was) continue;
+
+            // A child who has married has a household of their own and keeps its address.
+            // Dragging them along splits the household they founded: they arrive at the
+            // province and their own spouse stays behind, which is the exact failure this
+            // rule exists to prevent, one generation down.
+            if (!child.SpouseId.IsNone) continue;
+
+            Settle(world, child, to, reason, year);
+        }
+
+        return true;
+    }
+
+    private static string ReasonLabel(ResidenceReason reason) => reason switch
+    {
+        ResidenceReason.Birth => "born there",
+        ResidenceReason.Marriage => "on marrying",
+        ResidenceReason.Posting => "to take up the governorship",
+        ResidenceReason.Recall => "recalled to court",
+        ResidenceReason.Accession => "on taking the throne",
+        ResidenceReason.Regency => "to govern for the heir",
+        ResidenceReason.Flight => "the town being abandoned",
+        _ => "the realm having changed hands",
+    };
+
     public static void Die(
         WorldState world,
         Figure figure,
