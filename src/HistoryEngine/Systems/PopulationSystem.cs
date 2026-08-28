@@ -325,6 +325,16 @@ public sealed class PopulationSystem : ISystem
             data: Chronicle.Data(
                 ("severity", HarvestModel.SeverityLabel(harvest)),
                 ("lost", lost.ToString(CultureInfo.InvariantCulture))));
+
+        // The chronicle has now written the famine down. This is what it cost the people the
+        // chronicle follows, resolved from the same loss the event just reported.
+        Hardships.Record(
+            world,
+            settlement,
+            HardshipKind.Famine,
+            lost / (double)before,
+            year,
+            EventKind.SettlementFamine);
     }
 
     /// <summary>

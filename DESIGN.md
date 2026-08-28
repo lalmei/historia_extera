@@ -248,7 +248,8 @@ That thread is built from five durable forms of state:
   person, or place is not sufficient provenance.
 - **Salient memories** are at most twelve causal experiences: bereavement, injury, triumph,
   defeat, humiliation, gratitude, mentorship, rivalry, ambition, betrayal, marriage,
-  parenthood, journeys, conspiracy, wonder, and a childhood siege. Every memory names the event kind and at least one
+  parenthood, journeys, conspiracy, wonder, a childhood siege, and a hardship lived through.
+  Every memory names the event kind and at least one
   concrete person, place, battle, route, or other entity. Repetition reinforces it; deterministic
   fading and eviction keep the set small enough to mean “what still shapes this person,” not a
   second copy of the chronicle.
@@ -278,6 +279,17 @@ toward arms, faith, trade/craft, or letters/office without deciding the draw. A 
 minor becomes a salient memory that changes later martial risk according to disposition. Adults
 raised into the record receive only facts known at their introduction — origin settlement,
 institution, broad career family, and any actual sponsor — never invented earlier events.
+
+A town's bad year reaches the people standing in it. Famine, plague, sack and disaster were facts
+about settlements that the residents were never told: a scribe could be resident through four
+recorded plague years and carry nothing from any of them. Each episode is now resolved against its
+living residents — from the share of the town it actually cost, so a bad year and a catastrophic one
+cannot produce the same thing — and leaves a wound, a memory, or nothing at all, which is the
+commonest outcome and still drawn from its own fork. **It adds no second way to die.** Plague, sack
+and disaster already killed recorded people through their own paths and still do; famine is the one
+bad year that could reach nobody, so it is the only one this pass may kill through. Consequences are
+resolved after the year's journeys are known, because someone recorded as travelling that year was
+not there.
 
 Journeys are steps within undertakings, not isolated annual errands. Trade ventures, pilgrimages,
 missionary circuits, and embassies begin with a stated objective and may require several trips.
@@ -428,6 +440,7 @@ default.
 | M17 | The seed's cosmology (host galaxy and local system), and tomes that draw on it | Done |
 | M18 | Cultural drift: a people that changes over the centuries | Done |
 | M19 | The road has a cost: journeys that can be robbed, drowned, or fatal, and say what they were for | Done |
+| M20 | Lives the record reaches: upbringing, causal biographies, and a town's hardship on its people | Done |
 
 M13 landed in independently reviewable stages: the clock and dated record first, seasonal
 war and expansion next, then plague travel and outbreak clocks, and finally sieges as

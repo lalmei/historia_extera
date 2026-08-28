@@ -634,7 +634,8 @@ public static class LifeStories
         int year,
         IRng fate,
         IReadOnlyList<EntityId>? extra = null,
-        bool record = true)
+        bool record = true,
+        InjuryCause cause = InjuryCause.Violence)
     {
         double gravity = fate.NextDouble();
         InjurySeverity severity = gravity < 0.62
@@ -649,7 +650,7 @@ public static class LifeStories
             InjurySeverity.Serious => 2,
             _ => 3,
         });
-        string detail = InjuryDetail(severity, permanent, fate);
+        string detail = InjuryDetail(severity, permanent, fate, cause);
 
         var injury = new FigureInjury(
             causeId, sourceKind, year, severity, recovery, permanent, detail);
@@ -691,16 +692,41 @@ public static class LifeStories
     private static EntityId BattlePlace(Battle battle) =>
         battle.SettlementId.IsNone ? battle.RegionId : battle.SettlementId;
 
-    private static string InjuryDetail(InjurySeverity severity, bool permanent, IRng rng)
+    /// <summary>
+    /// What the wound was, in words that fit how it was got.
+    /// </summary>
+    /// <remarks>
+    /// One wound model, two vocabularies. Severity, recovery and the permanent tail are shared by
+    /// every way of being hurt and stay that way; only the prose forks, because it has to. A spear
+    /// wound is the right description of a storming party and the wrong description of an
+    /// earthquake, and the first thing this system did once it could hurt a survivor of a
+    /// collapsing building was give one of them a deep spear wound.
+    ///
+    /// Both lists are the same length at every severity, so which vocabulary is used draws the same
+    /// number of dice and cannot shift the stream.
+    /// </remarks>
+    private static string InjuryDetail(
+        InjurySeverity severity, bool permanent, IRng rng, InjuryCause cause)
     {
-        string[] minor = { "a cut to the arm", "a bruised shoulder", "a glancing wound" };
-        string[] serious = { "a broken leg", "a deep spear wound", "a crushed hand" };
-        string[] grievous =
-        {
-            "a shattered knee",
-            "the loss of an eye",
-            "a wound through the chest",
-        };
+        string[] minor = cause == InjuryCause.Calamity
+            ? new[] { "a gash from falling stone", "a scalded arm", "a badly turned ankle" }
+            : new[] { "a cut to the arm", "a bruised shoulder", "a glancing wound" };
+        string[] serious = cause == InjuryCause.Calamity
+            ? new[] { "a crushed foot", "deep burns to the arm", "a broken collarbone" }
+            : new[] { "a broken leg", "a deep spear wound", "a crushed hand" };
+        string[] grievous = cause == InjuryCause.Calamity
+            ? new[]
+            {
+                "a shattered hip",
+                "burns across the back",
+                "a leg crushed under the fall",
+            }
+            : new[]
+            {
+                "a shattered knee",
+                "the loss of an eye",
+                "a wound through the chest",
+            };
 
         string detail = severity switch
         {

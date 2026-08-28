@@ -4197,6 +4197,64 @@ which is the only reason these tests are seed panels. Recorded here rather than 
 byte, which is the determinism claim holding across configurations and is also what makes a
 Release sweep valid evidence for a Debug panel.
 
+### Hardship: the join between a town's bad year and the people standing in it
+
+Famine, plague, disaster, sack and siege were modelled carefully and recorded carefully, and the
+people living in those settlements were never told. The gap was a join, not a model: the episodes,
+the residence, the memory model, the wound lifecycle and the central death path all existed already.
+
+**Reading the code first changed the scope, twice, and both times downward.** The issue proposes
+death, wound and memory for four families. But two of the four already reach recorded people —
+a sack through `Warfare.ResidentCasualties`, a disaster through `DisasterSystem.CourtCasualties` —
+and a third, plague, kills figures through `PlagueSystem.Cull` across every afflicted realm. A
+first implementation added a plague death here as well, and the tests caught it: that is precisely
+the second mortality model the issue forbids, and it would have been invisible, because both deaths
+carry the same cause and the same central path. Famine is now the only family this pass may kill
+through, on the merits — before it, a famine could not kill a named person at all. The other three
+get what none of them had: what happens to everyone who lived.
+
+**One severity scale across four families.** Every caller already computes the share of the town's
+people the episode cost, so that share is what is passed in and nothing new is measured. Monotonicity
+in severity then holds by construction rather than by sampling, which matters because a sampled world
+cannot prove a monotonicity — it can only fail to find a counterexample. The regression asserts it on
+the curves directly, for every family and four age bands.
+
+**The exclusion the residence field cannot express, and the ordering it needed.** Someone recorded as
+away that year was not there. The first implementation checked it at the episode, and the test failed
+on the first seed: `population` and `plague` run near the top of the year and `travel` near the
+bottom, so the year's journeys do not exist yet when a famine is written. Consequences are therefore
+buffered and drained by a `hardship` phase placed immediately after `travel` — the buffered-intent
+escape hatch `ISystem` describes, taken for the reason it describes. It draws no dice of its own; its
+position in the order decides only what is known when the consequences land.
+
+**Bounded on both sides.** The failure mode is a world in which everyone is a survivor of something,
+which is exactly as uninformative as one in which nobody is. A floor of 4% of a town lost keeps the
+commonest famine — the one that just clears the chronicle's own recording bar — from marking
+everybody, ceilings keep any one episode from being certain to reach anyone, and recall stops short
+of certainty even for a catastrophe so the memory model does not spend its twelve slots on weather.
+
+**Measured across seeds 2, 7, 11, 42 and 99.** Hardship reaches 14–23% of adults, holding 171–306
+memories per world. The share of adults carrying no memory outside the domestic set — born, married,
+a trade, a journey, a relative's death — falls from 67–74% to 56–62%, a movement of 6 to 16 points.
+The absolute figure depends on where that line is drawn and the movement does not, which is why the
+panel reports both. The test bounds the reach above as well as below: above 5% of adults or the join
+is not working, below 45% or being a survivor has stopped meaning anything.
+
+**Schema 41,** for one memory kind. No new event kinds: a hardship memory cites the famine, plague,
+sack or disaster event the chronicle already wrote, so the timeline does not grow at all.
+
+**Two defects the tests found, both worth the run.** The first was the plague death above. The
+second was prose: `LifeStories.InjuryDetail` had a single weapon vocabulary, because until now every
+wound in the engine came from a weapon — so the first survivor this system pulled out of a collapsed
+building was recorded as carrying a deep spear wound. Severity, recovery and the permanent tail stay
+shared, as they must; only the description forks, on an `InjuryCause` the caller passes. A sack is
+violence and takes the old words; a disaster takes fire, water and falling stone. Both lists are the
+same length at every severity, so the choice draws the same dice and cannot shift the stream.
+
+**One defect fixed in passing.** The biography page committed earlier in this session carried a type
+error `npm test` could not see, because the viewer's test script does not run `tsc`. Worth noting as
+a gap in the gate rather than as a typo.
+
 ---
 
 ## Notes for Phase 2

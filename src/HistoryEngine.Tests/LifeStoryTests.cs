@@ -297,12 +297,16 @@ public sealed class LifeStoryTests
         {
             Assert.All(figure.Injuries, injury =>
             {
-                // One wound model, two ways to get one. A battle wound points at the battle and a
-                // quarrel wound points at the person who dealt it, and neither may point nowhere.
+                // One wound model, three ways to get one. A battle or a storming points at the
+                // battle, a quarrel points at the person who dealt it, and a calamity points at
+                // the town it fell on. None of them may point nowhere.
                 Assert.True(
-                    injury.SourceKind == EventKind.DuelFought
-                        ? world.Figures.Contains(injury.CauseId)
-                        : world.Battles.Contains(injury.CauseId),
+                    injury.SourceKind switch
+                    {
+                        EventKind.DuelFought => world.Figures.Contains(injury.CauseId),
+                        EventKind.DisasterStruck => world.Settlements.Contains(injury.CauseId),
+                        _ => world.Battles.Contains(injury.CauseId),
+                    },
                     $"{figure.FullName} carries a wound from {injury.SourceKind} whose cause "
                     + "is not in the world.");
                 Assert.True(injury.RecoveryYear > injury.Year);

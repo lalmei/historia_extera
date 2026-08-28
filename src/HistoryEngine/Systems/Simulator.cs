@@ -189,6 +189,7 @@ public sealed class Simulator
         new TradeRouteSystem(),
         new CulturalDriftSystem(),
         new TravelSystem(),
+        new HardshipSystem(),
         new FigureIncidentSystem(),
         new FigureLifecycleSystem(),
         new SuccessionSystem(),

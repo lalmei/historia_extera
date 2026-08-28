@@ -7,7 +7,7 @@
  * stops moving.
  */
 
-export const SCHEMA_VERSION = 40;
+export const SCHEMA_VERSION = 41;
 
 /**
  * Whether an event carries the history or merely records a life.
@@ -1360,7 +1360,8 @@ export type MemoryKind =
   | 'Journey'
   | 'Conspiracy'
   | 'Wonder'
-  | 'Siege';
+  | 'Siege'
+  | 'Hardship';
 
 export const MEMORY_LABELS: Record<MemoryKind, string> = {
   Bereavement: 'Bereavement',
@@ -1379,6 +1380,7 @@ export const MEMORY_LABELS: Record<MemoryKind, string> = {
   Conspiracy: 'Conspiracy',
   Wonder: 'Wonder',
   Siege: 'Siege endured',
+  Hardship: 'Lived through it',
 };
 
 export type GuardianshipEnd = 'Ongoing' | 'Majority' | 'GuardianDied' | 'WardDied';

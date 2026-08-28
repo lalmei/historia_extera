@@ -141,6 +141,33 @@ public enum MemoryKind
 
     /// <summary>A siege endured while still young enough for it to shape later choices.</summary>
     Siege = 15,
+
+    /// <summary>
+    /// A famine, plague, sack or calamity lived through in the town it fell on.
+    /// </summary>
+    /// <remarks>
+    /// The second category that is not done to you by another person, and the one that reaches the
+    /// people the other fifteen cannot. Triumph, humiliation and gratitude all sit downstream of
+    /// the state doing something to you, so a scribe who never held an office could hold no memory
+    /// but a domestic one — while living through four plague years that the chronicle recorded and
+    /// her page did not.
+    /// </remarks>
+    Hardship = 16,
+}
+
+/// <summary>How a wound was got, which decides only how it is described.</summary>
+/// <remarks>
+/// Not a severity, a risk or a lifecycle — those are shared by every wound in the engine and must
+/// stay shared. This selects the vocabulary, so that a person pulled out of a collapsed building is
+/// not recorded as having taken a spear through the chest.
+/// </remarks>
+public enum InjuryCause
+{
+    /// <summary>A weapon, in a battle, a storming or a duel.</summary>
+    Violence = 0,
+
+    /// <summary>The world itself: fire, water, falling stone.</summary>
+    Calamity = 1,
 }
 
 /// <summary>The direction in which an experience pulls before disposition interprets it.</summary>
@@ -186,7 +213,7 @@ public sealed class SalientMemory
             or MemoryKind.Humiliation
             or MemoryKind.Rivalry
             or MemoryKind.Betrayal => MemoryValence.Negative,
-        MemoryKind.Siege => MemoryValence.Negative,
+        MemoryKind.Siege or MemoryKind.Hardship => MemoryValence.Negative,
         MemoryKind.Triumph
             or MemoryKind.Gratitude
             or MemoryKind.Mentorship

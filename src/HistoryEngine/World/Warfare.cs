@@ -909,6 +909,18 @@ public static class Warfare
                 new[] { battle.Id, war.Id });
         }
 
+        // Everyone who lived. The dead above are already dead by the time this runs and are not
+        // rolled a second time; this is the wound and the memory the survivors carry out.
+        Hardships.Record(
+            world,
+            target,
+            HardshipKind.Sack,
+            lost / (double)before,
+            year,
+            EventKind.SettlementSacked,
+            battle.Id,
+            new[] { war.Id });
+
         // What the place was keeping goes home with the army, or does not survive the night.
         // Recorded after the sack so the chronicle reads in the order it happened.
         Treasures.Loot(world, target, sacker, year, rng);

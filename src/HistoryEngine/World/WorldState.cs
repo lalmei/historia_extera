@@ -50,6 +50,7 @@ public sealed class WorldState
         Chronicle = new Chronicle();
         Harvest = new HarvestModel(config);
         Outbreaks = new List<Outbreak>();
+        PendingHardships = new List<PendingHardship>();
         Series = new SeriesLog();
         Docket = new Docket(config.Calendar);
         Now = Stamp.Opening(config.StartYear);
@@ -159,6 +160,25 @@ public sealed class WorldState
     /// system carries between years. What survives it is the events it wrote.
     /// </remarks>
     public List<Outbreak> Outbreaks { get; }
+
+    /// <summary>
+    /// Episodes recorded this year whose effect on the people living through them is not yet
+    /// resolved.
+    /// </summary>
+    /// <remarks>
+    /// <para>The buffered-intent escape hatch <see cref="Systems.ISystem"/> describes, taken for
+    /// the reason it describes. A famine is recorded by <c>population</c> and a plague arrives
+    /// under <c>plague</c>, both of which run near the top of the year; whether a given person was
+    /// at home to suffer it is not known until <c>travel</c> has run, near the bottom. Resolving
+    /// the consequence where the episode is written would therefore have to ignore the year's own
+    /// journeys, and put a famine memory on the page of a man who demonstrably spent that year on
+    /// the road.</para>
+    ///
+    /// <para>Held here rather than on the system for the same reason <see cref="Outbreaks"/> is:
+    /// state on a system instance is invisible to the <c>Advance</c>-versus-<c>Run</c> determinism
+    /// test. The list is drained every year and is empty between steps, so it is not exported.</para>
+    /// </remarks>
+    public List<PendingHardship> PendingHardships { get; }
 
     /// <summary>
     /// Work scheduled for a date, waiting for it.
