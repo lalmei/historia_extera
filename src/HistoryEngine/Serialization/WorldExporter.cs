@@ -844,6 +844,7 @@ public static class WorldExporter
                 BirthSettlementId: OrNull(figure.BirthSettlementId),
                 ResidenceSettlementId: OrNull(figure.ResidenceSettlementId),
                 Origin: figure.Origin,
+                Background: BuildBackground(figure.Background),
                 Occupation: figure.Occupation,
                 Disposition: new ExportDisposition(
                     figure.Disposition.Values.Aggression,
@@ -863,13 +864,61 @@ public static class WorldExporter
                 Injuries: BuildInjuries(figure),
                 Undertakings: BuildUndertakings(figure),
                 Disputes: BuildDisputes(figure),
-                Plots: BuildPlots(figure),
+                Plots: BuildPlots(world, figure),
+                Guardianships: BuildGuardianships(figure),
+                Mentorships: BuildMentorships(figure),
                 Observations: BuildObservations(figure),
                 Claims: BuildClaims(figure),
                 MotherId: OrNull(figure.MotherId),
                 FatherId: OrNull(figure.FatherId),
                 ChildIds: figure.ChildIds.ToArray(),
                 SpouseIds: figure.SpouseIds.ToArray()));
+        }
+
+        return list;
+    }
+
+    private static ExportBackground? BuildBackground(FigureBackground? background) =>
+        background is null
+            ? null
+            : new ExportBackground(
+                background.IntroducedYear,
+                background.OriginSettlementId,
+                background.CareerFamily,
+                OrNull(background.InstitutionId),
+                OrNull(background.SponsorId),
+                OrNull(background.MentorId));
+
+    private static List<ExportGuardianship> BuildGuardianships(Figure figure)
+    {
+        var list = new List<ExportGuardianship>(figure.Guardianships.Count);
+        foreach (FigureGuardianship guardianship in figure.Guardianships)
+        {
+            list.Add(new ExportGuardianship(
+                guardianship.GuardianId,
+                guardianship.WardId,
+                guardianship.StartYear,
+                guardianship.EndYear,
+                guardianship.End,
+                guardianship.CauseKind,
+                OrNull(guardianship.CauseEntityId),
+                OrNull(guardianship.LocationId)));
+        }
+
+        return list;
+    }
+
+    private static List<ExportMentorship> BuildMentorships(Figure figure)
+    {
+        var list = new List<ExportMentorship>(figure.Mentorships.Count);
+        foreach (FigureMentorship mentorship in figure.Mentorships)
+        {
+            list.Add(new ExportMentorship(
+                mentorship.MentorId,
+                mentorship.ApprenticeId,
+                mentorship.StartYear,
+                mentorship.CareerFamily,
+                OrNull(mentorship.LocationId)));
         }
 
         return list;
@@ -1107,10 +1156,32 @@ public static class WorldExporter
     /// present a secret act as contemporary knowledge, which is what
     /// <see cref="ExportPlot.PublicYear"/> and <see cref="ExportPlotAct.Known"/> are for.
     /// </remarks>
-    private static List<ExportPlot> BuildPlots(Figure figure)
+    private static List<ExportPlot> BuildPlots(WorldState world, Figure figure)
     {
-        var list = new List<ExportPlot>(figure.Plots.Count);
-        foreach (FigurePlot plot in figure.Plots)
+        var plots = new List<FigurePlot>(figure.Plots);
+
+        // A target learns a plot only when the world does. Keep the shared engine record off the
+        // target while it is secret, then derive the revealed viewpoint at export rather than
+        // mutating a list whose meaning is "plots this person knowingly joined".
+        foreach (Figure leader in world.Figures)
+        {
+            foreach (FigurePlot plot in leader.Plots)
+            {
+                if (plot.LeaderId != leader.Id || plot.TargetId != figure.Id || !plot.WasKnown) continue;
+                if (!plots.Contains(plot)) plots.Add(plot);
+            }
+        }
+
+        plots.Sort((left, right) =>
+        {
+            int byYear = left.StartYear.CompareTo(right.StartYear);
+            if (byYear != 0) return byYear;
+            int byLeader = left.LeaderId.CompareTo(right.LeaderId);
+            return byLeader != 0 ? byLeader : left.Id.CompareTo(right.Id);
+        });
+
+        var list = new List<ExportPlot>(plots.Count);
+        foreach (FigurePlot plot in plots)
         {
             var members = new List<ExportPlotMember>(plot.Members.Count);
             foreach (PlotMember member in plot.Members)
@@ -1136,7 +1207,11 @@ public static class WorldExporter
                 plot.LeaderId,
                 plot.TargetId,
                 OrNull(plot.RealmId),
-                plot.LeaderId == figure.Id,
+                plot.LeaderId == figure.Id
+                    ? PlotViewpoint.Leader
+                    : plot.TargetId == figure.Id
+                        ? PlotViewpoint.Target
+                        : PlotViewpoint.Member,
                 plot.Objective,
                 plot.Cause,
                 plot.SourceKind,

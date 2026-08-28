@@ -127,8 +127,12 @@ public sealed record WorldExport(
     /// tie that recruited each of them, secrecy, suspicion, phase, outcome, and the year any of it
     /// became public — with each act carrying whether it was known when it happened. Undertakings
     /// lost the secrecy and access fields the old inline conspiracy borrowed them for.
+    /// Version 39 put a revealed plot on its target's page as well as its conspirators' pages, with
+    /// an explicit viewpoint so the same facts can be told without exposing a still-secret plot.
+    /// Version 40 added bounded guardianships, mentorship starts and structured backgrounds for
+    /// adults raised into the record, plus guardian/ward bonds and formative childhood siege memories.
     /// </remarks>
-    public const int CurrentSchemaVersion = 38;
+    public const int CurrentSchemaVersion = 40;
 }
 
 public sealed record ExportMeta(
@@ -786,6 +790,7 @@ public sealed record ExportFigure(
     EntityId? BirthSettlementId,
     EntityId? ResidenceSettlementId,
     FigureOrigin Origin,
+    ExportBackground? Background,
     Occupation Occupation,
     ExportDisposition Disposition,
     IReadOnlyList<ExportTitle> Titles,
@@ -798,12 +803,42 @@ public sealed record ExportFigure(
     IReadOnlyList<ExportUndertaking> Undertakings,
     IReadOnlyList<ExportDispute> Disputes,
     IReadOnlyList<ExportPlot> Plots,
+    IReadOnlyList<ExportGuardianship> Guardianships,
+    IReadOnlyList<ExportMentorship> Mentorships,
     IReadOnlyList<ExportObservation> Observations,
     IReadOnlyList<ExportSkyClaim> Claims,
     EntityId? MotherId,
     EntityId? FatherId,
     IReadOnlyList<EntityId> ChildIds,
     IReadOnlyList<EntityId> SpouseIds);
+
+/// <summary>Facts known when an already-grown figure first became part of the chronicle.</summary>
+public sealed record ExportBackground(
+    int IntroducedYear,
+    EntityId OriginSettlementId,
+    CareerFamily CareerFamily,
+    EntityId? InstitutionId,
+    EntityId? SponsorId,
+    EntityId? MentorId);
+
+/// <summary>One bounded guardianship, shared by the guardian and ward.</summary>
+public sealed record ExportGuardianship(
+    EntityId GuardianId,
+    EntityId WardId,
+    int StartYear,
+    int? EndYear,
+    GuardianshipEnd End,
+    EventKind CauseKind,
+    EntityId? CauseEntityId,
+    EntityId? LocationId);
+
+/// <summary>A dated mentorship start; relationship strength remains on the ordinary bond.</summary>
+public sealed record ExportMentorship(
+    EntityId MentorId,
+    EntityId ApprenticeId,
+    int StartYear,
+    CareerFamily CareerFamily,
+    EntityId? LocationId);
 
 /// <summary>
 /// One office held over a span of years.
@@ -1012,11 +1047,11 @@ public sealed record ExportDisputeAct(
     string Detail);
 
 /// <summary>
-/// One conspiracy, written the same way on the page of everyone who knew of it.
+/// One conspiracy, written from the side of the figure page carrying it.
 /// </summary>
-/// <param name="Led">
-/// Whether the figure this record hangs on was its leader. The facts are identical either way;
-/// this is what lets a viewer say "joined the conspiracy of" rather than "conspired against".
+/// <param name="Viewpoint">
+/// Whether the page belongs to the leader, a willing member, or the target. Targets receive only
+/// plots that became public; leaders and members retain the retrospective truth they already knew.
 /// </param>
 /// <param name="PublicYear">
 /// The year the world learned of it, absent where it never did. A consumer must use this to
@@ -1028,7 +1063,7 @@ public sealed record ExportPlot(
     EntityId LeaderId,
     EntityId TargetId,
     EntityId? RealmId,
-    bool Led,
+    PlotViewpoint Viewpoint,
     PlotObjective Objective,
     PlotCause Cause,
     EventKind SourceKind,

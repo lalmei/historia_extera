@@ -1,5 +1,6 @@
 using HistoryEngine.Core;
 using HistoryEngine.Entities;
+using HistoryEngine.Events;
 
 namespace HistoryEngine.World;
 
@@ -437,6 +438,18 @@ public static class Campaigns
                 battle.DefenderId,
                 year,
                 CampaignRole.EnduredSiege);
+
+            if (figure.AgeIn(year) < Succession.MajorityAge)
+            {
+                LifeStories.Remember(
+                    figure,
+                    MemoryKind.Siege,
+                    year,
+                    EventKind.SiegeBegan,
+                    battle.Id,
+                    battle.SettlementId,
+                    0.84);
+            }
 
             Witness(battle, figure.Id);
         }

@@ -391,7 +391,7 @@ public sealed class ConspiracyTests
         Assert.True(murders + depositions > 0, "No plot ever reached its objective.");
     }
 
-    /// <summary>Everything a plot page needs is in the export, on every page that knew of it.</summary>
+    /// <summary>Everything a plot page needs is exported from each honest viewpoint.</summary>
     [Fact]
     public void ExportCarriesThePlotOnEveryPageThatKnewIt()
     {
@@ -400,6 +400,7 @@ public sealed class ConspiracyTests
         var byId = export.Figures.ToDictionary(figure => figure.Id);
         int led = 0;
         int joined = 0;
+        int targeted = 0;
 
         foreach (ExportFigure figure in export.Figures)
         {
@@ -409,23 +410,30 @@ public sealed class ConspiracyTests
                 Assert.True(byId.ContainsKey(plot.TargetId));
                 Assert.NotEmpty(plot.Acts);
                 Assert.True(plot.StartYear > 0);
-                Assert.Equal(plot.Led, plot.LeaderId == figure.Id);
+                Assert.Equal(plot.Viewpoint == PlotViewpoint.Leader, plot.LeaderId == figure.Id);
+                Assert.Equal(plot.Viewpoint == PlotViewpoint.Target, plot.TargetId == figure.Id);
 
                 ExportPlot fromLeader = Assert.Single(
                     byId[plot.LeaderId].Plots,
                     other => other.TargetId == plot.TargetId && other.StartYear == plot.StartYear);
-                Assert.True(fromLeader.Led);
+                Assert.Equal(PlotViewpoint.Leader, fromLeader.Viewpoint);
                 Assert.Equal(fromLeader.Outcome, plot.Outcome);
                 Assert.Equal(fromLeader.PublicYear, plot.PublicYear);
                 Assert.Equal(fromLeader.Members.Count, plot.Members.Count);
 
-                if (plot.Led) led++;
+                if (plot.Viewpoint == PlotViewpoint.Leader) led++;
+                else if (plot.Viewpoint == PlotViewpoint.Target)
+                {
+                    targeted++;
+                    Assert.NotNull(plot.PublicYear);
+                }
                 else joined++;
             }
         }
 
         Assert.True(led > 0, "Seed 16 exported no plot.");
-        _output.WriteLine($"exported: led={led}, joined={joined}");
+        Assert.True(targeted > 0, "No revealed plot reached the target's page.");
+        _output.WriteLine($"exported: led={led}, joined={joined}, targeted={targeted}");
     }
 
     // -----------------------------------------------------------------------

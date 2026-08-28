@@ -205,6 +205,28 @@ public static class Occupations
 
     public static Occupation Choose(WorldState world, Figure figure, IRng rng)
     {
+        double[] weights = Weights(world, figure);
+        var options = new[]
+        {
+            Occupation.Soldiery,
+            Occupation.Clergy,
+            Occupation.Townsfolk,
+            Occupation.Guild,
+            Occupation.Merchant,
+            Occupation.Court,
+            Occupation.Scribe,
+        };
+
+        return rng.PickWeighted(options, occupation => weights[IndexOf(occupation)]);
+    }
+
+    /// <summary>The complete, inspectable pull on a first career before its one random draw.</summary>
+    internal static double[] Weights(
+        WorldState world,
+        Figure figure,
+        bool includeMentor = true,
+        bool includeSiege = true)
+    {
         Culture culture = world.CultureOf(figure);
         CultureValues decided = figure.Disposition.Decides(culture.Values);
         double independence = figure.Disposition.Independence;
@@ -227,17 +249,8 @@ public static class Occupations
 
         PullToward(world, figure.MotherId, independence, weights);
         PullToward(world, figure.FatherId, independence, weights);
-
-        var options = new[]
-        {
-            Occupation.Soldiery,
-            Occupation.Clergy,
-            Occupation.Townsfolk,
-            Occupation.Guild,
-            Occupation.Merchant,
-            Occupation.Court,
-            Occupation.Scribe,
-        };
+        if (includeMentor) PullTowardMentor(world, figure, weights);
+        if (includeSiege) PullFromSiege(figure, weights);
 
         // A vow taken after a wedding is not a vow. Zeroing the weight rather than removing the
         // option keeps the array — and therefore the number of draws this roll makes — the same
@@ -245,7 +258,7 @@ public static class Occupations
         // careers of everyone chosen after them.
         if (BarredFromOrders(world, figure)) weights[IndexOf(Occupation.Clergy)] = 0.0;
 
-        return rng.PickWeighted(options, occupation => weights[IndexOf(occupation)]);
+        return weights;
     }
 
     private static void Take(WorldState world, Figure figure, Occupation occupation, int year)
@@ -297,6 +310,55 @@ public static class Occupations
         if (parent is Occupation.None or Occupation.Official) return;
 
         weights[IndexOf(parent)] += (1.0 - independence) * FamilyPull;
+    }
+
+    private static void PullTowardMentor(WorldState world, Figure figure, double[] weights)
+    {
+        foreach (FigureBond bond in figure.Bonds)
+        {
+            if (!bond.Kinds.HasFlag(BondKind.Apprentice)) continue;
+            if (!world.Figures.Contains(bond.OtherId)) continue;
+
+            Figure mentor = world.Figures[bond.OtherId];
+            double pull = 0.32 + (Math.Max(0.0, bond.Trust) * 0.48);
+
+            switch (Upbringings.FamilyOf(mentor.Occupation))
+            {
+                case CareerFamily.Arms:
+                    weights[IndexOf(Occupation.Soldiery)] += pull;
+                    break;
+                case CareerFamily.Faith:
+                    weights[IndexOf(Occupation.Clergy)] += pull;
+                    break;
+                case CareerFamily.TradeCraft:
+                    weights[IndexOf(Occupation.Townsfolk)] += pull * 0.24;
+                    weights[IndexOf(Occupation.Guild)] += pull * 0.30;
+                    weights[IndexOf(Occupation.Merchant)] += pull * 0.30;
+                    if (mentor.Occupation is Occupation.Townsfolk or Occupation.Guild or Occupation.Merchant)
+                    {
+                        weights[IndexOf(mentor.Occupation)] += pull * 0.36;
+                    }
+                    break;
+                case CareerFamily.LettersOffice:
+                    weights[IndexOf(Occupation.Court)] += pull * 0.42;
+                    weights[IndexOf(Occupation.Scribe)] += pull * 0.58;
+                    break;
+            }
+        }
+    }
+
+    /// <summary>A childhood siege changes later risk preference without dictating a career.</summary>
+    private static void PullFromSiege(Figure figure, double[] weights)
+    {
+        foreach (SalientMemory memory in figure.Memories)
+        {
+            if (memory.Kind != MemoryKind.Siege) continue;
+
+            double intensity = LifeStories.EffectiveIntensity(memory, figure.BirthYear + Succession.MajorityAge);
+            double bold = figure.Disposition.Values.Aggression;
+            weights[IndexOf(Occupation.Soldiery)] += intensity * bold * 0.46;
+            weights[IndexOf(Occupation.Townsfolk)] += intensity * (1.0 - bold) * 0.24;
+        }
     }
 
     private static int IndexOf(Occupation occupation) => occupation switch

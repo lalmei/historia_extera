@@ -29,6 +29,8 @@ public enum BondKind
     Sibling = 1 << 12,
     Friend = 1 << 13,
     Lover = 1 << 14,
+    Guardian = 1 << 15,
+    Ward = 1 << 16,
 }
 
 /// <summary>The last material event to alter a bond.</summary>
@@ -45,6 +47,7 @@ public enum BondCause
     Conflict = 8,
     Conspiracy = 9,
     Undertaking = 10,
+    Guardianship = 11,
 }
 
 /// <summary>A directed, persistent relationship between two recorded people.</summary>
@@ -135,6 +138,9 @@ public enum MemoryKind
     /// available to someone the chronicle would otherwise record as having been born and died.
     /// </remarks>
     Wonder = 14,
+
+    /// <summary>A siege endured while still young enough for it to shape later choices.</summary>
+    Siege = 15,
 }
 
 /// <summary>The direction in which an experience pulls before disposition interprets it.</summary>
@@ -180,6 +186,7 @@ public sealed class SalientMemory
             or MemoryKind.Humiliation
             or MemoryKind.Rivalry
             or MemoryKind.Betrayal => MemoryValence.Negative,
+        MemoryKind.Siege => MemoryValence.Negative,
         MemoryKind.Triumph
             or MemoryKind.Gratitude
             or MemoryKind.Mentorship
@@ -200,6 +207,99 @@ public sealed class SalientMemory
 
     public double Intensity { get; set; }
 }
+
+/// <summary>The broad working tradition through which a person learned or became known.</summary>
+public enum CareerFamily
+{
+    Arms = 0,
+    Faith = 1,
+    TradeCraft = 2,
+    LettersOffice = 3,
+}
+
+/// <summary>Why a guardianship stopped being an active duty.</summary>
+public enum GuardianshipEnd
+{
+    Ongoing = 0,
+    Majority = 1,
+    GuardianDied = 2,
+    WardDied = 3,
+}
+
+/// <summary>A bounded guardianship shared by the adult and the child it protected.</summary>
+public sealed class FigureGuardianship
+{
+    public FigureGuardianship(
+        EntityId guardianId,
+        EntityId wardId,
+        int startYear,
+        EventKind causeKind,
+        EntityId causeEntityId,
+        EntityId locationId)
+    {
+        GuardianId = guardianId;
+        WardId = wardId;
+        StartYear = startYear;
+        CauseKind = causeKind;
+        CauseEntityId = causeEntityId;
+        LocationId = locationId;
+    }
+
+    public EntityId GuardianId { get; }
+
+    public EntityId WardId { get; }
+
+    public int StartYear { get; }
+
+    public int? EndYear { get; set; }
+
+    public GuardianshipEnd End { get; set; }
+
+    public EventKind CauseKind { get; }
+
+    public EntityId CauseEntityId { get; }
+
+    public EntityId LocationId { get; }
+
+    public bool IsActive => End == GuardianshipEnd.Ongoing;
+}
+
+/// <summary>Grounded facts known when an already-grown person first enters the record.</summary>
+public sealed class FigureBackground
+{
+    public FigureBackground(
+        int introducedYear,
+        EntityId originSettlementId,
+        CareerFamily careerFamily)
+    {
+        IntroducedYear = introducedYear;
+        OriginSettlementId = originSettlementId;
+        CareerFamily = careerFamily;
+    }
+
+    public int IntroducedYear { get; }
+
+    public EntityId OriginSettlementId { get; }
+
+    public CareerFamily CareerFamily { get; }
+
+    /// <summary>The army, faith, town, guild, or court through which they became known.</summary>
+    public EntityId InstitutionId { get; set; }
+
+    /// <summary>A named backer where the creation path actually had one.</summary>
+    public EntityId SponsorId { get; set; }
+
+    /// <summary>A named teacher where the creation path actually had one.</summary>
+    public EntityId MentorId { get; set; }
+}
+
+/// <summary>A mentorship start, shared by the teacher and apprentice without a second affinity.</summary>
+public sealed record FigureMentorship(
+    EntityId MentorId,
+    EntityId ApprenticeId,
+    int StartYear,
+    CareerFamily CareerFamily,
+    EntityId LocationId);
 
 /// <summary>How bright a returning comet was, as anyone standing under it would have graded it.</summary>
 /// <remarks>
@@ -708,6 +808,14 @@ public enum PlotTie
     GrievanceAgainstTarget = 2,
     Ambition = 3,
     Household = 4,
+}
+
+/// <summary>The side from which an exported figure page reads a plot.</summary>
+public enum PlotViewpoint
+{
+    Leader = 0,
+    Member = 1,
+    Target = 2,
 }
 
 /// <summary>
