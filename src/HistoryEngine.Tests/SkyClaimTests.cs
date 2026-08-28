@@ -166,11 +166,19 @@ public sealed class SkyClaimTests
             SystemComet comet = sky.Comets.Single(item => item.Index == claim.CometIndex);
             double truth = Skywatch.PeriodYears(sky, comet);
 
-            // Their period was a whole multiple of the truth — honest arithmetic on a register with
-            // a gap in it — and that is exactly why the sky caught them out.
+            // Their period was a whole multiple of the truth — honest arithmetic on a register
+            // with a gap in it — and that is exactly why the sky caught them out.
+            //
+            // The tolerance is in years, not in turns, because the error it is allowing for is in
+            // years: an apparition is recorded at Math.Round of its true date, so an interval
+            // measured between two of them can sit a full year off the multiple it came from.
+            // A fixed tolerance in turns silently scales that allowance with the period — 0.05
+            // turns is 0.9 years for a 17-year comet and 4 years for an 80-year one, which is at
+            // once too strict to admit honest arithmetic and too loose to mean anything.
             double turns = claim.IntervalYears / truth;
+            double returns = Math.Round(turns);
             Assert.True(
-                Math.Abs(turns - Math.Round(turns)) < 0.05 && Math.Round(turns) >= 2.0,
+                Math.Abs(claim.IntervalYears - (returns * truth)) <= 1.0 && returns >= 2.0,
                 $"A claim of {claim.IntervalYears} years was refuted early for a comet on "
                 + $"{truth:F1}, which is {turns:F2} returns and not a missed one.");
 

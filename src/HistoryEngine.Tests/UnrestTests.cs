@@ -52,11 +52,17 @@ public sealed class UnrestTests
     /// occurrences cannot separate 1.9% from the 2.9% above, and the test above the rule still
     /// applies — the path is carried, so this is a resample and not a behaviour change. The tail
     /// was 8, 94, 107 and 136 and is now 40, 104 and 149.
+    ///
+    /// <b>Resampled a fifth time when residence became a history</b>: 5 of the first 180 seeds,
+    /// 2.8%, back in the middle of the range the first three readings measured. Worth recording
+    /// because the previous entry noted 1.9% as the low reading and wondered about it — five
+    /// readings of 3.0, 2.5, 2.9, 1.9 and 2.8 are one rate with sampling noise on it, and the
+    /// low one was noise. The tail was 40, 104 and 149 and is now 108, 110, 115, 169 and 174.
     /// </remarks>
     private static readonly ulong[] RareSeeds =
     {
         2, 7, 11, 42, 99, 123, 777, 2024, 3, 5, 13, 17, 19, 23, 29, 31, 37, 41, 47, 53, 61, 71,
-        40, 104, 149,
+        108, 110, 115, 169, 174,
     };
 
     /// <summary>
