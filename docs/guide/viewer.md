@@ -155,9 +155,10 @@ its icon rail so the reading column remains usable.
 
 ## Schema
 
-The viewer pins the export's `schemaVersion` (**42**) and refuses a file it does not
+The viewer pins the export's `schemaVersion` (**43**) and refuses a file it does not
 understand rather than misrendering it. Regenerate the world with the matching engine if
-it complains. Version 42 adds a figure's residence history, so a page can tell a move from
+it complains. Version 43 adds the journey that ended in staying, and the residence it caused.
+Version 42 adds a figure's residence history, so a page can tell a move from
 a trip and answer where somebody lived in any year. Version 41 adds the hardship memory, carried by people who lived through a
 famine, plague, sack or disaster in the town it fell on. Version 40 adds grounded
 backgrounds, guardianships and mentorships. Version 39

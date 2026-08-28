@@ -464,6 +464,7 @@ public static class Houses
         ResidenceReason.Accession => "on taking the throne",
         ResidenceReason.Regency => "to govern for the heir",
         ResidenceReason.Flight => "the town being abandoned",
+        ResidenceReason.Settled => "having stayed after the journey there",
         _ => "the realm having changed hands",
     };
 

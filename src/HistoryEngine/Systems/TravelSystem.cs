@@ -400,8 +400,112 @@ public sealed class TravelSystem : ISystem
             significance: Significance.Routine);
 
         Resolve(world, figure, journey, year);
+        MaybeStay(world, figure, journey, year);
         Undertakings.NoteJourney(world, figure, undertaking, journey, year);
     }
+
+    /// <summary>
+    /// Lets a journey end in staying, with the journey as the recorded cause.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Membership follows residence, and it has to.</b> This is the design question the
+    /// issue left open, and <see cref="WorldState.ResidenceOf"/> answers it: a figure whose recorded
+    /// address is not held by their own realm is resolved back to their realm's capital. Settling
+    /// somebody abroad without moving their membership would therefore write a move the engine
+    /// immediately declines to honour — the exact silent relocation the residence work existed to
+    /// remove. <c>Realms.TransferResidents</c> already sets the precedent in the other direction:
+    /// when a town changes hands, the people standing in it change realm with it.</para>
+    ///
+    /// <para><b>What that costs is why the guards are wide.</b> Changing realm takes a person out
+    /// of their old realm's succession pool and out of reach of its offices, so nobody is allowed
+    /// to stay whose membership is load-bearing: not a ruler or a regent, not anyone holding an
+    /// office, and not a member of the ruling house, whose claim is as much a tether as an office
+    /// is. A married figure never stays either — a household moves as a household, which is
+    /// <c>HouseholdSystem</c>'s rule and is not going to be reimplemented here from the road.</para>
+    ///
+    /// <para>A visit is deliberately excluded. A guest of an allied court goes home; that is what
+    /// being a guest is, and admitting it here would make every diplomatic courtesy a coin flip
+    /// over whether the realm keeps its envoy.</para>
+    /// </remarks>
+    private static void MaybeStay(WorldState world, Figure figure, Journey journey, int year)
+    {
+        if (journey.Outcome != JourneyOutcome.Returned) return;
+        if (!figure.IsAlive) return;
+        if (!CanStay(world, figure, journey)) return;
+
+        // Forked from the root by traveller and year, like the road roll and for the same reason:
+        // whether somebody emigrates must not depend on how many draws choosing the destination
+        // happened to cost.
+        IRng stay = world.Root.Fork("travel.stay", figure.Id.ToDiscriminator()).Fork("year", year);
+        if (!stay.Chance(StayChance(figure, journey))) return;
+
+        Settlement destination = world.Settlements[journey.ToSettlementId];
+
+        // Membership first, so the residence the helper writes is one the resolver will honour —
+        // and rolled back if it does not, because a journey may only be recorded as ending in
+        // staying when somebody actually stayed. `Houses.Settle` declines a move to an address the
+        // figure already holds, which the resolved check above cannot see when the two disagree.
+        EntityId wasRealm = figure.CivilizationId;
+        figure.CivilizationId = destination.CivilizationId;
+
+        if (!Houses.Settle(world, figure, destination.Id, ResidenceReason.Settled, year))
+        {
+            figure.CivilizationId = wasRealm;
+            return;
+        }
+
+        journey.Outcome = JourneyOutcome.Stayed;
+        journey.ReturnSettlementId = destination.Id;
+    }
+
+    /// <summary>Whether this traveller could stay at all, before any dice are thrown.</summary>
+    private static bool CanStay(WorldState world, Figure figure, Journey journey)
+    {
+        if (journey.Kind == JourneyKind.Visit) return false;
+        if (!world.Settlements.Contains(journey.ToSettlementId)) return false;
+
+        Settlement destination = world.Settlements[journey.ToSettlementId];
+        if (!destination.IsActive) return false;
+        if (destination.Id == world.ResidenceOf(figure)) return false;
+        if (destination.Id == figure.ResidenceSettlementId) return false;
+        if (!world.Civilizations.Contains(destination.CivilizationId)) return false;
+        if (!world.Civilizations[destination.CivilizationId].IsActive) return false;
+
+        // A household is not abandoned from the road.
+        if (!figure.SpouseId.IsNone) return false;
+
+        // An office is a tether, and Offices already owns where its holders live.
+        if (figure.CurrentOffice is not null) return false;
+        if (Succession.HoldsAThrone(world, figure)) return false;
+
+        // So is a claim. Somebody the succession may need is not going to keep a shop abroad.
+        if (world.Civilizations.Contains(figure.CivilizationId))
+        {
+            Civilization realm = world.Civilizations[figure.CivilizationId];
+            if (realm.RegentId == figure.Id) return false;
+            if (!figure.DynastyId.IsNone && figure.DynastyId == realm.RulingDynastyId) return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// How likely this particular traveller is to stay where they have just arrived.
+    /// </summary>
+    /// <remarks>
+    /// Read off the disposition the journey was already chosen by, so the merchant who travels
+    /// because he is mercantile is the merchant likeliest to settle where the business is, and the
+    /// pilgrim who walked because he is pious is the one likeliest to remain at the shrine. Small
+    /// in every case: a life with a home in it is the point, and a world where a tenth of all
+    /// journeys ended in emigration would have no homes in it at all.
+    /// </remarks>
+    private static double StayChance(Figure figure, Journey journey) => journey.Kind switch
+    {
+        JourneyKind.Trade => 0.010 + (0.020 * figure.Disposition.Values.Mercantile),
+        JourneyKind.Mission => 0.020 + (0.030 * figure.Disposition.Values.Piety),
+        JourneyKind.Pilgrimage => 0.008 + (0.022 * figure.Disposition.Values.Piety),
+        _ => 0.0,
+    };
 
     /// <summary>
     /// Rolls the road against the traveller, and writes what it did to them.

@@ -50,6 +50,16 @@ public enum ResidenceReason
     /// capital" for them instead. They go where their neighbours went.
     /// </remarks>
     Flight = 7,
+
+    /// <summary>
+    /// They travelled somewhere and stayed. The journey is the recorded cause.
+    /// </summary>
+    /// <remarks>
+    /// The only reason in this list that is a person's own decision rather than something done to
+    /// them by a marriage, an office, a throne or a border. It is also the only one that can carry
+    /// somebody out of the realm they were born in without an office sending them.
+    /// </remarks>
+    Settled = 8,
 }
 
 /// <summary>One period of living somewhere, and what put them there.</summary>
