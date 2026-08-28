@@ -22,12 +22,16 @@ public sealed class DisputeTests
     /// Resampled again when upbringings landed and moved every history. The old panel kept its
     /// death but lost its wound and its <see cref="DisputeCause.KinMurdered"/> quarrel, which is
     /// the scarce one: a murdered relative needs a murderer the chronicle can name, so it appears
-    /// in 37 of the first 160 seeds where the other three causes are near-universal. This panel is
-    /// five seeds that each carry all four causes, and between them a wound (18, 23, 53) and a
-    /// death (107, 153) — chosen with margin rather than at the minimum, so the next shift in the
-    /// stream is less likely to empty it.
+    /// in 37 of the first 160 seeds where the other three causes are near-universal.
+    ///
+    /// Resampled a third time when residence became a history. Margin did not save the previous
+    /// panel — every one of its five seeds carried all four causes and three carried a wound, and
+    /// the shift still took every wound with it. The lesson is that picking with margin buys less
+    /// than it looks, because the thing that empties a panel moves all five seeds at once rather
+    /// than each independently. This panel is five seeds that each carry all four causes and a
+    /// wound, with a death in two of them (5, 104).
     /// </remarks>
-    private static readonly ulong[] Seeds = { 18, 23, 53, 107, 153 };
+    private static readonly ulong[] Seeds = { 5, 17, 65, 73, 104 };
 
     private readonly ITestOutputHelper _output;
 
