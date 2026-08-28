@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { href } from '../router';
 import type { World } from '../store';
 import { kindOf, WORLD_KIND_LABELS, type EntityKind } from '../types';
@@ -90,6 +90,9 @@ const NAV_GROUPS = [
 ];
 
 function readCollapsed(): boolean {
+  // A remembered desktop choice must not leave only a sliver for the reading column on a phone.
+  if (window.matchMedia('(max-width: 639px)').matches) return true;
+
   try {
     const stored = localStorage.getItem(NAV_KEY);
     if (stored === '1') return true;
@@ -120,6 +123,15 @@ export function WorldNav({ world, activePath }: { world: World; activePath: stri
   const [collapsed, setCollapsed] = useState(readCollapsed);
   const { meta } = world.export;
   const { designation, kind, name } = world.export.world;
+
+  useEffect(() => {
+    const narrow = window.matchMedia('(max-width: 639px)');
+    const collapseForNarrowView = (event: MediaQueryListEvent) => {
+      if (event.matches) setCollapsed(true);
+    };
+    narrow.addEventListener('change', collapseForNarrowView);
+    return () => narrow.removeEventListener('change', collapseForNarrowView);
+  }, []);
 
   const toggle = () => {
     setCollapsed((current) => {
