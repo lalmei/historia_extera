@@ -402,47 +402,25 @@ public sealed class HouseholdSystem : ISystem
         foreach (Figure figure in world.Figures)
         {
             Occupation before = figure.Occupation;
-            Occupations.Ensure(world, figure, year);
-
-            if (before == Occupation.None && figure.Occupation != Occupation.None)
+            if (figure.AgeIn(year) == Succession.MajorityAge)
             {
-                Figure? mentor = FindMentor(world, figure, year);
+                Upbringings.EndAtMajority(world, figure, year);
+                Figure? mentor = before == Occupation.None
+                    ? Upbringings.FindMentor(world, figure, year)
+                    : null;
                 if (mentor is not null)
                 {
                     LifeStories.AddMentorship(
-                        mentor, figure, year, world.ResidenceOf(figure));
+                        mentor,
+                        figure,
+                        year,
+                        Upbringings.FamilyOf(mentor.Occupation),
+                        Upbringings.MentorshipLocation(world, figure, mentor));
                 }
             }
+
+            Occupations.Ensure(world, figure, year);
         }
-    }
-
-    /// <summary>Finds an older practitioner close enough to plausibly teach a new adult.</summary>
-    private static Figure? FindMentor(WorldState world, Figure apprentice, int year)
-    {
-        Figure? best = null;
-        int bestScore = int.MinValue;
-        EntityId home = world.ResidenceOf(apprentice);
-
-        foreach (Figure candidate in world.Figures)
-        {
-            if (!candidate.IsAlive || candidate.Id == apprentice.Id) continue;
-            if (candidate.CivilizationId != apprentice.CivilizationId) continue;
-            if (candidate.Occupation != apprentice.Occupation) continue;
-            if (candidate.AgeIn(year) < apprentice.AgeIn(year) + 8) continue;
-
-            int score = 0;
-            if (world.ResidenceOf(candidate) == home) score += 4;
-            if (candidate.Offices.Count > 0) score += 2;
-            if (candidate.DynastyId == apprentice.DynastyId) score += 1;
-
-            if (score > bestScore || (score == bestScore && candidate.Id.CompareTo(best!.Id) < 0))
-            {
-                best = candidate;
-                bestScore = score;
-            }
-        }
-
-        return best;
     }
 
     /// <summary>

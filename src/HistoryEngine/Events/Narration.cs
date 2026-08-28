@@ -142,6 +142,10 @@ public static class Narration
             + "[, {data:manner}][, after {data:years} years].");
         Set(EventKind.ConspiracyAttempted,
             "{subject} moved against {object} and failed[ at {location}][, seeking {data:objective}].");
+        Set(EventKind.GuardianAssigned,
+            "{subject} took {object} into their care[ at {location}][, {data:cause}].");
+        Set(EventKind.GuardianshipEnded,
+            "The guardianship of {object} by {subject} ended[, {data:cause}].");
         // A quarrel names both parties in every line it writes. The one thing a reader of a
         // personal dispute always wants is who it was with, and it is never the location.
         Set(EventKind.DisputeOpened,
@@ -355,6 +359,13 @@ public static class Narration
             "[{self:subject}Moved against {other}, and failed.]"
             + "[{self:object}Survived an attempt by {other}.]"
             + "[{self:extra}Was implicated in {subject}'s attempt on {object}.]");
+        SetSelf(EventKind.GuardianAssigned,
+            "[{self:subject}Took {other} into their care.]"
+            + "[{self:object}Was taken into the care of {other}.]");
+        SetSelf(EventKind.GuardianshipEnded,
+            "[{self:subject}Their care of {other} ended][{self:subject}, {data:cause}][{self:subject}.]"
+            + "[{self:object}Their guardianship under {other} ended][{self:object}, {data:cause}]"
+            + "[{self:object}.]");
         // The same episode from either side. One record, two readings: the aggrieved party fell
         // out with someone, and the other party was fallen out with, and neither page is a
         // separate incident.

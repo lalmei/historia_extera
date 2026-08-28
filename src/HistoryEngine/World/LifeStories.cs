@@ -100,7 +100,11 @@ public static class LifeStories
     }
 
     public static void AddMentorship(
-        Figure mentor, Figure apprentice, int year, EntityId location = default)
+        Figure mentor,
+        Figure apprentice,
+        int year,
+        CareerFamily careerFamily,
+        EntityId location = default)
     {
         Relate(
             mentor, apprentice,
@@ -121,6 +125,44 @@ public static class LifeStories
             location, 0.62);
         Remember(mentor, MemoryKind.Mentorship, year, EventKind.OccupationTaken, apprentice.Id,
             location, 0.42);
+
+        var mentorship = new FigureMentorship(
+            mentor.Id, apprentice.Id, year, careerFamily, location);
+        mentor.Mentorships.Add(mentorship);
+        apprentice.Mentorships.Add(mentorship);
+    }
+
+    public static void AddGuardianship(
+        Figure guardian,
+        Figure ward,
+        int year,
+        EventKind cause,
+        EntityId causeEntity,
+        EntityId location)
+    {
+        Relate(
+            guardian, ward,
+            BondKind.Guardian,
+            BondKind.Ward,
+            BondCause.Guardianship,
+            year,
+            cause,
+            causeEntity,
+            location,
+            affection: 0.20,
+            trust: 0.22,
+            obligation: 0.46,
+            reciprocalAffection: 0.18,
+            reciprocalTrust: 0.32,
+            reciprocalObligation: 0.20);
+    }
+
+    /// <summary>Marks the end of an active duty without erasing the historical bond.</summary>
+    public static void EndGuardianship(
+        Figure guardian, Figure ward, int year, EntityId location)
+    {
+        NoteBondChange(guardian, ward.Id, year, EventKind.GuardianshipEnded, ward.Id, location);
+        NoteBondChange(ward, guardian.Id, year, EventKind.GuardianshipEnded, ward.Id, location);
     }
 
     public static void AddRivalry(
@@ -439,6 +481,7 @@ public static class LifeStories
                     break;
                 case MemoryKind.Injury:
                 case MemoryKind.Defeat:
+                case MemoryKind.Siege:
                     fear += weight * 0.72;
                     anger += weight * 0.28;
                     break;
@@ -472,6 +515,24 @@ public static class LifeStories
 
     public static FigureBond? BondTo(Figure figure, EntityId other) =>
         figure.Bonds.Find(bond => bond.OtherId == other);
+
+    private static void NoteBondChange(
+        Figure figure,
+        EntityId other,
+        int year,
+        EventKind source,
+        EntityId entity,
+        EntityId location)
+    {
+        FigureBond? bond = BondTo(figure, other);
+        if (bond is null) return;
+
+        bond.LastChangedYear = year;
+        bond.LastCause = BondCause.Guardianship;
+        bond.LastEventKind = source;
+        bond.LastEntityId = entity;
+        bond.LastLocationId = location;
+    }
 
     private static void Relate(
         Figure first,

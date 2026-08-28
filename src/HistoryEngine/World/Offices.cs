@@ -202,6 +202,12 @@ public static class Offices
                 world.Figures[grantedBy], holder, year, Seat(world, civilization, kind, scope));
         }
 
+        if (holder.Background is { } background && background.IntroducedYear == year)
+        {
+            background.InstitutionId = BackgroundInstitution(kind, civilization, scope);
+            background.SponsorId = grantedBy;
+        }
+
         Occupations.Sync(world, holder, year);
     }
 
@@ -354,6 +360,8 @@ public static class Offices
 
         notable.Origin = DoorInto(office);
         notable.Occupation = Occupations.ForOffice(office);
+        notable.Background = new FigureBackground(
+            year, bornAt, Upbringings.FamilyOf(notable.Occupation));
 
         return notable;
     }
@@ -560,6 +568,12 @@ public static class Offices
     /// <summary>What the office is held over, for the event's object slot.</summary>
     private static EntityId Subject(OfficeKind kind, Civilization civilization, EntityId scope) =>
         kind == OfficeKind.Governor ? scope : civilization.Id;
+
+    private static EntityId BackgroundInstitution(
+        OfficeKind kind, Civilization civilization, EntityId scope) =>
+        kind is OfficeKind.Governor or OfficeKind.HighPriest && !scope.IsNone
+            ? scope
+            : civilization.Id;
 
     /// <summary>Where the granting happened.</summary>
     private static EntityId Seat(

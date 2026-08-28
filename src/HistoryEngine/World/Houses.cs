@@ -448,6 +448,7 @@ public static class Houses
                 : Significance.Routine);
 
         LifeStories.Bereave(world, figure, bereaved, year, cause);
+        Upbringings.OnDeath(world, figure, year);
 
         CloseHouseIfLast(world, figure, year);
     }

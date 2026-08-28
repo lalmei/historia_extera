@@ -185,6 +185,8 @@ public sealed class Figure
         Plots = new List<FigurePlot>();
         Observations = new List<SkyObservation>();
         Claims = new List<SkyClaim>();
+        Guardianships = new List<FigureGuardianship>();
+        Mentorships = new List<FigureMentorship>();
         ChildIds = new List<EntityId>();
         SpouseIds = new List<EntityId>();
     }
@@ -351,6 +353,12 @@ public sealed class Figure
     /// </remarks>
     public List<FigurePlot> Plots { get; }
 
+    /// <summary>Guardianships this person gave or received, shared between both pages.</summary>
+    public List<FigureGuardianship> Guardianships { get; }
+
+    /// <summary>Dated mentorship starts this person taught or received.</summary>
+    public List<FigureMentorship> Mentorships { get; }
+
     /// <summary>What this figure wrote down about the sky, in the order they saw it.</summary>
     public List<SkyObservation> Observations { get; }
 
@@ -390,6 +398,9 @@ public sealed class Figure
     /// plausibly be held at, so their page reads as a life rather than an entrance.</para>
     /// </remarks>
     public FigureOrigin Origin { get; set; } = FigureOrigin.Unrecorded;
+
+    /// <summary>What is known about an adult raised into the record in the year they appeared.</summary>
+    public FigureBackground? Background { get; set; }
 
     /// <summary>The year this figure was stripped of an office, if they ever were.</summary>
     /// <remarks>

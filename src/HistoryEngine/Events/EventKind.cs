@@ -139,6 +139,12 @@ public enum EventKind
     /// </remarks>
     ConspiracyAttempted = 339,
 
+    /// <summary>An adult took responsibility for a recorded child whose parents were unavailable.</summary>
+    GuardianAssigned = 340,
+
+    /// <summary>A guardianship ended at majority or at the death of either person.</summary>
+    GuardianshipEnded = 341,
+
     // ---- Territory (400) ----
     // Claims are written so ownership can be replayed year by year; they are marked Routine
     // so the timeline is not a run of "extended its reach". Cessions and releases stay on
