@@ -367,8 +367,15 @@ public sealed class ConspiracyTests
                         world.Chronicle.Events,
                         entry => entry.Kind == EventKind.FigureDied
                             && entry.Subject == target.Id);
+                    // Only the kin who were alive to be bereaved. `ImmediateFamily` is read at
+                    // final state, so it includes a child born after the murder — and a
+                    // posthumous child cannot carry a bereavement dealt in the year before they
+                    // existed. Whether such a child should later inherit the grievance is a real
+                    // question, but it is not this assertion's to answer: the model deals
+                    // bereavement to the household present at the death.
                     Assert.All(
-                        Succession.ImmediateFamily(world, target),
+                        Succession.ImmediateFamily(world, target)
+                            .Where(kin => kin.BirthYear <= ended),
                         kin => Assert.Equal(ended, kin.KinMurderedYear));
                     continue;
                 }
