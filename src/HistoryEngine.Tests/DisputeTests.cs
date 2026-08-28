@@ -18,7 +18,16 @@ public sealed class DisputeTests
     /// the world's anger now runs through plots against people rank forbids anyone to face, so the
     /// panel is seeds that still carry a wound and a death in the current checkout.
     /// </summary>
-    private static readonly ulong[] Seeds = { 11, 16, 22, 42, 43 };
+    /// <remarks>
+    /// Resampled again when upbringings landed and moved every history. The old panel kept its
+    /// death but lost its wound and its <see cref="DisputeCause.KinMurdered"/> quarrel, which is
+    /// the scarce one: a murdered relative needs a murderer the chronicle can name, so it appears
+    /// in 37 of the first 160 seeds where the other three causes are near-universal. This panel is
+    /// five seeds that each carry all four causes, and between them a wound (18, 23, 53) and a
+    /// death (107, 153) — chosen with margin rather than at the minimum, so the next shift in the
+    /// stream is less likely to empty it.
+    /// </remarks>
+    private static readonly ulong[] Seeds = { 18, 23, 53, 107, 153 };
 
     private readonly ITestOutputHelper _output;
 
@@ -434,7 +443,7 @@ public sealed class DisputeTests
     [Fact]
     public void ExportCarriesTheQuarrelOnBothPages()
     {
-        WorldExport export = HistoryRun.Execute(TestWorlds.Standard(2)).ToExport();
+        WorldExport export = HistoryRun.Execute(TestWorlds.Standard(Seeds[0])).ToExport();
         var byId = export.Figures.ToDictionary(figure => figure.Id);
         int seen = 0;
 
@@ -456,7 +465,7 @@ public sealed class DisputeTests
             }
         }
 
-        Assert.True(seen > 0, "Seed 2 exported no quarrel.");
+        Assert.True(seen > 0, $"Seed {Seeds[0]} exported no quarrel.");
     }
 
     // -----------------------------------------------------------------------

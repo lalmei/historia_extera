@@ -322,9 +322,17 @@ public sealed class CampaignTests
                 {
                     Assert.Equal(0.0, LifeStories.Fitness(figure, injury.Year));
                     if (injury.Permanent) permanentInjuries++;
+                    // Recovery keeps a wounded figure off the field, not off the throne. Enduring a
+                    // siege and ruling through a war are things that happen to a person where they
+                    // already are, so neither contradicts an open injury; only taking the field
+                    // does.
                     Assert.DoesNotContain(figure.Campaigns, memory =>
                     {
-                        if (memory.Role == CampaignRole.EnduredSiege) return false;
+                        if (memory.Role is CampaignRole.EnduredSiege or CampaignRole.Ruled)
+                        {
+                            return false;
+                        }
+
                         int occurred = memory.BattleId.IsNone
                             ? memory.Year
                             : world.Battles[memory.BattleId].EndYear ?? memory.Year;
