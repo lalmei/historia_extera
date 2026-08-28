@@ -46,11 +46,17 @@ public sealed class UnrestTests
     /// <b>Resampled again when persistent conspiracies landed</b>, for the third time and for the
     /// same reason: 4 of the first 140 seeds, 2.9%, the same rate the paragraph above measured.
     /// The tail was 16, 51 and 112 and is now 8, 94, 107 and 136.
+    ///
+    /// <b>Resampled a fourth time when upbringings landed</b>, which move every history again:
+    /// 3 of the first 160 seeds, 1.9%. That is the lowest of the four readings, but three
+    /// occurrences cannot separate 1.9% from the 2.9% above, and the test above the rule still
+    /// applies — the path is carried, so this is a resample and not a behaviour change. The tail
+    /// was 8, 94, 107 and 136 and is now 40, 104 and 149.
     /// </remarks>
     private static readonly ulong[] RareSeeds =
     {
         2, 7, 11, 42, 99, 123, 777, 2024, 3, 5, 13, 17, 19, 23, 29, 31, 37, 41, 47, 53, 61, 71,
-        8, 94, 107, 136,
+        40, 104, 149,
     };
 
     /// <summary>
