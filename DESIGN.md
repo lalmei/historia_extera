@@ -280,6 +280,19 @@ minor becomes a salient memory that changes later martial risk according to disp
 raised into the record receive only facts known at their introduction — origin settlement,
 institution, broad career family, and any actual sponsor — never invented earlier events.
 
+Where somebody lives is a history, not a field. Residence was assigned in six places that each
+knew why and none of which wrote it down, and the export carried only the final value — so a life
+page could show a trade taken at one town, a marriage at a second and a siege endured at a third
+with nothing to join them up. Every move now goes through one helper, which records the year and
+the cause and takes the household with it. Removals stay off the spine: the office grant, the
+recall and the accession are each already there and each already say where the person went.
+
+**Presence that the engine asserted is now presence it records.** Two paths used to relocate people
+silently, by falling back to the realm's capital rather than by moving them: a town changing hands
+without its sitting ruler, and a town being abandoned under the people the chronicle follows. Both
+now write the move. A cession is still not a move for the people who change realm with their town —
+they did not go anywhere, the border did.
+
 A town's bad year reaches the people standing in it. Famine, plague, sack and disaster were facts
 about settlements that the residents were never told: a scribe could be resident through four
 recorded plague years and carry nothing from any of them. Each episode is now resolved against its
@@ -441,6 +454,7 @@ default.
 | M18 | Cultural drift: a people that changes over the centuries | Done |
 | M19 | The road has a cost: journeys that can be robbed, drowned, or fatal, and say what they were for | Done |
 | M20 | Lives the record reaches: upbringing, causal biographies, and a town's hardship on its people | Done |
+| M21 | A life has an address history, so a page can tell a move from a trip | Done |
 
 M13 landed in independently reviewable stages: the clock and dated record first, seasonal
 war and expansion next, then plague travel and outbreak clocks, and finally sieges as

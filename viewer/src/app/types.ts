@@ -7,7 +7,7 @@
  * stops moving.
  */
 
-export const SCHEMA_VERSION = 41;
+export const SCHEMA_VERSION = 42;
 
 /**
  * Whether an event carries the history or merely records a life.
@@ -1383,6 +1383,38 @@ export const MEMORY_LABELS: Record<MemoryKind, string> = {
   Hardship: 'Lived through it',
 };
 
+export type ResidenceReason =
+  | 'Birth'
+  | 'Marriage'
+  | 'Posting'
+  | 'Recall'
+  | 'Accession'
+  | 'Regency'
+  | 'RealmChangedHands'
+  | 'Flight';
+
+export const RESIDENCE_REASON_LABELS: Record<ResidenceReason, string> = {
+  Birth: 'born there',
+  Marriage: 'on marrying',
+  Posting: 'to take up the governorship',
+  Recall: 'recalled to court',
+  Accession: 'on taking the throne',
+  Regency: 'to govern for the heir',
+  RealmChangedHands: 'the realm having changed hands',
+  Flight: 'the town being abandoned',
+};
+
+/**
+ * One period of living somewhere. Ordered, so the last entry at or before a year
+ * is where the figure lived in that year — which is what lets a page tell a move
+ * from a trip.
+ */
+export interface Residence {
+  settlementId: EntityId;
+  fromYear: number;
+  reason: ResidenceReason;
+}
+
 export type GuardianshipEnd = 'Ongoing' | 'Majority' | 'GuardianDied' | 'WardDied';
 
 export interface Guardianship {
@@ -1753,6 +1785,7 @@ export interface Figure {
    * lives in the town they govern — which is what exposes them to what happens there.
    */
   residenceSettlementId?: EntityId;
+  residences: Residence[];
   /** What they were before the record began following them. See ORIGIN_LABELS. */
   origin: FigureOrigin;
   /** Facts known in the year an already-grown person entered the record. */

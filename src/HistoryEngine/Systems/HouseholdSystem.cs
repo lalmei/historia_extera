@@ -452,7 +452,7 @@ public sealed class HouseholdSystem : ISystem
         // governor's spouse belongs in the town he governs; leaving them at the capital would put
         // a household in two places and expose the two halves of it to different disasters.
         EntityId household = world.ResidenceOf(stays);
-        mover.ResidenceSettlementId = household;
+        Houses.Settle(world, mover, household, ResidenceReason.Marriage, year);
 
         // Chronicled where the household is, not at the realm's seat. A wedding recorded at the
         // capital puts a provincial couple in a town neither of them lives in, and every later

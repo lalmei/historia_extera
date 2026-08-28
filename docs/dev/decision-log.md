@@ -4255,6 +4255,75 @@ same length at every severity, so the choice draws the same dice and cannot shif
 error `npm test` could not see, because the viewer's test script does not run `tsc`. Worth noting as
 a gap in the gate rather than as a typo.
 
+### Residence: a history rather than a field, and two silent relocations
+
+`TravelSystem` models journeys and not moves, and that reasoning stands. But the world moved people
+anyway, in six places, and it moved them silently: residence was one assignable field with no
+history, and the export carried its final value alone. A life page could show a trade taken at one
+town, a marriage at a second and a siege endured at a third with nothing to join them up.
+
+**One helper, or it comes back.** `Houses.Settle` is now the only thing that may change where
+somebody lives, which is what keeps the field and the history from disagreeing. The household rule —
+a governor recalled to court does not leave his wife in a provincial town to be counted among its
+casualties — lived in one of the six callers and was missing from the other five; it now lives with
+the move. A test asserts the invariant rather than the implementation, because a seventh caller
+assigning the field directly is the failure that would be invisible in review.
+
+**The measurement refused the significance rule the issue proposed.** It asked for `Notable` where
+an office or a throne caused the move, and for the count to be measured against the timeline in the
+same breath. Postings and recalls alone put 744 removals into a 16,430-event history, 4.5% of
+everything that happened. They are also redundant there: the office grant, the recall and the
+accession are each already on the spine and each already say where the person went. Every removal is
+`Routine`. A removal is what makes the life page answerable, not what makes the news.
+
+**Two relocations the engine asserted and never recorded.** This is what the acceptance bullet about
+sieges was really pointing at, and neither the issue nor I saw it at first. `WorldState.ResidenceOf`
+falls back to the realm's capital when a figure's recorded address is inactive or no longer their
+realm's, and `Campaigns.NoteBesieged` selects the besieged by that resolved answer — so people were
+being placed at sieges, famines and disasters they were never recorded arriving at. Two paths reach
+it: a town changing hands without the sitting ruler the transfer refuses to hand over, and a town
+being abandoned, where `Disperse` had always sent the unnamed population to a refuge and left the
+named people standing in the ruin. Both now record the move, with `RealmChangedHands` and `Flight`.
+
+**`RealmChangedHands` was removed and then restored, which is the useful part.** Reading `Realms`
+showed that the people in a transferred town change realm *with* it and go nowhere, so the reason
+looked like a value with no site and was cut. It has a site after all — just not the one the issue
+implied. Nobody is relocated because the border moved; exactly one person is relocated because the
+border moved *and the transfer would not hand them over*.
+
+**A married child is not part of the household.** Found by the household invariant on the first run:
+a governor's grown, married son was being dragged to the province with his father, leaving his own
+wife behind — splitting a household one generation down in the act of keeping another together. The
+helper's own comment already said a child who has married out keeps their address; the code did not.
+
+**What the panel could not prove.** Presence at a past siege cannot be reconstructed from final
+state, because the fallback depends on which realm held a settlement at the time and on that realm's
+capital at the time, neither of which survives in the export. The assertion is therefore the
+strongest true one — where the fallback is not in play, an arrival must exist — and with both
+silent paths closed, no seed in the panel needs the exemption.
+
+**A tolerance in the wrong unit.** `SkyClaimTests` asserts that a claim refuted before its own
+predicted year was a whole multiple of the comet's true period — honest arithmetic on a register
+with a gap in it. It allowed 0.05 in *turns*, and the resampled panel produced a 34-year claim for
+a 17.44-year comet: 0.88 years off a double return, and refused. But an apparition is recorded at
+`Math.Round` of its true date, so an interval measured between two of them can sit a full year off
+the multiple it came from — the allowance needed is in years, and a fixed one in turns scales it
+with the period, at 0.9 years for a 17-year comet and 4 years for an 80-year one. It is now one
+year, which is stricter than what it replaced everywhere except the short periods where the old
+rule was rejecting honest claims.
+
+**The fifth resample, and what margin actually buys.** Secession measured 5 of 180 seeds, 2.8% —
+back in the middle of the range, which retires the question the fourth resample raised about its
+1.9% reading. The dispute panel is more interesting: the previous resample deliberately chose five
+seeds that each carried all four causes, three of them with a wound, precisely so the next shift
+would not empty it. The next shift emptied it anyway, of every wound. Margin per seed buys less
+than it appears to, because the thing that empties a panel moves all five seeds at once rather than
+each of them independently — which is the argument for a directed generator, recorded here for the
+third time and still not acted on.
+
+**Schema 42.** Figures gain `residences[]`; `residenceSettlementId` stays as the last entry so a
+reader that only wants the current address does not walk the list.
+
 ---
 
 ## Notes for Phase 2

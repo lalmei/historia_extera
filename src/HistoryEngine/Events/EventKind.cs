@@ -145,6 +145,15 @@ public enum EventKind
     /// <summary>A guardianship ended at majority or at the death of either person.</summary>
     GuardianshipEnded = 341,
 
+    /// <summary>A recorded person changed where they live.</summary>
+    /// <remarks>
+    /// Routine for the ordinary household move and Notable only where an office or a throne caused
+    /// it. The engine moves people often enough that putting every removal on the spine would give
+    /// a reader a timeline of house-moves; what the reader wants is the governor going out to his
+    /// province, and the ordinary ones are what make a life page answerable rather than a headline.
+    /// </remarks>
+    FigureMoved = 342,
+
     // ---- Territory (400) ----
     // Claims are written so ownership can be replayed year by year; they are marked Routine
     // so the timeline is not a run of "extended its reach". Cessions and releases stay on
