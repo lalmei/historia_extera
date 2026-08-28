@@ -7,7 +7,7 @@
  * stops moving.
  */
 
-export const SCHEMA_VERSION = 37;
+export const SCHEMA_VERSION = 40;
 
 /**
  * Whether an event carries the history or merely records a life.
@@ -426,6 +426,24 @@ export const ORIGIN_LABELS: Record<FigureOrigin, string> = {
   Guild: 'Risen through a guild',
   Merchant: 'Risen through a merchant house',
 };
+
+export type CareerFamily = 'Arms' | 'Faith' | 'TradeCraft' | 'LettersOffice';
+
+export const CAREER_FAMILY_LABELS: Record<CareerFamily, string> = {
+  Arms: 'arms',
+  Faith: 'the faith',
+  TradeCraft: 'trade and craft',
+  LettersOffice: 'letters and office',
+};
+
+export interface FigureBackground {
+  introducedYear: number;
+  originSettlementId: EntityId;
+  careerFamily: CareerFamily;
+  institutionId?: EntityId;
+  sponsorId?: EntityId;
+  mentorId?: EntityId;
+}
 
 /**
  * How a recorded person spends their life.
@@ -1269,7 +1287,9 @@ export type BondKind =
   | 'CoConspirator'
   | 'Sibling'
   | 'Friend'
-  | 'Lover';
+  | 'Lover'
+  | 'Guardian'
+  | 'Ward';
 
 export const BOND_LABELS: Record<BondKind, string> = {
   Kin: 'Kin',
@@ -1287,6 +1307,8 @@ export const BOND_LABELS: Record<BondKind, string> = {
   Sibling: 'Sibling',
   Friend: 'Friend',
   Lover: 'Lover',
+  Guardian: 'Guardian',
+  Ward: 'Ward',
 };
 
 export type BondCause =
@@ -1300,7 +1322,8 @@ export type BondCause =
   | 'Bereavement'
   | 'Conflict'
   | 'Conspiracy'
-  | 'Undertaking';
+  | 'Undertaking'
+  | 'Guardianship';
 
 export interface FigureBond {
   otherId: EntityId;
@@ -1335,7 +1358,9 @@ export type MemoryKind =
   | 'Marriage'
   | 'Parenthood'
   | 'Journey'
-  | 'Conspiracy';
+  | 'Conspiracy'
+  | 'Wonder'
+  | 'Siege';
 
 export const MEMORY_LABELS: Record<MemoryKind, string> = {
   Bereavement: 'Bereavement',
@@ -1352,7 +1377,30 @@ export const MEMORY_LABELS: Record<MemoryKind, string> = {
   Parenthood: 'Parenthood',
   Journey: 'Journey',
   Conspiracy: 'Conspiracy',
+  Wonder: 'Wonder',
+  Siege: 'Siege endured',
 };
+
+export type GuardianshipEnd = 'Ongoing' | 'Majority' | 'GuardianDied' | 'WardDied';
+
+export interface Guardianship {
+  guardianId: EntityId;
+  wardId: EntityId;
+  startYear: number;
+  endYear?: number;
+  end: GuardianshipEnd;
+  causeKind: string;
+  causeEntityId?: EntityId;
+  locationId?: EntityId;
+}
+
+export interface Mentorship {
+  mentorId: EntityId;
+  apprenticeId: EntityId;
+  startYear: number;
+  careerFamily: CareerFamily;
+  locationId?: EntityId;
+}
 
 export interface SalientMemory {
   kind: MemoryKind;
@@ -1610,7 +1658,8 @@ export interface PlotAct {
 }
 
 /**
- * One conspiracy, carried by its leader and by everyone who knowingly joined it.
+ * One conspiracy, carried by its leader, everyone who knowingly joined it, and its target once
+ * the plot became public.
  *
  * The engine keeps the whole truth; `publicYear` is the year the world learned of it, and is
  * absent where the world never did. A viewer must not present a secret act as something a
@@ -1621,8 +1670,8 @@ export interface Plot {
   leaderId: EntityId;
   targetId: EntityId;
   realmId?: EntityId;
-  /** Whether the page this hangs on led it, rather than joined it. */
-  led: boolean;
+  /** The side from which this figure page reads the shared plot facts. */
+  viewpoint: 'Leader' | 'Member' | 'Target';
   objective: PlotObjective;
   cause: PlotCause;
   sourceKind: string;
@@ -1704,6 +1753,8 @@ export interface Figure {
   residenceSettlementId?: EntityId;
   /** What they were before the record began following them. See ORIGIN_LABELS. */
   origin: FigureOrigin;
+  /** Facts known in the year an already-grown person entered the record. */
+  background?: FigureBackground;
   /** How they spend their life, once of age. See OCCUPATION_LABELS. */
   occupation: Occupation;
   disposition: Disposition;
@@ -1720,8 +1771,10 @@ export interface Figure {
   injuries: FigureInjury[];
   undertakings: Undertaking[];
   disputes: Dispute[];
-  /** Conspiracies they led or knowingly joined. Retrospective: see Plot.publicYear. */
+  /** Conspiracies they led, knowingly joined, or learned had targeted them. */
   plots: Plot[];
+  guardianships: Guardianship[];
+  mentorships: Mentorship[];
   observations: SkyObservation[];
   claims: SkyClaim[];
   motherId?: EntityId;

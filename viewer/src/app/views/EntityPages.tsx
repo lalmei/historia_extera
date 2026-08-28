@@ -1,5 +1,16 @@
+import { useEffect, useState } from 'react';
 import { EventList } from '../components/EventList';
 import { HistoryPanels } from '../components/History';
+import {
+  buildBiographyEpisodes,
+  disputeAt,
+  groupJourneys,
+  plotAt,
+  undertakingAt,
+  visibleBondAt,
+  visibleMemoryAt,
+  type BiographyEpisode,
+} from '../biography';
 import {
   Badge,
   type Column,
@@ -33,6 +44,7 @@ import {
   ARTIFACT_LABELS,
   BOND_LABELS,
   CAMPAIGN_ROLE_LABELS,
+  CAREER_FAMILY_LABELS,
   JOURNEY_KIND_LABELS,
   JOURNEY_OUTCOME_LABELS,
   CAUSE_LABELS,
@@ -655,48 +667,136 @@ export function TradeRouteTable({ world, routes }: { world: World; routes: Trade
 }
 
 export function FigurePage({ world, figure }: { world: World; figure: Figure }) {
-  const age =
-    figure.deathYear === undefined
-      ? world.export.meta.endYear - figure.birthYear
-      : figure.deathYear - figure.birthYear;
+  const lastYear = world.export.meta.endYear;
+  const firstYear = Math.max(world.export.meta.startYear, figure.birthYear);
+  const [selectedYear, setSelectedYear] = useState(lastYear);
+  const [showChronicle, setShowChronicle] = useState(false);
+
+  useEffect(() => {
+    setSelectedYear(lastYear);
+    setShowChronicle(false);
+  }, [figure.id, lastYear]);
+
+  const atLatest = selectedYear === lastYear;
+  const deathYear = figure.deathYear;
+  const deadAtPoint = deathYear !== undefined && deathYear <= selectedYear;
+  const age = (deadAtPoint ? deathYear : selectedYear) - figure.birthYear;
+  const allEvents = world.eventsFor(figure.id);
+  const visibleEvents = allEvents.filter((event) => event.year <= selectedYear);
+  const visibleTitles = figure.titles
+    .filter((title) => title.fromYear <= selectedYear)
+    .map((title) => ({
+      ...title,
+      toYear:
+        title.toYear !== undefined && title.toYear <= selectedYear ? title.toYear : undefined,
+    }));
+  const activeTitle =
+    visibleTitles.find((title) => title.toYear === undefined) ??
+    [...visibleTitles].sort((a, b) => b.fromYear - a.fromYear)[0];
 
   const house = dynastyOf(world, figure.dynastyId);
   const culture = cultureOf(world, figure.cultureId);
-  const trade =
-    figure.occupation && figure.occupation !== 'None'
+  const occupationEvent = [...visibleEvents]
+    .reverse()
+    .find((event) => event.kind === 'OccupationTaken');
+  const trade = atLatest
+    ? figure.occupation && figure.occupation !== 'None'
       ? (OCCUPATION_LABELS[figure.occupation] ?? figure.occupation)
-      : undefined;
-  const role = figure.titles[0]?.title ?? trade;
+      : undefined
+    : occupationEvent?.data?.occupation;
+  const role = activeTitle?.title ?? trade;
   const hasFamily =
     figure.motherId !== undefined ||
     figure.fatherId !== undefined ||
     figure.spouseIds.length > 0 ||
     figure.childIds.length > 0;
-  const claimed = treasuresOwnedBy(world, figure.id);
-  const lifeUndertakings = [...(figure.undertakings ?? [])]
+  const claimed = atLatest ? treasuresOwnedBy(world, figure.id) : [];
+  const lifeUndertakings = (figure.undertakings ?? [])
+    .map((undertaking) => undertakingAt(undertaking, selectedYear))
+    .filter((undertaking): undertaking is Undertaking => undertaking !== undefined)
     .sort((a, b) => {
       if (a.state === 'Active' && b.state !== 'Active') return -1;
       if (b.state === 'Active' && a.state !== 'Active') return 1;
       return (b.endYear ?? b.startYear) - (a.endYear ?? a.startYear);
     })
     .slice(0, 4);
-  const importantRelationships = [...(figure.bonds ?? [])]
+  const importantRelationships = (figure.bonds ?? [])
+    .filter((bond) => visibleBondAt(bond, selectedYear))
     .sort((a, b) => relationshipImportance(b) - relationshipImportance(a))
     .slice(0, 6);
-  const formativeMemories = [...(figure.memories ?? [])]
+  const formativeMemories = (figure.memories ?? [])
+    .filter((memory) => visibleMemoryAt(memory, selectedYear))
     .sort((a, b) => b.intensity - a.intensity || b.lastReinforcedYear - a.lastReinforcedYear)
     .slice(0, 6);
-  const seenInTheSky = [...(figure.observations ?? [])].sort((a, b) => a.year - b.year);
-  const heldAboutTheSky = [...(figure.claims ?? [])].sort((a, b) => a.year - b.year);
-  const quarrels = [...(figure.disputes ?? [])].sort((a, b) => {
+  const seenInTheSky = (figure.observations ?? [])
+    .filter((observation) => observation.year <= selectedYear)
+    .sort((a, b) => a.year - b.year);
+  const heldAboutTheSky = (figure.claims ?? [])
+    .filter((claim) => claim.year <= selectedYear)
+    .map((claim) =>
+      claim.settledYear !== undefined && claim.settledYear > selectedYear
+        ? {
+            ...claim,
+            verdict: claim.register === 'Measured' ? ('Standing' as const) : ('NotTestable' as const),
+            settledYear: undefined,
+          }
+        : claim,
+    )
+    .sort((a, b) => a.year - b.year);
+  const quarrels = (figure.disputes ?? [])
+    .map((dispute) => disputeAt(dispute, selectedYear))
+    .filter((dispute): dispute is Dispute => dispute !== undefined)
+    .sort((a, b) => {
     if (a.outcome === 'Open' && b.outcome !== 'Open') return -1;
     if (b.outcome === 'Open' && a.outcome !== 'Open') return 1;
     return (b.endYear ?? b.startYear) - (a.endYear ?? a.startYear);
   });
-  const conspiracies = [...(figure.plots ?? [])].sort(
-    (a, b) => (b.endYear ?? b.startYear) - (a.endYear ?? a.startYear),
+  const conspiracies = (atLatest
+    ? [...(figure.plots ?? [])]
+    : (figure.plots ?? [])
+        .map((plot) => plotAt(plot, figure.id, selectedYear))
+        .filter((plot): plot is Plot => plot !== undefined)
+  )
+    .sort((a, b) => (b.endYear ?? b.startYear) - (a.endYear ?? a.startYear));
+  const guardianships = (figure.guardianships ?? [])
+    .filter((guardianship) => guardianship.startYear <= selectedYear)
+    .map((guardianship) =>
+      guardianship.endYear !== undefined && guardianship.endYear > selectedYear
+        ? { ...guardianship, end: 'Ongoing' as const, endYear: undefined }
+        : guardianship,
+    )
+    .sort(
+    (a, b) => b.startYear - a.startYear || a.guardianId.localeCompare(b.guardianId),
   );
+  const mentorships = (figure.mentorships ?? [])
+    .filter((mentorship) => mentorship.startYear <= selectedYear)
+    .sort(
+    (a, b) => b.startYear - a.startYear || a.mentorId.localeCompare(b.mentorId),
+  );
+  const injuries = (figure.injuries ?? []).filter((injury) => injury.year <= selectedYear);
+  const campaigns = (figure.campaigns ?? [])
+    .filter((campaign) => campaign.year <= selectedYear)
+    .map((campaign) => ({
+      ...campaign,
+      promotionYear:
+        campaign.promotionYear !== undefined && campaign.promotionYear <= selectedYear
+          ? campaign.promotionYear
+          : undefined,
+    }));
+  const journeys = (figure.journeys ?? []).filter((journey) => journey.year <= selectedYear);
+  const episodes = buildBiographyEpisodes(figure, allEvents, selectedYear);
+  const positionPlace =
+    activeTitle?.scopeId ??
+    [...journeys].reverse().find((journey) => journey.returnSettlementId)?.returnSettlementId ??
+    (atLatest ? figure.residenceSettlementId : undefined);
+  const background =
+    figure.background && figure.background.introducedYear <= selectedYear
+      ? figure.background
+      : undefined;
   const hasLifeSummary =
+    background !== undefined ||
+    guardianships.length > 0 ||
+    mentorships.length > 0 ||
     conspiracies.length > 0 ||
     lifeUndertakings.length > 0 ||
     importantRelationships.length > 0 ||
@@ -704,7 +804,7 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
     quarrels.length > 0 ||
     seenInTheSky.length > 0 ||
     heldAboutTheSky.length > 0 ||
-    (figure.injuries?.length ?? 0) > 0;
+    injuries.length > 0;
 
   return (
     <div className="space-y-5">
@@ -713,15 +813,226 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
         title={figure.name}
         meta={
           <>
-            <Badge tone={figure.deathYear === undefined ? 'accent' : 'muted'}>
-              {figure.deathYear === undefined ? 'Living' : 'Deceased'}
+            <Badge tone={deadAtPoint ? 'muted' : 'accent'}>
+              {deadAtPoint ? 'Deceased' : `Living in ${selectedYear}`}
             </Badge>
             <span className="text-[var(--ink-faint)]">
-              {yearRange(figure.birthYear, figure.deathYear)} · aged {age}
+              {deadAtPoint ? yearRange(figure.birthYear, figure.deathYear) : `born ${figure.birthYear}`}
+              {' · '}aged {age}
             </span>
           </>
         }
       />
+
+      <Panel
+        title="Biography at a point in time"
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="text-xs text-[var(--ink-faint)]">
+              Year{' '}
+              <input
+                type="number"
+                aria-label="Biography year"
+                min={firstYear}
+                max={lastYear}
+                value={selectedYear}
+                onChange={(event) => {
+                  const year = Number(event.target.value);
+                  if (Number.isFinite(year)) {
+                    setSelectedYear(Math.max(firstYear, Math.min(lastYear, year)));
+                  }
+                }}
+                className="w-20 rounded border border-[var(--rule)] bg-[var(--input)] px-2 py-1 text-xs text-[var(--ink)]"
+              />
+            </label>
+            <button
+              type="button"
+              onClick={() => setSelectedYear(lastYear)}
+              disabled={atLatest}
+              className="rounded border border-[var(--rule)] px-2 py-1 text-xs disabled:opacity-40"
+            >
+              Latest year
+            </button>
+          </div>
+        }
+      >
+        <label htmlFor={`biography-year-${figure.id}`} className="block text-sm">
+          Through year <strong>{selectedYear}</strong>
+        </label>
+        <input
+          id={`biography-year-${figure.id}`}
+          type="range"
+          min={firstYear}
+          max={lastYear}
+          value={selectedYear}
+          onChange={(event) => setSelectedYear(Number(event.target.value))}
+          className="mt-2 w-full accent-[var(--primary)]"
+        />
+        <div className="mt-1 flex justify-between text-xs text-[var(--ink-faint)]">
+          <span>{firstYear}</span>
+          <span>{lastYear}</span>
+        </div>
+        {!atLatest && (
+          <p className="mt-2 text-xs text-[var(--ink-faint)]">
+            Later outcomes and facts without a historical snapshot are hidden.
+          </p>
+        )}
+      </Panel>
+
+      <Panel title="Life at a glance">
+        <div className="grid gap-5 lg:grid-cols-2">
+          <section>
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
+              Position
+            </h3>
+            <p className="text-sm">
+              {activeTitle ? (
+                <>
+                  {activeTitle.title} of{' '}
+                  <EntityLink world={world} id={activeTitle.scopeId ?? activeTitle.civilizationId} />
+                </>
+              ) : (
+                trade ?? 'No recorded adult position yet'
+              )}
+            </p>
+            {activeTitle && trade && (
+              <p className="mt-1 text-xs text-[var(--ink-faint)]">Occupation · {trade}</p>
+            )}
+            {positionPlace && (
+              <p className="mt-1 text-xs text-[var(--ink-faint)]">
+                {atLatest ? 'Residence' : 'Last recorded place'} ·{' '}
+                <EntityLink world={world} id={positionPlace} />
+              </p>
+            )}
+          </section>
+
+          <section>
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
+              Origins and upbringing
+            </h3>
+            {background ? (
+              <p className="text-sm">
+                Entered the record in {background.introducedYear} through{' '}
+                {CAREER_FAMILY_LABELS[background.careerFamily]} at{' '}
+                <EntityLink world={world} id={background.originSettlementId} />.
+              </p>
+            ) : guardianships.length > 0 || mentorships.length > 0 ? (
+              <p className="text-sm">
+                {guardianships.length > 0 && `${guardianships.length} recorded guardianship`}
+                {guardianships.length > 1 && 's'}
+                {guardianships.length > 0 && mentorships.length > 0 && ' · '}
+                {mentorships.length > 0 && `${mentorships.length} recorded mentorship`}
+                {mentorships.length > 1 && 's'}
+              </p>
+            ) : (
+              <p className="text-sm text-[var(--ink-faint)]">No exceptional upbringing was recorded.</p>
+            )}
+          </section>
+
+          <section>
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
+              Important relationships
+            </h3>
+            {importantRelationships.length > 0 ? (
+              <ul className="space-y-1 text-sm">
+                {importantRelationships.slice(0, 3).map((bond) => (
+                  <li key={bond.otherId}>
+                    <EntityLink world={world} id={bond.otherId} />
+                    <span className="ml-2 text-xs text-[var(--ink-faint)]">
+                      {bond.kinds.map((kind) => BOND_LABELS[kind] ?? kind).join(', ')} ·{' '}
+                      {relationshipReading(bond)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-[var(--ink-faint)]">No durable relationship is visible yet.</p>
+            )}
+          </section>
+
+          <section>
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
+              What they carried
+            </h3>
+            {formativeMemories.length > 0 || injuries.length > 0 ? (
+              <ul className="space-y-1 text-sm">
+                {formativeMemories.slice(0, 2).map((memory, index) => (
+                  <MemoryLine
+                    key={`${memory.kind}:${memory.year}:${memory.aboutId ?? index}`}
+                    world={world}
+                    memory={memory}
+                  />
+                ))}
+                {injuries.slice(-1).map((injury) => (
+                  <li key={`${injury.causeId}:${injury.year}`}>
+                    <span className="text-[var(--ink-faint)]">{injury.year} · </span>
+                    {injury.detail} at <EntityLink world={world} id={injury.causeId} />
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-[var(--ink-faint)]">No formative memory or wound is visible yet.</p>
+            )}
+          </section>
+        </div>
+
+        {(lifeUndertakings.some((undertaking) => undertaking.state === 'Active') ||
+          quarrels.some((dispute) => dispute.outcome === 'Open') ||
+          conspiracies.some((plot) => plot.outcome === 'Ongoing')) && (
+          <section className="mt-5 border-t border-[var(--rule)] pt-4">
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
+              Open threads
+            </h3>
+            <ul className="space-y-1.5 text-sm">
+              {lifeUndertakings
+                .filter((undertaking) => undertaking.state === 'Active')
+                .slice(0, 2)
+                .map((undertaking) => (
+                  <li key={`open-undertaking:${undertaking.id}`}>
+                    Undertaking · {undertaking.objective}
+                    {undertaking.targetId && (
+                      <>
+                        {' · '}
+                        <EntityLink world={world} id={undertaking.targetId} />
+                      </>
+                    )}
+                  </li>
+                ))}
+              {quarrels
+                .filter((dispute) => dispute.outcome === 'Open')
+                .slice(0, 2)
+                .map((dispute) => (
+                  <li key={`open-dispute:${dispute.id}:${dispute.otherId}`}>
+                    Unresolved {DISPUTE_STAGE_LABELS[dispute.stage].toLowerCase()} with{' '}
+                    <EntityLink world={world} id={dispute.otherId} />
+                  </li>
+                ))}
+              {conspiracies
+                .filter((plot) => plot.outcome === 'Ongoing')
+                .slice(0, 2)
+                .map((plot) => (
+                  <li key={`open-plot:${plot.leaderId}:${plot.id}`}>
+                    {plot.publicYear === undefined ? 'Retrospectively recorded' : 'Revealed'} conspiracy
+                    involving{' '}
+                    <EntityLink
+                      world={world}
+                      id={plot.viewpoint === 'Target' ? plot.leaderId : plot.targetId}
+                    />
+                  </li>
+                ))}
+            </ul>
+          </section>
+        )}
+
+        {episodes.length > 0 && (
+          <section className="mt-5 border-t border-[var(--rule)] pt-4">
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
+              Episodes that shaped this life
+            </h3>
+            <BiographyEpisodeList world={world} episodes={episodes} />
+          </section>
+        )}
+      </Panel>
 
       <Panel title="Details">
         <dl>
@@ -755,11 +1066,11 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
               </>
             )}
           </Field>
-          <Field label="Occupation">{OCCUPATION_LABELS[figure.occupation] ?? figure.occupation}</Field>
+          <Field label="Occupation">{trade ?? 'None recorded yet'}</Field>
           {figure.origin !== 'Unrecorded' && ORIGIN_LABELS[figure.origin] && (
             <Field label="Rose from">{ORIGIN_LABELS[figure.origin]}</Field>
           )}
-          {figure.deathYear !== undefined && (
+          {deadAtPoint && figure.deathYear !== undefined && (
             <Field label="Died">
               {figure.deathYear}
               {figure.deathCause !== 'Unknown' && (
@@ -770,11 +1081,11 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
             </Field>
           )}
           <Field label="Titles">
-            {figure.titles.length === 0 ? (
+            {visibleTitles.length === 0 ? (
               <span className="text-[var(--ink-faint)]">None</span>
             ) : (
               <ul className="space-y-0.5">
-                {figure.titles.map((title, index) => (
+                {visibleTitles.map((title, index) => (
                   <li key={index}>
                     {title.title} of <EntityLink world={world} id={title.civilizationId} />
                     <span className="ml-2 text-[var(--ink-faint)]">
@@ -809,14 +1120,94 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
           Centralism is rolled around what the office itself invites rather than around a culture,
           so it carries no tick. Independence is how far they let their people govern them: a
           follower stays near the ticks, a rebel answers with their own inclinations.
-          {figure.titles.length === 0 &&
+          {visibleTitles.length === 0 &&
             ' Recorded for everyone, though it only ever governed anything for those who came to rule.'}
         </p>
       </Panel>
 
       {hasLifeSummary && (
-        <Panel title="Life at a glance">
+        <Panel title="Episode ledger">
           <div className="space-y-5">
+            {(background || guardianships.length > 0 || mentorships.length > 0) && (
+              <section>
+                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
+                  Origins and upbringing
+                </h3>
+                {background && (
+                  <p className="text-sm">
+                    Became part of the record in {background.introducedYear}, having risen through{' '}
+                    {CAREER_FAMILY_LABELS[background.careerFamily]} at{' '}
+                    <EntityLink world={world} id={background.originSettlementId} />
+                    {background.institutionId &&
+                      background.institutionId !== background.originSettlementId && (
+                        <>
+                          {' through '}
+                          <EntityLink world={world} id={background.institutionId} />
+                        </>
+                      )}
+                    {background.sponsorId && (
+                      <>
+                        {', backed by '}
+                        <EntityLink world={world} id={background.sponsorId} />
+                      </>
+                    )}
+                    .
+                  </p>
+                )}
+                {guardianships.length > 0 && (
+                  <ul className={`${background ? 'mt-2 ' : ''}space-y-1.5 text-sm`}>
+                    {guardianships.map((guardianship) => {
+                      const wasGuardian = guardianship.guardianId === figure.id;
+                      return (
+                        <li key={`${guardianship.guardianId}:${guardianship.wardId}:${guardianship.startYear}`}>
+                          <span className="text-[var(--ink-faint)]">{guardianship.startYear} · </span>
+                          {wasGuardian ? 'Guardian of ' : 'Guarded by '}
+                          <EntityLink
+                            world={world}
+                            id={wasGuardian ? guardianship.wardId : guardianship.guardianId}
+                          />
+                          <span className="ml-2 text-xs text-[var(--ink-faint)]">
+                            {guardianship.end === 'Ongoing'
+                              ? 'ongoing'
+                              : `until ${guardianship.endYear ?? guardianship.startYear}`}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+                {mentorships.length > 0 && (
+                  <ul
+                    className={`${background || guardianships.length > 0 ? 'mt-2 ' : ''}space-y-1.5 text-sm`}
+                  >
+                    {mentorships.map((mentorship) => {
+                      const taught = mentorship.mentorId === figure.id;
+                      return (
+                        <li key={`${mentorship.mentorId}:${mentorship.apprenticeId}:${mentorship.startYear}`}>
+                          <span className="text-[var(--ink-faint)]">{mentorship.startYear} · </span>
+                          {taught ? 'Mentored ' : 'Mentored in '}
+                          {taught ? (
+                            <EntityLink world={world} id={mentorship.apprenticeId} />
+                          ) : (
+                            <>
+                              {CAREER_FAMILY_LABELS[mentorship.careerFamily]} by{' '}
+                              <EntityLink world={world} id={mentorship.mentorId} />
+                            </>
+                          )}
+                          {mentorship.locationId && (
+                            <span className="text-[var(--ink-faint)]">
+                              {' at '}
+                              <EntityLink world={world} id={mentorship.locationId} />
+                            </span>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </section>
+            )}
+
             {lifeUndertakings.length > 0 && (
               <section>
                 <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
@@ -876,7 +1267,7 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
                 <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
                   Formative memories
                 </h3>
-                <FeelingBadges feelings={figure.feelings} />
+                {atLatest && <FeelingBadges feelings={figure.feelings} />}
                 <ul className="mt-2 space-y-1.5 text-sm">
                   {formativeMemories.map((memory, index) => (
                     <MemoryLine
@@ -919,6 +1310,7 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
                       world={world}
                       plot={plot}
                       self={figure.id}
+                      historical={!atLatest}
                     />
                   ))}
                 </div>
@@ -995,13 +1387,13 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
               </section>
             )}
 
-            {(figure.injuries?.length ?? 0) > 0 && (
+            {injuries.length > 0 && (
               <section>
                 <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
                   Wounds carried
                 </h3>
                 <ul className="space-y-1.5 text-sm">
-                  {figure.injuries.map((injury, index) => (
+                  {injuries.map((injury, index) => (
                     <li key={`${injury.causeId}:${injury.year}:${index}`}>
                       <span className="text-[var(--ink-faint)]">{injury.year} · </span>
                       {injury.detail}{' '}
@@ -1010,7 +1402,9 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
                       <span className="ml-2 text-xs text-[var(--ink-faint)]">
                         {injury.permanent
                           ? 'permanent'
-                          : `recovered by ${injury.recoveryYear}`}
+                          : injury.recoveryYear !== undefined && injury.recoveryYear <= selectedYear
+                            ? `recovered by ${injury.recoveryYear}`
+                            : 'still recovering'}
                       </span>
                     </li>
                   ))}
@@ -1021,21 +1415,21 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
         </Panel>
       )}
 
-      {hasFamily && (
+      {hasFamily && atLatest && (
         <Panel title="Family">
           <FamilyTree world={world} figure={figure} />
         </Panel>
       )}
 
-      {(figure.campaigns?.length ?? 0) > 0 && (
+      {campaigns.length > 0 && (
         <Panel title="Campaigns">
-          <CampaignList world={world} campaigns={figure.campaigns ?? []} />
+          <CampaignList world={world} campaigns={campaigns} />
         </Panel>
       )}
 
-      {(figure.journeys?.length ?? 0) > 0 && (
+      {journeys.length > 0 && (
         <Panel title="Travels">
-          <JourneyList world={world} journeys={figure.journeys ?? []} />
+          <JourneyList world={world} journeys={journeys} throughYear={selectedYear} />
         </Panel>
       )}
 
@@ -1045,8 +1439,26 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
         </Panel>
       )}
 
-      <Panel title="Chronicle">
-        <EventList world={world} events={world.eventsFor(figure.id)} viewpoint={figure.id} />
+      <Panel
+        title="Complete chronicle"
+        actions={
+          <button
+            type="button"
+            onClick={() => setShowChronicle((shown) => !shown)}
+            className="rounded border border-[var(--rule)] px-2 py-1 text-xs"
+          >
+            {showChronicle ? 'Hide chronicle' : 'Show chronicle'}
+          </button>
+        }
+      >
+        {showChronicle ? (
+          <EventList world={world} events={visibleEvents} viewpoint={figure.id} />
+        ) : (
+          <p className="text-sm text-[var(--ink-faint)]">
+            The complete event list is available on demand; the biography above keeps the causal
+            episodes in view first.
+          </p>
+        )}
       </Panel>
     </div>
   );
@@ -1095,25 +1507,50 @@ function CampaignList({ world, campaigns }: { world: World; campaigns: Campaign[
   );
 }
 
-function JourneyList({ world, journeys }: { world: World; journeys: Journey[] }) {
+function JourneyList({
+  world,
+  journeys,
+  throughYear,
+}: {
+  world: World;
+  journeys: Journey[];
+  throughYear: number;
+}) {
+  const groups = groupJourneys(journeys, throughYear);
+
   return (
     <ul className="space-y-1.5 text-sm">
-      {journeys.map((journey, index) => (
-        <li key={`${journey.year}:${journey.toSettlementId}:${journey.kind}:${index}`}>
-          <span className="text-[var(--ink-faint)]">{journey.year} · </span>
-          {JOURNEY_KIND_LABELS[journey.kind] ?? journey.kind}
-          {' from '}
-          <EntityLink world={world} id={journey.fromSettlementId} />
-          {' to '}
-          <EntityLink world={world} id={journey.toSettlementId} />
-          {journey.outcome && journey.outcome !== 'Returned' && (
+      {groups.map((group) => {
+        const journey = group.journeys[0];
+        const repeated = group.journeys.length > 1;
+        return (
+          <li key={group.key}>
             <span className="text-[var(--ink-faint)]">
-              {' — '}
-              {JOURNEY_OUTCOME_LABELS[journey.outcome] ?? journey.outcome}
+              {repeated ? `${group.firstYear}–${group.lastYear}` : journey.year} ·{' '}
             </span>
-          )}
-        </li>
-      ))}
+            {repeated && `${group.journeys.length} `}
+            {JOURNEY_KIND_LABELS[journey.kind] ?? journey.kind}
+            {repeated ? ' journeys' : ''}
+            {' from '}
+            <EntityLink world={world} id={journey.fromSettlementId} />
+            {' to '}
+            <EntityLink world={world} id={journey.toSettlementId} />
+            {journey.viaId && (
+              <>
+                {' via '}
+                <EntityLink world={world} id={journey.viaId} />
+              </>
+            )}
+            {repeated && <span className="text-[var(--ink-faint)]"> — all returned</span>}
+            {!repeated && journey.outcome && journey.outcome !== 'Returned' && (
+              <span className="text-[var(--ink-faint)]">
+                {' — '}
+                {JOURNEY_OUTCOME_LABELS[journey.outcome] ?? journey.outcome}
+              </span>
+            )}
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -1193,7 +1630,17 @@ function Quarrel({
  * nobody knew at the time; `publicYear` is when the world found out, and where it is absent the
  * world never did — so the page says so rather than quietly presenting a secret as public record.
  */
-function Conspiracy({ world, plot, self }: { world: World; plot: Plot; self: EntityId }) {
+function Conspiracy({
+  world,
+  plot,
+  self,
+  historical = false,
+}: {
+  world: World;
+  plot: Plot;
+  self: EntityId;
+  historical?: boolean;
+}) {
   const open = plot.outcome === 'Ongoing';
   const revealed = plot.publicYear !== undefined;
 
@@ -1201,9 +1648,16 @@ function Conspiracy({ world, plot, self }: { world: World; plot: Plot; self: Ent
     <article className="border-l border-[var(--line)] pl-3">
       <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
         <span>
-          {plot.led ? 'Conspired against' : 'Joined a conspiracy against'}{' '}
-          <EntityLink world={world} id={plot.targetId} />
-          {!plot.led && (
+          {plot.viewpoint === 'Leader'
+            ? 'Conspired against'
+            : plot.viewpoint === 'Target'
+              ? 'Was the target of a conspiracy led by'
+              : 'Joined a conspiracy against'}{' '}
+          <EntityLink
+            world={world}
+            id={plot.viewpoint === 'Target' ? plot.leaderId : plot.targetId}
+          />
+          {plot.viewpoint === 'Member' && (
             <>
               {', led by '}
               <EntityLink world={world} id={plot.leaderId} />
@@ -1256,7 +1710,7 @@ function Conspiracy({ world, plot, self }: { world: World; plot: Plot; self: Ent
           ))}
         </ol>
       )}
-      {plot.targetId !== self && open && (
+      {plot.targetId !== self && open && !historical && (
         <p className="mt-1 text-xs text-[var(--ink-faint)]">
           {plot.access >= 0.65
             ? 'Close access to the target'
@@ -1272,6 +1726,62 @@ function Conspiracy({ world, plot, self }: { world: World; plot: Plot; self: Ent
         </p>
       )}
     </article>
+  );
+}
+
+function BiographyEpisodeList({
+  world,
+  episodes,
+}: {
+  world: World;
+  episodes: BiographyEpisode[];
+}) {
+  const readings: Record<BiographyEpisode['kind'], string> = {
+    Undertaking: 'Completed an undertaking',
+    Conflict: 'A conflict reached its outcome',
+    Plot: 'A conspiracy became a defining political episode',
+    Campaign: 'A campaign carried a lasting consequence',
+  };
+
+  return (
+    <ol className="space-y-2 text-sm">
+      {episodes.map((episode) => (
+        <li
+          key={episode.key}
+          className="border-l border-[var(--line)] pl-3"
+          data-source-events={episode.sourceEventIds.join(',')}
+          title={
+            episode.sourceEventIds.length > 0
+              ? `Evidence: events ${episode.sourceEventIds.join(', ')}`
+              : 'Evidence: structured life record'
+          }
+        >
+          <span className="text-[var(--ink-faint)]">
+            {yearRange(episode.startYear, episode.endYear)} ·{' '}
+          </span>
+          {readings[episode.kind]}
+          {episode.primaryId && (
+            <>
+              {' involving '}
+              <EntityLink world={world} id={episode.primaryId} />
+            </>
+          )}
+          .
+          <span
+            className="ml-2 text-xs text-[var(--ink-faint)]"
+            aria-label={
+              episode.sourceEventIds.length > 0
+                ? `Evidence events ${episode.sourceEventIds.join(', ')}`
+                : 'Evidence from the structured life record'
+            }
+          >
+            {episode.kind}
+            {episode.sourceEventIds.length > 0 &&
+              ` · ${episode.sourceEventIds.length} source ${episode.sourceEventIds.length === 1 ? 'event' : 'events'}`}
+          </span>
+        </li>
+      ))}
+    </ol>
   );
 }
 
@@ -1402,6 +1912,8 @@ function relationshipImportance(bond: FigureBond): number {
       'Friend',
       'Lover',
       'Mentor',
+      'Guardian',
+      'Ward',
       'Patron',
       'Rival',
       'Enemy',
