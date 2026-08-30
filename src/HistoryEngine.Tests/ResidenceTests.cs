@@ -306,4 +306,38 @@ public sealed class ResidenceTests
 
         Assert.True(couples > 0, "No ordinary married couple was ever compared.");
     }
+
+    /// <summary>A permanent border change carries living residents into the town's new realm.</summary>
+    /// <remarks>
+    /// Treaty cessions once moved the region and settlement tables but skipped the resident pass
+    /// used by revolts and defections. A living person then kept the ceded town as their recorded
+    /// address while <see cref="WorldState.ResidenceOf"/> silently placed them at the loser's
+    /// capital. Temporary occupation is different: ownership has not changed, so it is excluded.
+    /// </remarks>
+    [Fact]
+    public void PermanentTerritoryTransfersDoNotStrandLivingResidents()
+    {
+        int checkedResidents = 0;
+
+        foreach (ulong seed in Seeds)
+        {
+            WorldState world = HistoryRun.Execute(TestWorlds.Standard(seed)).World;
+
+            foreach (Figure figure in world.Figures)
+            {
+                if (!figure.IsAlive) continue;
+                if (!world.Settlements.Contains(figure.ResidenceSettlementId)) continue;
+
+                Settlement residence = world.Settlements[figure.ResidenceSettlementId];
+                if (!residence.IsActive || residence.IsOccupied) continue;
+
+                checkedResidents++;
+                Assert.Equal(
+                    figure.CivilizationId,
+                    residence.CivilizationId);
+            }
+        }
+
+        Assert.True(checkedResidents > 100, $"Only {checkedResidents} living residents were checked.");
+    }
 }

@@ -57,7 +57,7 @@ public static class Realms
     {
         // An occupied town already carried this at the storming. An unoccupied one learns it here,
         // when the treaty takes it without a garrison ever having sat on the walls.
-        (_, EntityId taken) = MoveRegion(
+        (List<Settlement> moving, EntityId taken) = MoveRegion(
             world,
             region,
             from,
@@ -67,6 +67,14 @@ public static class Realms
             {
                 if (!settlement.IsOccupied) settlement.Fortunes.LandLost();
             });
+
+        // A treaty moves the same people and population ledgers as a revolt or defection. The
+        // shared MoveRegion call changes the towns' flags, but not the recorded people living in
+        // them; omitting this left a living resident resolved back to the loser's capital after
+        // their home had permanently become the winner's.
+        TransferResidents(world, moving, from, to, year);
+        Recount(world, from);
+        Recount(world, to);
 
         war.CededRegionIds.Add(region.Id);
 
