@@ -7,7 +7,7 @@
  * stops moving.
  */
 
-export const SCHEMA_VERSION = 44;
+export const SCHEMA_VERSION = 45;
 
 /**
  * Whether an event carries the history or merely records a life.
@@ -850,6 +850,8 @@ export interface HolySiteDescription {
   focalPoint: string;
   offering: string;
   dedicateeId?: EntityId;
+  /** The chronicle event whose recorded deed the dedication cites. */
+  dedicateeEventId?: number;
 }
 
 /** A place of worship, either within a settlement or at an independent map coordinate. */

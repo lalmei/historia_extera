@@ -82,7 +82,8 @@ public sealed class HolySiteDescription
         bool hasStatue,
         string focalPoint,
         string offering,
-        EntityId dedicateeId)
+        EntityId dedicateeId,
+        int? dedicateeEventId)
     {
         Tradition = tradition;
         DedicationKind = dedicationKind;
@@ -95,6 +96,7 @@ public sealed class HolySiteDescription
         FocalPoint = focalPoint;
         Offering = offering;
         DedicateeId = dedicateeId.IsNone ? EntityId.None : dedicateeId;
+        DedicateeEventId = dedicateeId.IsNone ? null : dedicateeEventId;
     }
 
     public SacredTradition Tradition { get; }
@@ -125,6 +127,15 @@ public sealed class HolySiteDescription
 
     /// <summary>A recorded figure this place honours, or none when the dedicatee is legendary.</summary>
     public EntityId DedicateeId { get; }
+
+    /// <summary>
+    /// The dated deed that justified honouring <see cref="DedicateeId"/>, or none for a legend.
+    /// </summary>
+    /// <remarks>
+    /// This is an event index, not a second description of the deed. The event remains the
+    /// authority and is what the viewer renders beside the dedication.
+    /// </remarks>
+    public int? DedicateeEventId { get; }
 }
 
 /// <summary>A lasting place of worship, either inside a settlement or standing on its own.</summary>

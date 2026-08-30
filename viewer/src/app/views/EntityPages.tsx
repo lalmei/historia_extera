@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { EventList } from '../components/EventList';
+import { EventList, NarratedEvent } from '../components/EventList';
 import { HistoryPanels } from '../components/History';
 import {
   buildBiographyEpisodes,
@@ -98,6 +98,7 @@ import {
   type FaithCharacter,
   type HolySite,
   type HolySiteDedicationKind,
+  type HistoryEvent,
   type Journey,
   type Plot,
   type Region,
@@ -2542,6 +2543,10 @@ export function ReligionPage({ world, religion }: { world: World; religion: Reli
 /** A temple, church or sanctuary, including independent locations beyond settlement walls. */
 export function HolySitePage({ world, site }: { world: World; site: HolySite }) {
   const { description } = site;
+  const dedicateeDeed =
+    description.dedicateeEventId !== undefined
+      ? world.export.events[description.dedicateeEventId]
+      : undefined;
 
   return (
     <div className="space-y-5">
@@ -2571,6 +2576,7 @@ export function HolySitePage({ world, site }: { world: World; site: HolySite }) 
             heading="Dedication"
             text={description.dedication}
             mention={description.dedicateeId}
+            evidence={dedicateeDeed}
             world={world}
           />
           <HolySitePassage heading="Style & visuals" text={description.style} />
@@ -2621,11 +2627,13 @@ function HolySitePassage({
   heading,
   text,
   mention,
+  evidence,
   world,
 }: {
   heading: string;
   text: string;
   mention?: EntityId;
+  evidence?: HistoryEvent;
   world?: World;
 }) {
   return (
@@ -2633,9 +2641,18 @@ function HolySitePassage({
       <h3 className="text-lg font-medium">{heading}</h3>
       <p className="mt-1 text-sm leading-relaxed text-[var(--ink-soft)]">{text}</p>
       {world && mention && (
-        <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-xs text-[var(--ink-faint)]">
-          <span className="font-medium tracking-wide uppercase">Honours</span>
-          <EntityLink world={world} id={mention} />
+        <div className="mt-2 space-y-1 text-xs text-[var(--ink-faint)]">
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+            <span className="font-medium tracking-wide uppercase">Honours</span>
+            <EntityLink world={world} id={mention} />
+          </div>
+          {evidence && (
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+              <span className="font-medium tracking-wide uppercase">Recorded deed</span>
+              <span className="tabular-nums">{evidence.year}</span>
+              <NarratedEvent world={world} event={evidence} viewpoint={mention} />
+            </div>
+          )}
         </div>
       )}
     </article>

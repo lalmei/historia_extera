@@ -4431,6 +4431,36 @@ stable identities for a particular story.
 **Schema 44.** Journeys gain departure day, duration days, and optional return year/day. A lost
 traveller has no return date; a stay records the arrival at the destination.
 
+### A dedication cites the life it praises
+
+Holy-site prose used to infer a biography from a person's type. Any cleric could become the sage
+who mapped the wandering stars and any townsman the saint who opened the granary, even when the
+person's own page recorded neither act. The correction starts from the chronicle and asks the
+opposite question: **what dated act already makes this person fit to honour?**
+
+No generic `DeedDone` event was added. Since the issue was written, the engine gained the concrete
+events it needed: a ruler has `RulerCrowned`, a martyr has `FigureDied`, a guardian has
+`GuardianAssigned`, an observer or theorist has `ApparitionRecorded` or `SkyClaimMade`, an author
+has the `ArtifactCreated` event for their tome, and a deified founder has `ReligionFounded`.
+Calling those all `DeedDone` would discard the exact cause and entity each already carries. The
+dedication index instead admits those events as typed evidence and keeps the most specific sage
+record — a claim before an observation before a book — with deterministic year/id tie breaks.
+
+Candidate order still comes from the figure table; dictionaries are lookup only. Real dedication
+prose is rendered from the selected event, and `dedicateeEventId` carries that event into the holy
+site export so the viewer can show the dated record beside the honour. When there is no qualifying
+record, `dedicateeId` and `dedicateeEventId` are both absent and every prose path says **legend**.
+That is not a lesser fallback: it is the honest register for a god, spirit, ancient ruler or saint
+whose story the contemporary chronicle does not contain.
+
+**Measured across standard seeds 2, 7, 11, 42 and 99.** Thirty-five of 57 sites cite a dated life;
+22 remain explicit legends. The panel asserts both paths stay reachable, that every stored event
+precedes its site, references the named figure, and belongs to the deed family the dedication
+claims. No new routine-event stream was created, so the narrative spine's volume is unchanged.
+
+**Schema 45.** `HolySiteDescription` gains the optional `dedicateeEventId`; the viewer renders the
+referenced chronicle line as the recorded deed.
+
 ---
 
 ## Notes for Phase 2
