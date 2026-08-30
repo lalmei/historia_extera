@@ -30,8 +30,13 @@ public sealed class DisputeTests
     /// than it looks, because the thing that empties a panel moves all five seeds at once rather
     /// than each independently. This panel is five seeds that each carry all four causes and a
     /// wound, with a death in two of them (5, 104).
+    ///
+    /// Resampled a fourth time when dated journey returns and complete treaty resident transfers
+    /// moved the stream. Each new seed again carries all four causes and a wound; seed 104 carries
+    /// the death, and the panel has five violent meetings between equals against one involving a
+    /// reigning ruler.
     /// </remarks>
-    private static readonly ulong[] Seeds = { 5, 17, 65, 73, 104 };
+    private static readonly ulong[] Seeds = { 7, 26, 104, 134, 158 };
 
     private readonly ITestOutputHelper _output;
 

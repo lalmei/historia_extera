@@ -296,11 +296,20 @@ declines to honour. That is why the guards are wide — nobody stays who holds a
 throne, acts as regent, belongs to the ruling house, or has a household to abandon, since for all of
 them membership is load-bearing. A visit never ends in staying; a guest goes home.
 
+A journey has a dated return as well as a year of departure. Its duration consumes the length of
+the road that actually existed when the traveller set out, or the straight-line distance where no
+road had been built; river and coastal travel are faster, and paving never makes the same way
+slower. The conversion is explicit configuration — twelve world units per ordinary overland day —
+because world units carry no hidden real-world scale. A journey whose return falls in the next year
+really is away at the boundary: hardship and siege exposure ask the same dated-presence question,
+and the travel pass does not start another journey before the first has ended.
+
 **Presence that the engine asserted is now presence it records.** Two paths used to relocate people
 silently, by falling back to the realm's capital rather than by moving them: a town changing hands
 without its sitting ruler, and a town being abandoned under the people the chronicle follows. Both
 now write the move. A cession is still not a move for the people who change realm with their town —
-they did not go anywhere, the border did.
+they did not go anywhere, the border did — but every permanent transfer, including a treaty
+cession, carries their realm membership and the two population ledgers with it.
 
 A town's bad year reaches the people standing in it. Famine, plague, sack and disaster were facts
 about settlements that the residents were never told: a scribe could be resident through four
@@ -465,6 +474,7 @@ default.
 | M20 | Lives the record reaches: upbringing, causal biographies, and a town's hardship on its people | Done |
 | M21 | A life has an address history, so a page can tell a move from a trip | Done |
 | M22 | A journey can end in staying, so a life can leave home for a reason the chronicle recorded | Done |
+| M23 | Journey time consumes the road that was built and records a dated return | Done |
 
 M13 landed in independently reviewable stages: the clock and dated record first, seasonal
 war and expansion next, then plague travel and outbreak clocks, and finally sieges as
@@ -482,8 +492,8 @@ Beyond the numbered milestones:
 - Widen the terrain manifest where it cannot describe somebody else's map: an ocean mask
   distinct from lakes, a flow layer so a river-aware generator is not rederived worse, and
   a declared east/west topology the loader can check against the seam.
-- Let campaign movement or travel *time* consume road geometry as well, now that safety does.
-  The same condition applies: it must read something the route's traffic does not already say.
+- Let campaign movement consume road geometry now that travel safety and time both do. The same
+  condition applies: it must read something the route's traffic does not already say.
 - Deepen ordinary social life with causal interaction episodes: friendships and lovers that
   actually begin in events, courtship, quarrels, favours, betrayals, and reconciliation. Give
   memories event-specific readable summaries, and widen non-travel undertakings toward masterworks,

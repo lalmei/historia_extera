@@ -295,6 +295,7 @@ public sealed class ConfigTests
             nameof(WorldConfig.EastWestPeriodic),
             nameof(WorldConfig.RegionSize), nameof(WorldConfig.TerrainStride),
             nameof(WorldConfig.HydrologyStride), nameof(WorldConfig.InitialCivilizations),
+            nameof(WorldConfig.UnitsPerTravelDay),
 
             // Contributes only when it is set: an empty source means the procedural backend,
             // whose own inputs are hashed below. See WorldConfig.ConfigHash.
@@ -336,6 +337,7 @@ public sealed class ConfigTests
         Assert.NotEqual(baseline.ConfigHash, (baseline with { WorldSize = 2048 }).ConfigHash);
         Assert.NotEqual(baseline.ConfigHash, (baseline with { EastWestPeriodic = true }).ConfigHash);
         Assert.NotEqual(baseline.ConfigHash, (baseline with { InitialCivilizations = 9 }).ConfigHash);
+        Assert.NotEqual(baseline.ConfigHash, (baseline with { UnitsPerTravelDay = 5.0 }).ConfigHash);
         Assert.NotEqual(
             baseline.ConfigHash,
             (baseline with { Terrain = new TerrainSettings { ContinentScale = 1234 } }).ConfigHash);
@@ -396,6 +398,16 @@ public sealed class ConfigTests
         };
 
         Assert.Throws<InvalidOperationException>(() => config.Validate());
+    }
+
+    [Theory]
+    [InlineData(0.0)]
+    [InlineData(-1.0)]
+    [InlineData(double.PositiveInfinity)]
+    public void ValidationRejectsAnImpossibleTravelPace(double pace)
+    {
+        Assert.Throws<InvalidOperationException>(
+            () => (new WorldConfig { UnitsPerTravelDay = pace }).Validate());
     }
 
     [Fact]

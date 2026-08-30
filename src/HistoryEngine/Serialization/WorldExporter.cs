@@ -955,11 +955,15 @@ public static class WorldExporter
             list.Add(new ExportJourney(
                 Kind: journey.Kind,
                 Year: journey.Year,
+                Day: journey.Day,
                 FromSettlementId: journey.FromSettlementId,
                 ToSettlementId: journey.ToSettlementId,
                 ViaId: OrNull(journey.ViaId),
+                DurationDays: journey.DurationDays,
                 Outcome: journey.Outcome,
-                ReturnSettlementId: OrNull(journey.ReturnSettlementId)));
+                ReturnSettlementId: OrNull(journey.ReturnSettlementId),
+                ReturnYear: journey.ReturnYear,
+                ReturnDay: journey.ReturnDay));
         }
 
         return list;

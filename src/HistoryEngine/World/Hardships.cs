@@ -225,37 +225,27 @@ public static class Hardships
     /// raw, so a governor whose town has just changed hands is at court and not in a city that is
     /// no longer theirs — the same rule the sack and the disaster already use.</para>
     ///
-    /// <para><b>Somebody away that year was not there.</b> A journey already records the year it
-    /// was made, so a merchant on the road when the plague arrived is not exposed to it. This is
-    /// the one exclusion the residence field cannot express on its own, and leaving it out would
-    /// put a famine memory on the page of a man who demonstrably spent that year elsewhere.</para>
+    /// <para><b>Somebody still away at year end was not there.</b> A journey's dated return now
+    /// distinguishes a short trip from one that winters over. This is the one exclusion the
+    /// residence field cannot express on its own, and leaving it out would put a famine memory on
+    /// the page of a man who demonstrably spent the close of that year elsewhere.</para>
     /// </remarks>
     private static List<Figure> Residents(WorldState world, Settlement settlement, int year)
     {
         var present = new List<Figure>();
+        Stamp yearEnd = new(year, world.Config.Calendar.DaysPerYear - 1);
 
         foreach (Figure figure in world.Figures)
         {
             if (!figure.IsAlive) continue;
             if (figure.AgeIn(year) < 0) continue;
-            if (world.ResidenceOf(figure) != settlement.Id) continue;
-            if (Away(figure, year)) continue;
+            if (!world.IsPresentAt(figure, settlement.Id, yearEnd)) continue;
 
             present.Add(figure);
         }
 
         present.Sort(static (left, right) => left.Id.CompareTo(right.Id));
         return present;
-    }
-
-    private static bool Away(Figure figure, int year)
-    {
-        foreach (Journey journey in figure.Journeys)
-        {
-            if (journey.Year == year) return true;
-        }
-
-        return false;
     }
 
     /// <summary>

@@ -97,14 +97,14 @@ public sealed class HardshipTests
     }
 
     /// <summary>
-    /// Somebody demonstrably elsewhere that year does not carry the town's bad year.
+    /// Somebody demonstrably still elsewhere at year end does not carry the town's bad year.
     /// </summary>
     /// <remarks>
-    /// The one exclusion a residence field cannot express by itself. A journey already records the
-    /// year it was made, so this is a join the engine could make and simply did not.
+    /// The one exclusion a residence field cannot express by itself. A dated return distinguishes
+    /// a short trip from a winter away; only the latter removes somebody from the annual exposure.
     /// </remarks>
     [Fact]
-    public void SomeoneAwayThatYearTakesNoConsequenceForBeingThere()
+    public void SomeoneWinteringOverTakesNoConsequenceForBeingAtHome()
     {
         int checkedFigures = 0;
 
@@ -116,21 +116,24 @@ public sealed class HardshipTests
             {
                 foreach (Journey journey in figure.Journeys)
                 {
+                    if (journey.ReturnYear is not int returnYear) continue;
+                    if (returnYear <= journey.Year) continue;
+
                     foreach (SalientMemory memory in figure.Memories)
                     {
                         if (memory.Kind != MemoryKind.Hardship) continue;
 
                         Assert.True(
                             memory.Year != journey.Year,
-                            $"Seed {seed}: {figure.Id} was travelling in {journey.Year} and still "
-                            + "took a hardship memory for being at home.");
+                            $"Seed {seed}: {figure.Id} wintered away in {journey.Year} and still "
+                            + "took a hardship memory for being at home at year end.");
                         checkedFigures++;
                     }
                 }
             }
         }
 
-        Assert.True(checkedFigures > 0, "No traveller with a hardship memory was ever compared.");
+        Assert.True(checkedFigures > 0, "No winter traveller with a hardship memory was compared.");
     }
 
     /// <summary>

@@ -444,6 +444,15 @@ public sealed class WorldState
         return EntityId.None;
     }
 
+    /// <summary>Whether a person is physically at their resolved home at this instant.</summary>
+    /// <remarks>
+    /// Residence is an address, not continuous presence. Journeys now have dated returns, so the
+    /// hardship and campaign systems can ask the same question instead of one treating every trip
+    /// as a full-year absence while the other ignores travel entirely.
+    /// </remarks>
+    public bool IsPresentAt(Figure figure, EntityId settlementId, Stamp when) =>
+        ResidenceOf(figure) == settlementId && !figure.IsAwayAt(when);
+
     /// <summary>Active settlements of one civilization, in id order.</summary>
     public IEnumerable<Settlement> ActiveSettlementsOf(Civilization civilization)
     {

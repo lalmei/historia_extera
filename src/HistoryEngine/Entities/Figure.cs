@@ -397,6 +397,18 @@ public sealed class Figure
     /// <summary>Trips they made and came back from, in the order they were recorded.</summary>
     public List<Journey> Journeys { get; }
 
+    /// <summary>Whether one of this person's recorded journeys contains this instant.</summary>
+    public bool IsAwayAt(Stamp when)
+    {
+        for (int i = Journeys.Count - 1; i >= 0; i--)
+        {
+            Journey journey = Journeys[i];
+            if (journey.IsUnderwayAt(when)) return true;
+        }
+
+        return false;
+    }
+
     /// <summary>Persistent, directed relationships to other people, in other-id order.</summary>
     public List<FigureBond> Bonds { get; }
 

@@ -7,7 +7,7 @@
  * stops moving.
  */
 
-export const SCHEMA_VERSION = 43;
+export const SCHEMA_VERSION = 44;
 
 /**
  * Whether an event carries the history or merely records a life.
@@ -1263,14 +1263,20 @@ export const JOURNEY_OUTCOME_LABELS: Record<JourneyOutcome, string> = {
 export interface Journey {
   kind: JourneyKind;
   year: number;
+  day: number;
   fromSettlementId: EntityId;
   toSettlementId: EntityId;
   /** The route, holy site or host realm that made the journey make sense. */
   viaId?: EntityId;
+  /** Planned outward-and-return time, derived from the way that existed on departure. */
+  durationDays: number;
   /** Absent on worlds exported before schema 30, where every journey ended well. */
   outcome?: JourneyOutcome;
   /** The home reached after the trip; absent when the traveller did not return. */
   returnSettlementId?: EntityId;
+  /** Dated return, or arrival for somebody who stayed; absent when the traveller was lost. */
+  returnYear?: number;
+  returnDay?: number;
 }
 
 export type BondKind =

@@ -131,8 +131,13 @@ public sealed record WorldExport(
     /// an explicit viewpoint so the same facts can be told without exposing a still-secret plot.
     /// Version 40 added bounded guardianships, mentorship starts and structured backgrounds for
     /// adults raised into the record, plus guardian/ward bonds and formative childhood siege memories.
+    /// Version 41 added hardship memories carried by the people who lived through a famine,
+    /// plague, sack or disaster. Version 42 added residence histories. Version 43 added journeys
+    /// that end in staying and the residence change they cause.
+    /// Version 44 added route-derived journey durations and dated returns, so a winter journey is
+    /// distinguishable from a short trip made in the same year.
     /// </remarks>
-    public const int CurrentSchemaVersion = 43;
+    public const int CurrentSchemaVersion = 44;
 }
 
 public sealed record ExportMeta(
@@ -888,11 +893,15 @@ public sealed record ExportCampaign(
 public sealed record ExportJourney(
     JourneyKind Kind,
     int Year,
+    int Day,
     EntityId FromSettlementId,
     EntityId ToSettlementId,
     EntityId? ViaId,
+    int DurationDays,
     JourneyOutcome Outcome,
-    EntityId? ReturnSettlementId);
+    EntityId? ReturnSettlementId,
+    int? ReturnYear,
+    int? ReturnDay);
 
 /// <summary>
 /// One period of living somewhere, with the year it began and what caused it.

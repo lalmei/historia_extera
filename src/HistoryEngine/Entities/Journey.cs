@@ -64,22 +64,31 @@ public sealed class Journey
 {
     public Journey(
         JourneyKind kind,
-        int year,
+        Stamp departed,
         EntityId fromSettlementId,
         EntityId toSettlementId,
-        EntityId viaId)
+        EntityId viaId,
+        int durationDays,
+        Stamp expectedReturn)
     {
         Kind = kind;
-        Year = year;
+        Year = departed.Year;
+        Day = departed.Day;
         FromSettlementId = fromSettlementId;
         ToSettlementId = toSettlementId;
         ViaId = viaId;
+        DurationDays = durationDays;
         ReturnSettlementId = fromSettlementId;
+        ReturnYear = expectedReturn.Year;
+        ReturnDay = expectedReturn.Day;
     }
 
     public JourneyKind Kind { get; }
 
     public int Year { get; }
+
+    /// <summary>Day of the year on which they set out.</summary>
+    public int Day { get; }
 
     public EntityId FromSettlementId { get; }
 
@@ -90,12 +99,36 @@ public sealed class Journey
     /// </summary>
     public EntityId ViaId { get; }
 
+    /// <summary>
+    /// Days on the road for the planned outward-and-return itinerary, derived from its actual way.
+    /// </summary>
+    /// <remarks>
+    /// Kept as planned when a mishap prevents the return: it is the route's cost, not a guess at
+    /// which mile the mishap occurred on. A journey that ends in staying is the exception — its
+    /// itinerary truly ended at the destination, so it keeps the one-way duration actually taken.
+    /// </remarks>
+    public int DurationDays { get; internal set; }
+
     /// <summary>Where the traveller came back to, or none when they never came home.</summary>
     /// <remarks>
     /// Kept explicitly because a figure may move years later. Comparing an old journey with their
     /// final residence confuses that later move with what the journey itself did.
     /// </remarks>
     public EntityId ReturnSettlementId { get; set; }
+
+    /// <summary>The dated return or arrival, absent when the traveller was lost.</summary>
+    public int? ReturnYear { get; set; }
+
+    public int? ReturnDay { get; set; }
+
+    /// <summary>Whether this journey has the traveller away at <paramref name="when"/>.</summary>
+    public bool IsUnderwayAt(Stamp when)
+    {
+        if (when.Year < Year || (when.Year == Year && when.Day < Day)) return false;
+        if (ReturnYear is not int returnYear || ReturnDay is not int returnDay) return true;
+        if (when.Year < returnYear) return true;
+        return when.Year == returnYear && when.Day < returnDay;
+    }
 
     /// <summary>
     /// How it ended. Set once, in the year of the journey, and never revised.

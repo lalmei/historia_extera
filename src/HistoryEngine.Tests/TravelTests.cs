@@ -4,6 +4,7 @@ using HistoryEngine.Events;
 using HistoryEngine.Systems;
 using HistoryEngine.World;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace HistoryEngine.Tests;
 
@@ -12,6 +13,12 @@ namespace HistoryEngine.Tests;
 /// </summary>
 public sealed class TravelTests
 {
+    private static readonly ulong[] Seeds = { 2, 7, 11, 42, 99 };
+
+    private readonly ITestOutputHelper _output;
+
+    public TravelTests(ITestOutputHelper output) => _output = output;
+
     [Fact]
     public void JourneysAreTripsNotMoves()
     {
@@ -160,6 +167,137 @@ public sealed class TravelTests
 
         // A road cannot make a journey safer in the years before it was cut.
         Assert.Equal(1.0, TravelSystem.Ground(Route(Cut(RoadGrade.Paved, Direct)), Direct, 10));
+    }
+
+    /// <summary>An engineered surface cannot make the same physical way take longer.</summary>
+    [Fact]
+    public void APavedRoadIsNotSlowerThanTheTrackItReplaced()
+    {
+        const double Distance = 240.0;
+        const double Pace = 6.0;
+
+        int track = TravelSystem.DurationDays(
+            Distance, Pace, TradeRouteMode.Overland, RoadGrade.Track);
+        int paved = TravelSystem.DurationDays(
+            Distance, Pace, TradeRouteMode.Overland, RoadGrade.Paved);
+
+        Assert.True(paved <= track, $"Paved road took {paved} days; its track took {track}.");
+    }
+
+    /// <summary>A built way contributes its stored length; before construction the direct line does.</summary>
+    [Fact]
+    public void DurationConsumesTheRoadThatExistedAtDeparture()
+    {
+        WorldState world = WorldBuilder.Create(TestWorlds.Small());
+        Settlement from = world.Settlements[0];
+        Settlement to = world.Settlements[1];
+        double direct = world.Distance(from.X, from.Z, to.X, to.Z);
+        TradeRoute route = Route(Cut(RoadGrade.Track, (direct * 2.0) + 20.0));
+
+        int before = TravelSystem.DurationDays(world, from.Id, to.Id, route, year: 10);
+        int after = TravelSystem.DurationDays(world, from.Id, to.Id, route, year: 50);
+
+        Assert.True(after > before, $"Road took {after} days; the direct line took {before}.");
+    }
+
+    /// <summary>A dated return, rather than the residence field, decides whether someone is home.</summary>
+    [Fact]
+    public void ATravellerWinteringOverIsNotPresentAtHome()
+    {
+        WorldState world = WorldBuilder.Create(TestWorlds.Small());
+        Civilization realm = world.Civilizations[0];
+        Settlement home = world.Settlements[realm.CapitalId];
+        Culture culture = world.Cultures[realm.CultureId];
+        Figure figure = Houses.NewFigure(
+            world, realm, culture, Sex.Female, birthYear: world.StartYear - 30);
+
+        figure.Journeys.Add(new Journey(
+            JourneyKind.Trade,
+            new Stamp(10, 0),
+            home.Id,
+            home.Id,
+            EntityId.None,
+            durationDays: 400,
+            expectedReturn: new Stamp(11, 40)));
+
+        Assert.False(world.IsPresentAt(figure, home.Id, new Stamp(10, 359)));
+        Assert.False(world.IsPresentAt(figure, home.Id, new Stamp(11, 0)));
+        Assert.True(world.IsPresentAt(figure, home.Id, new Stamp(11, 40)));
+    }
+
+    /// <summary>Measures the declared pace against the five-seed panel.</summary>
+    [Fact]
+    public void JourneyDurationsStayMeasuredAndSomeTripsWinterOver()
+    {
+        int allJourneys = 0;
+        int allWintered = 0;
+
+        foreach (ulong seed in Seeds)
+        {
+            HistoryRun run = HistoryRun.Execute(TestWorlds.Standard(seed));
+            var durations = new List<int>();
+            int wintered = 0;
+
+            foreach (Figure figure in run.World.Figures)
+            {
+                foreach (Journey journey in figure.Journeys)
+                {
+                    durations.Add(journey.DurationDays);
+                    Assert.True(journey.DurationDays >= 1);
+                    if (journey.Outcome != JourneyOutcome.Stayed)
+                    {
+                        Assert.True(journey.DurationDays >= 2);
+                    }
+
+                    if (journey.Outcome == JourneyOutcome.Lost)
+                    {
+                        Assert.Null(journey.ReturnYear);
+                        Assert.Null(journey.ReturnDay);
+                        continue;
+                    }
+
+                    Assert.NotNull(journey.ReturnYear);
+                    Assert.NotNull(journey.ReturnDay);
+                    if (journey.ReturnYear > journey.Year) wintered++;
+                }
+            }
+
+            durations.Sort();
+            Assert.NotEmpty(durations);
+            int median = durations[durations.Count / 2];
+            int p90 = durations[(durations.Count * 9) / 10];
+            _output.WriteLine(
+                $"seed {seed}: {durations.Count} journeys; median {median} days, p90 {p90}, "
+                + $"range {durations[0]}–{durations[^1]}; {wintered} wintered");
+
+            allJourneys += durations.Count;
+            allWintered += wintered;
+        }
+
+        Assert.True(allJourneys > 500, $"Only {allJourneys} journeys reached the duration panel.");
+        Assert.True(allWintered > 0, "No journey in the panel ever crossed a year boundary.");
+    }
+
+    /// <summary>The duration and dated return survive the serialization boundary.</summary>
+    [Fact]
+    public void JourneyDurationAppearsInTheExport()
+    {
+        HistoryRun run = HistoryRun.Execute(TestWorlds.Standard(42));
+        var export = run.ToExport();
+
+        foreach (Figure figure in run.World.Figures)
+        {
+            if (figure.Journeys.Count == 0) continue;
+
+            var exported = Assert.Single(export.Figures, item => item.Id == figure.Id).Journeys[0];
+            Journey journey = figure.Journeys[0];
+            Assert.Equal(journey.DurationDays, exported.DurationDays);
+            Assert.Equal(journey.ReturnYear, exported.ReturnYear);
+            Assert.Equal(journey.ReturnDay, exported.ReturnDay);
+            return;
+        }
+
+        Assert.Fail("No journey was available to test the export.");
     }
 
     private static TradeRoute Route(Road? road) =>
