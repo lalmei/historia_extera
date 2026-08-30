@@ -136,8 +136,10 @@ public sealed record WorldExport(
     /// that end in staying and the residence change they cause.
     /// Version 44 added route-derived journey durations and dated returns, so a winter journey is
     /// distinguishable from a short trip made in the same year.
+    /// Version 45 links a real holy-site dedicatee to the exact chronicle event whose deed the
+    /// dedication quotes; a missing link now means the dedicatee is explicitly legendary.
     /// </remarks>
-    public const int CurrentSchemaVersion = 44;
+    public const int CurrentSchemaVersion = 45;
 }
 
 public sealed record ExportMeta(
@@ -722,7 +724,8 @@ public sealed record ExportHolySiteDescription(
     bool HasStatue,
     string FocalPoint,
     string Offering,
-    EntityId? DedicateeId);
+    EntityId? DedicateeId,
+    int? DedicateeEventId);
 
 /// <summary>
 /// A made thing, and everywhere it has been.

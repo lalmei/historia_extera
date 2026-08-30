@@ -374,9 +374,14 @@ public sealed class FlavourTests
             if (!description.DedicateeId.IsNone)
             {
                 Assert.True(world.Figures.Contains(description.DedicateeId), site.Name);
+                Assert.NotNull(description.DedicateeEventId);
                 Assert.True(
                     world.Figures[description.DedicateeId].BirthYear < site.FoundedYear,
                     $"{site.Name} honours {description.DedicateeId} who was not yet born.");
+            }
+            else
+            {
+                Assert.Null(description.DedicateeEventId);
             }
         }
 
@@ -417,6 +422,7 @@ public sealed class FlavourTests
             Assert.Equal(a.FocalPoint, b.FocalPoint);
             Assert.Equal(a.Offering, b.Offering);
             Assert.Equal(a.DedicateeId, b.DedicateeId);
+            Assert.Equal(a.DedicateeEventId, b.DedicateeEventId);
 
             traditions.Add(a.Tradition);
             dedications.Add(a.DedicationKind);
@@ -491,6 +497,75 @@ public sealed class FlavourTests
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// A named dedicatee has a dated deed on their own page; everybody else is explicitly legend.
+    /// </summary>
+    /// <remarks>
+    /// <para>The regression is the sentence that made an ordinary cleric into an astronomer only
+    /// inside a temple description. Candidate selection now begins with the chronicle: reigns,
+    /// violent deaths, guardianships, sky records and authored tomes. The event id is carried into
+    /// the export so the viewer can put that exact record beside the prose.</para>
+    ///
+    /// <para>Measured across the five seeds: 35 of 57 sites cite a dated life and 22 remain gods,
+    /// spirits or remembered people for whom the history has no contemporary record. The broad
+    /// bound keeps both paths alive without pinning the exact mix to one fingerprint.</para>
+    /// </remarks>
+    [Fact]
+    public void DedicationsCiteARecordedDeedOrNameTheirLegend()
+    {
+        int sites = 0;
+        int recorded = 0;
+        int legendary = 0;
+
+        foreach (ulong seed in Seeds)
+        {
+            WorldState world = HistoryRun.Execute(TestWorlds.Standard(seed)).World;
+
+            foreach (HolySite site in world.HolySites)
+            {
+                sites++;
+                HolySiteDescription description = site.Description;
+
+                if (description.DedicateeId.IsNone)
+                {
+                    legendary++;
+                    Assert.Null(description.DedicateeEventId);
+                    Assert.Contains("legend", description.Dedication, StringComparison.OrdinalIgnoreCase);
+                    continue;
+                }
+
+                recorded++;
+                int eventId = Assert.IsType<int>(description.DedicateeEventId);
+                HistoryEvent deed = world.Chronicle.Events[eventId];
+
+                Assert.Equal(eventId, deed.Id);
+                Assert.True(deed.Year <= site.FoundedYear, site.Name);
+                Assert.Contains(description.DedicateeId, deed.References());
+                Assert.True(
+                    Supports(description.DedicationKind, deed.Kind),
+                    $"{site.Name} honours {description.DedicateeId} as "
+                    + $"{description.DedicationKind} from unrelated event {deed.Kind}#{deed.Id}.");
+            }
+        }
+
+        Assert.True(recorded > 0, "No holy place cited a recorded life.");
+        Assert.True(legendary > 0, "No legendary dedication remained to exercise the fallback.");
+        Assert.InRange(recorded / (double)sites, 0.20, 0.80);
+
+        static bool Supports(HolySiteDedicationKind dedication, EventKind deed) => dedication switch
+        {
+            HolySiteDedicationKind.God => deed == EventKind.ReligionFounded,
+            HolySiteDedicationKind.AncestralKing or HolySiteDedicationKind.LivingKing
+                => deed == EventKind.RulerCrowned,
+            HolySiteDedicationKind.Martyr => deed == EventKind.FigureDied,
+            HolySiteDedicationKind.Saint => deed == EventKind.GuardianAssigned,
+            HolySiteDedicationKind.Sage => deed is EventKind.ApparitionRecorded
+                or EventKind.SkyClaimMade
+                or EventKind.ArtifactCreated,
+            _ => false,
+        };
     }
 
     /// <summary>

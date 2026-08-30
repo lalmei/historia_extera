@@ -736,7 +736,8 @@ public static class WorldExporter
                     HasStatue: d.HasStatue,
                     FocalPoint: d.FocalPoint,
                     Offering: d.Offering,
-                    DedicateeId: OrNull(d.DedicateeId))));
+                    DedicateeId: OrNull(d.DedicateeId),
+                    DedicateeEventId: d.DedicateeEventId)));
         }
 
         return list;

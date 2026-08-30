@@ -1,5 +1,6 @@
 using HistoryEngine.Core;
 using HistoryEngine.Entities;
+using HistoryEngine.Events;
 using HistoryEngine.Naming;
 
 namespace HistoryEngine.World;
@@ -38,6 +39,128 @@ public static class HolySites
         Town,
     }
 
+    /// <summary>A person and the dated record that made them fit to honour.</summary>
+    private sealed record Dedicatee(Figure Figure, HistoryEvent Deed);
+
+    /// <summary>
+    /// The deeds already in the chronicle when one holy place is raised, indexed once.
+    /// </summary>
+    /// <remarks>
+    /// <para>A holy site used to walk the figures and infer a biography from their type: any
+    /// cleric could become a sage who mapped the stars, and any townsman a saint who fed the
+    /// poor. This index reverses the question. It starts from acts the chronicle actually
+    /// records and lets the dedication choose only among people who did one.</para>
+    ///
+    /// <para>The dictionaries are lookups only. Candidate order still comes from
+    /// <see cref="WorldState.Figures"/>, so hash iteration can never decide who is honoured.</para>
+    /// </remarks>
+    private sealed class EvidenceIndex
+    {
+        private readonly Dictionary<EntityId, HistoryEvent> _rulers = new();
+        private readonly Dictionary<EntityId, HistoryEvent> _deaths = new();
+        private readonly Dictionary<EntityId, HistoryEvent> _saints = new();
+        private readonly Dictionary<EntityId, HistoryEvent> _sages = new();
+        private HistoryEvent? _founding;
+
+        public static EvidenceIndex Build(WorldState world, Religion faith, int year)
+        {
+            var index = new EvidenceIndex();
+
+            foreach (HistoryEvent entry in world.Chronicle.Events)
+            {
+                if (entry.Year > year) continue;
+
+                switch (entry.Kind)
+                {
+                    case EventKind.RulerCrowned:
+                        KeepLatest(index._rulers, entry.Subject, entry);
+                        break;
+                    case EventKind.FigureDied:
+                        KeepLatest(index._deaths, entry.Subject, entry);
+                        break;
+                    case EventKind.GuardianAssigned:
+                        KeepLatest(index._saints, entry.Subject, entry);
+                        break;
+                    case EventKind.ApparitionRecorded:
+                    case EventKind.SkyClaimMade:
+                        KeepSage(index._sages, entry.Subject, entry);
+                        break;
+                    case EventKind.ArtifactCreated:
+                        if (world.Artifacts.Contains(entry.Subject))
+                        {
+                            Artifact artifact = world.Artifacts[entry.Subject];
+                            if (artifact.Kind == ArtifactKind.Tome && !artifact.CreatorId.IsNone)
+                            {
+                                KeepSage(index._sages, artifact.CreatorId, entry);
+                            }
+                        }
+
+                        break;
+                    case EventKind.ReligionFounded when entry.Subject == faith.Id:
+                        index._founding = entry;
+                        break;
+                }
+            }
+
+            return index;
+        }
+
+        public HistoryEvent? For(
+            Figure figure, Religion faith, HolySiteDedicationKind kind) => kind switch
+        {
+            HolySiteDedicationKind.God when figure.Id == faith.FounderId => _founding,
+            HolySiteDedicationKind.AncestralKing or HolySiteDedicationKind.LivingKing
+                => Get(_rulers, figure.Id),
+            HolySiteDedicationKind.Martyr => Get(_deaths, figure.Id),
+            HolySiteDedicationKind.Saint => Get(_saints, figure.Id),
+            HolySiteDedicationKind.Sage => Get(_sages, figure.Id),
+            _ => null,
+        };
+
+        private static HistoryEvent? Get(
+            Dictionary<EntityId, HistoryEvent> index, EntityId id) =>
+            index.TryGetValue(id, out HistoryEvent? entry) ? entry : null;
+
+        private static void KeepLatest(
+            Dictionary<EntityId, HistoryEvent> index, EntityId id, HistoryEvent entry)
+        {
+            if (id.IsNone) return;
+            if (!index.TryGetValue(id, out HistoryEvent? current)
+                || entry.Year > current.Year
+                || (entry.Year == current.Year && entry.Id > current.Id))
+            {
+                index[id] = entry;
+            }
+        }
+
+        /// <summary>
+        /// A claim outranks an observation and an observation a book; within one kind, the latest
+        /// wins. The order makes a dedication cite the most specific intellectual act available
+        /// without letting later iteration order rewrite it.
+        /// </summary>
+        private static void KeepSage(
+            Dictionary<EntityId, HistoryEvent> index, EntityId id, HistoryEvent entry)
+        {
+            if (id.IsNone) return;
+            if (!index.TryGetValue(id, out HistoryEvent? current)
+                || SageRank(entry.Kind) > SageRank(current.Kind)
+                || (SageRank(entry.Kind) == SageRank(current.Kind)
+                    && (entry.Year > current.Year
+                        || (entry.Year == current.Year && entry.Id > current.Id))))
+            {
+                index[id] = entry;
+            }
+        }
+
+        private static int SageRank(EventKind kind) => kind switch
+        {
+            EventKind.SkyClaimMade => 3,
+            EventKind.ApparitionRecorded => 2,
+            EventKind.ArtifactCreated => 1,
+            _ => 0,
+        };
+    }
+
     /// <summary>Writes the description of one newly founded holy place.</summary>
     public static HolySiteDescription Compose(
         WorldState world,
@@ -53,15 +176,16 @@ public static class HolySites
         Region region = world.Regions[settlement.RegionId];
         SacredTradition tradition = TraditionOf(world, culture, region, lore);
         Setting setting = SettingOf(settlement, region, independent);
+        EvidenceIndex evidence = EvidenceIndex.Build(world, faith, year);
 
         HolySiteDedicationKind dedicationKind = ChooseDedication(
-            world, settlement, faith, culture, kind, tradition, year, lore);
+            world, settlement, faith, culture, kind, tradition, year, evidence, lore);
 
-        Figure? dedicatee = ChooseDedicatee(
-            world, settlement, faith, dedicationKind, year, lore);
+        Dedicatee? dedicatee = ChooseDedicatee(
+            world, settlement, faith, dedicationKind, year, evidence, lore);
 
         string dedicateeName = dedicatee is not null
-            ? world.NameOf(dedicatee.Id)
+            ? world.NameOf(dedicatee.Figure.Id)
             : InventedName(world, culture, siteId, lore);
 
         string dedication = DedicationProse(
@@ -84,7 +208,8 @@ public static class HolySites
             hasStatue,
             FocalProse(tradition, kind, dressed, hasStatue, faith.Character, lore),
             lore.Pick(Offerings(tradition, dressed, kind, faith.Character)),
-            dedicatee?.Id ?? EntityId.None);
+            dedicatee?.Figure.Id ?? EntityId.None,
+            dedicatee?.Deed.Id);
     }
 
     // -----------------------------------------------------------------------
@@ -211,6 +336,7 @@ public static class HolySites
         HolySiteKind kind,
         SacredTradition tradition,
         int year,
+        EvidenceIndex evidence,
         IRng lore)
     {
         var weights = new List<(HolySiteDedicationKind Kind, int Weight)>(16);
@@ -295,18 +421,19 @@ public static class HolySites
             if (bias > 0) Add(dedication, bias);
         }
 
-        if (HasCandidate(world, settlement, faith, HolySiteDedicationKind.AncestralKing, year))
+        if (HasCandidate(
+                world, settlement, faith, HolySiteDedicationKind.AncestralKing, year, evidence))
         {
             Add(HolySiteDedicationKind.AncestralKing, 3);
         }
 
-        if (HasCandidate(world, settlement, faith, HolySiteDedicationKind.Martyr, year))
+        if (HasCandidate(world, settlement, faith, HolySiteDedicationKind.Martyr, year, evidence))
         {
             Add(HolySiteDedicationKind.Martyr, 4);
         }
 
-        if (HasCandidate(world, settlement, faith, HolySiteDedicationKind.Sage, year)
-            || HasCandidate(world, settlement, faith, HolySiteDedicationKind.Saint, year))
+        if (HasCandidate(world, settlement, faith, HolySiteDedicationKind.Sage, year, evidence)
+            || HasCandidate(world, settlement, faith, HolySiteDedicationKind.Saint, year, evidence))
         {
             Add(HolySiteDedicationKind.Saint, 2);
             Add(HolySiteDedicationKind.Sage, 2);
@@ -330,12 +457,13 @@ public static class HolySites
         }
     }
 
-    private static Figure? ChooseDedicatee(
+    private static Dedicatee? ChooseDedicatee(
         WorldState world,
         Settlement settlement,
         Religion faith,
         HolySiteDedicationKind kind,
         int year,
+        EvidenceIndex evidence,
         IRng lore)
     {
         if (kind is HolySiteDedicationKind.God
@@ -352,13 +480,18 @@ public static class HolySites
                 && lore.Chance(0.28))
             {
                 Figure founder = world.Figures[faith.FounderId];
-                if (founder.BirthYear < year) return founder;
+                HistoryEvent? deed = evidence.For(founder, faith, kind);
+                if (founder.BirthYear < year && deed is not null)
+                {
+                    return new Dedicatee(founder, deed);
+                }
             }
 
             return null;
         }
 
-        List<Figure> candidates = Candidates(world, settlement, faith, kind, year);
+        List<Dedicatee> candidates = Candidates(
+            world, settlement, faith, kind, year, evidence);
         return candidates.Count == 0 ? null : lore.Pick(candidates);
     }
 
@@ -367,17 +500,19 @@ public static class HolySites
         Settlement settlement,
         Religion faith,
         HolySiteDedicationKind kind,
-        int year) =>
-        Candidates(world, settlement, faith, kind, year).Count > 0;
+        int year,
+        EvidenceIndex evidence) =>
+        Candidates(world, settlement, faith, kind, year, evidence).Count > 0;
 
-    private static List<Figure> Candidates(
+    private static List<Dedicatee> Candidates(
         WorldState world,
         Settlement settlement,
         Religion faith,
         HolySiteDedicationKind kind,
-        int year)
+        int year,
+        EvidenceIndex evidence)
     {
-        var found = new List<Figure>();
+        var found = new List<Dedicatee>();
 
         foreach (Figure figure in world.Figures)
         {
@@ -390,7 +525,8 @@ public static class HolySites
                     => Held(figure, settlement.CivilizationId, OfficeKind.Ruler, year)
                        && !figure.IsAlive,
                 HolySiteDedicationKind.LivingKing
-                    => Held(figure, settlement.CivilizationId, OfficeKind.Ruler, year),
+                    => figure.IsAlive
+                       && HoldsAt(figure, settlement.CivilizationId, OfficeKind.Ruler, year),
                 HolySiteDedicationKind.Martyr
                     => figure.DeathYear is int death
                        && death < year
@@ -398,18 +534,14 @@ public static class HolySites
                            or DeathCause.Assassination
                            or DeathCause.Battle
                            or DeathCause.Poisoning,
-                HolySiteDedicationKind.Saint
-                    => figure.Origin == FigureOrigin.Clergy
-                       || Held(figure, settlement.CivilizationId, OfficeKind.HighPriest, year)
-                       || figure.Origin == FigureOrigin.Townsfolk,
-                HolySiteDedicationKind.Sage
-                    => figure.Origin == FigureOrigin.Clergy
-                       || Held(figure, settlement.CivilizationId, OfficeKind.HighPriest, year)
-                       || figure.Id == faith.FounderId,
+                HolySiteDedicationKind.Saint or HolySiteDedicationKind.Sage => true,
                 _ => false,
             };
 
-            if (matches) found.Add(figure);
+            if (!matches) continue;
+
+            HistoryEvent? deed = evidence.For(figure, faith, kind);
+            if (deed is not null) found.Add(new Dedicatee(figure, deed));
         }
 
         return found;
@@ -448,6 +580,23 @@ public static class HolySites
         return false;
     }
 
+    private static bool HoldsAt(
+        Figure figure, EntityId civilizationId, OfficeKind kind, int year)
+    {
+        foreach (OfficeHolding office in figure.Offices)
+        {
+            if (office.Kind == kind
+                && office.CivilizationId == civilizationId
+                && office.FromYear <= year
+                && (office.ToYear is null || office.ToYear >= year))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private static string InventedName(WorldState world, Culture culture, EntityId siteId, IRng lore)
     {
         NamingLanguage language = LanguageOf(world, culture);
@@ -460,38 +609,39 @@ public static class HolySites
         Religion faith,
         Culture culture,
         HolySiteDedicationKind kind,
-        Figure? dedicatee,
+        Dedicatee? dedicatee,
         string dedicateeName,
         Setting setting,
         IRng lore)
     {
-        string faithName = faith.Name;
-
         if (dedicatee is not null)
         {
+            Figure figure = dedicatee.Figure;
+            string deed = RecordedDeed(world, dedicatee.Deed);
+
             return kind switch
             {
                 HolySiteDedicationKind.AncestralKing =>
                     "Built for an Ancestral " + culture.RulerTitle
                     + ". Built to honour " + culture.RulerTitle + " " + dedicateeName
-                    + ", " + AncestralDeed(dedicatee, lore) + ".",
+                    + ", " + deed + ".",
                 HolySiteDedicationKind.LivingKing =>
                     "Built for a living " + culture.RulerTitle
                     + ". Honouring " + culture.RulerTitle + " " + dedicateeName
-                    + ", " + lore.Pick(LivingKingDeeds) + ".",
+                    + ", " + deed + ".",
                 HolySiteDedicationKind.Martyr =>
                     "Built for a Martyr. Dedicated to "
-                    + MartyrStyle(world, culture, dedicatee, dedicateeName)
-                    + ", " + MartyrDeed(dedicatee, lore) + ".",
+                    + MartyrStyle(world, culture, figure, dedicateeName)
+                    + ", " + deed + ".",
                 HolySiteDedicationKind.Saint =>
                     "Built for a Saint of the Common Folk. Dedicated to Saint " + dedicateeName
-                    + ", " + lore.Pick(SaintDeeds) + ".",
+                    + ", " + deed + ".",
                 HolySiteDedicationKind.Sage =>
                     "Built for a Sage. Dedicated to " + dedicateeName
-                    + ", " + lore.Pick(SageDeeds) + ".",
+                    + ", " + deed + ".",
                 _ =>
                     "Built for a God. Dedicated to " + dedicateeName
-                    + ", raised to divinity by those who first preached the " + faithName + ".",
+                    + ", " + deed + ".",
             };
         }
 
@@ -503,36 +653,74 @@ public static class HolySites
         {
             HolySiteDedicationKind.God =>
                 lore.Chance(0.42)
-                    ? "Built for a God. Dedicated to " + title + ", " + domain + "."
-                    : "Built for a God. Dedicated to " + dedicateeName + " " + epithet + ", " + domain + ".",
+                    ? "Built for a God. Legend names " + title + ", " + domain + "."
+                    : "Built for a God. Legend names " + dedicateeName + " " + epithet + ", " + domain + ".",
             HolySiteDedicationKind.AncientGod =>
-                "Built for an Ancient God. Dedicated to " + title
+                "Built for an Ancient God. Legend names " + title
                 + ", a primordial god of " + domain
                 + " that predates all kingdoms in the region.",
             HolySiteDedicationKind.NatureSpirit =>
-                "Built for a Nature Spirit. Erected to appease " + title + " (" + dedicateeName
-                + "), a fickle nature spirit who " + lore.Pick(SpiritDeeds(setting)) + ".",
+                "Built for a Nature Spirit. Legend tells of " + title + " (" + dedicateeName
+                + "), a fickle nature spirit that " + lore.Pick(SpiritDeeds(setting)) + ".",
             HolySiteDedicationKind.CosmicForce =>
-                "Built for a Cosmic Force. Dedicated to " + title
+                "Built for a Cosmic Force. Legend names " + title
                 + ", the ultimate, formless entity representing " + domain + ".",
             HolySiteDedicationKind.DivineConcept =>
-                "Built for a Divine Concept. Dedicated to " + title
+                "Built for a Divine Concept. Legend names " + title
                 + ", " + domain + ", " + ConceptKeepers(faith) + ".",
             HolySiteDedicationKind.AncestralKing =>
-                "Built for an Ancestral " + culture.RulerTitle + ". Built to honour "
+                "Built for an Ancestral " + culture.RulerTitle + ". Legend remembers "
                 + culture.RulerTitle + " " + dedicateeName + " " + epithet + ", "
                 + lore.Pick(LegendaryKingDeeds) + ".",
             HolySiteDedicationKind.LivingKing =>
-                "Built for a living " + culture.RulerTitle + ". Honouring "
+                "Built for a living " + culture.RulerTitle + ". Legend tells of "
                 + culture.RulerTitle + " " + dedicateeName + " " + epithet + ", "
                 + lore.Pick(LivingKingDeeds) + ".",
             HolySiteDedicationKind.Martyr =>
-                "Built for a Martyr. Dedicated to " + title + ", " + lore.Pick(LegendaryMartyrDeeds) + ".",
+                "Built for a Martyr. Legend tells of " + title + ", "
+                + lore.Pick(LegendaryMartyrDeeds) + ".",
             HolySiteDedicationKind.Saint =>
-                "Built for a Saint of the Common Folk. Dedicated to Saint " + dedicateeName
+                "Built for a Saint of the Common Folk. Legend remembers Saint " + dedicateeName
                 + ", " + lore.Pick(SaintDeeds) + ".",
             _ =>
-                "Built for a Sage. Dedicated to " + title + ", " + lore.Pick(SageDeeds) + ".",
+                "Built for a Sage. Legend remembers " + title + ", "
+                + lore.Pick(SageDeeds) + ".",
+        };
+    }
+
+    /// <summary>The factual clause a dedication quotes from its chosen event.</summary>
+    private static string RecordedDeed(WorldState world, HistoryEvent deed)
+    {
+        string At(EntityId id) => id.IsNone ? string.Empty : " at " + world.NameOf(id);
+        string year = deed.Year.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        string cause = deed.DataValue("cause") ?? "violence";
+        string death = cause.StartsWith("at ", StringComparison.OrdinalIgnoreCase)
+                       || cause.StartsWith("in ", StringComparison.OrdinalIgnoreCase)
+                       || cause.StartsWith("during ", StringComparison.OrdinalIgnoreCase)
+            ? "who died " + cause + " in " + year
+            : "who died of " + cause + " in " + year;
+
+        return deed.Kind switch
+        {
+            EventKind.RulerCrowned =>
+                "who became " + (deed.DataValue("title") ?? "ruler")
+                + " of " + world.NameOf(deed.Object) + " in " + year,
+            EventKind.FigureDied => death,
+            EventKind.GuardianAssigned =>
+                "who took " + world.NameOf(deed.Object) + " into their care in " + year,
+            EventKind.ApparitionRecorded =>
+                "who recorded " + (deed.DataValue("grade") ?? "a light in the sky")
+                + At(deed.Location) + " in " + year,
+            EventKind.SkyClaimMade =>
+                "who held " + (deed.DataValue("reading") ?? "an account of the sky")
+                + " in " + year,
+            EventKind.ArtifactCreated =>
+                "who wrote " + world.NameOf(deed.Subject) + " in " + year,
+            EventKind.ReligionFounded =>
+                "who first preached the " + world.NameOf(deed.Subject)
+                + At(deed.Location) + " in " + year,
+            _ => throw new InvalidOperationException(
+                $"{deed.Kind} cannot support a holy-site dedication."),
         };
     }
 
@@ -545,16 +733,6 @@ public static class HolySites
         _ =>
             "kept by whoever tends the place for the " + faith.Name,
     };
-
-    private static string AncestralDeed(Figure figure, IRng lore)
-    {
-        if (figure.DeathCause == DeathCause.Battle)
-        {
-            return "a unifier who fell in war and is sworn to rise if the people face extinction";
-        }
-
-        return lore.Pick(LegendaryKingDeeds);
-    }
 
     private static string MartyrStyle(WorldState world, Culture culture, Figure figure, string name)
     {
@@ -569,14 +747,6 @@ public static class HolySites
         }
 
         return name;
-    }
-
-    private static string MartyrDeed(Figure figure, IRng lore)
-    {
-        string cause = figure.DeathDetail ?? Houses.CauseLabel(figure.DeathCause);
-        return lore.Chance(0.55)
-            ? "who died of " + cause + " and is remembered for standing when others fled"
-            : lore.Pick(LegendaryMartyrDeeds);
     }
 
     private static HolySiteDedicationKind Weighted(
