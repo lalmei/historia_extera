@@ -184,6 +184,7 @@ public sealed class TravelSystem : ISystem
             if (!figure.IsAlive) continue;
             if (figure.AgeIn(year) < Succession.MajorityAge) continue;
             if (LifeStories.Fitness(figure, year) <= 0.0) continue;
+            if (figure.IsAwayAt(now)) continue;
 
             EntityId home = world.ResidenceOf(figure);
             if (home.IsNone) continue;
@@ -383,7 +384,12 @@ public sealed class TravelSystem : ISystem
         EntityId via,
         string purpose)
     {
-        var journey = new Journey(kind, year, from, to, via);
+        TradeRoute? corridor = TradeRoutes.Between(world, from, to);
+        int durationDays = DurationDays(world, from, to, corridor, year);
+        Stamp departed = world.Now;
+        Stamp expectedReturn = world.Config.Calendar.Plus(departed, durationDays);
+        var journey = new Journey(
+            kind, departed, from, to, via, durationDays, expectedReturn);
         figure.Journeys.Add(journey);
         FigureUndertaking undertaking = Undertakings.PrepareJourney(world, figure, journey, year);
 
@@ -433,6 +439,16 @@ public sealed class TravelSystem : ISystem
         if (!figure.IsAlive) return;
         if (!CanStay(world, figure, journey)) return;
 
+        Stamp arrived = world.Config.Calendar.Plus(
+            new Stamp(journey.Year, journey.Day),
+            Math.Max(1, (journey.DurationDays + 1) / 2));
+
+        // Residence and realm membership still move at annual grain. A traveller whose outward
+        // leg crosses the boundary cannot honestly be made a resident of the destination in the
+        // year before they got there; deferring that state change wants a scheduled arrival, not a
+        // backdated assignment. Such a journey therefore remains a visit and may winter over.
+        if (arrived.Year != year) return;
+
         // Forked from the root by traveller and year, like the road roll and for the same reason:
         // whether somebody emigrates must not depend on how many draws choosing the destination
         // happened to cost.
@@ -456,6 +472,12 @@ public sealed class TravelSystem : ISystem
 
         journey.Outcome = JourneyOutcome.Stayed;
         journey.ReturnSettlementId = destination.Id;
+
+        // They did not walk the return leg. The dated end and duration are the arrival at the new
+        // home, rather than a return they never made.
+        journey.DurationDays = Math.Max(1, (journey.DurationDays + 1) / 2);
+        journey.ReturnYear = arrived.Year;
+        journey.ReturnDay = arrived.Day;
     }
 
     /// <summary>Whether this traveller could stay at all, before any dice are thrown.</summary>
@@ -551,6 +573,8 @@ public sealed class TravelSystem : ISystem
         {
             journey.Outcome = JourneyOutcome.Lost;
             journey.ReturnSettlementId = EntityId.None;
+            journey.ReturnYear = null;
+            journey.ReturnDay = null;
 
             // Indexed on the place they were going as well as on their house: a death on the road
             // to somewhere is part of that somewhere's record of what its roads were like.
@@ -630,6 +654,55 @@ public sealed class TravelSystem : ISystem
 
         return DetMath.Clamp01(
             world.Distance(from.X, from.Z, to.X, to.Z) / FullReach);
+    }
+
+    /// <summary>The round-trip time charged by the way that existed when the traveller set out.</summary>
+    internal static int DurationDays(
+        WorldState world,
+        EntityId fromId,
+        EntityId toId,
+        TradeRoute? corridor,
+        int year)
+    {
+        if (!world.Settlements.Contains(fromId) || !world.Settlements.Contains(toId)) return 2;
+
+        Settlement from = world.Settlements[fromId];
+        Settlement to = world.Settlements[toId];
+        double distance = world.Distance(from.X, from.Z, to.X, to.Z);
+        RoadGrade? grade = null;
+
+        if (corridor?.Road is Road road && road.BuiltYear <= year)
+        {
+            distance = road.Length;
+            grade = road.PavedYear is int pavedYear && pavedYear <= year
+                ? RoadGrade.Paved
+                : RoadGrade.Track;
+        }
+
+        return DurationDays(
+            distance,
+            world.Config.UnitsPerTravelDay,
+            corridor?.Mode ?? TradeRouteMode.Overland,
+            grade);
+    }
+
+    /// <summary>Pure duration term, exposed so a surface upgrade can be pinned without dice.</summary>
+    internal static int DurationDays(
+        double oneWayDistance,
+        double unitsPerTravelDay,
+        TradeRouteMode mode,
+        RoadGrade? grade)
+    {
+        double modePace = mode switch
+        {
+            TradeRouteMode.Coastal => 1.70,
+            TradeRouteMode.River => 1.25,
+            _ => 1.0,
+        };
+        double surfacePace = grade == RoadGrade.Paved ? 1.25 : 1.0;
+        double pace = unitsPerTravelDay * modePace * surfacePace;
+
+        return Math.Max(2, (int)Math.Ceiling((Math.Max(0.0, oneWayDistance) * 2.0) / pace));
     }
 
     /// <summary>True when the traveller's own realm is fighting the one they are travelling into.</summary>

@@ -1523,6 +1523,10 @@ function JourneyList({
       {groups.map((group) => {
         const journey = group.journeys[0];
         const repeated = group.journeys.length > 1;
+        const durations = group.journeys.map((item) => item.durationDays);
+        const shortest = Math.min(...durations);
+        const longest = Math.max(...durations);
+        const duration = shortest === longest ? `${shortest}` : `${shortest}–${longest}`;
         return (
           <li key={group.key}>
             <span className="text-[var(--ink-faint)]">
@@ -1541,6 +1545,14 @@ function JourneyList({
                 <EntityLink world={world} id={journey.viaId} />
               </>
             )}
+            <span className="text-[var(--ink-faint)]">
+              {' · '}
+              {duration} {shortest === 1 && longest === 1 ? 'day' : 'days'}
+              {repeated ? ' each' : ''}
+              {!repeated && journey.returnYear !== undefined && journey.returnYear > journey.year
+                ? ` · returned ${journey.returnYear}`
+                : ''}
+            </span>
             {repeated && <span className="text-[var(--ink-faint)]"> — all returned</span>}
             {!repeated && journey.outcome && journey.outcome !== 'Returned' && (
               <span className="text-[var(--ink-faint)]">

@@ -429,7 +429,7 @@ public static class Campaigns
         foreach (Figure figure in world.Figures)
         {
             if (!figure.IsAlive) continue;
-            if (world.ResidenceOf(figure) != battle.SettlementId) continue;
+            if (!world.IsPresentAt(figure, battle.SettlementId, world.Now)) continue;
 
             Remember(
                 figure,

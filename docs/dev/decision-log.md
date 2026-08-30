@@ -4377,6 +4377,60 @@ own line, which is what it deserves.
 
 **Schema 43.** `JourneyOutcome` gains `Stayed`; `ResidenceReason` gains `Settled`.
 
+### Journey time consumes the way that was built
+
+`Road.Length` already affected a journey's hazard, but the trip still occupied the same coarse
+year whether it crossed a valley or half the world. The missing conversion could not be inferred:
+world coordinates have no metres-per-unit contract. `WorldConfig.UnitsPerTravelDay` declares it at
+**12 units per ordinary overland day**, enters `ConfigHash`, and is validated as finite and
+positive. River travel multiplies that pace by 1.25, coastal travel by 1.70, and a paved surface by
+1.25. Duration reads the road length where a way existed at departure and straight-line distance
+where it did not. The same-length paved-road assertion is monotonic by construction.
+
+**The duration is a round-trip itinerary.** That keeps trade, pilgrimage, mission and visit values
+comparable, including a traveller later lost on the road. A dated return carries the calendar
+arithmetic; a stayer actually ends at the destination and therefore keeps its one-way duration. A
+one-way arrival that would fall in another year is not allowed to move residence early — doing so
+would make somebody a citizen of a place they had not reached. Deferring such a move belongs to a
+future scheduled-arrival model, so for now that traveller returns rather than being backdated.
+
+**Presence is one question now.** `WorldState.IsPresentAt` combines resolved residence with the
+dated journey interval. The hardship pass asks it at year end, campaign siege exposure asks it at
+the current seasonal stamp, and travel refuses a second departure while a prior journey is still
+underway. That replaces the two former approximations: every journey excluding a resident for its
+whole departure year, and a siege ignoring travel entirely.
+
+**The resample found a residence defect outside travel.** Seed 99 produced a widowed emigrant who
+settled in `set:27`, then remained a subject of `civ:7` after the region was ceded permanently to
+`civ:5`. Revolt and defection transfers already called `TransferResidents` and recounted both
+realms; treaty cessions called the shared town-moving helper but omitted those two consequences.
+The treaty path now performs the same resident transfer and recount, and the residence panel pins
+that no living person is stranded across a permanent border change. Temporary occupation remains
+the deliberate exception because ownership has not changed.
+
+**Measured across seeds 2, 7, 11, 42 and 99.** The declared pace produced:
+
+| Seed | Journeys | Median days | P90 days | Range | Wintered |
+|---:|---:|---:|---:|---:|---:|
+| 2 | 3,012 | 27 | 59 | 1–157 | 0 |
+| 7 | 3,619 | 84 | 319 | 3–645 | 205 |
+| 11 | 3,060 | 52 | 255 | 1–463 | 22 |
+| 42 | 1,673 | 48 | 205 | 1–630 | 140 |
+| 99 | 3,585 | 67 | 253 | 2–536 | 34 |
+
+That is 14,949 journeys: a typical trip is measured in weeks, not hours, while 401 (2.68%) cross a
+year boundary. The long tail comes from missions and pilgrimages that are allowed to choose beyond
+a direct trade partner; it is exactly where a winter away is plausible rather than decoration.
+
+The deterministic shift moved the dispute rare-event panel again. Seeds 7, 26, 104, 134 and 158
+each retain all four dispute causes and a wound; seed 104 retains a death, and violent meetings
+number five between equals against one involving a reigning ruler. This is the fourth resample of
+that panel, and keeps the earlier warning intact: seed fixtures are evidence about reachability, not
+stable identities for a particular story.
+
+**Schema 44.** Journeys gain departure day, duration days, and optional return year/day. A lost
+traveller has no return date; a stay records the arrival at the destination.
+
 ---
 
 ## Notes for Phase 2

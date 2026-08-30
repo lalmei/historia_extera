@@ -137,11 +137,15 @@ function trip(year: number, outcome: Journey['outcome']): Journey {
   return {
     kind: 'Trade',
     year,
+    day: 0,
     fromSettlementId: 'set:1',
     toSettlementId: 'set:2',
     viaId: 'rte:1',
+    durationDays: 40,
     outcome,
     returnSettlementId: 'set:1',
+    returnYear: year,
+    returnDay: 40,
   };
 }
 

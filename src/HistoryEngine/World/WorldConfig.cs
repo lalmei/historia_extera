@@ -66,6 +66,14 @@ public sealed record WorldConfig
     /// </remarks>
     public Calendar Calendar { get; init; } = Calendar.Default;
 
+    /// <summary>World units covered in one ordinary overland travel day.</summary>
+    /// <remarks>
+    /// World units have no implicit real-world scale. Naming the pace here is therefore the only
+    /// honest way for a road length to become days: changing it changes who winters away from home,
+    /// so it is simulation configuration and belongs in <see cref="ConfigHash"/>.
+    /// </remarks>
+    public double UnitsPerTravelDay { get; init; } = 12.0;
+
     public TerrainSettings Terrain { get; init; } = new();
 
     /// <summary>
@@ -128,6 +136,7 @@ public sealed record WorldConfig
             Append(nameof(TerrainStride), TerrainStride);
             Append(nameof(HydrologyStride), HydrologyStride);
             Append(nameof(InitialCivilizations), InitialCivilizations);
+            Append(nameof(UnitsPerTravelDay), UnitsPerTravelDay);
 
             // Appended only when a foreign backend is in play. Not a convenience: an empty
             // source means the procedural sampler, whose inputs are already hashed below, so
@@ -179,7 +188,7 @@ public sealed record WorldConfig
     /// <para>Fields, not appended keys: <see cref="Calendar"/> is one field carrying two numbers,
     /// and both go in when it goes in.</para>
     /// </remarks>
-    public const int HashedFieldCount = 22;
+    public const int HashedFieldCount = 23;
 
     public void Validate()
     {
@@ -216,6 +225,11 @@ public sealed record WorldConfig
         if (InitialCivilizations < 0)
         {
             throw new InvalidOperationException("InitialCivilizations cannot be negative.");
+        }
+
+        if (!double.IsFinite(UnitsPerTravelDay) || UnitsPerTravelDay <= 0.0)
+        {
+            throw new InvalidOperationException("UnitsPerTravelDay must be finite and positive.");
         }
 
         int regions = (WorldSize / RegionSize) * (WorldSize / RegionSize);
