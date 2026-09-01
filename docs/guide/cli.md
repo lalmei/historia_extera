@@ -1,6 +1,6 @@
-# CLI (`legends`)
+# CLI (`historia-extera`)
 
-The console runner lives in `src/HistoryEngine.Cli`. Assembly name is `legends`.
+The console runner lives in `src/HistoryEngine.Cli`. Its executable is `historia-extera`.
 
 ## Run
 

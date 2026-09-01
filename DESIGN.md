@@ -1,6 +1,6 @@
 # Historia Extera — Design
 
-Historia Extera is a deterministic world-history generator and a Legends-style viewer.
+Historia Extera is a deterministic world-history generator and viewer.
 It builds centuries of settlements, peoples, rulers, faiths, wars, trade, disasters,
 and artifacts from a seed and a configuration, then exports a history that can be read
 without running the simulation again.
@@ -524,7 +524,7 @@ questions and the evidence behind each proposal.
 - [Determinism](docs/dev/determinism.md) explains the reproducibility rules.
 - [Testing](docs/dev/testing.md) covers the suite and golden fingerprints.
 - [CLI guide](docs/guide/cli.md) documents generation and raster interchange.
-- [Viewer guide](docs/guide/viewer.md) documents the Legends interface.
+- [Viewer guide](docs/guide/viewer.md) documents the history-browsing interface.
 - [Decision log](docs/dev/decision-log.md) preserves full rationale, measurements,
   rejected designs, and milestone retrospectives.
 

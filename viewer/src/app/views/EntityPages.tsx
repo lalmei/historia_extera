@@ -119,7 +119,7 @@ import {
  * middle, and this entity's slice of the chronicle at the bottom — pulled straight
  * from the export's per-entity index, so it costs an array lookup rather than a
  * scan. Every reference is an EntityLink, which is what makes
- * king → dynasty → war → battle → city browsable in the Legends-mode way.
+ * king → dynasty → war → battle → city browsable through the same linked archive.
  */
 
 export function CivilizationPage({ world, civ }: { world: World; civ: Civilization }) {

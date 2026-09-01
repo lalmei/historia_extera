@@ -4,9 +4,9 @@
 
 ```text
 src/HistoryEngine/         class library — pure simulation, zero NuGet deps
-src/HistoryEngine.Cli/     console runner (`legends`)
+src/HistoryEngine.Cli/     console runner (`historia-extera`)
 src/HistoryEngine.Tests/   xunit — determinism, discipline, serialization
-viewer/                    Astro + React + Tailwind Legends UI
+viewer/                    Astro + React + Tailwind history viewer
 docs/                      ProperDocs sources
 tools/terrain/             conversion scripts for external terrain generators
 DESIGN.md                  concise living design

@@ -1,6 +1,6 @@
 # Getting started
 
-Generate a procedural history, then open it in the Legends viewer.
+Generate a procedural history, then open it in the Historia Extera viewer.
 
 ## Prerequisites
 

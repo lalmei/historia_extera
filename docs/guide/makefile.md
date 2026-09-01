@@ -6,7 +6,7 @@ Root `Makefile` wraps the CLI and viewer. Run `make` (or `make help`) for the li
 
 | Target | What it does |
 |---|---|
-| `generate` / `legends` | Run `legends` with the configured seed/years/civs |
+| `generate` | Run the history engine with the configured seed/years/civs |
 | `fingerprint` | Rewrite the seed-42 golden digest |
 | `terrain-bake` | Bake the noise world out as a raster set (the reference manifest) |
 | `terrain-worldengine` | Generate a WorldEngine world and convert it to a raster set |

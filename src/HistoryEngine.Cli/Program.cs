@@ -137,7 +137,7 @@ internal static class Program
             $"({config.WorldSize / (double)perAxis:F1} units per pixel)");
         Console.WriteLine($"  written  {manifest}");
         Console.WriteLine();
-        Console.WriteLine($"Run a history over it with:  legends --terrain {manifest}");
+        Console.WriteLine($"Run a history over it with:  historia-extera --terrain {manifest}");
 
         return 0;
     }
@@ -296,9 +296,9 @@ internal static class Program
 
     private static void PrintUsage()
     {
-        Console.WriteLine("legends — generate a procedural world history");
+        Console.WriteLine("Historia Extera — generate a procedural world history");
         Console.WriteLine();
-        Console.WriteLine("usage: legends [options]");
+        Console.WriteLine("usage: historia-extera [options]");
         Console.WriteLine();
         Console.WriteLine("  --seed <n>        master seed (default 1)");
         Console.WriteLine("  --years <n>       years to simulate (default 300)");

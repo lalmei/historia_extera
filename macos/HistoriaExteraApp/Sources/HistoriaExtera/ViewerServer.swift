@@ -230,7 +230,7 @@ private struct RuntimeLayout {
         let viewerSource = bundledRoot.appendingPathComponent("viewer-source", isDirectory: true)
         let nodeModules = bundledRoot.appendingPathComponent("node_modules", isDirectory: true)
         let node = bundledRoot.appendingPathComponent("bin/node")
-        let cli = bundledRoot.appendingPathComponent("bin/legends")
+        let cli = bundledRoot.appendingPathComponent("bin/historia-extera")
         let bundledAstro = nodeModules.appendingPathComponent("astro/bin/astro.mjs")
         let cacheIDFile = bundledRoot.appendingPathComponent("viewer-cache-id")
 

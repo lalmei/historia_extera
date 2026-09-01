@@ -102,7 +102,7 @@ plutil -replace CFBundleShortVersionString -string "$version" "$contents/Info.pl
 
 cp "$node_dist/bin/node" "$runtime/bin/node"
 cp "$node_dist/LICENSE" "$runtime/licenses/Node.txt"
-cp "$dotnet_publish/legends" "$runtime/bin/legends"
+cp "$dotnet_publish/historia-extera" "$runtime/bin/historia-extera"
 
 ditto "$repo_root/viewer/src" "$viewer_source/src"
 ditto "$repo_root/viewer/dev" "$viewer_source/dev"
@@ -128,12 +128,12 @@ printf '%s\n' "$viewer_cache_id" > "$runtime/viewer-cache-id"
 chmod 755 \
     "$contents/MacOS/HistoriaExtera" \
     "$runtime/bin/node" \
-    "$runtime/bin/legends"
+    "$runtime/bin/historia-extera"
 
 # No Developer ID is installed on this builder. Nested executables and the bundle receive an
 # ad-hoc signature so macOS can validate their structure; notarization is a separate release gate.
 codesign --force --sign - "$runtime/bin/node"
-codesign --force --sign - "$runtime/bin/legends"
+codesign --force --sign - "$runtime/bin/historia-extera"
 codesign --force --sign - "$contents/MacOS/HistoriaExtera"
 codesign --force --sign - "$staged_app"
 codesign --verify --deep --strict "$staged_app"

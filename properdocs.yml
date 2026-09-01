@@ -1,5 +1,5 @@
 site_name: Historia Extera
-site_description: Procedural world history generator and Legends-mode viewer for Vintage Story.
+site_description: Procedural world history generator and viewer for Vintage Story.
 docs_dir: docs
 site_dir: site
 exclude_docs: |

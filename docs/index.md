@@ -10,7 +10,7 @@ A Dwarf Fortress-style **world history generator** aimed at a Medival like world
     <small>CLI + Makefile</small>
   </a>
   <a href="guide/viewer/">
-    <span>Browse legends</span>
+    <span>Browse histories</span>
     <small>Astro viewer</small>
   </a>
   <a href="dev/architecture/">
@@ -65,7 +65,7 @@ make docs-serve  # this site
 ### Guide
 
 - [Getting started](guide/getting-started.md) — generate and view a world
-- [CLI](guide/cli.md) — `legends` options
+- [CLI](guide/cli.md) — `historia-extera` options
 - [Viewer](guide/viewer.md) — Astro + React island
 - [Makefile](guide/makefile.md) — common targets
 

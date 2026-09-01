@@ -16,7 +16,7 @@ make macos-run
 
 `make macos-run` is the quick developer build tied to the checkout; it needs Node.js 22.12+,
 the .NET 10 SDK and the repository. `make macos-release` instead bundles an official Node
-runtime, a self-contained `legends` engine binary, the viewer source and its dependencies.
+runtime, a self-contained `historia-extera` engine binary, the viewer source and its dependencies.
 The release app copies its packaged viewer runtime to a stable, writable user cache and stores worlds in
 `~/Library/Application Support/Historia Extera/Worlds`, leaving the signed bundle read-only.
 The dependency cache is reused on later launches. The local release archive is ad-hoc signed
@@ -127,7 +127,7 @@ their indexes therefore reconstruct outbreak summaries and disaster rows from th
 without inventing viewer-only ids. Every exported place, realm and region remains a link.
 
 The **map** is a terrain canvas with vector overlays, drawn for a selected year rather
-than only as the world ended. Filters, the realm and faith legends, and the year's
+than only as the world ended. Filters, the realm and faith keys, and the year's
 chronicle sit in a right-hand inspector. Year playback and zoom stay as floating controls
 on the map and remain quiet until hovered. Scroll the map to zoom toward the
 cursor; drag to pan when zoomed; `+` / `-` / `0` (or Escape) also work when the map is
@@ -205,7 +205,7 @@ shares the same top bar: **Worlds** and **Reading**, with a 2px underline on the
 tab. Inside a loaded world, the chronicle index is a collapsible left sidebar (Overview,
 Map, Timeline, and the entity lists). Entity pages sit in a 720px reading column. The map
 fills the remaining viewport, with year and zoom controls floating on it and filters plus
-legends in a right inspector.
+map keys in a right inspector.
 
 ## Stack
 
