@@ -20,6 +20,12 @@ MAC_RELEASE := build/release/Historia-Extera-v$(VERSION)-macos-$(MAC_ARCH).zip
 UV          ?= uv
 UV_RUN      := $(UV) run
 
+# Semantic version bumps across every file that mirrors the one version (see the
+# [tool.bumpversion] block in pyproject.toml). Run through uv in a throwaway
+# environment, so bump-my-version never lands in this project's dependencies.
+BUMP        := $(UV) run --no-project --with bump-my-version==1.5.1 bump-my-version
+PART        ?= patch
+
 SEED   ?= 42
 YEARS  ?= 300
 CIVS   ?= 8
@@ -51,7 +57,7 @@ ifneq ($(SAMPLE),)
 endif
 CLI_FLAGS += $(ARGS)
 
-.PHONY: help generate fingerprint terrain-bake terrain-worldengine terrain-generate test build viewer install preview macos-app macos-run macos-release macos-release-upload docs-build docs-serve clean
+.PHONY: help bump bump-patch bump-minor bump-major bump-dry generate fingerprint terrain-bake terrain-worldengine terrain-generate test build viewer install preview macos-app macos-run macos-release macos-release-upload docs-build docs-serve clean
 
 help:
 	@echo "Historia Extera"
@@ -71,6 +77,8 @@ help:
 	@echo "  make macos-release # self-contained app archive for this Mac architecture"
 	@echo "  make docs-build    # ProperDocs → site/ (uv)"
 	@echo "  make docs-serve    # ProperDocs live reload (uv)"
+	@echo "  make bump-patch | bump-minor | bump-major   # semantic version bump"
+	@echo "  make bump-dry PART=minor   # show what a bump would change"
 	@echo "  make clean"
 	@echo
 	@echo "Extra CLI flags: make generate ARGS='--pretty --sample 20'"
@@ -159,6 +167,25 @@ docs-build:
 
 docs-serve:
 	@$(UV_RUN) properdocs serve -f properdocs.yml
+
+# Version bumps rewrite pyproject.toml, Directory.Build.props, WorldExporter.cs,
+# Info.plist, and the viewer's package.json/package-lock.json in one step. The commit
+# and tag are left to you.
+bump:
+	$(BUMP) bump $(PART)
+	@echo "bumped to $$($(BUMP) show current_version)"
+
+bump-patch:
+	@$(MAKE) bump PART=patch
+
+bump-minor:
+	@$(MAKE) bump PART=minor
+
+bump-major:
+	@$(MAKE) bump PART=major
+
+bump-dry:
+	$(BUMP) bump --dry-run --verbose $(PART)
 
 clean:
 	dotnet clean
