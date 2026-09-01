@@ -21,7 +21,7 @@ export function generateHref(): string {
 }
 
 /**
- * Shared chrome: Historia Extera Legends, Worlds / Reading, help.
+ * Shared chrome: Historia Extera, Worlds / Reading, help.
  * Active nav uses a 2px underline.
  */
 export function SiteShell({
@@ -64,7 +64,7 @@ export function SiteNav({
         }`}
       >
         <a href={worldsHref()} className="shrink-0 text-[15px] font-medium tracking-tight">
-          Historia Extera Legends
+          Historia Extera
         </a>
 
         <nav className="flex h-full items-stretch gap-6 text-sm">

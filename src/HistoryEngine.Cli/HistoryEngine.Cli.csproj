@@ -5,7 +5,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <LangVersion>latest</LangVersion>
     <RootNamespace>HistoryEngine.Cli</RootNamespace>
-    <AssemblyName>legends</AssemblyName>
+    <AssemblyName>historia-extera</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>

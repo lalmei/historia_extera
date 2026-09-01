@@ -225,7 +225,7 @@ export function CosmologyPanel({ world, seed }: { world: ExportWorld; seed?: num
       </div>
 
       <SizeStrip cosmology={c} kind={world.kind} name={world.name} />
-      <MapLegend cosmology={c} kind={world.kind} name={world.name} />
+      <MapKey cosmology={c} kind={world.kind} name={world.name} />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <div>
@@ -758,7 +758,7 @@ function SystemView({
   );
 }
 
-function MapLegend({
+function MapKey({
   cosmology: c,
   kind,
   name,

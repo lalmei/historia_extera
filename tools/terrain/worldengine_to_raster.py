@@ -217,7 +217,7 @@ def main() -> int:
     print(f"  datum          {height_spec['seaLevel']:.6f} normalised = 0 m")
     print(f"  written        {manifest_path}")
     print()
-    print(f"Run a history over it with:  legends --terrain {manifest_path}")
+    print(f"Run a history over it with:  historia-extera --terrain {manifest_path}")
 
     return 0
 

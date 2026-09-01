@@ -1,6 +1,6 @@
 # Historia Extera — Decision Log
 
-A Dwarf Fortress-style world history generator for Vintage Story, plus a Legends-mode
+A Dwarf Fortress-style world history generator for Vintage Story, plus a history
 viewer. This is the detailed record of what was chosen, what was measured, and why.
 It preserves milestone-era assumptions and implementation retrospectives; the concise,
 current design lives in the repository root as `DESIGN.md`.
@@ -46,7 +46,7 @@ terrain we control rather than inside the game.
 
 ```
 src/HistoryEngine/         class library, net7.0;net10.0 — pure simulation, zero deps
-src/HistoryEngine.Cli/     console runner (`legends`)
+src/HistoryEngine.Cli/     console runner (`historia-extera`)
 src/HistoryEngine.Tests/   xunit — determinism, discipline, serialization
 viewer/                    Astro + React + TS + Tailwind
 ```

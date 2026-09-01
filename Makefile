@@ -1,6 +1,6 @@
 # Historia Extera — CLI + viewer + docs
 #
-#   make generate          # run legends → viewer/public/worlds/world.json
+#   make generate          # run the history engine → viewer/public/worlds/world.json
 #   make viewer            # Astro dev server
 #   make docs-serve        # ProperDocs live reload
 #   make test              # xunit suite
@@ -51,7 +51,7 @@ ifneq ($(SAMPLE),)
 endif
 CLI_FLAGS += $(ARGS)
 
-.PHONY: help generate legends fingerprint terrain-bake terrain-worldengine terrain-generate test build viewer install preview macos-app macos-run macos-release macos-release-upload docs-build docs-serve clean
+.PHONY: help generate fingerprint terrain-bake terrain-worldengine terrain-generate test build viewer install preview macos-app macos-run macos-release macos-release-upload docs-build docs-serve clean
 
 help:
 	@echo "Historia Extera"
@@ -76,7 +76,7 @@ help:
 	@echo "Extra CLI flags: make generate ARGS='--pretty --sample 20'"
 	@echo "Docs deps: uv sync  (pyproject.toml / uv.lock)"
 
-generate legends:
+generate:
 	dotnet run --project $(CLI_PROJECT) -- $(CLI_FLAGS)
 
 # Written through a temp file so a failed run leaves the committed golden intact.

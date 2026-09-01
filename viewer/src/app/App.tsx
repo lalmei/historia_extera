@@ -109,7 +109,7 @@ export default function App() {
     const previous = document.title;
     document.title = designation
       ? `${designation} — Historia Extera`
-      : 'Historia Extera — Legends';
+      : 'Historia Extera';
     return () => {
       document.title = previous;
     };

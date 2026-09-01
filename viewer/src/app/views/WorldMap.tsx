@@ -1280,7 +1280,7 @@ export function WorldMap({ world }: { world: World }) {
             />
           </section>
 
-          <Legend
+          <RealmKey
             world={world}
             year={year}
             focus={focus}
@@ -1288,7 +1288,7 @@ export function WorldMap({ world }: { world: World }) {
           />
 
           {showHouses && (
-            <HouseLegend
+            <HouseKey
               world={world}
               year={year}
               houses={houses}
@@ -1298,7 +1298,7 @@ export function WorldMap({ world }: { world: World }) {
           )}
 
           {colouring === 'faith' && (
-            <FaithLegend world={world} year={year} colours={faithColours} />
+            <FaithKey world={world} year={year} colours={faithColours} />
           )}
 
           {focused && (
@@ -1720,7 +1720,7 @@ function houseHover(mark: HouseMark, world: World): string {
   return `${mark.living} of the house ${mark.living === 1 ? 'lives' : 'live'} at ${town}`;
 }
 
-function HouseLegend({
+function HouseKey({
   world,
   year,
   houses,
@@ -1843,7 +1843,7 @@ function YearScrubber({
  * Doubles as the focus control: clicking a realm dims the rest of the map, which is the only
  * way to follow one realm's frontier through a run in which eight of them are moving.
  */
-function Legend({
+function RealmKey({
   world,
   year,
   focus,
@@ -1919,7 +1919,7 @@ function Legend({
  * preached two centuries later and those forgotten a century before, and neither belongs in a
  * key to what is on the map now.
  */
-function FaithLegend({
+function FaithKey({
   world,
   year,
   colours,

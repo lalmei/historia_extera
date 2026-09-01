@@ -1,6 +1,6 @@
 # Historia Extera Docs
 
-Documentation for the history generator (`legends`) and Legends-mode viewer.
+Documentation for the `historia-extera` history generator and viewer.
 
 The site builds with [ProperDocs](https://properdocs.org/) and MaterialX.
 Dependencies live in the root `pyproject.toml` / `uv.lock` under the `docs` group.
