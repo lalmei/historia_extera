@@ -19,5 +19,22 @@ import { worldGenerator } from './dev/world-generator.mjs';
 // the built viewer serverless — see dev/world-generator.mjs.
 export default defineConfig({
   integrations: [react(), worldGenerator()],
-  vite: { plugins: [tailwindcss()] },
+  devToolbar: { enabled: process.env.HISTORIA_NATIVE_APP !== '1' },
+  vite: {
+    plugins: [tailwindcss()],
+    // A release app runs viewer sources from a writable cache while node_modules stays in
+    // the signed bundle. Keep Vite's generated dependency cache beside those sources.
+    ...(process.env.HISTORIA_CACHE_DIR
+      ? { cacheDir: process.env.HISTORIA_CACHE_DIR }
+      : {}),
+    ...(process.env.HISTORIA_MODULE_DIR
+      ? {
+          server: {
+            fs: {
+              allow: [process.cwd(), process.env.HISTORIA_MODULE_DIR],
+            },
+          },
+        }
+      : {}),
+  },
 });
