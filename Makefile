@@ -11,6 +11,12 @@
 CLI_PROJECT := src/HistoryEngine.Cli
 VIEWER      := viewer
 GOLDEN      := src/HistoryEngine.Tests/Goldens/standard-seed42.sha256
+MAC_PACKAGE := macos/HistoriaExteraApp
+MAC_BUILD   := build/swift
+MAC_APP     := build/Historia Extera.app
+VERSION     := $(shell sed -nE 's/^version = "([0-9]+\.[0-9]+\.[0-9]+)"$$/\1/p' pyproject.toml | head -n1)
+MAC_ARCH    := $(shell uname -m)
+MAC_RELEASE := build/release/Historia-Extera-v$(VERSION)-macos-$(MAC_ARCH).zip
 UV          ?= uv
 UV_RUN      := $(UV) run
 
@@ -45,7 +51,7 @@ ifneq ($(SAMPLE),)
 endif
 CLI_FLAGS += $(ARGS)
 
-.PHONY: help generate legends fingerprint terrain-bake terrain-worldengine terrain-generate test build viewer install preview docs-build docs-serve clean
+.PHONY: help generate legends fingerprint terrain-bake terrain-worldengine terrain-generate test build viewer install preview macos-app macos-run macos-release macos-release-upload docs-build docs-serve clean
 
 help:
 	@echo "Historia Extera"
@@ -60,6 +66,9 @@ help:
 	@echo "  make viewer        # npm run dev in viewer/"
 	@echo "  make install       # npm install in viewer/"
 	@echo "  make preview       # npm run preview in viewer/"
+	@echo "  make macos-app     # build the native SwiftUI shell"
+	@echo "  make macos-run     # build and open the macOS app"
+	@echo "  make macos-release # self-contained app archive for this Mac architecture"
 	@echo "  make docs-build    # ProperDocs → site/ (uv)"
 	@echo "  make docs-serve    # ProperDocs live reload (uv)"
 	@echo "  make clean"
@@ -120,6 +129,28 @@ install:
 
 preview:
 	npm run preview --prefix $(VIEWER)
+
+# The native app is a deliberately thin shell around the existing dev-only generator and
+# viewer. Keeping the bundle in build/ lets it find the repository without baking one
+# developer's absolute path into the executable.
+macos-app:
+	swift build --package-path $(MAC_PACKAGE) --scratch-path $(MAC_BUILD) -c release
+	mkdir -p "$(MAC_APP)/Contents/MacOS"
+	cp "$(MAC_BUILD)/release/HistoriaExtera" "$(MAC_APP)/Contents/MacOS/HistoriaExtera"
+	cp "$(MAC_PACKAGE)/Info.plist" "$(MAC_APP)/Contents/Info.plist"
+	codesign --force --deep --sign - "$(MAC_APP)"
+	@echo "built $(MAC_APP)"
+
+macos-run: macos-app
+	open "$(MAC_APP)"
+
+macos-release:
+	sh tools/build_macos_release.sh
+
+# Explicit publication step: build first, then attach both the archive and its digest to the
+# matching GitHub draft release. `--clobber` makes a corrected draft build repeatable.
+macos-release-upload: macos-release
+	gh release upload "v$(VERSION)" "$(MAC_RELEASE)" "$(MAC_RELEASE).sha256" --clobber
 
 docs-build docs-serve: SHELL := /bin/sh
 

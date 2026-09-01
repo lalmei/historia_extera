@@ -36,10 +36,10 @@ const WORLD_FILES = `${WORLD_CATALOG}/files/`;
 /** Where the viewer asks for a world file, and what `?world=` points at. */
 const WORLDS = '/worlds/';
 
-/** Where the CLI lives, relative to the repository root. */
+/** Where the CLI lives during repository development. */
 const CLI_PROJECT = 'src/HistoryEngine.Cli';
 
-/** Where generated worlds land, relative to the repository root, and what the viewer serves. */
+/** Default generated-world folder during repository development. */
 const WORLD_DIR = ['viewer', 'public', 'worlds'];
 
 /**
@@ -51,6 +51,11 @@ const WORLD_DIR = ['viewer', 'public', 'worlds'];
  * be. `build/` is already the repository's home for regenerable scratch output, and ignored.
  */
 const TRASH_DIR = ['build', 'world-trash'];
+
+/** Native release builds override these with writable Application Support paths. */
+const NATIVE_CLI = process.env.HISTORIA_CLI?.trim();
+const NATIVE_WORLD_DIR = process.env.HISTORIA_WORLD_DIR?.trim();
+const NATIVE_TRASH_DIR = process.env.HISTORIA_TRASH_DIR?.trim();
 
 /**
  * What the form may set, and the bounds each value is held to.
@@ -137,7 +142,7 @@ function generatorEndpoint() {
   /** @type {Map<string, Run>} */
   const runs = new Map();
 
-  /** At most one at a time: concurrent `dotnet run` invocations contend over the same obj/bin. */
+  /** At most one at a time: repository `dotnet run` invocations contend over the same obj/bin. */
   /** @type {Run | null} */
   let active = null;
 
@@ -155,15 +160,24 @@ function generatorEndpoint() {
           // watcher would answer with a full page reload — throwing away the very page
           // that asked for it, mid-poll. Nothing in `worlds/` is ever imported, so
           // there is nothing to reload for.
-          watch: { ignored: [`**/${WORLD_DIR.join('/')}/**`] },
+          watch: {
+            ignored: [
+              `**/${WORLD_DIR.join('/')}/**`,
+              ...(NATIVE_WORLD_DIR ? [`${path.resolve(NATIVE_WORLD_DIR)}/**`] : []),
+            ],
+          },
         },
       };
     },
 
     configureServer(server) {
       const root = path.resolve(server.config.root, '..');
+      const worldDir = configuredDirectory(NATIVE_WORLD_DIR, root, WORLD_DIR);
+      const trashDir = configuredDirectory(NATIVE_TRASH_DIR, root, TRASH_DIR);
 
-      const worldDir = path.join(root, ...WORLD_DIR);
+      // The repository path normally exists already. A first native-app launch has an
+      // empty Application Support directory, so create it before listing or generating.
+      void mkdir(worldDir, { recursive: true });
 
       server.middlewares.use((req, res, next) => {
         const url = new URL(req.url ?? '/', 'http://localhost');
@@ -188,7 +202,7 @@ function generatorEndpoint() {
             return;
           }
 
-          removeWorld(root, worldDir, name, permanent)
+          removeWorld(worldDir, trashDir, name, permanent)
             .then((deleted) => send(res, 200, deleted))
             .catch((cause) =>
               send(res, isNodeError(cause) && cause.code === 'ENOENT' ? 404 : 500, {
@@ -251,7 +265,27 @@ function generatorEndpoint() {
         const boundary = params.eastWestPeriodic ? '-ewp' : '';
         const name =
           `world-s${params.seed}-y${params.years}-c${params.civs}-z${params.size}${boundary}.json`;
-        const output = path.join(...WORLD_DIR, name);
+        const output = path.join(worldDir, name);
+
+        const generatorArgs = [
+          '--seed',
+          String(params.seed),
+          '--years',
+          String(params.years),
+          '--civs',
+          String(params.civs),
+          '--size',
+          String(params.size),
+          ...(params.eastWestPeriodic ? ['--east-west-periodic'] : []),
+          '--out',
+          output,
+          '--sample',
+          '0',
+        ];
+        const command = NATIVE_CLI || 'dotnet';
+        const commandArgs = NATIVE_CLI
+          ? generatorArgs
+          : ['run', '--project', CLI_PROJECT, '--', ...generatorArgs];
 
         /** @type {Run} */
         const run = {
@@ -264,35 +298,13 @@ function generatorEndpoint() {
 
         // No shell, and every argument is a validated number — the only strings the
         // command line carries are ones written above.
-        const child = spawn(
-          'dotnet',
-          [
-            'run',
-            '--project',
-            CLI_PROJECT,
-            '--',
-            '--seed',
-            String(params.seed),
-            '--years',
-            String(params.years),
-            '--civs',
-            String(params.civs),
-            '--size',
-            String(params.size),
-            ...(params.eastWestPeriodic ? ['--east-west-periodic'] : []),
-            '--out',
-            output,
-            '--sample',
-            '0',
-          ],
-          {
-            cwd: root,
-            stdio: ['ignore', 'pipe', 'pipe'],
-            // Its own process group, so cancelling reaches the simulation `dotnet run`
-            // starts as a child rather than only the launcher.
-            detached: process.platform !== 'win32',
-          },
-        );
+        const child = spawn(command, commandArgs, {
+          cwd: root,
+          stdio: ['ignore', 'pipe', 'pipe'],
+          // Its own process group, so cancelling reaches the simulation `dotnet run`
+          // starts as a child rather than only the launcher.
+          detached: process.platform !== 'win32',
+        });
 
         run.child = child;
         runs.set(run.id, run);
@@ -303,7 +315,7 @@ function generatorEndpoint() {
         collect(child.stderr, run);
 
         child.on('error', (cause) => {
-          finish(run, 'failed', `could not run dotnet: ${message(cause)}`);
+          finish(run, 'failed', `could not run the generator: ${message(cause)}`);
         });
 
         child.on('close', async (code) => {
@@ -314,7 +326,7 @@ function generatorEndpoint() {
           }
 
           try {
-            run.bytes = (await stat(path.join(root, output))).size;
+            run.bytes = (await stat(output)).size;
           } catch {
             return finish(run, 'failed', `the generator reported success but wrote no ${output}`);
           }
@@ -646,12 +658,12 @@ function permanentDeletion(value) {
 }
 
 /**
- * @param {string} root
  * @param {string} worldDir
+ * @param {string} trashDir
  * @param {string} name
  * @param {boolean} permanent
  */
-async function removeWorld(root, worldDir, name, permanent) {
+async function removeWorld(worldDir, trashDir, name, permanent) {
   const source = await worldFile(worldDir, name);
 
   if (permanent) {
@@ -659,7 +671,7 @@ async function removeWorld(root, worldDir, name, permanent) {
     return { name, permanent: true };
   }
 
-  return trashWorld(root, name, source);
+  return trashWorld(trashDir, name, source);
 }
 
 /**
@@ -678,12 +690,11 @@ async function worldFile(worldDir, name) {
  * The UUID keeps repeated deletions of the same regenerated filename from overwriting
  * an earlier recovery copy.
  *
- * @param {string} root
+ * @param {string} trashDir
  * @param {string} name
  * @param {string} source
  */
-async function trashWorld(root, name, source) {
-  const trashDir = path.join(root, ...TRASH_DIR);
+async function trashWorld(trashDir, name, source) {
   await mkdir(trashDir, { recursive: true });
 
   const extension = path.extname(name);
@@ -704,8 +715,19 @@ async function trashWorld(root, name, source) {
   return {
     name,
     permanent: false,
-    recoveryPath: path.posix.join(...TRASH_DIR, trashedName),
+    recoveryPath: path.join(trashDir, trashedName),
   };
+}
+
+/**
+ * Resolve an optional absolute native-app path, otherwise keep the repository layout.
+ *
+ * @param {string | undefined} configured
+ * @param {string} root
+ * @param {string[]} fallback
+ */
+function configuredDirectory(configured, root, fallback) {
+  return configured ? path.resolve(configured) : path.join(root, ...fallback);
 }
 
 /** @param {unknown} cause */

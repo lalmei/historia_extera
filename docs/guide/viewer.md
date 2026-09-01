@@ -2,6 +2,26 @@
 
 Astro shell with a React island (`viewer/`). Reads the world JSON the CLI writes.
 
+## macOS app
+
+`macos/HistoriaExteraApp` is a SwiftUI shell around this existing viewer. It launches the
+Astro development server on localhost, embeds it in `WKWebView`, and stops the server when
+the app exits. The generator remains the C# CLI invoked by the dev middleware, so the native
+app and browser workflow write and read the same exports in `viewer/public/worlds/`.
+
+```bash
+make install     # once, or whenever viewer dependencies change
+make macos-run
+```
+
+`make macos-run` is the quick developer build tied to the checkout; it needs Node.js 22.12+,
+the .NET 10 SDK and the repository. `make macos-release` instead bundles an official Node
+runtime, a self-contained `legends` engine binary, the viewer source and its dependencies.
+The release app copies its packaged viewer runtime to a stable, writable user cache and stores worlds in
+`~/Library/Application Support/Historia Extera/Worlds`, leaving the signed bundle read-only.
+The dependency cache is reused on later launches. The local release archive is ad-hoc signed
+because the build host has no Developer ID; notarization remains a separate publication gate.
+
 ## Dev server
 
 ```bash

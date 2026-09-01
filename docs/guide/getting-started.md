@@ -52,6 +52,35 @@ dotnet run --project src/HistoryEngine.Cli -- --seed 42 --years 300 --civs 8
 
 ## Open the viewer
 
+### Native macOS app
+
+The SwiftUI app opens the same generator, saved-world library, maps, timelines and entity
+pages in a native macOS window. It supervises the local Astro server and keeps the history
+engine in C#; no simulation code is duplicated in Swift.
+
+```bash
+make macos-run
+```
+
+The app bundle is written to `build/Historia Extera.app`. It still uses this checkout as its
+working data, so install the viewer dependencies first with `make install`. Node.js 22.12+
+and the .NET 10 SDK must be discoverable in the shell path, Homebrew, Volta, NVM or the
+standard .NET locations.
+
+For a release archive that does not need the checkout, Node.js or .NET installed on the target
+Mac, build the self-contained variant:
+
+```bash
+make macos-release
+```
+
+This writes `build/release/Historia-Extera-v<version>-macos-<architecture>.zip` and its
+SHA-256 file. Generated worlds live outside the signed app in
+`~/Library/Application Support/Historia Extera/Worlds`. The local release build is ad-hoc
+signed; a Developer ID signature and notarization are still required before public distribution.
+
+### Browser
+
 ```bash
 make viewer
 ```
