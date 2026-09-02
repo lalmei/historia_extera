@@ -12,7 +12,10 @@ The engine is a pure C# library. The CLI (`historia-extera`) runs it and writes 
 is a separate Astro app that reads that export — maps, timelines, and entity pages — and
 does not own simulation rules.
 
-## Prerequisites
+## Prerequisites (development only)
+
+These are needed to build and run from source. The packaged macOS app ships its own
+self-contained .NET CLI and Node runtime, so it needs neither installed.
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
 - [Node.js](https://nodejs.org/) 22.12+
