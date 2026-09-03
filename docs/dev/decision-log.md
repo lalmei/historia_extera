@@ -4613,6 +4613,86 @@ and that realm's name for the rung. The viewer shows the current rung beside the
 the whole climb as a career, and reads it out of the export like any other list — no viewer change
 was needed for the new event kind, which is what the narration table is for.
 
+
+### M25: the half of the social graph nobody had built
+
+**The finding.** `BondKind` has declared `Friend` and `Lover` since the first life-story pass, and
+a search for their write sites returns nothing. Everything the engine could actually record was
+institutional — kin, marriage, parent, child, sibling, patron, client, mentor, apprentice, guardian,
+ward — or hostile: rival, enemy, co-conspirator. The single exception was `Companion`, written only
+by `LifeStories.ResolveBattle` for two people who stood in the same line. So the only ways two
+people could end up close were to be born related, to appoint each other, or to fight side by side,
+and a life with no war, no office and no enemy had nothing in it that anybody had chosen. That is
+not a sparse life honestly recorded, which the design explicitly allows; it is a category of
+experience the model could not represent.
+
+**Contact is a precondition, not a roll.** The quarrel model's central discipline is that nothing
+surveys a realm for two people who might dislike each other, and it buys the property that a
+quarrel between two people resolves the same way whoever else was born that year. A friendship
+model cannot inherit that outright, because proximity is the question being asked. It gets as close
+as the question allows: residents are bucketed by resolved residence in one pass, and each
+co-resident pair's chance is forked from the two people and the year, so whether two people meet
+does not depend on who else was in the room. The one place iteration order decides anything is the
+capacity check — three open friendships per person — and what it decides is which of two possible
+friendships happened, never whether either could. Sharing a realm is not contact: that is the
+mistake `Disputes` refused, and it produces a great deal of friendship that means nothing.
+
+**The ladder is what has been risked**, where the quarrel ladder is public visibility. Known to
+each other; a good turn done; a confidence given; a tie both would name. One rung a year at most
+and none skipped, so the export always shows the years it took. Reaching the top does not close the
+record — a friendship that stands is the good ending — and what keeps it standing is co-residence:
+the stale clock is reset while the two live in the same town and runs when they do not. That is the
+first question put to residence history that residence history alone could answer, and it is why
+`Warm` exists: a year in which two friends went on being friends is not an event and must not write
+one.
+
+**The favour is the only asymmetric rung.** Warmth lands on both, obligation lands on the person who
+received it, and the memory reuses `Gratitude` rather than adding a kind, because a good turn done
+and an office granted are the same experience to the man who got them. Who gives is decided by
+standing rather than by a coin, since a good turn is mostly the ability to do one.
+
+**Memory pressure was the risk worth taking seriously.** The list is twelve long and holds
+bereavements, wounds and hardships; a new category arriving loud would evict them and the pages
+would get worse rather than richer. A favour is remembered at 0.34 against patronage's 0.55, a
+friendship at 0.52, and a standing friendship is *reinforced* rather than re-added, which moves its
+clock without adding an entry. Measured on the panel, friendship is well under a quarter of all
+memories and bereavement still leads it; both are asserted.
+
+**A betrayal needs something to betray.** It is reachable only from the two upper rungs and only
+where the world already wrote a reason between these two people: a grievance in the bond above the
+same floor a quarrel needs, an open quarrel between them, or a plot the betrayer is running against
+the friend's life. There is no annual chance that a friend goes bad. It is the second way into
+`MemoryKind.Betrayal` and the first that does not require having joined a plot — until now the only
+person who could be betrayed was a conspirator informed on by their own accomplice, so the
+experience was reserved for people who had already put themselves outside the law. `BondKind.Friend`
+survives the betrayal, for the reason `Rival` survives a reconciliation.
+
+**What the measurement found, and what was not done about it.** Across the first forty seeds a
+world produces 1,100–2,250 friendships, of which roughly a quarter reach the top rung, and the
+outcome mix is dominated by death (about two thirds), then cooling and parting in similar numbers.
+Betrayal appears in five worlds of forty and never twice in one. That rate is a property of the
+gate, not of the odds, and it is a real structural finding: **the engine's wrongs are all vertical**
+— a ruler and the man he dismissed, an heir and the claimant he beat, a court and the man it named
+— while friendships are horizontal, partly because rank is one of the terms that stops two people
+becoming friends. Two peers in the same town have, in the current model, nothing to fall out over.
+The fix is a wrong between equals rather than a larger number: the obvious candidate is the post
+that two friends both stood for, which offices grant constantly and which is the classic shape of
+the thing. Raising the chance instead would produce exactly the disconnected flavour roll this
+whole model exists not to be, so it was left alone and written down here.
+
+**Three consumers, so the state is read and not only exported.** A friend restrains a quarrel by the
+same mechanism kinship does. A friend of a plot's target has privileged access to them and the least
+of the motive — the two terms are deliberately not exclusive, since somebody who *was* a friend and
+is now an enemy carries both flags and is exactly the person the motive term should not excuse. And
+conspiracy recruitment already tested obligation and trust, so friendships thicken it with no code
+at all.
+
+**Schema 48.** A figure gains `affinities`: the other party, whether this page sought them, the
+circumstance, the rung, the outcome, the betrayer where there was one, and the dated acts. Both
+parties hold the same object and read it from their own side, as they do a quarrel. No viewer change
+was needed for the four new event kinds, which is what the narration table is for — the viewer's
+figure page does not yet render the record itself.
+
 ---
 
 ## Notes for Phase 2
