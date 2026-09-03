@@ -1713,9 +1713,16 @@ engine and viewer: no shared code, no server, no schema negotiation.
   the viewer wants its own ramp, with height/biome/rivers as composable layers. The
   height range ships alongside so metres are recoverable.
 - **`schemaVersion`** is checked by the viewer, which refuses politely rather than
-  misrendering a file it does not understand. **v5** records the particular relic and the
-  two faiths behind religious causes of war; v3 added wars, battles, and the relations,
-  alliances and truces on a civilization; v2 added dynasties and family links.
+  misrendering a file it does not understand. The check is a *range*, not equality: every
+  change since v21 has added fields rather than moved or reinterpreted them, so an older
+  export is a file with less in it and the viewer opens it, fills the containers a later
+  schema introduced, leaves absent values absent, and says on screen which version wrote it.
+  Equality was the cheap version of that promise and it cost more than it saved — a perfectly
+  readable eight-thousand-event history was refused because a later milestone had added a
+  field it never had a chance to carry. Outside the range it still refuses. **v5** records the
+  particular relic and the two faiths behind religious causes of war; v3 added wars, battles,
+  and the relations, alliances and truces on a civilization; v2 added dynasties and family
+  links.
 - Enums serialise as **strings** — numeric values would silently change meaning the
   first time someone inserted a value mid-enum.
 - **Relations are a list of pairs, not an object keyed by id.** Everything else in the

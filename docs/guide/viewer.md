@@ -55,16 +55,22 @@ The overview titles the history by the world's proper name, with the designation
 `--raster` stays at the CLI's default.
 
 The library reads the schema number, world name, seed, years and engine from each
-file header. The world's proper name is the open link when the schema matches the viewer's
-current one; older exports remain visible so it is clear which worlds need to be regenerated.
-Click a row to expand it: designation, size, engine, a low-resolution biome map, and the
-end of the history — standing civilizations and their populations, settlements, wars, trade
-and faiths — streamed from the export without loading the chronicle. The seed stays in its
-own column so a history can be recognised at a glance and still reproduced. **Run** and
-**Regenerate** fill `/new` with that world's settings so it can be run again with different
-parameters, through the current engine, or continued for more years. Continuing writes a new
-file — the shorter history stays on disk — because the engine always starts from year one, and
-the same seed is deterministic through the years already simulated.
+file header. A world written by an older engine still opens, and carries a chip under its name
+saying which schema wrote it; a file outside the readable range says so in the same place, and
+its name is not a link. The page states the range it accepts above the table, so a greyed row
+is never a mystery. Click a row to expand it: designation, size, engine, what the export can
+and cannot show, a low-resolution biome map, and the end of the history — standing
+civilizations and their populations, settlements, wars, trade and faiths — streamed from the
+export without loading the chronicle. The seed stays in its own column so a history can be
+recognised at a glance and still reproduced.
+
+**Run** (the triangle) runs that world's settings again, here, through the engine as it stands
+now: it asks first, naming the seed, the years, the civilizations and whether the new run
+replaces the file or lands beside it, then shows the engine's progress and opens what comes
+out. **Regenerate** (the arrows) opens `/new` with the same settings instead, which is where
+they can be changed before the engine sees them, or the run continued for more years.
+Continuing writes a new file — the shorter history stays on disk — because the engine always
+starts from year one, and the same seed is deterministic through the years already simulated.
 
 **Delete** (the bin) asks for confirmation, then permanently removes the export. This cannot
 be undone.
@@ -176,9 +182,19 @@ its icon rail so the reading column remains usable.
 
 ## Schema
 
-The viewer pins the export's `schemaVersion` (**46**) and refuses a file it does not
-understand rather than misrendering it. Regenerate the world with the matching engine if
-it complains. Version 46 fills out the local system: every giant gets a face — tilt,
+The viewer reads exports from schema **21** to **46**, and refuses anything outside that
+range rather than misrendering it. Inside the range, an older export is not a file the viewer
+misunderstands — it is a file with less in it: every schema change since 21 has added fields
+rather than moved or reinterpreted them, so the loader supplies the containers a later schema
+introduced, empty, and leaves absent values absent rather than defaulting them. The Worlds
+Library labels such a world with its version and what it predates, and the reading view
+banners the same thing once, so an empty panel is never mistaken for a quiet century. A file
+below 21, one written by a newer engine than the viewer, or one with no `schemaVersion` at
+all, is refused with a message saying which. `viewer/src/app/compat.ts` holds the range and
+the normalization; `compat.test.ts` loads every export in `public/worlds/` through the real
+loader and derivations, so the floor is a tested claim rather than an intention.
+
+Version 46 fills out the local system: every giant gets a face — tilt,
 banding, a long-lived storm and, often, rings — along with its own moons, a planet world
 gets the moons that cross its nights, the habitable body gets an iron budget its density
 agrees with, and the world's spin axis gets a direction inside its galaxy. Version 45 adds
@@ -200,7 +216,8 @@ itemised into the site, its share of the surrounding fields and what the roads b
 is what the **What supports it** panel reads. Version 14 added a faith's character — gods,
 church, clergy, observance and the dials besides fervour. Version 18 added the opening and ending
 dates of engagements and the outcome of a siege, so the viewer can distinguish a place carried by
-storm from one relieved, lifted, or still invested. An older world file will not load.
+storm from one relieved, lifted, or still invested. A world file older than version 21 will
+not load.
 
 ## Look
 
