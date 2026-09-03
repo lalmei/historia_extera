@@ -14,6 +14,9 @@ worlds/
 build/
 *.pgm
 
+# SwiftPM build output for the macOS shell
+macos/HistoriaExteraApp/.build/
+
 # Viewer
 node_modules/
 viewer/dist/
