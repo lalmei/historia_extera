@@ -149,7 +149,7 @@ public sealed class NarrationTests
         var birth = new HistoryEvent(
             0, 140, EventKind.FigureBorn, child, father, EntityId.Settlement(6),
             Extra: new[] { mother },
-            Data: Chronicle.Data(("mother", "fig:7"), ("child", "daughter")));
+            Data: Chronicle.Data(("child", "daughter")));
 
         Assert.Equal(
             "fig:11 was born to fig:7 and fig:4 in set:6.",
