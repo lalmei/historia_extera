@@ -489,7 +489,14 @@ function IconNumber({
   );
 }
 
-function SynthesisModal({
+/**
+ * The engine at work: year, clock, progress and the CLI's own output.
+ *
+ * Exported because the Worlds Library runs seeds too — its Run button starts one directly
+ * rather than sending the reader to this form — and a second progress dialog that drifted
+ * from this one would be two answers to "is it still going?".
+ */
+export function SynthesisModal({
   run,
   opening,
   onAbort,
