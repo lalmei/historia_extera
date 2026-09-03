@@ -1019,6 +1019,11 @@ public static class Conspiracies
             if (bond.Kinds.HasFlag(BondKind.Rival)) motive += 0.18;
             if (bond.Kinds.HasFlag(BondKind.Enemy)) motive += 0.20;
             motive += Math.Max(0.0, -bond.Trust) * 0.12;
+
+            // A friend of the target wants them gone least, and the two flags are not exclusive:
+            // somebody who was a friend and is now an enemy has both, and is exactly the person
+            // this term should not fully excuse.
+            if (bond.Kinds.HasFlag(BondKind.Friend)) motive -= 0.22;
         }
 
         if (claimant) motive += 0.20;
@@ -1041,7 +1046,11 @@ public static class Conspiracies
         FigureBond? bond = LifeStories.BondTo(candidate, target.Id);
         if (bond is not null)
         {
-            BondKind privileged = BondKind.Kin | BondKind.Spouse | BondKind.Client | BondKind.Patron;
+            BondKind privileged = BondKind.Kin
+                | BondKind.Spouse
+                | BondKind.Client
+                | BondKind.Patron
+                | BondKind.Friend;
             if ((bond.Kinds & privileged) != BondKind.None) access += 0.22;
             access += Math.Max(0.0, bond.Trust) * 0.08;
         }

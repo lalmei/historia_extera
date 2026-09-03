@@ -164,6 +164,32 @@ public enum EventKind
     /// </remarks>
     RankGranted = 343,
 
+    /// <summary>
+    /// Two named people came to know each other.
+    /// </summary>
+    /// <remarks>
+    /// Routine, and the most routine thing this engine writes. It is on the record at all because
+    /// it is the bottom rung of a ladder whose top rungs are not routine, and a friendship that
+    /// appeared at its third rung with no beginning would be exactly the disconnected flavour the
+    /// life model exists to avoid.
+    /// </remarks>
+    AcquaintanceFormed = 344,
+
+    /// <summary>A friendship was carried a rung further: a good turn done, or a confidence kept.</summary>
+    AffinityDeepened = 345,
+
+    /// <summary>A friendship ended without anybody turning: it cooled, or distance took it.</summary>
+    AffinityEnded = 346,
+
+    /// <summary>
+    /// One friend turned on the other.
+    /// </summary>
+    /// <remarks>
+    /// Notable, unlike every other rung of the ladder. A betrayal is the one thing on it that a
+    /// court remembers, and it is the event the rest of the ladder exists to make possible.
+    /// </remarks>
+    FriendshipBetrayed = 347,
+
     // ---- Territory (400) ----
     // Claims are written so ownership can be replayed year by year; they are marked Routine
     // so the timeline is not a run of "extended its reach". Cessions and releases stay on

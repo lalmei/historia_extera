@@ -18,8 +18,11 @@ namespace HistoryEngine.Systems;
 /// is a persistent record with its own objective and outcome rather than an event this system
 /// rolls — see <see cref="World.Conspiracies"/>. The same bonds carry personal disputes up the
 /// ladder from a grudge to a meeting, or back down to a settlement, and which of the two an anger
-/// can take is decided by rank — see <see cref="World.Disputes"/>. This system only schedules both
-/// processes and resolves later consequences for disgraced or accused residents.</para>
+/// can take is decided by rank — see <see cref="World.Disputes"/>. The affiliative half of the
+/// same graph runs beside them: friendships begin in shared residence, climb a ladder of what has
+/// actually been risked, and can end in one friend turning on the other — see
+/// <see cref="World.Affinities"/>. This system only schedules those processes and resolves later
+/// consequences for disgraced or accused residents.</para>
 ///
 /// <para><b>Accidents are broad and rare.</b> Adult figures may die by misadventure, with travel and
 /// martial cultures somewhat more exposed. A separate per-figure random stream means adding a
@@ -54,15 +57,23 @@ public sealed class FigureIncidentSystem : ISystem
 
         IRng rng = world.Root.Fork(Name, year);
 
-        PoliticalViolence(world, year, rng);
+        Personal(world, year, rng);
         Accidents(world, year, rng);
     }
 
-    private static void PoliticalViolence(WorldState world, int year, IRng rng)
+    /// <summary>
+    /// Runs the four processes that carry a person's own affairs forward.
+    /// </summary>
+    /// <remarks>
+    /// Friendships last, so that a betrayal reads the year's quarrels and plots as they finally
+    /// stand rather than as they stood before this year's escalations were resolved.
+    /// </remarks>
+    private static void Personal(WorldState world, int year, IRng rng)
     {
         Undertakings.Tick(world, year);
         Conspiracies.Tick(world, year);
         Disputes.Tick(world, year);
+        Affinities.Tick(world, year);
 
         foreach (Civilization civilization in world.ActiveCivilizations())
         {

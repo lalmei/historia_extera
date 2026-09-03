@@ -11,7 +11,7 @@
  */
 
 /** The schema the current engine writes. `compat.ts` has the oldest one the viewer reads. */
-export const SCHEMA_VERSION = 47;
+export const SCHEMA_VERSION = 48;
 
 /**
  * Whether an event carries the history or merely records a life.
@@ -1743,6 +1743,45 @@ export const DISPUTE_OUTCOME_LABELS: Record<DisputeOutcome, string> = {
   Lapsed: 'Never answered',
 };
 
+export type AffinityOrigin =
+  | 'SharedResidence'
+  | 'SharedCampaign'
+  | 'SharedService';
+
+export type AffinityStage =
+  | 'Acquaintance'
+  | 'Kindness'
+  | 'Confidence'
+  | 'Friendship';
+
+export type AffinityOutcome =
+  | 'Open'
+  | 'Cooled'
+  | 'Parted'
+  | 'Betrayed'
+  | 'Lapsed';
+
+export const AFFINITY_ORIGIN_LABELS: Record<AffinityOrigin, string> = {
+  SharedResidence: 'From a town they shared',
+  SharedCampaign: 'From having stood in the same line',
+  SharedService: 'From the service they shared',
+};
+
+export const AFFINITY_STAGE_LABELS: Record<AffinityStage, string> = {
+  Acquaintance: 'Known to each other',
+  Kindness: 'A good turn done',
+  Confidence: 'A confidence given',
+  Friendship: 'Friends',
+};
+
+export const AFFINITY_OUTCOME_LABELS: Record<AffinityOutcome, string> = {
+  Open: 'Standing',
+  Cooled: 'Went cold',
+  Parted: 'Parted by distance',
+  Betrayed: 'Ended in betrayal',
+  Lapsed: 'Ended in death',
+};
+
 export type PlotObjective = 'Assassinate' | 'Depose';
 
 export type PlotCause =
@@ -1887,6 +1926,39 @@ export interface Dispute {
   acts: DisputeAct[];
 }
 
+export interface AffinityAct {
+  year: number;
+  sourceKind: string;
+  stage: AffinityStage;
+  actorId?: EntityId;
+  detail: string;
+}
+
+/**
+ * One friendship. Both parties carry the same record; `sought` says which side this page is,
+ * so the viewer can say "was sought out by" where the other page says "sought out".
+ *
+ * `betrayerId` is present only where one of the two turned, and is the only field that tells
+ * the betrayer's page from the betrayed one.
+ */
+export interface Affinity {
+  id: number;
+  otherId: EntityId;
+  sought: boolean;
+  origin: AffinityOrigin;
+  sourceKind: string;
+  sourceEntityId?: EntityId;
+  placeId?: EntityId;
+  stage: AffinityStage;
+  outcome: AffinityOutcome;
+  resolution?: string;
+  betrayerId?: EntityId;
+  startYear: number;
+  endYear?: number;
+  lastActionYear: number;
+  acts: AffinityAct[];
+}
+
 /**
  * One person, with enough of the family tree attached to draw it.
  *
@@ -1950,6 +2022,8 @@ export interface Figure {
   injuries: FigureInjury[];
   undertakings: Undertaking[];
   disputes: Dispute[];
+  /** Friendships they made. Absent in exports written before schema 48 — see `compat.ts`. */
+  affinities?: Affinity[];
   /** Conspiracies they led, knowingly joined, or learned had targeted them. */
   plots: Plot[];
   guardianships: Guardianship[];

@@ -270,6 +270,208 @@ public static class LifeStories
             reciprocalFear: fear * 0.6);
     }
 
+    // -----------------------------------------------------------------------
+    // Friendship
+    // -----------------------------------------------------------------------
+
+    /// <summary>
+    /// Records that two people have come to know each other, and nothing more than that.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately almost nothing. An acquaintance is not a friend, and writing one in at the
+    /// warmth of a friendship would let the top of the ladder be reached by standing on the bottom
+    /// rung of it. What it does buy is the provenance: from here the bond names the year and the
+    /// town, so every rung above it is anchored to a circumstance the world actually recorded.
+    /// </remarks>
+    public static void AddAcquaintance(
+        Figure first, Figure second, int year, EventKind source, EntityId location)
+    {
+        Relate(
+            first, second,
+            BondKind.None,
+            BondKind.None,
+            BondCause.Friendship,
+            year,
+            source,
+            second.Id,
+            location,
+            affection: 0.06,
+            trust: 0.05,
+            reciprocalAffection: 0.06,
+            reciprocalTrust: 0.05);
+    }
+
+    /// <summary>One of them did the other a good turn.</summary>
+    /// <remarks>
+    /// The obligation lands on the person who received it and the warmth on both, which is the
+    /// asymmetry that makes a favour worth modelling separately from mutual regard. It is also the
+    /// only rung that leaves a memory below the friendship itself, and it reuses
+    /// <see cref="MemoryKind.Gratitude"/> rather than adding a kind, because a good turn done and
+    /// an office granted are the same experience to the person who got them.
+    /// </remarks>
+    public static void AddFavour(
+        Figure giver, Figure receiver, int year, EventKind source, EntityId location)
+    {
+        Relate(
+            giver, receiver,
+            BondKind.None,
+            BondKind.None,
+            BondCause.Friendship,
+            year,
+            source,
+            receiver.Id,
+            location,
+            affection: 0.14,
+            trust: 0.10,
+            reciprocalAffection: 0.20,
+            reciprocalTrust: 0.16,
+            reciprocalObligation: 0.22);
+
+        // Low on purpose. The memory list is twelve long and holds bereavements and wounds; a
+        // favour between friends that evicted one of those would be a worse page, so this earns
+        // its slot by being repeated rather than by arriving loud.
+        Remember(receiver, MemoryKind.Gratitude, year, source, giver.Id, location, 0.34);
+    }
+
+    /// <summary>Something was entrusted that could have been kept back.</summary>
+    public static void AddConfidence(
+        Figure first, Figure second, int year, EventKind source, EntityId location)
+    {
+        Relate(
+            first, second,
+            BondKind.None,
+            BondKind.None,
+            BondCause.Friendship,
+            year,
+            source,
+            second.Id,
+            location,
+            affection: 0.12,
+            trust: 0.24,
+            obligation: 0.08,
+            reciprocalAffection: 0.12,
+            reciprocalTrust: 0.24,
+            reciprocalObligation: 0.08);
+    }
+
+    /// <summary>The rung at which the two of them would name the tie.</summary>
+    public static void AddFriendship(
+        Figure first, Figure second, int year, EventKind source, EntityId location)
+    {
+        Relate(
+            first, second,
+            BondKind.Friend,
+            BondKind.Friend,
+            BondCause.Friendship,
+            year,
+            source,
+            second.Id,
+            location,
+            affection: 0.22,
+            trust: 0.18,
+            obligation: 0.10,
+            reciprocalAffection: 0.22,
+            reciprocalTrust: 0.18,
+            reciprocalObligation: 0.10);
+
+        Remember(first, MemoryKind.Friendship, year, source, second.Id, location, 0.52);
+        Remember(second, MemoryKind.Friendship, year, source, first.Id, location, 0.52);
+    }
+
+    /// <summary>
+    /// Keeps a standing friendship standing, without writing an event for a year in which the two
+    /// of them merely went on being friends.
+    /// </summary>
+    /// <remarks>
+    /// The alternative was to let the stale clock cool every friendship twelve years after it was
+    /// made, which would mean the engine had no friendships that lasted. What keeps this honest is
+    /// that the caller only reaches it while the two are still within reach of each other: friends
+    /// who end up in different towns stop being reinforced and the clock runs again.
+    /// </remarks>
+    public static void Warm(
+        Figure first, Figure second, int year, EventKind source, EntityId location)
+    {
+        Relate(
+            first, second,
+            BondKind.None,
+            BondKind.None,
+            BondCause.Friendship,
+            year,
+            source,
+            second.Id,
+            location,
+            affection: 0.03,
+            trust: 0.02,
+            reciprocalAffection: 0.03,
+            reciprocalTrust: 0.02);
+
+        Reinforce(first, MemoryKind.Friendship, second.Id, year);
+        Reinforce(second, MemoryKind.Friendship, first.Id, year);
+    }
+
+    /// <summary>
+    /// One friend turned on the other.
+    /// </summary>
+    /// <remarks>
+    /// <para><see cref="BondKind.Friend"/> stays, for the reason <see cref="BondKind.Rival"/> stays
+    /// through a reconciliation: two people who were friends and are now enemies are not two people
+    /// who were never friends, and that they were is the whole weight of the thing.</para>
+    ///
+    /// <para>The second way into <see cref="MemoryKind.Betrayal"/>, and the first that does not
+    /// require having joined a plot. Until now the only person who could be betrayed was a
+    /// conspirator informed on by their own accomplice, so the experience was reserved for people
+    /// who had already put themselves outside the law — while the ordinary case, a trust freely
+    /// given to somebody who then used it, had nothing to give it.</para>
+    /// </remarks>
+    public static void Betray(
+        Figure betrayer,
+        Figure betrayed,
+        int year,
+        EventKind source,
+        EntityId location,
+        double weight)
+    {
+        weight = DetMath.Clamp01(weight);
+
+        Relate(
+            betrayed, betrayer,
+            BondKind.Rival | BondKind.Enemy,
+            BondKind.Rival,
+            BondCause.Betrayal,
+            year,
+            source,
+            betrayer.Id,
+            location,
+            affection: -0.55 * weight,
+            trust: -0.80 * weight,
+            grievance: 0.62 * weight,
+            reciprocalAffection: -0.30 * weight,
+            reciprocalTrust: -0.24 * weight,
+            reciprocalGrievance: 0.10 * weight);
+
+        FigureBond? wronged = BondTo(betrayed, betrayer.Id);
+        if (wronged is not null) wronged.Obligation = 0.0;
+
+        Remember(
+            betrayed,
+            MemoryKind.Betrayal,
+            year,
+            source,
+            betrayer.Id,
+            location,
+            DetMath.Clamp01(0.62 + (0.30 * weight)));
+    }
+
+    /// <summary>Pushes an existing memory's clock forward without adding one that is not there.</summary>
+    private static void Reinforce(Figure figure, MemoryKind kind, EntityId about, int year)
+    {
+        SalientMemory? existing = figure.Memories.Find(
+            memory => memory.Kind == kind && memory.AboutId == about);
+        if (existing is null) return;
+
+        existing.LastReinforcedYear = year;
+    }
+
     public static void AddConspirators(Figure leader, Figure recruit, int year)
     {
         Relate(
