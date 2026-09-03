@@ -58,11 +58,20 @@ public sealed class UnrestTests
     /// because the previous entry noted 1.9% as the low reading and wondered about it — five
     /// readings of 3.0, 2.5, 2.9, 1.9 and 2.8 are one rate with sampling noise on it, and the
     /// low one was noise. The tail was 40, 104 and 149 and is now 108, 110, 115, 169 and 174.
+    ///
+    /// <b>Resampled a sixth time when army ranks landed</b>, which move every history again — a
+    /// realm's ranking officer now commands campaigns its ruler stays home from, and what a
+    /// commander is worth on the field depends on his rung. 5 of the first 320 seeds, 1.6%. Read
+    /// against a rate the five earlier samples put between 1.9% and 3.0% that is the low end, and
+    /// the net was widened from 180 seeds to 320 precisely to see whether it was low or empty:
+    /// 2 in the first 180 could not be told from noise, 5 in 320 can, and five occurrences at 1.6%
+    /// are not separable from three at 1.9%. The path is carried, so this is a resample. The tail
+    /// was 108, 110, 115, 169 and 174 and is now 51, 90, 208, 278 and 299.
     /// </remarks>
     private static readonly ulong[] RareSeeds =
     {
         2, 7, 11, 42, 99, 123, 777, 2024, 3, 5, 13, 17, 19, 23, 29, 31, 37, 41, 47, 53, 61, 71,
-        108, 110, 115, 169, 174,
+        51, 90, 208, 278, 299,
     };
 
     /// <summary>

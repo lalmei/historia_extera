@@ -313,8 +313,13 @@ public sealed class LifeStoryTests
             });
         });
 
+        // Every wound but a duel's writes its own line. A quarrel settled with blades already has
+        // an event naming both parties, and `LifeStories.Injure` deliberately writes no second one
+        // — so counting duel wounds here asserts a line the engine promises not to write. It held
+        // only while no world in this seed had settled a quarrel that way.
         Assert.Equal(
-            wounded.Sum(figure => figure.Injuries.Count),
+            wounded.Sum(figure =>
+                figure.Injuries.Count(injury => injury.SourceKind != EventKind.DuelFought)),
             world.Chronicle.Events.Count(entry => entry.Kind == EventKind.FigureWounded));
 
         Assert.Contains(world.Figures, figure =>
