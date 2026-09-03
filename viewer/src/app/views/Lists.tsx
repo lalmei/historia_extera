@@ -192,8 +192,14 @@ export function CivilizationList({ world }: { world: World }) {
 }
 
 /** The distinct values present, in first-seen order. */
-function distinct<T>(values: T[]): T[] {
-  return [...new Set(values)];
+/**
+ * The distinct values in a column, minus the ones an older export never recorded.
+ *
+ * Dropping `undefined` is what keeps a facet built from a field a schema added later from
+ * offering a blank option that matches nothing — see `compat.ts`.
+ */
+function distinct<T>(values: (T | undefined)[]): T[] {
+  return [...new Set(values)].filter((value): value is T => value !== undefined);
 }
 
 /**
@@ -653,7 +659,13 @@ export function HolySiteList({ world }: { world: World }) {
         <Stat label="In settlements" value={holySites.length - independent.length} />
         <Stat
           label="Traditions"
-          value={new Set(holySites.map((site: HolySite) => site.description.tradition)).size}
+          value={
+            new Set(
+              holySites
+                .map((site: HolySite) => site.description?.tradition)
+                .filter((tradition) => tradition !== undefined),
+            ).size
+          }
           hint="Architectural families"
         />
       </div>
@@ -915,8 +927,11 @@ export function FigureList({ world }: { world: World }) {
     {
       key: 'occupation',
       header: 'Occupation',
-      cell: (figure) => OCCUPATION_LABELS[figure.occupation] ?? figure.occupation,
-      sort: (figure) => figure.occupation,
+      cell: (figure) =>
+        figure.occupation === undefined
+          ? '—'
+          : (OCCUPATION_LABELS[figure.occupation] ?? figure.occupation),
+      sort: (figure) => figure.occupation ?? '',
     },
     {
       key: 'lived',
@@ -1031,7 +1046,7 @@ export function FigureList({ world }: { world: World }) {
           facets={facets}
           searchText={(figure) =>
             `${figure.name} ${figure.titles[0]?.title ?? ''} ` +
-            `${OCCUPATION_LABELS[figure.occupation] ?? figure.occupation ?? ''} ` +
+            `${(figure.occupation && OCCUPATION_LABELS[figure.occupation]) ?? figure.occupation ?? ''} ` +
             `${figure.dynastyId ? world.nameOf(figure.dynastyId) : ''} ` +
             `${world.nameOf(figure.civilizationId)} ` +
             `${figure.religionId ? world.nameOf(figure.religionId) : ''}`

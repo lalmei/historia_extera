@@ -1,4 +1,4 @@
-import type { EntityId, ExportWorld, Region } from './types';
+import type { EntityId, ExportWorld, Region } from './types.ts';
 
 /**
  * Realm shapes, drawn as realms rather than as the cells they are stored in.

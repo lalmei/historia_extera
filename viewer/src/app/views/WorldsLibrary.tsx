@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
+import { MIN_SCHEMA_VERSION } from '../compat';
 import { generateHref, SiteShell } from '../components/SiteChrome';
+import { SCHEMA_VERSION } from '../types';
 import { WorldList } from './WorldList';
 
 /**
@@ -22,10 +24,17 @@ export function WorldsLibrary() {
   return (
     <SiteShell active="worlds" search={{ value: query, onChange: setQuery }}>
       <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
-        <div>
+        <div className="max-w-2xl">
           <h1 className="he-headline">Worlds Library</h1>
           <p className="mt-2 text-[var(--ink-soft)]">
             Manage and explore generated historical simulations.
+          </p>
+          <p className="mt-3 text-sm text-[var(--ink-faint)]">
+            This viewer reads exports from schema v{MIN_SCHEMA_VERSION} to v{SCHEMA_VERSION}. A
+            world written by an earlier engine still opens, and is labelled below with what it
+            was recorded before — those panels are empty rather than wrong. Anything older than
+            v{MIN_SCHEMA_VERSION}, or written by a newer engine than this viewer, is marked
+            unreadable and has to be run again.
           </p>
         </div>
         <a

@@ -135,6 +135,7 @@ export default function App() {
   return (
     <div className="flex h-screen flex-col overflow-hidden">
       <SiteNav fluid active="reading" readingHref={readingHref(currentWorldQuery())} />
+      <OlderSchemaBanner world={world} />
       <div className="flex min-h-0 flex-1">
         <WorldNav world={world} activePath={route.path} />
         <main
@@ -151,6 +152,43 @@ export default function App() {
         </main>
       </div>
       <SiteFooter fluid />
+    </div>
+  );
+}
+
+/**
+ * Says, once and at the top, that this chronicle was written by an earlier engine.
+ *
+ * Without it an older world is indistinguishable from a quiet one: the panels a later schema
+ * fills are simply empty, and a reader has no way to tell a century in which nobody travelled
+ * from a file recorded before journeys were written down. Dismissible, because after the first
+ * reading it is a fact about the file rather than about the history, and because the entity
+ * pages say the same thing where it actually bites.
+ */
+function OlderSchemaBanner({ world }: { world: World }) {
+  const [dismissed, setDismissed] = useState(false);
+  const { schema } = world;
+
+  if (schema.state !== 'older' || dismissed) return null;
+
+  return (
+    <div className="shrink-0 border-b border-[var(--rule)] bg-[var(--surface-container-low)] px-4 py-2 text-sm md:px-6">
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <span className="he-label text-[var(--accent)]">Schema v{schema.version}</span>
+        <span className="min-w-0 flex-1 text-[var(--ink-soft)]">
+          Written by an earlier engine. It reads, but it predates{' '}
+          {schema.missing.slice(0, 3).join('; ')}
+          {schema.missing.length > 3 ? `, and ${schema.missing.length - 3} more` : ''} — those
+          panels stay empty. Run the seed again for a full chronicle.
+        </span>
+        <button
+          type="button"
+          onClick={() => setDismissed(true)}
+          className="shrink-0 text-[var(--ink-faint)] transition-colors hover:text-[var(--primary)]"
+        >
+          Dismiss
+        </button>
+      </div>
     </div>
   );
 }

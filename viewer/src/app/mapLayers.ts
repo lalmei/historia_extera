@@ -1,5 +1,5 @@
-import { dynastyOf, figureOf, settlementOf, type DecodedRaster, type World } from './store';
-import type { Standing } from './timeline';
+import { dynastyOf, figureOf, settlementOf, type DecodedRaster, type World } from './store.ts';
+import type { Standing } from './timeline.ts';
 import {
   FLAG_COAST,
   FLAG_RIVER,
@@ -10,7 +10,7 @@ import {
   type ExportWorld,
   type Settlement,
   type SiteCharacter,
-} from './types';
+} from './types.ts';
 
 /** Site characters whose reason for being is water, and so belong on the harbour overlay. */
 export const WATER_SITES: readonly SiteCharacter[] = [

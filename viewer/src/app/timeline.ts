@@ -6,7 +6,7 @@ import type {
   SettlementTier,
   War,
   WorldExport,
-} from './types';
+} from './types.ts';
 
 /**
  * The world as it stood in any given year, rebuilt from the chronicle.
