@@ -639,10 +639,10 @@ public sealed class HouseholdSystem : ISystem
             father.Holds(OfficeKind.Ruler) || father.Holds(OfficeKind.Regent)
             || mother.Holds(OfficeKind.Ruler) || mother.Holds(OfficeKind.Regent);
 
-        // The mother is carried in data as well as in extra. She is indexed on the event either
-        // way, but only subject and object resolve to a name in a template, and both are spoken
-        // for — the child and the father. Without this the one person certainly present at a
-        // birth is the one the sentence cannot mention.
+        // The mother is named through {extra:fig}, which resolves to the first figure among the
+        // extras. Subject and object are spoken for — the child and the father — and carrying her
+        // as a data string instead would print her name as flat text, so the one person certainly
+        // present at a birth would be the only one in the sentence that is not a link.
         world.Chronicle.Record(
             year,
             EventKind.FigureBorn,
@@ -652,9 +652,7 @@ public sealed class HouseholdSystem : ISystem
             extra: child.DynastyId.IsNone
                 ? new[] { mother.Id }
                 : new[] { mother.Id, child.DynastyId },
-            data: Chronicle.Data(
-                ("mother", mother.FullName),
-                ("child", sex == Sex.Male ? "son" : "daughter")),
+            data: Chronicle.Data(("child", sex == Sex.Male ? "son" : "daughter")),
             significance: bornToThrone ? Significance.Notable : Significance.Routine);
 
         if (rng.Chance(ChildbedRisk))
