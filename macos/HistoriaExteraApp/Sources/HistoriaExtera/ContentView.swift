@@ -35,12 +35,6 @@ struct ContentView: View {
                     .disabled(!browser.canGoForward)
 
                     Button {
-                        browser.load(server.viewerURL)
-                    } label: {
-                        Label("Worlds", systemImage: "globe.americas")
-                    }
-
-                    Button {
                         browser.reload()
                     } label: {
                         Label("Reload", systemImage: "arrow.clockwise")

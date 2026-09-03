@@ -16,7 +16,7 @@ struct HistoriaExteraApp: App {
                 }
         }
         .defaultSize(width: 1440, height: 900)
-        .windowStyle(.titleBar)
+        .windowStyle(.hiddenTitleBar)
         .commands {
             CommandGroup(after: .toolbar) {
                 Button("Restart Local Viewer") {
