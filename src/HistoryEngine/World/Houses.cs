@@ -347,10 +347,93 @@ public static class Houses
         if (counted.Count == 0) return;
 
         // The first of a name becomes "the First" only once there is a second.
-        if (first!.RegnalNumber == 0) first.RegnalNumber = 1;
+        if (first!.RegnalNumber == 0)
+        {
+            string was = first.FullName;
+            first.RegnalNumber = 1;
+            Restyle(world, first, was);
+        }
 
+        string bare = ruler.FullName;
         ruler.RegnalNumber = counted.Count + 1;
+        Restyle(world, ruler, bare);
     }
+
+    /// <summary>
+    /// Brings names already written into the chronicle into line with a numeral given after the
+    /// fact.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>The cost of retroactive numbering, which nothing was paying.</b> A numeral is
+    /// assigned when the second of a name is crowned, and it changes what the first of them has
+    /// been called since their birth — which is supposed to cost nothing, "because events carry
+    /// ids and resolve names when they are rendered". Most of the chronicle does exactly that. The
+    /// exception is <see cref="WorldState.NamePerson"/>, which writes a name into an event's data
+    /// for the handful of templates that need to speak about somebody occupying no slot: a battle's
+    /// captain, a war's declaring ruler, the hand a court named in a murder. Those strings were
+    /// written before the numeral existed and stayed that way, so a chronicle could name a suspect
+    /// who, by the end of the run, was not a person of that name any more.</para>
+    ///
+    /// <para><b>Only events that already reference them</b>, and only where no other person the
+    /// same event references is currently going by the old name. Two people of one name in one
+    /// event is the single case where a bare string cannot say which is meant, and rewriting on a
+    /// guess would turn a stale name into a wrong one.</para>
+    /// </remarks>
+    private static void Restyle(WorldState world, Figure figure, string was)
+    {
+        string now = figure.FullName;
+        if (string.Equals(was, now, StringComparison.Ordinal)) return;
+
+        foreach (HistoryEvent entry in world.Chronicle.Events)
+        {
+            if (entry.Data is null || entry.Data.Count == 0) continue;
+            if (!References(entry, figure.Id)) continue;
+            if (Ambiguous(world, entry, figure.Id, was)) continue;
+
+            foreach (string key in entry.Data.Keys)
+            {
+                if (string.Equals(entry.Data[key], was, StringComparison.Ordinal))
+                {
+                    entry.Data[key] = now;
+                }
+            }
+        }
+    }
+
+    private static bool References(HistoryEvent entry, EntityId figureId)
+    {
+        if (entry.Subject == figureId || entry.Object == figureId) return true;
+        if (entry.Extra is null) return false;
+
+        foreach (EntityId id in entry.Extra)
+        {
+            if (id == figureId) return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>Whether somebody else this event names is also going by the old style.</summary>
+    private static bool Ambiguous(
+        WorldState world, HistoryEvent entry, EntityId figureId, string was)
+    {
+        if (Styled(world, entry.Subject, figureId, was)) return true;
+        if (Styled(world, entry.Object, figureId, was)) return true;
+        if (entry.Extra is null) return false;
+
+        foreach (EntityId id in entry.Extra)
+        {
+            if (Styled(world, id, figureId, was)) return true;
+        }
+
+        return false;
+    }
+
+    private static bool Styled(WorldState world, EntityId id, EntityId figureId, string was) =>
+        id != figureId
+        && id.Kind == EntityKind.Figure
+        && world.Figures.Contains(id)
+        && string.Equals(world.Figures[id].FullName, was, StringComparison.Ordinal);
 
     /// <summary>
     /// Ends a life: closes the title, widows the spouse, and records the death.
@@ -430,7 +513,7 @@ public static class Houses
         if (world.Figures.Contains(figure.SpouseId))
         {
             Figure spouse = world.Figures[figure.SpouseId];
-            if (spouse.IsAlive && world.ResidenceOf(spouse) == was)
+            if (spouse.IsAlive && world.ResidenceOf(spouse) == was && !PostedElsewhere(spouse, to))
             {
                 Settle(world, spouse, to, reason, year);
             }
@@ -449,10 +532,30 @@ public static class Houses
             // rule exists to prevent, one generation down.
             if (!child.SpouseId.IsNone) continue;
 
+            // Nor does a child who governs a town of their own go and live in their father's.
+            if (PostedElsewhere(child, to)) continue;
+
             Settle(world, child, to, reason, year);
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// Whether this household member has a posting of their own that this move would break.
+    /// </summary>
+    /// <remarks>
+    /// The same argument the married-child rule above makes, for the other household an office can
+    /// give somebody. A court can post a father to one town in the same decade it posts his
+    /// unmarried son to another, and without this the son goes along with him — after which the
+    /// engine holds a governor who lives somewhere he does not govern, which is neither true nor
+    /// something any later system can repair, since it has no record that he was ever moved
+    /// wrongly. Rare, and pre-existing: it needs two governorships inside one household.
+    /// </remarks>
+    private static bool PostedElsewhere(Figure member, EntityId to)
+    {
+        OfficeHolding? posting = member.OpenOffice(OfficeKind.Governor);
+        return posting is not null && posting.ScopeId != to;
     }
 
     private static string ReasonLabel(ResidenceReason reason) => reason switch
