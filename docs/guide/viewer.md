@@ -19,8 +19,9 @@ the .NET 10 SDK and the repository. `make macos-release` instead bundles an offi
 runtime, a self-contained `historia-extera` engine binary, the viewer source and its dependencies.
 The release app copies its packaged viewer runtime to a stable, writable user cache and stores worlds in
 `~/Library/Application Support/Historia Extera/Worlds`, leaving the signed bundle read-only.
-The dependency cache is reused on later launches. The local release archive is ad-hoc signed
-because the build host has no Developer ID; notarization remains a separate publication gate.
+The dependency cache is reused on later launches. Both the zip and the disk image carry the same
+bundle. The local release artifacts are ad-hoc signed because the build host has no Developer ID;
+notarization remains a separate publication gate.
 
 ## Dev server
 

@@ -74,8 +74,9 @@ Mac, build the self-contained variant:
 make macos-release
 ```
 
-This writes `build/release/Historia-Extera-v<version>-macos-<architecture>.zip` and its
-SHA-256 file. Generated worlds live outside the signed app in
+This writes `build/release/Historia-Extera-v<version>-macos-<architecture>.zip`, the same name
+with a `.dmg` extension, and a SHA-256 file for each. The disk image mounts to the app beside an
+`Applications` shortcut, so installing is a drag. Generated worlds live outside the signed app in
 `~/Library/Application Support/Historia Extera/Worlds`. The local release build is ad-hoc
 signed; a Developer ID signature and notarization are still required before public distribution.
 

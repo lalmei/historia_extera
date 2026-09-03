@@ -44,6 +44,8 @@ node_archive="$download_dir/$node_name.tar.gz"
 node_shasums="$download_dir/SHASUMS256-v$node_version.txt"
 archive="$release_dir/Historia-Extera-v$version-macos-$artifact_arch.zip"
 checksum="$archive.sha256"
+dmg="$release_dir/Historia-Extera-v$version-macos-$artifact_arch.dmg"
+dmg_checksum="$dmg.sha256"
 bundle="$release_dir/Historia Extera.app"
 
 mkdir -p "$download_dir" "$release_dir"
@@ -149,12 +151,35 @@ esac
 if [ -e "$bundle" ]; then
     rm -rf "$bundle"
 fi
-rm -f "$archive" "$checksum"
+rm -f "$archive" "$checksum" "$dmg" "$dmg_checksum"
 
 ditto "$staged_app" "$bundle"
 ditto -c -k --sequesterRsrc --keepParent "$bundle" "$archive"
 shasum -a 256 "$archive" > "$checksum"
 
+# The disk image is built from its own staging directory so the volume holds exactly the app
+# and the drag-to-install shortcut, and nothing that happens to sit next to the bundle.
+dmg_staging="$staging/dmg"
+mkdir -p "$dmg_staging"
+ditto "$staged_app" "$dmg_staging/Historia Extera.app"
+ln -s /Applications "$dmg_staging/Applications"
+
+hdiutil create \
+    -volname "Historia Extera $version" \
+    -srcfolder "$dmg_staging" \
+    -fs HFS+ \
+    -format UDZO \
+    -ov \
+    -quiet \
+    "$dmg"
+
+# Ad-hoc, for the same reason the bundle is: it lets macOS validate the image's structure,
+# while Developer ID signing and notarization stay a separate release gate.
+codesign --force --sign - "$dmg"
+shasum -a 256 "$dmg" > "$dmg_checksum"
+
 echo "Built release app: $bundle"
 echo "Release archive:   $archive"
 echo "SHA-256:           $checksum"
+echo "Disk image:        $dmg"
+echo "SHA-256:           $dmg_checksum"
