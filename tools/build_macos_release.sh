@@ -104,6 +104,9 @@ plutil -replace CFBundleShortVersionString -string "$version" "$contents/Info.pl
 
 cp "$node_dist/bin/node" "$runtime/bin/node"
 cp "$node_dist/LICENSE" "$runtime/licenses/Node.txt"
+cp "$repo_root/LICENSE" "$runtime/licenses/Historia-Extera.txt"
+cp "$repo_root/NOTICE" "$runtime/licenses/Historia-Extera-NOTICE.txt"
+cp "$repo_root/src/HistoryEngine/Naming/Corpora/LICENSES.md" "$runtime/licenses/Name-Corpora.md"
 cp "$dotnet_publish/historia-extera" "$runtime/bin/historia-extera"
 
 ditto "$repo_root/viewer/src" "$viewer_source/src"

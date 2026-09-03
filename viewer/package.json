@@ -2,6 +2,7 @@
   "name": "tested-telescope",
   "type": "module",
   "version": "0.10.0",
+  "license": "AGPL-3.0-only",
   "engines": {
     "node": ">=22.12.0"
   },

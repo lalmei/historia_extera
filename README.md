@@ -140,3 +140,20 @@ hand to somebody else.
 - [CLI](docs/guide/cli.md)
 - [Viewer](docs/guide/viewer.md)
 - [DESIGN.md](DESIGN.md) — how the world is built, and why
+
+## License and packaged app
+
+Historia Extera is licensed under the **GNU Affero General Public License, version 3
+only** (`AGPL-3.0-only`). See [LICENSE](LICENSE) for the full terms.
+
+The source may be used for any purpose, including commercial use, under the AGPL. If
+you distribute a modified version, or let users interact with one over a network, the
+AGPL requires you to offer its corresponding source under the same license.
+
+An individual purchase covers the packaged macOS app and updates released during the
+update period stated at purchase. When that period ends, you may keep using every
+version you received; renewing is needed only for later updates. Buying the packaged
+app does not change or restrict the rights granted by the AGPL.
+
+Third-party dependencies retain their own licenses. The name corpora retain their
+[CC0 1.0 dedication](src/HistoryEngine/Naming/Corpora/LICENSES.md).

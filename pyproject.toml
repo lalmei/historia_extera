@@ -2,6 +2,8 @@
 name = "historia-extera"
 version = "0.10.0"
 description = "Historia Extera — procedural world history generator and viewer."
+license = "AGPL-3.0-only"
+license-files = ["LICENSE"]
 requires-python = ">=3.11"
 dependencies = []
 

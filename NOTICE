@@ -1,0 +1,12 @@
+Historia Extera
+Copyright (C) 2026 Leandro G. Almeida
+
+Historia Extera is licensed under the GNU Affero General Public License,
+version 3 only. The full license is in LICENSE.
+
+Corresponding source is available at:
+https://github.com/lalmei/historia_extera
+
+Third-party dependencies retain their own licenses. The name corpora retain
+their CC0 1.0 dedication, documented in:
+src/HistoryEngine/Naming/Corpora/LICENSES.md
