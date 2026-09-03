@@ -177,6 +177,9 @@ public static class WorldExporter
             OrbitalPeriodDays: cosmology.OrbitalPeriodDays,
             WorldMassEarth: cosmology.WorldMassEarth,
             WorldRadiusEarth: cosmology.WorldRadiusEarth,
+            MeanDensityEarth: cosmology.MeanDensityEarth,
+            BulkIronMassFraction: cosmology.BulkIronMassFraction,
+            CoreMassFraction: cosmology.CoreMassFraction,
             SurfaceGravityG: cosmology.SurfaceGravityG,
             EscapeVelocityKmS: cosmology.EscapeVelocityKmS,
             BondAlbedo: cosmology.BondAlbedo,
@@ -191,6 +194,8 @@ public static class WorldExporter
             Companions: BuildCompanions(cosmology.Companions),
             Moons: BuildMoons(cosmology.Moons),
             HabitableMoonIndex: cosmology.HabitableMoonIndex,
+            HomeMoons: BuildMoons(cosmology.HomeMoons),
+            Orientation: BuildOrientation(cosmology.Orientation),
             Comets: BuildComets(cosmology.Comets),
             Apparitions: BuildApparitions(cosmology, startYear, endYear),
             IsHabitable: cosmology.IsHabitable,
@@ -256,10 +261,13 @@ public static class WorldExporter
         {
             list.Add(new ExportCompanionPlanet(
                 body.Role,
+                body.RoleLabel,
                 body.SemiMajorAxisAu,
                 body.MassEarth,
                 body.RadiusEarth,
-                body.OrbitalPeriodDays));
+                body.OrbitalPeriodDays,
+                BuildAppearance(body.Appearance),
+                BuildMoons(body.Moons)));
         }
 
         return list;
@@ -272,6 +280,7 @@ public static class WorldExporter
         {
             list.Add(new ExportSystemMoon(
                 moon.Index,
+                moon.DisplayName,
                 moon.OrbitalDistanceEarthRadii,
                 moon.MassEarth,
                 moon.RadiusEarth,
@@ -280,6 +289,49 @@ public static class WorldExporter
         }
 
         return list;
+    }
+
+    private static ExportCelestialOrientation BuildOrientation(CelestialOrientation orientation) =>
+        new(
+            orientation.PoleGalacticLongitudeRad,
+            orientation.PoleGalacticLatitudeRad,
+            orientation.RightAscensionOriginRollRad,
+            orientation.PoleTiltFromGalacticPoleDeg,
+            orientation.GalacticPlaneInclinationDeg);
+
+    private static ExportGiantAppearance? BuildAppearance(GiantAppearance? appearance)
+    {
+        if (appearance is null) return null;
+
+        return new ExportGiantAppearance(
+            appearance.ObliquityDeg,
+            appearance.Retrograde,
+            appearance.RotationPeriodHours,
+            appearance.AscendingNodeDeg,
+            appearance.BandCount,
+            new ExportTint(appearance.BandLightR, appearance.BandLightG, appearance.BandLightB),
+            new ExportTint(appearance.BandDarkR, appearance.BandDarkG, appearance.BandDarkB),
+            appearance.Storm is { } storm
+                ? new ExportPlanetStorm(
+                    storm.Name,
+                    storm.LatitudeDeg,
+                    storm.LongitudeSpanDeg,
+                    storm.LatitudeSpanDeg,
+                    storm.AgeYears,
+                    new ExportTint(storm.TintR, storm.TintG, storm.TintB))
+                : null,
+            appearance.Ring is { } ring
+                ? new ExportPlanetRing(
+                    ring.InnerRadiusPlanetRadii,
+                    ring.OuterRadiusPlanetRadii,
+                    ring.OpticalDepth,
+                    ring.DivisionRadiusPlanetRadii,
+                    ring.Composition,
+                    ring.CompositionLabel,
+                    new ExportTint(ring.TintR, ring.TintG, ring.TintB))
+                : null,
+            GiantAppearances.RingOpenness(appearance),
+            GiantAppearances.RingBrightnessBoostMagnitudes(appearance));
     }
 
     private static List<ExportRegion> BuildRegions(WorldState world)

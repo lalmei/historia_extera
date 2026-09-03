@@ -4463,6 +4463,62 @@ referenced chronicle line as the recorded deed.
 
 ---
 
+### The system gets a face
+
+The galaxy layer was already at parity with the star charts it was ported from; the system inside
+it was not. Every giant was a mass and an orbit, the shepherd had no moons, and a planet world had
+no moon at all — which quietly meant a planet world's nights were stars and nothing else, and no
+calendar could be hung on a month. That is a strange thing for a chronicle engine to be missing,
+since a month is one of the few pieces of astronomy every pre-modern people actually keeps.
+
+**Giants are accidents, and are sampled as such.** A giant's obliquity, its banding, the storm
+parked between two of its jets, and whether it kept its rings are not settled by any habitability
+argument the way the star's mass and the habitable zone are. They are drawn from ranges the solar
+system's own four giants bracket — rotation from eight to twenty hours, obliquity from Jupiter's
+few degrees to Uranus lying on its side, rings common but rarely Saturn's. The one place the face
+feeds back into physics is brightness: an open, icy ring measurably lifts a planet's magnitude, so
+`RingBrightnessBoostMagnitudes` is derived from ring area, optical depth, albedo and openness
+rather than asserted.
+
+**Moons, in two families.** A giant's moons are spaced geometrically from just outside the Roche
+limit — and outside its own ring, since ring debris is what never managed to become a moon — out
+to a fraction of the Hill sphere. A planet world's own moons are drawn as *months* rather than as
+orbits, because a month is what the ground sees, and evenly in the logarithm so the close,
+sky-filling ones stay the minority they should be. Sixteen per cent of planet worlds get none.
+That is authored rather than papered over: a world whose nights are only stars is a real world,
+and the tomes now say so.
+
+**Iron is spent twice.** The galaxy already ruled out sites too metal-poor for a terrestrial
+crust. The body now spends that iron: a bulk iron fraction and a core fraction are rolled around
+Earth's, and the density that implies shrinks or swells the radius the mass–radius relation gives.
+An iron-rich world is the smaller world for its mass, and so the one with the higher escape
+velocity — which the habitability checks then re-test rather than assume.
+
+**A spin axis pointing somewhere in particular.** `CelestialOrientation` draws a pole uniformly
+over the sphere, on its own stream. Nothing requires a planet's pole to line up with its galaxy,
+and the consequence is visible from the ground: the angle between the celestial pole and the
+galactic plane decides whether the band of light wheels overhead each night or lies nearly fixed
+along the horizon, which is the difference between a people who navigate by it and a people who do
+not. The transforms both ways are exercised as a round trip.
+
+**Deterministic transcendentals, at last written down.** A uniform pole, a coordinate change and a
+ring's reflected light are genuinely transcendental; none can be made polynomial the way a scoring
+curve can. `DetSeries` gives the engine range-reduced series for `Exp`, `Log`, `Pow`, `Cbrt`,
+`Sin`, `Cos`, `Asin` and `Atan2` in the four correctly rounded operations, so two runtimes take the
+same path to the same bits. It is checked against the runtime's own `Math` to about 1e-11 — tests
+may compare against those answers; engine code still may not use them, and `DeterminismGuardTests`
+continues to enforce that.
+
+**Schema 46.** The cosmology gains `meanDensityEarth`, `bulkIronMassFraction`, `coreMassFraction`,
+`homeMoons` and `orientation`; companions gain a `roleLabel`, an `appearance` and their own
+`moons`; moons gain a `name`. `CompanionRole` gains `OuterGasGiant`, the second gas giant that
+trails the shepherd the way Saturn trails Jupiter. The viewer draws each giant's banded disc, its
+storm and its tipped rings, and a cosmology tome now has a section on the wanderers — including
+the ring, which a pre-telescopic faith records as an oddity it cannot account for, or, if it is
+careless, strikes out as an error of the pen.
+
+---
+
 ## Notes for Phase 2
 
 Three routes were listed here, in rough order of expected fit. **The first is built** —

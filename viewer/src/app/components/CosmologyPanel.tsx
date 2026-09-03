@@ -4,7 +4,9 @@ import type {
   ExportComet,
   ExportCosmology,
   ExportGalaxy,
+  ExportGiantAppearance,
   ExportSystemMoon,
+  ExportTint,
   ExportWorld,
   GalaxyMorphology,
   StarSpectralClass,
@@ -169,6 +171,7 @@ export function CosmologyPanel({ world, seed }: { world: ExportWorld; seed?: num
   const surfaceC = c.surfaceTempK - 273.15;
   const eqC = c.equilibriumTempK - 273.15;
   const moons = c.moons ?? [];
+  const homeMoons = c.homeMoons ?? [];
   const moonOrbitR =
     c.moonOrbitalDistanceEarthRadii ?? moons.find((moon) => moon.habitable)?.orbitalDistanceEarthRadii;
 
@@ -226,6 +229,7 @@ export function CosmologyPanel({ world, seed }: { world: ExportWorld; seed?: num
 
       <SizeStrip cosmology={c} kind={world.kind} name={world.name} />
       <MapKey cosmology={c} kind={world.kind} name={world.name} />
+      <GiantFaces companions={c.companions ?? []} />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <div>
@@ -299,8 +303,17 @@ export function CosmologyPanel({ world, seed }: { world: ExportWorld; seed?: num
             {(c.companions ?? []).map((body) => (
               <Diag
                 key={`${body.role}-${body.semiMajorAxisAu}`}
-                label={COMPANION_ROLE_LABELS[body.role] ?? body.role}
-                value={`${body.semiMajorAxisAu.toFixed(2)} AU · ${Math.round(body.orbitalPeriodDays)} d · ${body.massEarth.toFixed(body.role === 'InnerRocky' ? 2 : 0)} M⊕`}
+                label={body.roleLabel ?? COMPANION_ROLE_LABELS[body.role] ?? body.role}
+                value={`${body.semiMajorAxisAu.toFixed(2)} AU · ${Math.round(body.orbitalPeriodDays)} d · ${body.massEarth.toFixed(body.role === 'InnerRocky' ? 2 : 0)} M⊕${
+                  (body.moons?.length ?? 0) > 0 ? ` · ${body.moons.length} moons` : ''
+                }${body.appearance?.ring ? ' · ringed' : ''}`}
+              />
+            ))}
+            {homeMoons.map((moon) => (
+              <Diag
+                key={`home-moon-${moon.index}`}
+                label={`Moon ${moon.name ?? moon.index}`}
+                value={`${formatMoonOrbit(moon.orbitalDistanceEarthRadii)} · ${formatMassEarth(moon.massEarth)} · month ${moon.dayLengthDays.toFixed(1)} d`}
               />
             ))}
             {(c.comets ?? []).map((comet) => (
@@ -319,7 +332,19 @@ export function CosmologyPanel({ world, seed }: { world: ExportWorld; seed?: num
               label="World mass / radius"
               value={`${c.worldMassEarth.toFixed(2)} M⊕ · ${c.worldRadiusEarth.toFixed(2)} R⊕`}
             />
+            {c.meanDensityEarth != null && (
+              <Diag
+                label="Density / iron"
+                value={`${c.meanDensityEarth.toFixed(2)} ρ⊕ · ${(c.bulkIronMassFraction * 100).toFixed(0)}% iron · core ${(c.coreMassFraction * 100).toFixed(0)}%`}
+              />
+            )}
             <Diag label="Surface gravity" value={`${c.surfaceGravityG.toFixed(2)} g`} />
+            {c.orientation && (
+              <Diag
+                label="Celestial pole"
+                value={`${c.orientation.poleTiltFromGalacticPoleDeg.toFixed(0)}° from the galactic pole · band ${c.orientation.galacticPlaneInclinationDeg.toFixed(0)}° to the horizon`}
+              />
+            )}
             <Diag label="Escape velocity" value={`${c.escapeVelocityKmS.toFixed(1)} km/s`} />
             <Diag
               label="Equilibrium temp (no air)"
@@ -356,6 +381,148 @@ export function CosmologyPanel({ world, seed }: { world: ExportWorld; seed?: num
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * The giants of the system, one card each. None of this is settled by habitability the way the
+ * star and the zone are — a giant's banding, its spot and whether it kept its rings are accidents
+ * of that system's history — but it is what anyone standing on the world actually sees.
+ */
+function GiantFaces({ companions }: { companions: ExportCompanionPlanet[] }) {
+  const giants = companions.filter((body) => body.appearance);
+  if (giants.length === 0) return null;
+
+  return (
+    <Panel title="The giants">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        {giants.map((body) => (
+          <GiantFace key={`${body.role}-${body.semiMajorAxisAu}`} body={body} />
+        ))}
+      </div>
+    </Panel>
+  );
+}
+
+function GiantFace({ body }: { body: ExportCompanionPlanet }) {
+  const face = body.appearance;
+  if (!face) return null;
+
+  const moons = body.moons ?? [];
+  return (
+    <div className="rounded-md border border-[var(--rule)] bg-[var(--input)] p-3">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-sm font-semibold">
+          {body.roleLabel ?? COMPANION_ROLE_LABELS[body.role] ?? body.role}
+        </span>
+        <span className="text-xs text-[var(--ink-faint)]">
+          {body.semiMajorAxisAu.toFixed(2)} AU · {body.massEarth.toFixed(0)} M⊕
+        </span>
+      </div>
+      <div className="mt-2 flex items-center gap-3">
+        <BandedDisc appearance={face} />
+        <dl className="flex-1 space-y-1 text-xs text-[var(--ink-soft)]">
+          <FaceRow
+            label="Spin"
+            value={`${face.rotationPeriodHours.toFixed(1)} h${face.retrograde ? ', retrograde' : ''} · ${face.bandCount} bands`}
+          />
+          <FaceRow label="Tilt" value={`${face.obliquityDeg.toFixed(0)}° obliquity`} />
+          {face.ring ? (
+            <FaceRow
+              label="Rings"
+              value={`${face.ring.compositionLabel}, ${face.ring.innerRadiusPlanetRadii.toFixed(2)}–${face.ring.outerRadiusPlanetRadii.toFixed(2)} R${face.ring.divisionRadiusPlanetRadii > face.ring.innerRadiusPlanetRadii ? ', divided' : ''} · ${(face.ringOpenness * 100).toFixed(0)}% open`}
+            />
+          ) : (
+            <FaceRow label="Rings" value="none held" />
+          )}
+          {face.ringBrightnessBoostMagnitudes < -0.01 && (
+            <FaceRow
+              label="Ring light"
+              value={`${face.ringBrightnessBoostMagnitudes.toFixed(2)} mag brighter`}
+            />
+          )}
+          {face.storm && (
+            <FaceRow
+              label="Storm"
+              value={`${face.storm.name}, ${Math.abs(face.storm.latitudeDeg).toFixed(0)}°${face.storm.latitudeDeg >= 0 ? 'N' : 'S'}, standing ${Math.round(face.storm.ageYears)} years`}
+            />
+          )}
+          <FaceRow
+            label="Moons"
+            value={
+              moons.length === 0
+                ? 'none'
+                : moons.map((moon) => moon.name ?? String(moon.index)).join(', ')
+            }
+          />
+        </dl>
+      </div>
+    </div>
+  );
+}
+
+function FaceRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex gap-2">
+      <dt className="w-16 shrink-0 text-[var(--ink-faint)]">{label}</dt>
+      <dd className="flex-1">{value}</dd>
+    </div>
+  );
+}
+
+/** The giant as it would be seen: its bands, its storm, and its rings tipped by the obliquity. */
+function BandedDisc({ appearance }: { appearance: ExportGiantAppearance }) {
+  const size = 72;
+  const centre = size / 2;
+  const radius = size * 0.28;
+  const light = tintToCss(appearance.bandLight);
+  const dark = tintToCss(appearance.bandDark);
+  const clip = `disc-${Math.round(appearance.ascendingNodeDeg)}-${appearance.bandCount}-${Math.round(appearance.rotationPeriodHours * 10)}`;
+  const bands = Array.from({ length: appearance.bandCount }, (_, index) => index);
+  const storm = appearance.storm;
+
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="presentation">
+      <defs>
+        <clipPath id={clip}>
+          <circle cx={centre} cy={centre} r={radius} />
+        </clipPath>
+      </defs>
+      {appearance.ring && (
+        <PlanetRingGlyph x={centre} y={centre} size={radius} appearance={appearance} />
+      )}
+      <circle cx={centre} cy={centre} r={radius} fill={light} />
+      <g clipPath={`url(#${clip})`}>
+        {bands.map((band) => (
+          <rect
+            key={band}
+            x={centre - radius}
+            y={centre - radius + (band * 2 * radius) / appearance.bandCount}
+            width={radius * 2}
+            height={(2 * radius) / appearance.bandCount}
+            fill={band % 2 === 0 ? dark : light}
+            opacity={0.85}
+          />
+        ))}
+        {storm && (
+          <ellipse
+            cx={centre + radius * 0.25}
+            cy={centre - (storm.latitudeDeg / 90) * radius}
+            rx={(radius * storm.longitudeSpanDeg) / 180}
+            ry={(radius * storm.latitudeSpanDeg) / 180}
+            fill={tintToCss(storm.tint)}
+          />
+        )}
+        <ellipse
+          cx={centre + radius * 0.45}
+          cy={centre}
+          rx={radius * 0.5}
+          ry={radius}
+          fill="#020617"
+          opacity="0.35"
+        />
+      </g>
+    </svg>
   );
 }
 
@@ -898,8 +1065,6 @@ function SizeStrip({
   ];
   const minR = Math.min(...bodies.map((b) => b.radius));
   const maxR = Math.max(...bodies.map((b) => b.radius));
-  const minM = Math.min(...bodies.map((b) => b.mass));
-  const maxM = Math.max(...bodies.map((b) => b.mass));
   const widthOf = (value: number, lo: number, hi: number) => {
     if (hi <= lo) return 28;
     const t = (Math.log10(value) - Math.log10(lo)) / (Math.log10(hi) - Math.log10(lo));
@@ -908,7 +1073,7 @@ function SizeStrip({
 
   return (
     <div className="mt-4 rounded-md border border-[var(--rule)] bg-[var(--input)] px-3 py-2.5">
-      <div className="he-label mb-2">True radii</div>
+      <div className="he-label mb-2">Size and mass</div>
       <div className="flex flex-wrap items-end gap-6">
         {bodies.map((body) => {
           const size = widthOf(body.radius, minR, maxR);
@@ -925,26 +1090,11 @@ function SizeStrip({
           );
         })}
       </div>
-      <div className="he-label mb-2 mt-4">Relative masses</div>
-      <div className="flex flex-wrap items-end gap-6">
-        {bodies.map((body) => {
-          const size = widthOf(body.mass, minM, maxM);
-          return (
-            <div key={`mass-${body.label}-${body.massDetail}`} className="flex flex-col items-center gap-1.5">
-              <span
-                className="rounded-full"
-                style={{ width: size, height: size, background: body.color }}
-              />
-              <span className="text-[11px] text-[var(--ink)]">{body.label}</span>
-              <span className="he-data text-[11px] text-[var(--ink-faint)]">{body.massDetail}</span>
-            </div>
-          );
-        })}
-      </div>
       <p className="mt-2 text-[11px] text-[var(--ink-faint)]">
-        Both rows are log-scaled so the star and a comet nucleus can share a strip. The orbital
-        maps above use fixed marker sizes — a star drawn at the world&apos;s pixel scale would
-        cover the whole diagram.
+        Each disc is drawn from the body&apos;s radius, log-scaled so the star and a comet
+        nucleus can share a strip; the mass is printed beneath it. The orbital maps above use
+        fixed marker sizes — a star drawn at the world&apos;s pixel scale would cover the whole
+        diagram.
       </p>
     </div>
   );
@@ -1239,14 +1389,21 @@ function CompanionBody({
   const x = cx + Math.cos(angle) * radius;
   const y = cy + Math.sin(angle) * radius;
   const size =
-    body.role === 'ShepherdGiant' ? 10 : body.role === 'OuterIceGiant' ? 7 : 4;
-  const fill =
     body.role === 'ShepherdGiant'
+      ? 10
+      : body.role === 'OuterGasGiant'
+        ? 8
+        : body.role === 'OuterIceGiant'
+          ? 7
+          : 4;
+  const fill =
+    body.role === 'ShepherdGiant' || body.role === 'OuterGasGiant'
       ? `url(#${uid}-giant)`
       : body.role === 'OuterIceGiant'
         ? `url(#${uid}-ice)`
         : `url(#${uid}-rocky)`;
   const clipId = `${uid}-comp-${body.role}-${Math.round(x)}-${Math.round(y)}`;
+  const ring = body.appearance?.ring;
 
   return (
     <g>
@@ -1255,6 +1412,7 @@ function CompanionBody({
           <circle cx={x} cy={y} r={size} />
         </clipPath>
       </defs>
+      {ring && <PlanetRingGlyph x={x} y={y} size={size} appearance={body.appearance!} />}
       <circle cx={x} cy={y} r={size} fill={fill} />
       {body.role !== 'InnerRocky' && (
         <g clipPath={`url(#${clipId})`}>
@@ -1277,6 +1435,66 @@ function CompanionBody({
   );
 }
 
+/**
+ * A giant's rings, drawn in its equatorial plane: the obliquity decides how far open the ellipse
+ * is, and the ascending node decides which way the ring line runs. A ring seen edge-on collapses
+ * to a line, which is what it does from the ground too.
+ */
+function PlanetRingGlyph({
+  x,
+  y,
+  size,
+  appearance,
+}: {
+  x: number;
+  y: number;
+  size: number;
+  appearance: ExportGiantAppearance;
+}) {
+  const ring = appearance.ring;
+  if (!ring) return null;
+
+  const tint = tintToCss(ring.tint);
+  const roll = ((appearance.ascendingNodeDeg % 180) - 90) * (appearance.retrograde ? -1 : 1);
+  const rx = size * ring.outerRadiusPlanetRadii;
+  const ry = Math.max(0.6, rx * appearance.ringOpenness);
+  const innerRx = size * ring.innerRadiusPlanetRadii;
+  const width = Math.max(0.8, rx - innerRx);
+
+  return (
+    <g transform={`rotate(${roll.toFixed(1)} ${x} ${y})`}>
+      <ellipse
+        cx={x}
+        cy={y}
+        rx={(innerRx + rx) / 2}
+        ry={Math.max(0.4, ((innerRx / rx) * ry + ry) / 2)}
+        fill="none"
+        stroke={tint}
+        strokeWidth={width}
+        opacity={0.25 + 0.6 * ring.opticalDepth}
+      />
+      {ring.divisionRadiusPlanetRadii > ring.innerRadiusPlanetRadii && (
+        <ellipse
+          cx={x}
+          cy={y}
+          rx={size * ring.divisionRadiusPlanetRadii}
+          ry={Math.max(0.3, size * ring.divisionRadiusPlanetRadii * appearance.ringOpenness)}
+          fill="none"
+          stroke="var(--bg)"
+          strokeWidth={Math.max(0.4, width * 0.22)}
+          opacity={0.8}
+        />
+      )}
+    </g>
+  );
+}
+
+/** Linear 0-1 channels as the engine rolls them, into something CSS understands. */
+function tintToCss(tint: ExportTint): string {
+  const channel = (value: number) => Math.round(Math.max(0, Math.min(1, value)) * 255);
+  return `rgb(${channel(tint.r)}, ${channel(tint.g)}, ${channel(tint.b)})`;
+}
+
 function shortCompanionLabel(role: CompanionRole): string {
   switch (role) {
     case 'InnerRocky':
@@ -1285,6 +1503,8 @@ function shortCompanionLabel(role: CompanionRole): string {
       return 'Shepherd';
     case 'OuterIceGiant':
       return 'Ice giant';
+    case 'OuterGasGiant':
+      return 'Gas giant';
     default:
       return role;
   }
@@ -1298,6 +1518,8 @@ function companionColor(role: CompanionRole): string {
       return '#c48a3a';
     case 'OuterIceGiant':
       return '#38bdf8';
+    case 'OuterGasGiant':
+      return '#d8a45c';
     default:
       return '#94a3b8';
   }

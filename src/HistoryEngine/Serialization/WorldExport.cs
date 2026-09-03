@@ -139,7 +139,7 @@ public sealed record WorldExport(
     /// Version 45 links a real holy-site dedicatee to the exact chronicle event whose deed the
     /// dedication quotes; a missing link now means the dedicatee is explicitly legendary.
     /// </remarks>
-    public const int CurrentSchemaVersion = 45;
+    public const int CurrentSchemaVersion = 46;
 }
 
 public sealed record ExportMeta(
@@ -229,6 +229,9 @@ public sealed record ExportCosmology(
     double OrbitalPeriodDays,
     double WorldMassEarth,
     double WorldRadiusEarth,
+    double MeanDensityEarth,
+    double BulkIronMassFraction,
+    double CoreMassFraction,
     double SurfaceGravityG,
     double EscapeVelocityKmS,
     double BondAlbedo,
@@ -243,6 +246,8 @@ public sealed record ExportCosmology(
     IReadOnlyList<ExportCompanionPlanet> Companions,
     IReadOnlyList<ExportSystemMoon> Moons,
     int? HabitableMoonIndex,
+    IReadOnlyList<ExportSystemMoon> HomeMoons,
+    ExportCelestialOrientation Orientation,
     IReadOnlyList<ExportComet> Comets,
     IReadOnlyList<ExportApparition> Apparitions,
     bool IsHabitable,
@@ -260,6 +265,7 @@ public sealed record ExportApparition(int CometIndex, int Year, ApparitionGrade 
 
 public sealed record ExportSystemMoon(
     int Index,
+    string Name,
     double OrbitalDistanceEarthRadii,
     double MassEarth,
     double RadiusEarth,
@@ -268,10 +274,65 @@ public sealed record ExportSystemMoon(
 
 public sealed record ExportCompanionPlanet(
     CompanionRole Role,
+    string RoleLabel,
     double SemiMajorAxisAu,
     double MassEarth,
     double RadiusEarth,
-    double OrbitalPeriodDays);
+    double OrbitalPeriodDays,
+    ExportGiantAppearance? Appearance,
+    IReadOnlyList<ExportSystemMoon> Moons);
+
+/// <summary>
+/// How a giant reads from a distance: its tilt, its banding, the storm parked in it, and the ring
+/// system lying in its equatorial plane.
+/// </summary>
+/// <param name="RingBrightnessBoostMagnitudes">
+/// What the ring adds to the planet's brightness, as a negative number of magnitudes. Zero when
+/// there is no ring, or when the ring is edge-on or too dark to matter.
+/// </param>
+public sealed record ExportGiantAppearance(
+    double ObliquityDeg,
+    bool Retrograde,
+    double RotationPeriodHours,
+    double AscendingNodeDeg,
+    int BandCount,
+    ExportTint BandLight,
+    ExportTint BandDark,
+    ExportPlanetStorm? Storm,
+    ExportPlanetRing? Ring,
+    double RingOpenness,
+    double RingBrightnessBoostMagnitudes);
+
+public sealed record ExportPlanetRing(
+    double InnerRadiusPlanetRadii,
+    double OuterRadiusPlanetRadii,
+    double OpticalDepth,
+    double DivisionRadiusPlanetRadii,
+    RingComposition Composition,
+    string CompositionLabel,
+    ExportTint Tint);
+
+public sealed record ExportPlanetStorm(
+    string Name,
+    double LatitudeDeg,
+    double LongitudeSpanDeg,
+    double LatitudeSpanDeg,
+    double AgeYears,
+    ExportTint Tint);
+
+/// <summary>A colour in linear 0–1 channels.</summary>
+public sealed record ExportTint(double R, double G, double B);
+
+/// <summary>
+/// Where the world's spin axis points inside its galaxy, which is what decides whether the band of
+/// light wheels overhead each night or lies fixed along the horizon.
+/// </summary>
+public sealed record ExportCelestialOrientation(
+    double PoleGalacticLongitudeRad,
+    double PoleGalacticLatitudeRad,
+    double RightAscensionOriginRollRad,
+    double PoleTiltFromGalacticPoleDeg,
+    double GalacticPlaneInclinationDeg);
 
 public sealed record ExportComet(
     int Index,

@@ -175,9 +175,14 @@ its icon rail so the reading column remains usable.
 
 ## Schema
 
-The viewer pins the export's `schemaVersion` (**44**) and refuses a file it does not
+The viewer pins the export's `schemaVersion` (**46**) and refuses a file it does not
 understand rather than misrendering it. Regenerate the world with the matching engine if
-it complains. Version 44 adds route-derived journey durations and dated returns.
+it complains. Version 46 fills out the local system: every giant gets a face — tilt,
+banding, a long-lived storm and, often, rings — along with its own moons, a planet world
+gets the moons that cross its nights, the habitable body gets an iron budget its density
+agrees with, and the world's spin axis gets a direction inside its galaxy. Version 45 adds
+the chronicle line behind a holy site's dedication. Version 44 adds route-derived journey
+durations and dated returns.
 Version 42 adds a figure's residence history, so a page can tell a move from
 a trip and answer where somebody lived in any year. Version 41 adds the hardship memory, carried by people who lived through a
 famine, plague, sack or disaster in the town it fell on. Version 40 adds grounded

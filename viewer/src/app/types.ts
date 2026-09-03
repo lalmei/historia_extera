@@ -7,7 +7,7 @@
  * stops moving.
  */
 
-export const SCHEMA_VERSION = 45;
+export const SCHEMA_VERSION = 46;
 
 /**
  * Whether an event carries the history or merely records a life.
@@ -117,20 +117,85 @@ export const STAR_CLASS_LABELS: Record<StarSpectralClass, string> = {
   F: 'F-type (yellow-white)',
 };
 
-export type CompanionRole = 'InnerRocky' | 'ShepherdGiant' | 'OuterIceGiant';
+export type CompanionRole =
+  | 'InnerRocky'
+  | 'ShepherdGiant'
+  | 'OuterIceGiant'
+  | 'OuterGasGiant';
 
 export const COMPANION_ROLE_LABELS: Record<CompanionRole, string> = {
   InnerRocky: 'Inner rocky',
   ShepherdGiant: 'Shepherd giant',
   OuterIceGiant: 'Outer ice giant',
+  OuterGasGiant: 'Outer gas giant',
 };
+
+export type RingComposition = 'Ice' | 'RockAndDust' | 'Soot';
+
+/** A colour in linear 0-1 channels, as the engine rolls it. */
+export interface ExportTint {
+  r: number;
+  g: number;
+  b: number;
+}
+
+export interface ExportPlanetRing {
+  innerRadiusPlanetRadii: number;
+  outerRadiusPlanetRadii: number;
+  opticalDepth: number;
+  /** Widest gap, swept clear by a resonance. Zero when the ring has no division worth drawing. */
+  divisionRadiusPlanetRadii: number;
+  composition: RingComposition;
+  compositionLabel: string;
+  tint: ExportTint;
+}
+
+export interface ExportPlanetStorm {
+  name: string;
+  latitudeDeg: number;
+  longitudeSpanDeg: number;
+  latitudeSpanDeg: number;
+  ageYears: number;
+  tint: ExportTint;
+}
+
+/** How a giant reads from a distance: tilt, banding, storm, and the ring in its equatorial plane. */
+export interface ExportGiantAppearance {
+  obliquityDeg: number;
+  retrograde: boolean;
+  rotationPeriodHours: number;
+  ascendingNodeDeg: number;
+  bandCount: number;
+  bandLight: ExportTint;
+  bandDark: ExportTint;
+  storm?: ExportPlanetStorm;
+  ring?: ExportPlanetRing;
+  /** 0 edge-on, 1 fully open, averaged over an orbit. */
+  ringOpenness: number;
+  /** Magnitudes the ring adds, as a negative number. Zero without a ring. */
+  ringBrightnessBoostMagnitudes: number;
+}
 
 export interface ExportCompanionPlanet {
   role: CompanionRole;
+  roleLabel: string;
   semiMajorAxisAu: number;
   massEarth: number;
   radiusEarth: number;
   orbitalPeriodDays: number;
+  appearance?: ExportGiantAppearance;
+  moons: ExportSystemMoon[];
+}
+
+/** Where the world's spin axis points inside its galaxy. */
+export interface ExportCelestialOrientation {
+  poleGalacticLongitudeRad: number;
+  poleGalacticLatitudeRad: number;
+  rightAscensionOriginRollRad: number;
+  /** Earth's is about 63 degrees. */
+  poleTiltFromGalacticPoleDeg: number;
+  /** Angle the band of light makes with the horizon at the equator. */
+  galacticPlaneInclinationDeg: number;
 }
 
 export interface ExportComet {
@@ -147,6 +212,8 @@ export interface ExportComet {
 
 export interface ExportSystemMoon {
   index: number;
+  /** The moon's name, or its numeral when it has none. */
+  name: string;
   orbitalDistanceEarthRadii: number;
   massEarth: number;
   radiusEarth: number;
@@ -207,6 +274,9 @@ export interface ExportCosmology {
   orbitalPeriodDays: number;
   worldMassEarth: number;
   worldRadiusEarth: number;
+  meanDensityEarth: number;
+  bulkIronMassFraction: number;
+  coreMassFraction: number;
   surfaceGravityG: number;
   escapeVelocityKmS: number;
   bondAlbedo: number;
@@ -221,6 +291,9 @@ export interface ExportCosmology {
   companions: ExportCompanionPlanet[];
   moons: ExportSystemMoon[];
   habitableMoonIndex?: number;
+  /** Moons of the history world itself, when it is a planet rather than a moon. */
+  homeMoons: ExportSystemMoon[];
+  orientation: ExportCelestialOrientation;
   comets: ExportComet[];
   /** Every return the chronicle would carry, from the rolled orbits. */
   apparitions: Apparition[];
