@@ -7,6 +7,7 @@ export const ENGINE_VERSION = '0.9.2';
 const DOCS = 'https://github.com/lalmei/historia_extera/blob/main/docs/guide/viewer.md';
 const CLI = 'https://github.com/lalmei/historia_extera/blob/main/docs/guide/cli.md';
 const SUPPORT = 'https://github.com/lalmei/historia_extera/issues';
+const SOURCE = 'https://github.com/lalmei/historia_extera';
 
 export function worldsHref(): string {
   return import.meta.env.BASE_URL;
@@ -155,6 +156,9 @@ export function SiteFooter({ fluid = false }: { fluid?: boolean }) {
           </a>
           <a href={SUPPORT} className="transition-colors hover:text-[var(--primary)]">
             Support
+          </a>
+          <a href={SOURCE} className="transition-colors hover:text-[var(--primary)]">
+            Source · AGPL-3.0
           </a>
         </nav>
       </div>

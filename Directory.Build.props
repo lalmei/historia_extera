@@ -5,6 +5,7 @@
          export carries), viewer/package.json and pyproject.toml. Pre-1.0: a minor bump is a
          milestone's worth of new behaviour, a patch is a fix. -->
     <Version>0.10.0</Version>
+    <PackageLicenseExpression>AGPL-3.0-only</PackageLicenseExpression>
 
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>

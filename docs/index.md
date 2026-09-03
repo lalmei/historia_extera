@@ -78,3 +78,21 @@ make docs-serve  # this site
 - [Decision log](dev/decision-log.md) — detailed rationale and milestone history
 
 The concise living design lives in the repo root as `DESIGN.md`.
+
+## License and packaged app
+
+Historia Extera is licensed under the **GNU Affero General Public License, version 3
+only** (`AGPL-3.0-only`). The full terms are in the repository's
+[LICENSE](https://github.com/lalmei/historia_extera/blob/main/LICENSE).
+
+The source may be used for any purpose, including commercial use, under the AGPL. If
+you distribute a modified version, or let users interact with one over a network, the
+AGPL requires you to offer its corresponding source under the same license.
+
+An individual purchase covers the packaged macOS app and updates released during the
+update period stated at purchase. When that period ends, you may keep using every
+version you received; renewing is needed only for later updates. Buying the packaged
+app does not change or restrict the rights granted by the AGPL.
+
+Third-party dependencies retain their own licenses; the name corpora retain their
+[CC0 1.0 dedication](https://github.com/lalmei/historia_extera/blob/main/src/HistoryEngine/Naming/Corpora/LICENSES.md).
