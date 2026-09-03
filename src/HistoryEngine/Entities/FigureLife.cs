@@ -48,6 +48,12 @@ public enum BondCause
     Conspiracy = 9,
     Undertaking = 10,
     Guardianship = 11,
+
+    /// <summary>A friendship that reached the rung where the two declared it one.</summary>
+    Friendship = 12,
+
+    /// <summary>A friend turned on the other, which is a bond change and not a bond ending.</summary>
+    Betrayal = 13,
 }
 
 /// <summary>A directed, persistent relationship between two recorded people.</summary>
@@ -153,6 +159,16 @@ public enum MemoryKind
     /// her page did not.
     /// </remarks>
     Hardship = 16,
+
+    /// <summary>
+    /// A friendship somebody came to rely on.
+    /// </summary>
+    /// <remarks>
+    /// The counterpart <see cref="Rivalry"/> already had. Every affiliative tie in the engine used
+    /// to be either a fact of birth or a fact of office, so the only relationships a page could
+    /// show as formative were ones nobody chose; this is the one a person did.
+    /// </remarks>
+    Friendship = 17,
 }
 
 /// <summary>How a wound was got, which decides only how it is described.</summary>
@@ -217,6 +233,7 @@ public sealed class SalientMemory
         MemoryKind.Triumph
             or MemoryKind.Gratitude
             or MemoryKind.Mentorship
+            or MemoryKind.Friendship
             or MemoryKind.Marriage
             or MemoryKind.Parenthood => MemoryValence.Positive,
         _ => MemoryValence.Neutral,
@@ -756,6 +773,157 @@ public sealed class FigureDispute
     public EntityId Other(EntityId self) => self == OpenerId ? RivalId : OpenerId;
 
     public bool Involves(EntityId id) => id == OpenerId || id == RivalId;
+}
+
+/// <summary>
+/// How far two people have gone in relying on each other.
+/// </summary>
+/// <remarks>
+/// The ladder is what has actually been risked, which is the affiliative counterpart of the
+/// quarrel ladder's public visibility. Two people are known to each other, then one has done the
+/// other a good turn, then something has been entrusted that could have been withheld, and then
+/// the tie is one both of them would name. Each rung costs more to walk back than the one below
+/// it, and none may be skipped, so a friendship in the export always carries the years it took.
+/// </remarks>
+public enum AffinityStage
+{
+    /// <summary>They are known to each other, and nothing more has been asked or given.</summary>
+    Acquaintance = 0,
+
+    /// <summary>One of them did the other a good turn.</summary>
+    Kindness = 1,
+
+    /// <summary>Something was entrusted that could have been kept back.</summary>
+    Confidence = 2,
+
+    /// <summary>A tie both of them would name, and the rung a betrayal has something to betray.</summary>
+    Friendship = 3,
+}
+
+/// <summary>
+/// What put the two of them within reach of each other to begin with.
+/// </summary>
+/// <remarks>
+/// Contact is a precondition rather than a roll, so every affinity names the circumstance that
+/// made it possible. Sharing a realm is not one of them: that is the mistake the quarrel model
+/// refused, and it produces a great deal of friendship that means nothing.
+/// </remarks>
+public enum AffinityOrigin
+{
+    /// <summary>They lived in the same town in the year it began.</summary>
+    SharedResidence = 0,
+
+    /// <summary>Comrades from the same battle line, taken further than comradeship.</summary>
+    SharedCampaign = 1,
+
+    /// <summary>An existing tie of office or teaching that warmed into something chosen.</summary>
+    SharedService = 2,
+}
+
+/// <summary>How a friendship ended, or that it has not.</summary>
+public enum AffinityOutcome
+{
+    /// <summary>Still standing. At <see cref="AffinityStage.Friendship"/> this is the good ending.</summary>
+    Open = 0,
+
+    /// <summary>Nothing was done about it for long enough that it stopped being one.</summary>
+    Cooled = 1,
+
+    /// <summary>One of them ended up in another realm, and it did not survive the distance.</summary>
+    Parted = 2,
+
+    /// <summary>One of them turned on the other.</summary>
+    Betrayed = 3,
+
+    /// <summary>A death ended it while it still stood.</summary>
+    Lapsed = 4,
+}
+
+/// <summary>One thing that was done in the course of a friendship.</summary>
+public sealed record AffinityAct(
+    int Year,
+    EventKind SourceKind,
+    AffinityStage Stage,
+    EntityId ActorId,
+    string Detail);
+
+/// <summary>
+/// A friendship between two named people, from the contact that allowed it to how it ended.
+/// </summary>
+/// <remarks>
+/// <para>One object, held by both parties, for the reason a <see cref="FigureDispute"/> is: it is a
+/// single fact about two lives, and two copies would come to disagree about it. The
+/// <see cref="OpenerId"/> is the one who sought the other, which is the only asymmetry in it.</para>
+///
+/// <para>One record per pair, ever. A friendship that cooled and was struck up again twenty years
+/// later would be a second record of the same two people, and the reading a page wants — how long
+/// these two have known each other — is the one that would then be wrong.</para>
+/// </remarks>
+public sealed class FigureAffinity
+{
+    public FigureAffinity(
+        int id,
+        EntityId openerId,
+        EntityId friendId,
+        int startYear,
+        AffinityOrigin origin,
+        EventKind sourceKind,
+        EntityId sourceEntityId,
+        EntityId placeId)
+    {
+        Id = id;
+        OpenerId = openerId;
+        FriendId = friendId;
+        StartYear = startYear;
+        LastActionYear = startYear;
+        Origin = origin;
+        SourceKind = sourceKind;
+        SourceEntityId = sourceEntityId;
+        PlaceId = placeId;
+        Acts = new List<AffinityAct>();
+    }
+
+    /// <summary>Stable within the person who sought the other.</summary>
+    public int Id { get; }
+
+    /// <summary>The one who sought the other out.</summary>
+    public EntityId OpenerId { get; }
+
+    public EntityId FriendId { get; }
+
+    public int StartYear { get; }
+
+    public int? EndYear { get; set; }
+
+    public AffinityOrigin Origin { get; }
+
+    /// <summary>The event family the contact came from, and the entity that event was about.</summary>
+    public EventKind SourceKind { get; }
+
+    public EntityId SourceEntityId { get; }
+
+    public EntityId PlaceId { get; set; }
+
+    public AffinityStage Stage { get; set; }
+
+    public int LastActionYear { get; set; }
+
+    public AffinityOutcome Outcome { get; set; }
+
+    /// <summary>How it ended, in the words the life page prints.</summary>
+    public string? Resolution { get; set; }
+
+    /// <summary>Which of the two turned, where one did.</summary>
+    public EntityId BetrayerId { get; set; } = EntityId.None;
+
+    public List<AffinityAct> Acts { get; }
+
+    public bool IsOpen => Outcome == AffinityOutcome.Open;
+
+    /// <summary>The other party, read from whichever side is asking.</summary>
+    public EntityId Other(EntityId self) => self == OpenerId ? FriendId : OpenerId;
+
+    public bool Involves(EntityId id) => id == OpenerId || id == FriendId;
 }
 
 /// <summary>What a plot is trying to do to the person it names.</summary>

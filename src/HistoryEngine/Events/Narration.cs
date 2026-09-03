@@ -158,6 +158,17 @@ public static class Narration
         Set(EventKind.DisputeSettled,
             "The quarrel between {subject} and {object} ended[ at {location}]"
             + "[ when {data:manner}][ before {extra:fig}].");
+        // A friendship names both parties in every line, for the reason a quarrel does: the fact
+        // is about the two of them, and the town is only where they happened to be standing.
+        Set(EventKind.AcquaintanceFormed,
+            "{subject} came to know {object}[ at {location}][, through {data:cause}].");
+        Set(EventKind.AffinityDeepened,
+            "{subject} {data:act} {object}[ at {location}].");
+        Set(EventKind.AffinityEnded,
+            "The friendship between {subject} and {object} ended[ at {location}]"
+            + "[ when {data:manner}].");
+        Set(EventKind.FriendshipBetrayed,
+            "{subject} turned on {object}[ at {location}][, over {data:cause}].");
         Set(EventKind.DuelFought,
             "{subject} met {object}[ at {location}][ over {data:cause}]"
             + "[ and {data:result} them][, {data:injury}].");
@@ -389,6 +400,25 @@ public static class Narration
             + "[{self:object}The quarrel with {other} ended][{self:object} when {data:manner}]"
             + "[{self:object}.]"
             + "[{self:extra}Judged between {subject} and {object}.]");
+        // The one asymmetric rung is the favour, and it is asymmetric in the data rather than in
+        // the record: the giver is the subject, so the same two templates carry both sides of it.
+        SetSelf(EventKind.AcquaintanceFormed,
+            "[{self:subject}Came to know {other}][{self:subject}, through {data:cause}]"
+            + "[{self:subject}.]"
+            + "[{self:object}Came to know {other}][{self:object}, through {data:cause}]"
+            + "[{self:object}.]");
+        SetSelf(EventKind.AffinityDeepened,
+            "[{self:subject}{data:actSelf} {other}.]"
+            + "[{self:object}{other} {data:act} them.]");
+        SetSelf(EventKind.AffinityEnded,
+            "[{self:subject}The friendship with {other} ended][{self:subject} when {data:manner}]"
+            + "[{self:subject}.]"
+            + "[{self:object}The friendship with {other} ended][{self:object} when {data:manner}]"
+            + "[{self:object}.]");
+        SetSelf(EventKind.FriendshipBetrayed,
+            "[{self:subject}Turned on {other}][{self:subject}, over {data:cause}][{self:subject}.]"
+            + "[{self:object}Was betrayed by {other}][{self:object}, over {data:cause}]"
+            + "[{self:object}.]");
         SetSelf(EventKind.DuelFought,
             "[{self:subject}Met {other}][{self:subject} over {data:cause}]"
             + "[{self:subject} and {data:result} them][{self:subject}.]"

@@ -586,6 +586,7 @@ public static class Houses
         Undertakings.EndAtDeath(world, figure, year);
         Disputes.EndAtDeath(world, figure, year);
         Conspiracies.EndAtDeath(world, figure, year);
+        Affinities.EndAtDeath(world, figure, year);
 
         figure.DeathYear = year;
         figure.DeathCause = cause;

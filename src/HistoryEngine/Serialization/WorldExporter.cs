@@ -919,6 +919,7 @@ public static class WorldExporter
                 Injuries: BuildInjuries(figure),
                 Undertakings: BuildUndertakings(figure),
                 Disputes: BuildDisputes(figure),
+                Affinities: BuildAffinities(figure),
                 Plots: BuildPlots(world, figure),
                 Guardianships: BuildGuardianships(figure),
                 Mentorships: BuildMentorships(figure),
@@ -1226,6 +1227,43 @@ public static class WorldExporter
                 dispute.StartYear,
                 dispute.EndYear,
                 dispute.LastActionYear,
+                acts));
+        }
+
+        return list;
+    }
+
+    private static List<ExportAffinity> BuildAffinities(Figure figure)
+    {
+        var list = new List<ExportAffinity>(figure.Affinities.Count);
+        foreach (FigureAffinity affinity in figure.Affinities)
+        {
+            var acts = new List<ExportAffinityAct>(affinity.Acts.Count);
+            foreach (AffinityAct act in affinity.Acts)
+            {
+                acts.Add(new ExportAffinityAct(
+                    act.Year,
+                    act.SourceKind,
+                    act.Stage,
+                    OrNull(act.ActorId),
+                    act.Detail));
+            }
+
+            list.Add(new ExportAffinity(
+                affinity.Id,
+                affinity.Other(figure.Id),
+                affinity.OpenerId == figure.Id,
+                affinity.Origin,
+                affinity.SourceKind,
+                OrNull(affinity.SourceEntityId),
+                OrNull(affinity.PlaceId),
+                affinity.Stage,
+                affinity.Outcome,
+                affinity.Resolution,
+                OrNull(affinity.BetrayerId),
+                affinity.StartYear,
+                affinity.EndYear,
+                affinity.LastActionYear,
                 acts));
         }
 

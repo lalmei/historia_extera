@@ -141,7 +141,7 @@ public sealed record WorldExport(
     /// Version 47 added a figure's military service: the rungs of their realm's army they were
     /// raised to, each with the year, the realm and the name that realm gives the rung.
     /// </remarks>
-    public const int CurrentSchemaVersion = 47;
+    public const int CurrentSchemaVersion = 48;
 }
 
 public sealed record ExportMeta(
@@ -875,6 +875,7 @@ public sealed record ExportFigure(
     IReadOnlyList<ExportInjury> Injuries,
     IReadOnlyList<ExportUndertaking> Undertakings,
     IReadOnlyList<ExportDispute> Disputes,
+    IReadOnlyList<ExportAffinity> Affinities,
     IReadOnlyList<ExportPlot> Plots,
     IReadOnlyList<ExportGuardianship> Guardianships,
     IReadOnlyList<ExportMentorship> Mentorships,
@@ -1146,6 +1147,44 @@ public sealed record ExportDisputeAct(
     int Year,
     EventKind SourceKind,
     DisputeStage Stage,
+    EntityId? ActorId,
+    string Detail);
+
+/// <summary>
+/// One friendship, written from the side of the figure page carrying it.
+/// </summary>
+/// <param name="OtherId">
+/// The party this page is not about, so a consumer never has to work out which side it is reading.
+/// </param>
+/// <param name="Sought">
+/// Whether the figure this record hangs on is the one who sought the other. The facts are identical
+/// either way; this is what lets a page say "sought out" rather than "was sought out by".
+/// </param>
+/// <param name="BetrayerId">
+/// Which of the two turned, where one did. Absent for every other outcome, and the only field that
+/// distinguishes the betrayer's page from the betrayed one.
+/// </param>
+public sealed record ExportAffinity(
+    int Id,
+    EntityId OtherId,
+    bool Sought,
+    AffinityOrigin Origin,
+    EventKind SourceKind,
+    EntityId? SourceEntityId,
+    EntityId? PlaceId,
+    AffinityStage Stage,
+    AffinityOutcome Outcome,
+    string? Resolution,
+    EntityId? BetrayerId,
+    int StartYear,
+    int? EndYear,
+    int LastActionYear,
+    IReadOnlyList<ExportAffinityAct> Acts);
+
+public sealed record ExportAffinityAct(
+    int Year,
+    EventKind SourceKind,
+    AffinityStage Stage,
     EntityId? ActorId,
     string Detail);
 

@@ -526,6 +526,11 @@ public static class Disputes
         {
             restraint += bond.Fear * 0.14;
             if (bond.Kinds.HasFlag(BondKind.Kin)) restraint += 0.12;
+
+            // A friend is harder to carry a quarrel against than a stranger. This is the first
+            // thing in the engine to read an affiliative bond as a brake, and it is the reason
+            // friendships are worth having in the model rather than only worth reading.
+            if (bond.Kinds.HasFlag(BondKind.Friend)) restraint += 0.10;
         }
 
         return DetMath.Clamp01(restraint);

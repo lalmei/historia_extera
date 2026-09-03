@@ -258,6 +258,7 @@ public sealed class Figure
         Injuries = new List<FigureInjury>();
         Undertakings = new List<FigureUndertaking>();
         Disputes = new List<FigureDispute>();
+        Affinities = new List<FigureAffinity>();
         Plots = new List<FigurePlot>();
         Observations = new List<SkyObservation>();
         Claims = new List<SkyClaim>();
@@ -451,6 +452,16 @@ public sealed class Figure
     /// believe a different version of the same quarrel.
     /// </remarks>
     public List<FigureDispute> Disputes { get; }
+
+    /// <summary>
+    /// Friendships this figure stands on one side of, in the order they began.
+    /// </summary>
+    /// <remarks>
+    /// Shared with the other party rather than copied, for the reason <see cref="Disputes"/> is.
+    /// The affiliative half of the same social record: a person's quarrels and their friendships
+    /// are read from the same two lists and neither is a survey of who was standing nearby.
+    /// </remarks>
+    public List<FigureAffinity> Affinities { get; }
 
     /// <summary>
     /// Conspiracies this figure led or knowingly joined, in the order they began.
