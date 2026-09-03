@@ -910,6 +910,7 @@ public static class WorldExporter
                     figure.Disposition.Centralism,
                     figure.Disposition.Independence),
                 Titles: titles,
+                Service: BuildService(figure),
                 Campaigns: BuildCampaigns(figure),
                 Journeys: BuildJourneys(figure),
                 Bonds: BuildBonds(figure),
@@ -930,6 +931,19 @@ public static class WorldExporter
         }
 
         return list;
+    }
+
+    private static IReadOnlyList<ExportRankStep> BuildService(Figure figure)
+    {
+        var steps = new ExportRankStep[figure.Service.Count];
+        for (int i = 0; i < figure.Service.Count; i++)
+        {
+            RankStep step = figure.Service[i];
+            steps[i] = new ExportRankStep(
+                step.Rank, step.Title, step.CivilizationId, step.Year, step.Claim);
+        }
+
+        return steps;
     }
 
     private static ExportBackground? BuildBackground(FigureBackground? background) =>

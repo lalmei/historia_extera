@@ -182,7 +182,7 @@ its icon rail so the reading column remains usable.
 
 ## Schema
 
-The viewer reads exports from schema **21** to **46**, and refuses anything outside that
+The viewer reads exports from schema **21** to **47**, and refuses anything outside that
 range rather than misrendering it. Inside the range, an older export is not a file the viewer
 misunderstands — it is a file with less in it: every schema change since 21 has added fields
 rather than moved or reinterpreted them, so the loader supplies the containers a later schema
@@ -194,7 +194,9 @@ all, is refused with a message saying which. `viewer/src/app/compat.ts` holds th
 the normalization; `compat.test.ts` loads every export in `public/worlds/` through the real
 loader and derivations, so the floor is a tested claim rather than an intention.
 
-Version 46 fills out the local system: every giant gets a face — tilt,
+Version 47 adds a figure's military service: the rungs of their realm's army they were raised
+to, each with the year, the realm and the name that realm gives the rung — so a soldier's page
+shows a career rather than a trade taken at sixteen. Version 46 fills out the local system: every giant gets a face — tilt,
 banding, a long-lived storm and, often, rings — along with its own moons, a planet world
 gets the moons that cross its nights, the habitable body gets an iron budget its density
 agrees with, and the world's spin axis gets a direction inside its galaxy. Version 45 adds

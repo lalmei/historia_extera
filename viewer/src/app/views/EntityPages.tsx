@@ -696,6 +696,11 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
     visibleTitles.find((title) => title.toYear === undefined) ??
     [...visibleTitles].sort((a, b) => b.fromYear - a.fromYear)[0];
 
+  // A rank is never laid down, so the operative rung is simply the last one reached by the
+  // year being read — the same shape the titles above have, minus the ending.
+  const visibleService = figure.service.filter((step) => step.year <= selectedYear);
+  const rank = visibleService[visibleService.length - 1];
+
   const house = dynastyOf(world, figure.dynastyId);
   const culture = cultureOf(world, figure.cultureId);
   const occupationEvent = [...visibleEvents]
@@ -900,6 +905,9 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
             {activeTitle && trade && (
               <p className="mt-1 text-xs text-[var(--ink-faint)]">Occupation · {trade}</p>
             )}
+            {rank && (
+              <p className="mt-1 text-xs text-[var(--ink-faint)]">Rank · {rank.title}</p>
+            )}
             {positionPlace && (
               <p className="mt-1 text-xs text-[var(--ink-faint)]">
                 {atLatest ? 'Residence' : 'Last recorded place'} ·{' '}
@@ -1080,6 +1088,21 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
                   of {figure.deathDetail ?? DEATH_LABELS[figure.deathCause] ?? figure.deathCause}
                 </span>
               )}
+            </Field>
+          )}
+          {visibleService.length > 0 && (
+            <Field label="Service">
+              <ul className="space-y-0.5">
+                {visibleService.map((step, index) => (
+                  <li key={index}>
+                    {step.title} of <EntityLink world={world} id={step.civilizationId} />
+                    <span className="ml-2 text-[var(--ink-faint)]">{step.year}</span>
+                    {step.claim && (
+                      <span className="ml-2 text-[var(--ink-faint)]">{step.claim}</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
             </Field>
           )}
           <Field label="Titles">

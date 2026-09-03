@@ -4524,6 +4524,95 @@ storm and its tipped rings, and a cosmology tome now has a section on the wander
 the ring, which a pre-telescopic faith records as an oddity it cannot account for, or, if it is
 careless, strikes out as an error of the pen.
 
+### Ranks: a career for the commonest life in the world
+
+Soldiery was the career most recorded people chose and the only one that never went anywhere. A
+figure took to arms at sixteen, was drawn to the odd battle by `Campaigns.NoteSoldiers`, and was
+exactly what they had always been when they died at sixty — unless a court happened to make them
+marshal, which is one soldier in a generation. The office model's own standard says an office has
+to change what some other system does; the same standard applied to soldiery said there was
+nothing there to change.
+
+**Five rungs, and each realm names its own.** `MilitaryRank` is recruit, soldier, file leader,
+captain, commander — short enough that a career can finish inside a life at the promotion rates
+used, long enough that finishing it is rare. What a realm calls each rung is `Culture.RankTitle`,
+written out per government rather than assembled from a rank word and an adjective, because
+"Sworn Spear" and "Legionary" are the same rung and share no part of speech. A chiefdom raises
+spear-leaders out of sworn spears; a republic commissions centurions. That is the same cheap
+character `TitleFor` buys for the seats, carried down below them.
+
+**An army is a shape, not a queue.** The establishment allows a realm one commander, a captain per
+four recorded soldiers and a file leader per two, counted at or above the rung so a commander
+occupies a captain's place as well as his own. The divisors are set against a measurement — the
+median realm has four living recorded soldiers, not four thousand — because the muster here is the
+people the chronicle follows, not the levy. Without a ceiling every soldier who lived long enough
+would end a commander and a realm's chronicle would be men promoted past each other into the same
+job.
+
+**The marshal's seat is above the ladder, not the top of it.** He stands in the realm's one
+commander's place and in none of the places below it. Counting him into those as well starved the
+ladder outright, and visibly: five worlds produced 566 commanders and two captains, because a
+muster of four has a single captain's place and the marshal was standing in it. The establishment
+also governs promotion rather than existence — a marshal arrives at the top rung by appointment,
+and an officer who took a governorship and came back to arms brings his rung with him. Refusing
+either costs more than the excess allows: the first gives a realm a marshal outranked by his own
+captains, the second resets a career every time somebody serves a term.
+
+**The way up is the field, and weighting the odds was not enough to make that true.** The first
+shape of the model let seasoning open each rung and let renown weight the yearly chance. It
+produced a ladder renown had no effect on at all: soldiers the field had noticed finished at an
+average rank of 4.06 and soldiers it never had at 4.08. The reason is scarcity working the wrong
+way round — places kept falling vacant, so merit only ever decided which of two men took one in
+the same year, and in a muster of four that almost never happens. What decided rank was living
+long enough. Two changes fixed it. Renown now *gates* the upper rungs rather than only hurrying
+them: a captaincy needs a soldier the field has noticed once, the host needs one it has noticed
+twice, and waiting remains a qualification only for the rungs below. And where several soldiers
+are due for one place, the place goes to the best of them rather than to the oldest — the pass
+walks the rungs from the top down, since a vacancy at the top is what opens the one under it.
+Measured again on the rung soldiers *climbed* to, ignoring commissions: 3.24 for the decorated
+against 2.72 for the unnoticed.
+
+The loop closes because rank buys fields: `Ranks.Turnout` puts an officer on more of them than a
+recruit, more fields are more renown, and more renown is the next rung. `ranks` therefore runs
+after `war`, so a hard summer visibly produces officers in the same year it produces casualties,
+and after `offices`, so the establishment is counted against a marshal the court has already
+seated.
+
+**What the shape came out as.** Across five standard worlds the climb is 1,152 men sworn in, 959
+made soldiers of the line, 655 raised to file leader, 52 to captain and one to commander — a
+pyramid whose top rung is, correctly, almost never climbed into, because a realm that has a
+marshal has no commander's place free. The commander's rung is therefore mostly an office and the
+captaincy is where a soldier's own career tops out, which is both the historical shape and the one
+the establishment describes.
+
+**Read back by three systems, or it would be decoration.** A realm's ranking officer now takes the
+campaigns its ruler stays home from and its marshal cannot reach — which displaces "whichever
+adult cousin the court could spare", the substitution the whole model exists to stop making. What
+a commander is worth on the field is his rung rather than a flat eight per cent, so a realm that
+kept its captains alive fights the next battle better. And a court weighing a marshalcy adds rank
+to renown, denominated in the same units: a captain is worth about one commanded victory, so the
+army's own senior officer beats a courtier noticed once and loses to one noticed three times.
+
+**Two latent bugs the new histories surfaced**, both older than this change and neither caused by
+it. A household move dragged along an unmarried child who held a governorship of his own, leaving
+the engine holding a governor resident in a town he did not govern; `Houses.Settle` now refuses to
+move a member whose own posting pins them, which is the rule it already applied to a married
+child. And retroactive regnal numbering left stale strings behind: names written into event data
+by `NamePerson` — a battle's captain, a war's declaring ruler, the hand a court named in a murder
+— were correct when written and wrong once a second of that name was crowned. `Houses.Restyle`
+now brings those in line, over the events that already reference the person and only where no
+other person the same event names is going by the old style.
+
+**The sixth resample.** `UnrestTests.RareSeeds` pins seeds known to secede, and this moved every
+history again: 5 of the first 320 seeds, 1.6%, against a rate the five earlier samples put between
+1.9% and 3.0%. The net was widened from 180 to 320 precisely to tell low from empty — two in the
+first 180 could not be told from noise, five in 320 can.
+
+**Schema 47.** A figure gains `service`, the rungs they were raised to with the year, the realm
+and that realm's name for the rung. The viewer shows the current rung beside the occupation and
+the whole climb as a career, and reads it out of the export like any other list — no viewer change
+was needed for the new event kind, which is what the narration table is for.
+
 ---
 
 ## Notes for Phase 2

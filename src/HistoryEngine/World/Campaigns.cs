@@ -414,7 +414,13 @@ public static class Campaigns
             if (sideId.IsNone) continue;
 
             IRng fate = levy.Fork("figure", figure.Id.ToDiscriminator());
-            double availability = LifeStories.Fitness(figure, year) * Readiness(figure, year);
+
+            // An officer goes where the host goes; a recruit is whoever was left at home this
+            // season. It is also the loop the rank model turns on — a rung buys fields, fields buy
+            // renown, and renown is the way up the next rung.
+            double availability = LifeStories.Fitness(figure, year)
+                * Readiness(figure, year)
+                * Ranks.Turnout(figure.Rank);
             if (!fate.Chance(SoldierTakesField * availability)) continue;
 
             Remember(figure, war.Id, battle.Id, sideId, year, CampaignRole.Fought);

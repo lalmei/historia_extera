@@ -190,10 +190,13 @@ The current system order is part of the run identity:
 17. `succession`
 18. `houses`
 19. `offices`
-20. `artifacts`
+20. `ranks`
+21. `artifacts`
 
 The order is causal, not merely organizational. Mortality precedes succession; succession
-precedes household and office decisions; diplomacy reads the frontier and faiths already
+precedes household and office decisions; `ranks` follows `offices`, because a marshal's seat is
+the top rung of his realm's army and the establishment has to be counted against a court that has
+already made its appointment; diplomacy reads the frontier and faiths already
 established that step; trade responds to the peace or war that survives campaigning.
 `unrest` sits between `war` and `trade-routes` so a year's grievance is felt the year it
 is earned and the brigandage it raises suppresses that year's trade; `travel` follows
@@ -230,6 +233,19 @@ Succession follows explicit laws and family relationships. Offices elevate exist
 figures from the simulated population instead of inventing disconnected names. Notable
 households give those figures family continuity without attempting to simulate every
 person in the world.
+
+Below the marshal's seat, each realm's army is a ladder of five ranks named in its own
+vocabulary — one people's captain is another's taxiarch — and a soldier climbs it on years served
+and renown earned at battles. The ladder has an establishment rather than a queue: a realm keeps
+one commander, a captain per four recorded soldiers and a file leader per two, so a promotion needs
+somebody else's death or elevation, and where several soldiers are due for one place it goes to the
+one the field has noticed. Renown gates the upper rungs outright rather than merely hurrying them,
+because a ladder opened by waiting alone is a function of who lived longest. A sitting marshal
+stands in the realm's one commander's place and in none of the places below it, so the top rung is
+mostly an office and a soldier's own career tops out at a captaincy. Rank is read back by the rest
+of the engine — a realm's ranking officer commands campaigns its ruler stays home from, an officer
+reaches more fields than a recruit, a commander is worth more on one, and a court weighs rank
+alongside renown when it names a marshal.
 
 ### Causal lives
 
@@ -475,6 +491,7 @@ default.
 | M21 | A life has an address history, so a page can tell a move from a trip | Done |
 | M22 | A journey can end in staying, so a life can leave home for a reason the chronicle recorded | Done |
 | M23 | Journey time consumes the road that was built and records a dated return | Done |
+| M24 | Each realm's army is a ladder its soldiers climb on service and renown | Done |
 
 M13 landed in independently reviewable stages: the clock and dated record first, seasonal
 war and expansion next, then plague travel and outbreak clocks, and finally sieges as

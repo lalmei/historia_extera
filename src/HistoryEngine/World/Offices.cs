@@ -165,6 +165,13 @@ public static class Offices
                 Claim = claim,
             });
 
+        // A realm's marshal is its ranking soldier, whatever the ladder had got to before the
+        // court reached for him. Silent, because the grant a line above has already said it.
+        if (kind == OfficeKind.Marshal)
+        {
+            Ranks.Commission(world, civilization, culture, holder, year);
+        }
+
         // An office over a place is where its holder now lives, which is what exposes them to
         // everything that happens there. Offices over a realm or a faith leave them at court.
         if (kind == OfficeKind.Governor && world.Settlements.Contains(scope))

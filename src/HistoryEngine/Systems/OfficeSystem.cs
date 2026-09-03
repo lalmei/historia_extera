@@ -475,7 +475,16 @@ public sealed class OfficeSystem : ISystem
         return admitted;
     }
 
-    /// <summary>Battle renown is a qualification for marshal; other offices keep their own rules.</summary>
+    /// <summary>
+    /// Battle renown and army rank are the qualifications for marshal; other offices keep their
+    /// own rules.
+    /// </summary>
+    /// <remarks>
+    /// Both terms are denominated in renown — see <see cref="Ranks.Weight"/> — so a court prefers
+    /// its army's own senior officer to a courtier who has been noticed once, and still gives the
+    /// seat to a genuinely famous outsider. Before the ladder the score was renown alone, which
+    /// meant a realm at peace for a generation named whoever won the tie-break.
+    /// </remarks>
     private static Figure? PickCandidate(List<Figure> candidates, OfficeKind kind, IRng rng)
     {
         if (candidates.Count == 0) return null;
@@ -487,6 +496,7 @@ public sealed class OfficeSystem : ISystem
         {
             // A per-candidate tie-break means adding a courtier does not reshuffle everyone else.
             double score = Campaigns.Renown(candidate)
+                + Ranks.Weight(candidate.Rank)
                 + rng.Fork("marshal-candidate", candidate.Id.ToDiscriminator()).NextDouble();
             if (score > bestScore
                 || (score == bestScore && best is not null && candidate.Id.CompareTo(best.Id) < 0))
