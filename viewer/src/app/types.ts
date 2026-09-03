@@ -11,7 +11,7 @@
  */
 
 /** The schema the current engine writes. `compat.ts` has the oldest one the viewer reads. */
-export const SCHEMA_VERSION = 46;
+export const SCHEMA_VERSION = 47;
 
 /**
  * Whether an event carries the history or merely records a life.
@@ -1295,6 +1295,45 @@ export interface Title {
   claim?: string;
 }
 
+/**
+ * A grade in a realm's army, below the marshal's seat and above nothing.
+ *
+ * Ordered: a career only ever moves up the list. What a realm actually calls each rung is
+ * on the step itself, because one people's Captain is another's Taxiarch.
+ */
+export type MilitaryRank =
+  | 'None'
+  | 'Recruit'
+  | 'Soldier'
+  | 'FileLeader'
+  | 'Captain'
+  | 'Commander';
+
+export const RANK_LABELS: Record<MilitaryRank, string> = {
+  None: 'Not of the army',
+  Recruit: 'Recruit',
+  Soldier: 'Of the line',
+  FileLeader: 'File leader',
+  Captain: 'Captain',
+  Commander: 'Commander',
+};
+
+/**
+ * One rung of a military career, and the year it was reached.
+ *
+ * No `toYear`: a rank is not laid down. The current rung is the last entry, which is why a
+ * figure carries no separate current-rank field for the two to disagree over.
+ */
+export interface RankStep {
+  rank: MilitaryRank;
+  /** What the realm called this rung, in its own vocabulary. */
+  title: string;
+  civilizationId: EntityId;
+  year: number;
+  /** Why they were raised, in prose: "for service at the Battle of Ashfen". */
+  claim?: string;
+}
+
 export type CampaignRole = 'Commanded' | 'Fought' | 'Ruled' | 'EnduredSiege';
 
 export type CampaignFate = 'Unresolved' | 'ReturnedUnharmed' | 'Wounded' | 'Killed';
@@ -1891,6 +1930,13 @@ export interface Figure {
   /** Absent in exports written before figures had one. Never defaulted — see `compat.ts`. */
   disposition?: Disposition;
   titles: Title[];
+  /**
+   * Rungs of an army they were raised to, oldest first. Empty for everyone who never took
+   * to arms, and empty — not absent — in exports written before ranks existed: a container
+   * the loader supplies, which is a list this world has nothing in rather than a fact it
+   * knows. See `compat.ts`.
+   */
+  service: RankStep[];
   /** Wars and engagements they stood in, in the order they were recorded. */
   campaigns: Campaign[];
   /** Trips they made and returned from. Distinct from where they live. */

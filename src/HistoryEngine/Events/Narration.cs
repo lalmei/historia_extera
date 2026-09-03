@@ -117,6 +117,8 @@ public static class Narration
             "{subject} was stripped of the office of {data:office}[ of {object}][, {data:cause}].");
         Set(EventKind.OccupationTaken,
             "{subject} took to {data:occupation}[ at {location}].");
+        Set(EventKind.RankGranted,
+            "{subject} was raised to {data:rank}[ in the army of {object}][, {data:claim}].");
         // One template, four errands. The reason a journey was made is a holy site for a pilgrim,
         // a monastery for a scribe fetching copies, a faith for a priest on circuit and a realm
         // for a guest, and a trade route may add the road itself. Each clause is gated on the kind
@@ -322,6 +324,8 @@ public static class Narration
             "Was stripped of the office of {data:office}[ of {object}][, {data:cause}].");
         SetSelf(EventKind.OccupationTaken,
             "Took to {data:occupation}[ at {location}].");
+        SetSelf(EventKind.RankGranted,
+            "Was raised to {data:rank}[ in the army of {object}][, {data:claim}].");
         SetSelf(EventKind.JourneyMade,
             "Travelled to {location}[, {data:purpose}]"
             + "[ the {extra:hol}][ the {extra:rel}][ {extra:civ}]"

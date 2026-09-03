@@ -235,6 +235,72 @@ public sealed class Culture
     };
 
     /// <summary>
+    /// What this culture calls a soldier standing on a given rung of its army.
+    /// </summary>
+    /// <remarks>
+    /// <para>The same argument as <see cref="TitleFor"/>, carried down below the seat. A realm
+    /// whose war-leader raises spear-leaders out of sworn spears is a different place from one
+    /// whose praetor commissions centurions, and the ladders say so without a line of prose having
+    /// to explain it. Systems branch on <see cref="MilitaryRank"/> and print this.</para>
+    ///
+    /// <para>Each ladder is one people's whole vocabulary for its army, so the rungs are written
+    /// out together rather than assembled from a rank word and a government adjective: "Sworn
+    /// Spear" and "Legionary" are the same rung and share no part of speech.</para>
+    /// </remarks>
+    public string RankTitle(MilitaryRank rank) => Government switch
+    {
+        GovernmentForm.Chiefdom => rank switch
+        {
+            MilitaryRank.Recruit => "Spear-carrier",
+            MilitaryRank.Soldier => "Sworn Spear",
+            MilitaryRank.FileLeader => "Spear-leader",
+            MilitaryRank.Captain => "Warband-leader",
+            MilitaryRank.Commander => "Host-leader",
+            _ => "Spear-carrier",
+        },
+
+        GovernmentForm.Theocracy => rank switch
+        {
+            MilitaryRank.Recruit => "Postulant-at-arms",
+            MilitaryRank.Soldier => "Sworn Blade",
+            MilitaryRank.FileLeader => "Blade-warden",
+            MilitaryRank.Captain => "Captain of the Faith",
+            MilitaryRank.Commander => "Sword of the Faith",
+            _ => "Postulant-at-arms",
+        },
+
+        GovernmentForm.Oligarchy => rank switch
+        {
+            MilitaryRank.Recruit => "Hoplite",
+            MilitaryRank.Soldier => "Veteran Hoplite",
+            MilitaryRank.FileLeader => "Lochagos",
+            MilitaryRank.Captain => "Taxiarch",
+            MilitaryRank.Commander => "Polemarch",
+            _ => "Hoplite",
+        },
+
+        GovernmentForm.Republic => rank switch
+        {
+            MilitaryRank.Recruit => "Tiro",
+            MilitaryRank.Soldier => "Legionary",
+            MilitaryRank.FileLeader => "Centurion",
+            MilitaryRank.Captain => "Tribune",
+            MilitaryRank.Commander => "Legate",
+            _ => "Tiro",
+        },
+
+        _ => rank switch
+        {
+            MilitaryRank.Recruit => "Recruit",
+            MilitaryRank.Soldier => "Man-at-arms",
+            MilitaryRank.FileLeader => "Serjeant",
+            MilitaryRank.Captain => "Captain",
+            MilitaryRank.Commander => "Commander",
+            _ => "Recruit",
+        },
+    };
+
+    /// <summary>
     /// What a ruler's crowned spouse is called.
     /// </summary>
     /// <remarks>

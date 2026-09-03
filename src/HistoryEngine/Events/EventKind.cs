@@ -154,6 +154,16 @@ public enum EventKind
     /// </remarks>
     FigureMoved = 342,
 
+    /// <summary>
+    /// A soldier was raised a rung in their realm's army.
+    /// </summary>
+    /// <remarks>
+    /// Routine below a captaincy. Everyone who ever takes to arms reaches the lower rungs, and a
+    /// spine carrying all of them would bury a year's war under its own recruitment; a captaincy
+    /// is a decision a realm made about a person, and reads as one.
+    /// </remarks>
+    RankGranted = 343,
+
     // ---- Territory (400) ----
     // Claims are written so ownership can be replayed year by year; they are marked Routine
     // so the timeline is not a run of "extended its reach". Cessions and releases stay on

@@ -35,7 +35,8 @@ Order and cadence are part of the run's identity (hashed into the export). As bu
 17. `succession`
 18. `houses`
 19. `offices`
-20. `artifacts`
+20. `ranks`
+21. `artifacts`
 
 Most systems are annual, `unrest`, `travel` and `cultural-drift` among them. `expansion`,
 `war` and `artifacts` are seasonal; artifacts still create and circulate only in the opening
@@ -51,7 +52,8 @@ pestilence and the land taking their share → settlement change → character �
 → faiths across them → opinion of the neighbours by both → the wars that follow → the risings
 those wars and hard years leave behind → commerce responding to the resulting peace → who was
 on the road that year → exceptional incidents → biological mortality → thrones
-filled → households and offices against the line as it now stands → what the survivors made.
+filled → households and offices against the line as it now stands → the army's own promotions
+against the seats just filled → what the survivors made.
 
 `unrest` follows `war` so the grievance a campaign earns can boil over the same year, and
 precedes `trade-routes` so the brigandage a rising raises suppresses that year's traffic.

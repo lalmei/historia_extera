@@ -131,6 +131,12 @@ public sealed class Simulator
     /// <para>Artifacts run last, after the houses: a crown made in the reign of a ruler crowned
     /// this spring belongs to them and not to whoever the year opened with.</para>
     ///
+    /// <para>Ranks follow the offices, because the marshal's seat is the top of the ladder and the
+    /// army has to count the establishment against a court that has already made its appointment —
+    /// the other order gives a realm two commanders in the year it seats one. They follow the war
+    /// by a long way for the reason the whole model exists: renown earned at a battle in the summer
+    /// is a qualification by the autumn.</para>
+    ///
     /// <para>Specialization sits after lifecycle so a settlement promoted this year can acquire its
     /// character in the same year, and the two events read consecutively in the chronicle. It
     /// therefore feeds capacity from the following year onward, which avoids a same-year dependency
@@ -195,6 +201,7 @@ public sealed class Simulator
         new SuccessionSystem(),
         new HouseholdSystem(),
         new OfficeSystem(),
+        new MilitarySystem(),
         new ArtifactSystem(),
     };
 

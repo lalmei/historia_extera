@@ -250,6 +250,7 @@ public sealed class Figure
         Sex = sex;
         BirthYear = birthYear;
         Offices = new List<OfficeHolding>();
+        Service = new List<RankStep>();
         Campaigns = new List<CampaignMemory>();
         Journeys = new List<Journey>();
         Bonds = new List<FigureBond>();
@@ -383,6 +384,27 @@ public sealed class Figure
 
     /// <summary>Every office this figure has ever held, in the order they were granted.</summary>
     public List<OfficeHolding> Offices { get; }
+
+    /// <summary>
+    /// Every rung of an army this figure has been raised to, in the order they were reached.
+    /// </summary>
+    /// <remarks>
+    /// Empty for everyone who never took to arms, which is most people. Kept as a history rather
+    /// than a single value for the reason <see cref="Offices"/> is: the year a captain was made a
+    /// captain is what tells a reader whether the court that reached for him was rewarding a
+    /// campaign or a decade of waiting.
+    /// </remarks>
+    public List<RankStep> Service { get; }
+
+    /// <summary>The rung this figure currently stands on, or <see cref="MilitaryRank.None"/>.</summary>
+    /// <remarks>
+    /// A derivation of <see cref="Service"/>, never a stored second copy. A rank is never laid
+    /// down — see <see cref="RankStep"/> — so the last entry is always the operative one.
+    /// </remarks>
+    public MilitaryRank Rank => Service.Count == 0 ? MilitaryRank.None : Service[^1].Rank;
+
+    /// <summary>The rung they currently stand on, with the year and the realm that gave it.</summary>
+    public RankStep? CurrentRank => Service.Count == 0 ? null : Service[^1];
 
     /// <summary>
     /// Wars and engagements this person stood in, in the order they were recorded.

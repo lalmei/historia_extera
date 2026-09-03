@@ -138,8 +138,10 @@ public sealed record WorldExport(
     /// distinguishable from a short trip made in the same year.
     /// Version 45 links a real holy-site dedicatee to the exact chronicle event whose deed the
     /// dedication quotes; a missing link now means the dedicatee is explicitly legendary.
+    /// Version 47 added a figure's military service: the rungs of their realm's army they were
+    /// raised to, each with the year, the realm and the name that realm gives the rung.
     /// </remarks>
-    public const int CurrentSchemaVersion = 46;
+    public const int CurrentSchemaVersion = 47;
 }
 
 public sealed record ExportMeta(
@@ -864,6 +866,7 @@ public sealed record ExportFigure(
     Occupation Occupation,
     ExportDisposition Disposition,
     IReadOnlyList<ExportTitle> Titles,
+    IReadOnlyList<ExportRankStep> Service,
     IReadOnlyList<ExportCampaign> Campaigns,
     IReadOnlyList<ExportJourney> Journeys,
     IReadOnlyList<ExportBond> Bonds,
@@ -927,6 +930,21 @@ public sealed record ExportTitle(
     int? ToYear,
     EntityId? ScopeId,
     EntityId? GrantedBy,
+    string? Claim);
+
+/// <summary>
+/// One rung of an army a person was raised to, and the year they reached it.
+/// </summary>
+/// <remarks>
+/// The current rank is the last entry — a rank is never laid down, so there is no <c>ToYear</c> to
+/// carry and no way for the list and a stored current value to disagree. Empty for everybody who
+/// never took to arms, which is most of the table.
+/// </remarks>
+public sealed record ExportRankStep(
+    MilitaryRank Rank,
+    string Title,
+    EntityId CivilizationId,
+    int Year,
     string? Claim);
 
 /// <summary>

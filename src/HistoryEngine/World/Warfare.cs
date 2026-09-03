@@ -42,7 +42,12 @@ public static class Warfare
     /// </remarks>
     private const double FortificationBonus = 1.5;
 
-    /// <summary>Steadying effect of a ruler present on the field.</summary>
+    /// <summary>Steadying effect of somebody, anybody, present on the field to command.</summary>
+    /// <remarks>
+    /// The floor rather than the whole term. What a commander is worth now depends on which rung of
+    /// his realm's army he stands on — see <see cref="Ranks.CommandBonus"/> — and this is what a
+    /// king or a spare cousin with no rank at all is worth for turning up.
+    /// </remarks>
     private const double CommanderBonus = 1.08;
 
     /// <summary>Fraction of the smaller army the losing side leaves on the field, at worst and best.</summary>
@@ -87,6 +92,15 @@ public static class Warfare
 
     /// <summary>Chance a court appoints an adult dynast when the ruler stays home.</summary>
     private const double OfficerTakesField = 0.72;
+
+    /// <summary>Odds the realm's own ranking officer takes a field the marshal is not on.</summary>
+    /// <remarks>
+    /// High, and it should be: the alternative this displaces is a cousin. What keeps it short of
+    /// certainty is that a realm fights on more than one frontier, which is the same reason
+    /// <see cref="MarshalTakesTheField"/> is not one — and the fraction it leaves is what still
+    /// puts dynasts on battlefields, which is where several of them die.
+    /// </remarks>
+    private const double RankingOfficerCommands = 0.70;
 
     /// <summary>
     /// Accumulated advantage at which one side can dictate terms.
@@ -402,12 +416,12 @@ public static class Warfare
         Region field = world.Regions[battle.RegionId];
 
         double attackerPower = battle.AttackerStrength
-            * (Commands(world, battle.AttackerCommanderId) ? CommanderBonus : 1.0);
+            * CommandOf(world, battle.AttackerCommanderId);
 
         double defenderPower = battle.DefenderStrength
             * HomeGroundBonus
             * DefenceOf(field, contested, battle.IsSiege)
-            * (Commands(world, battle.DefenderCommanderId) ? CommanderBonus : 1.0);
+            * CommandOf(world, battle.DefenderCommanderId);
 
         // Both sides being nothing is possible when a realm has been reduced to hamlets; a coin
         // toss is the honest answer, and the levies are too small for the result to matter.
@@ -599,6 +613,19 @@ public static class Warfare
 
     private static bool Commands(WorldState world, EntityId figureId) =>
         !figureId.IsNone && world.Figures.Contains(figureId) && world.Figures[figureId].IsAlive;
+
+    /// <summary>What this side's command is worth, as a multiple of the strength it brought.</summary>
+    /// <remarks>
+    /// One for a headless army, <see cref="CommanderBonus"/> for anyone at all, and more for a
+    /// realm's own senior officers. It is the payoff for the ladder existing: a realm that has kept
+    /// its captains alive through a long war fights the next battle better than one that has not.
+    /// </remarks>
+    private static double CommandOf(WorldState world, EntityId commanderId)
+    {
+        if (!Commands(world, commanderId)) return 1.0;
+
+        return Ranks.CommandBonus(world.Figures[commanderId].Rank);
+    }
 
     /// <summary>
     /// How much one battle moves the war.
@@ -827,6 +854,18 @@ public static class Warfare
             && officers.Chance(MarshalTakesTheField))
         {
             return marshal.Id;
+        }
+
+        // Failing him, the army has its own answer. A realm that has raised a captain has somebody
+        // whose whole career was preparation for this, and handing the host instead to whichever
+        // adult cousin the court could spare — which is what happened before the ladder existed —
+        // is the substitution the rank model was written to stop making.
+        Figure? officer = Ranks.RankingOfficer(world, civilization, year);
+        if (officer is not null
+            && officer.Id != ruler.Id
+            && officers.Chance(RankingOfficerCommands))
+        {
+            return officer.Id;
         }
 
         var candidates = new List<Figure>();
