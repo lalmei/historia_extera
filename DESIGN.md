@@ -362,6 +362,30 @@ recovery, and the permanent tail are the same rule whether the blow was struck o
 morning appointed for it, and a duel death goes through the ordinary central death path so
 succession, offices, and bereavement all follow from it.
 
+- **Friendships** are the affiliative half of the same record, and they are what the bond table was
+  missing. Every durable tie the engine could write was a fact of birth, a fact of office, or
+  hostility: `BondKind.Friend` was declared with the rest and had no write site anywhere, so an
+  ordinary peacetime life had nothing in it that anybody chose. Contact is a precondition rather
+  than a roll — two people become eligible by sharing a town in the year in question, and sharing a
+  realm is not contact — and what makes a pair likely is what the record already holds about them:
+  a warm bond of office or comradeship, a career in common, an experience both of them remember, a
+  distance in age, a distance in rank. The ladder is what has actually been risked: known to each
+  other, a good turn done, a confidence given, and a tie both would name. No rung is skipped and at
+  most one is walked in a year, so a friendship carries the years it took. Reaching the top does not
+  close it; a friendship stands, is reinforced while the two remain in the same town, and cools if
+  they do not — which is the first thing to ask residence history a question it alone could answer.
+  A friend restrains a quarrel, and a friend of a ruler has the access to kill them and the least of
+  the motive.
+
+  **A betrayal needs something to betray.** It is reachable only from the two upper rungs and only
+  where the world already wrote a reason: a grievance recorded against the friend, an open quarrel
+  between them, or a plot the betrayer is running against the friend's life. Where no such pull
+  exists nobody turns at any odds. It is also the second way into a betrayal memory and the first
+  that does not require having joined a plot — until now the only person who could be betrayed was
+  a conspirator informed on by their own accomplice. What a betrayal leaves is enmity, and what
+  enmity becomes is already answered by quarrels and conspiracies; nothing here kills anybody, and
+  the friendship is not erased, for the same reason a reconciliation does not erase the rivalry.
+
 - **Observations** are what a named person wrote down about the sky. The comets were rolled at world
   creation with real orbits, so their returns are a schedule the simulation knows before anybody is
   born; a bright comet earns a line at any period, a faint one only if it is rare enough that most
@@ -492,6 +516,7 @@ default.
 | M22 | A journey can end in staying, so a life can leave home for a reason the chronicle recorded | Done |
 | M23 | Journey time consumes the road that was built and records a dated return | Done |
 | M24 | Each realm's army is a ladder its soldiers climb on service and renown | Done |
+| M25 | The affiliative half of the social graph: friendships that begin in a shared town, and the betrayals they make possible | Done |
 
 M13 landed in independently reviewable stages: the clock and dated record first, seasonal
 war and expansion next, then plague travel and outbreak clocks, and finally sieges as
@@ -511,11 +536,21 @@ Beyond the numbered milestones:
   a declared east/west topology the loader can check against the seam.
 - Let campaign movement consume road geometry now that travel safety and time both do. The same
   condition applies: it must read something the route's traffic does not already say.
-- Deepen ordinary social life with causal interaction episodes: friendships and lovers that
-  actually begin in events, courtship, quarrels, favours, betrayals, and reconciliation. Give
-  memories event-specific readable summaries, and widen non-travel undertakings toward masterworks,
-  disputed claims, rescues, and religious disputes. These should consume existing bonds,
-  memories, access, and disposition rather than add disconnected flavour rolls.
+- Give peers something to fall out over. M25 built friendships and the betrayals they allow, and
+  measurement found the gate starved: a betrayal needs a wrong the record already holds between
+  the two of them, and every wrong the engine writes is vertical — a ruler and the man he
+  dismissed, an heir and the claimant he beat — while friendships are horizontal, because rank is
+  one of the things that stops two people becoming friends. So a betrayal appears in five worlds
+  in forty. The fix is a wrong between equals, and the obvious one is the post two friends both
+  stood for; raising the odds instead would make it the flavour roll the model exists not to be.
+- Carry the ladder into courtship and marriage. `HouseholdSystem` still picks a partner with
+  `rng.Pick` over every unmarried dynast in the world, or invents one, and reads none of the bonds,
+  residence or memories the engine now holds — so `BondKind.Lover` remains declared and unwritten
+  the way `Friend` was before M25. A marriage that overrode a lover is a fact both pages should
+  keep.
+- Give memories event-specific readable summaries, and widen non-travel undertakings toward
+  masterworks, disputed claims, rescues, and religious disputes. These should consume existing
+  bonds, memories, access, and disposition rather than add disconnected flavour rolls.
 - Build the Phase 3 Vintage Story terrain adapter and revalidate framework, calendar,
   hydrology cost, and map-raster cost against the game version actually targeted.
 
