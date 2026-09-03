@@ -17,6 +17,7 @@ MAC_APP     := build/Historia Extera.app
 VERSION     := $(shell sed -nE 's/^version = "([0-9]+\.[0-9]+\.[0-9]+)"$$/\1/p' pyproject.toml | head -n1)
 MAC_ARCH    := $(shell uname -m)
 MAC_RELEASE := build/release/Historia-Extera-v$(VERSION)-macos-$(MAC_ARCH).zip
+MAC_DMG     := build/release/Historia-Extera-v$(VERSION)-macos-$(MAC_ARCH).dmg
 UV          ?= uv
 UV_RUN      := $(UV) run
 
@@ -74,7 +75,7 @@ help:
 	@echo "  make preview       # npm run preview in viewer/"
 	@echo "  make macos-app     # build the native SwiftUI shell"
 	@echo "  make macos-run     # build and open the macOS app"
-	@echo "  make macos-release # self-contained app archive for this Mac architecture"
+	@echo "  make macos-release # self-contained app archive + .dmg for this Mac architecture"
 	@echo "  make docs-build    # ProperDocs → site/ (uv)"
 	@echo "  make docs-serve    # ProperDocs live reload (uv)"
 	@echo "  make bump-patch | bump-minor | bump-major   # semantic version bump"
@@ -158,7 +159,9 @@ macos-release:
 # Explicit publication step: build first, then attach both the archive and its digest to the
 # matching GitHub draft release. `--clobber` makes a corrected draft build repeatable.
 macos-release-upload: macos-release
-	gh release upload "v$(VERSION)" "$(MAC_RELEASE)" "$(MAC_RELEASE).sha256" --clobber
+	gh release upload "v$(VERSION)" \
+		"$(MAC_RELEASE)" "$(MAC_RELEASE).sha256" \
+		"$(MAC_DMG)" "$(MAC_DMG).sha256" --clobber
 
 docs-build docs-serve: SHELL := /bin/sh
 
