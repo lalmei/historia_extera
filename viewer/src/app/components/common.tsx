@@ -69,6 +69,33 @@ export function Panel({
   );
 }
 
+/**
+ * Stands where a panel would, when the export predates what the panel shows.
+ *
+ * The distinction it draws is the one that matters to a reader of an older world: nothing
+ * happened is a fact about the history, while nothing was recorded is a fact about the file.
+ * Saying which schema first carried the thing also tells them what regenerating would buy.
+ */
+export function NotInThisExport({
+  what,
+  since,
+  version,
+}: {
+  what: string;
+  /** The schema that first carried it, where the guide records one. Omitted rather than guessed. */
+  since?: number;
+  version: number | null;
+}) {
+  return (
+    <p className="text-sm text-[var(--ink-faint)]">
+      {what} {what.endsWith('s') ? 'are' : 'is'} not in this export
+      {version === null ? '' : `, written to schema v${version}`}
+      {since === undefined ? '' : `; the engine began recording it at v${since}`}. Run the seed
+      again through the current engine to get {what.endsWith('s') ? 'them' : 'it'}.
+    </p>
+  );
+}
+
 export function Stat({
   label,
   value,
@@ -120,7 +147,15 @@ export function Badge({
 /** One [0, 1] reading, optionally against a second reading of the same dial. */
 export interface Dial {
   label: string;
-  value: number;
+  /**
+   * Absent when the export predates this particular dial.
+   *
+   * Later schemas added measures to objects that already existed — a figure written before
+   * independence was modelled still has a disposition, just one with a hole in it — so the
+   * value has to be allowed to be missing rather than filled with a zero that would read as
+   * "this person was entirely biddable". `Dials` drops the row instead. See `compat.ts`.
+   */
+  value: number | undefined;
   /** A second reading of the same dial, drawn as a tick on the bar. */
   against?: number;
   hint?: string;
@@ -136,9 +171,18 @@ export interface Dial {
  * between the two is the thing the eye lands on.
  */
 export function Dials({ dials }: { dials: Dial[] }) {
+  // A dial the export never recorded is left out rather than drawn at zero.
+  const measured = dials.filter(
+    (dial): dial is Dial & { value: number } => Number.isFinite(dial.value),
+  );
+
+  if (measured.length === 0) {
+    return <p className="text-sm text-[var(--ink-faint)]">Not recorded in this export.</p>;
+  }
+
   return (
     <dl className="space-y-2">
-      {dials.map((dial) => (
+      {measured.map((dial) => (
         <div key={dial.label} className="flex items-center gap-3" title={dial.hint}>
           <dt className="w-28 shrink-0 text-sm text-[var(--ink-faint)]">{dial.label}</dt>
           <dd className="flex min-w-0 flex-1 items-center gap-2">

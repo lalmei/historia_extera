@@ -1,7 +1,7 @@
-import { buildTimeline, type Timeline } from './timeline';
+import { normalizeExport, schemaVerdict, type SchemaVerdict } from './compat.ts';
+import { buildTimeline, type Timeline } from './timeline.ts';
 import {
   BIOME_ORDER,
-  SCHEMA_VERSION,
   kindOf,
   type AnyEntity,
   type Battle,
@@ -21,7 +21,7 @@ import {
   type TradeRoute,
   type War,
   type WorldExport,
-} from './types';
+} from './types.ts';
 
 /**
  * The loaded world, plus the lookup maps the views need.
@@ -42,6 +42,8 @@ export interface World {
   timeline: Timeline;
   /** One colour per realm, shared by every view that shows more than one. */
   colourOf: (id: EntityId) => string;
+  /** Which schema wrote this file, and what it therefore cannot show. */
+  schema: SchemaVerdict;
 }
 
 export interface DecodedRaster {
@@ -54,13 +56,19 @@ export interface DecodedRaster {
   biomeAt: (index: number) => Biome;
 }
 
+/**
+ * Thrown for a file outside the readable range — too old, too new, or not an export at all.
+ *
+ * An export merely older than the current schema is not a mismatch and does not throw; it
+ * loads, and `World.schema` carries what it will be missing. See `compat.ts`.
+ */
 export class SchemaMismatchError extends Error {
-  constructor(found: number) {
-    super(
-      `This world file uses schema version ${found}, but the viewer understands ` +
-        `version ${SCHEMA_VERSION}. Regenerate it with the current engine.`,
-    );
+  readonly verdict: SchemaVerdict;
+
+  constructor(verdict: SchemaVerdict) {
+    super(verdict.summary);
     this.name = 'SchemaMismatchError';
+    this.verdict = verdict;
   }
 }
 
@@ -76,16 +84,20 @@ export async function loadWorld(url: string): Promise<World> {
 
   const data = (await response.json()) as WorldExport;
 
-  // Fail loudly on a version mismatch rather than misrendering a file we do not
-  // understand — a wrong chronicle is worse than a refused one.
-  if (data.schemaVersion !== SCHEMA_VERSION) {
-    throw new SchemaMismatchError(data.schemaVersion);
-  }
+  // Refuse a file whose shape we cannot vouch for — a wrong chronicle is still worse than a
+  // refused one. An older export inside the supported range is a different case: it is a
+  // file with less in it, so it opens, and the view says which version wrote it.
+  const verdict = schemaVerdict(data.schemaVersion);
+  if (!verdict.readable) throw new SchemaMismatchError(verdict);
 
   return buildWorld(data);
 }
 
-export function buildWorld(data: WorldExport): World {
+export function buildWorld(input: WorldExport): World {
+  // Older exports are missing the containers later schemas added. Filling them here rather
+  // than in `loadWorld` means every caller that builds a world from a parsed export — the
+  // tests included — reads the same shape the views were written against.
+  const data = normalizeExport(input);
   const byId = new Map<EntityId, AnyEntity>();
 
   for (const collection of [
@@ -155,6 +167,7 @@ export function buildWorld(data: WorldExport): World {
     raster: decodeRaster(data),
     timeline: buildTimeline(data),
     colourOf: (id) => colours.get(id) ?? 'var(--ink-faint)',
+    schema: schemaVerdict(data.schemaVersion),
   };
 }
 

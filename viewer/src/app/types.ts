@@ -1,12 +1,16 @@
 /**
  * Mirrors HistoryEngine.Serialization.WorldExport.
  *
- * Hand-written rather than generated, for now. If the two drift, the viewer breaks
- * loudly on load (SCHEMA_VERSION mismatch) rather than quietly misrendering — and
- * generating these from the C# model is a small job worth doing once the schema
- * stops moving.
+ * Hand-written rather than generated, for now. Generating these from the C# model is a small
+ * job worth doing once the schema stops moving.
+ *
+ * These types describe the export the engine writes *now*. A field an older schema does not
+ * carry is declared optional here, which is what makes the compiler ask the views what to do
+ * about a world recorded before it existed; `compat.ts` owns the range of versions the viewer
+ * will open and fills in the containers an older file is missing.
  */
 
+/** The schema the current engine writes. `compat.ts` has the oldest one the viewer reads. */
 export const SCHEMA_VERSION = 46;
 
 /**
@@ -565,8 +569,10 @@ export interface Disposition {
   /**
    * Follower at zero, rebel at one. How far they let their culture govern their
    * choices — occupation, and the decisions they make once in office.
+   *
+   * Added after v21, so a figure in an older export has a disposition without one.
    */
-  independence: number;
+  independence?: number;
 }
 
 /**
@@ -939,7 +945,8 @@ export interface HolySite {
   x: number;
   z: number;
   foundedYear: number;
-  description: HolySiteDescription;
+  /** Added at schema 45. Absent in every earlier export — see `compat.ts`. */
+  description?: HolySiteDescription;
 }
 
 export type ArtifactKind = 'Regalia' | 'Weapon' | 'Relic' | 'Tome' | 'Idol' | 'Jewel';
@@ -1874,9 +1881,15 @@ export interface Figure {
   origin: FigureOrigin;
   /** Facts known in the year an already-grown person entered the record. */
   background?: FigureBackground;
-  /** How they spend their life, once of age. See OCCUPATION_LABELS. */
-  occupation: Occupation;
-  disposition: Disposition;
+  /**
+   * How they spend their life, once of age. See OCCUPATION_LABELS.
+   *
+   * Optional because exports older than the occupation model do not carry one, and a
+   * default would claim a trade the record never assigned. See `compat.ts`.
+   */
+  occupation?: Occupation;
+  /** Absent in exports written before figures had one. Never defaulted — see `compat.ts`. */
+  disposition?: Disposition;
   titles: Title[];
   /** Wars and engagements they stood in, in the order they were recorded. */
   campaigns: Campaign[];
@@ -1886,7 +1899,8 @@ export interface Figure {
   bonds: FigureBond[];
   /** The bounded experiences still formative at the export's end. */
   memories: SalientMemory[];
-  feelings: Feelings;
+  /** Absent in exports written before figures had one. Never defaulted — see `compat.ts`. */
+  feelings?: Feelings;
   injuries: FigureInjury[];
   undertakings: Undertaking[];
   disputes: Dispute[];

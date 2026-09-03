@@ -1,4 +1,4 @@
-import type { ExportGalaxy } from './types';
+import type { ExportGalaxy } from './types.ts';
 
 /** Astra's all-sky glow size, scaled down so a page paint stays under a frame or two. */
 export const SKY_WIDTH = 480;

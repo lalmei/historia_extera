@@ -20,6 +20,7 @@ import {
   EntityLink,
   type Facet,
   Field,
+  NotInThisExport,
   PageTitle,
   Panel,
   Stat,
@@ -1101,6 +1102,10 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
       </Panel>
 
       <Panel title="Disposition">
+        {figure.disposition === undefined ? (
+          <NotInThisExport what="A figure's disposition" version={world.schema.version} />
+        ) : (
+        <>
         <Dials dials={dispositionDials(figure.disposition, culture)} />
         <p className="mt-3 text-xs leading-relaxed text-[var(--ink-faint)]">
           Their own inclinations, on the dials their people hold.
@@ -1119,11 +1124,15 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
             </>
           )}{' '}
           Centralism is rolled around what the office itself invites rather than around a culture,
-          so it carries no tick. Independence is how far they let their people govern them: a
-          follower stays near the ticks, a rebel answers with their own inclinations.
+          so it carries no tick.
+          {figure.disposition.independence !== undefined &&
+            ' Independence is how far they let their people govern them: a follower stays near ' +
+              'the ticks, a rebel answers with their own inclinations.'}
           {visibleTitles.length === 0 &&
             ' Recorded for everyone, though it only ever governed anything for those who came to rule.'}
         </p>
+        </>
+        )}
       </Panel>
 
       {hasLifeSummary && (
@@ -2542,9 +2551,11 @@ export function ReligionPage({ world, religion }: { world: World; religion: Reli
 
 /** A temple, church or sanctuary, including independent locations beyond settlement walls. */
 export function HolySitePage({ world, site }: { world: World; site: HolySite }) {
+  // Absent in every export before schema 45. The site itself is still a place with a faith,
+  // a region and a chronicle, so the page stands; only the written account of it is missing.
   const { description } = site;
   const dedicateeDeed =
-    description.dedicateeEventId !== undefined
+    description?.dedicateeEventId !== undefined
       ? world.export.events[description.dedicateeEventId]
       : undefined;
 
@@ -2558,7 +2569,7 @@ export function HolySitePage({ world, site }: { world: World; site: HolySite }) 
             <Badge tone={site.settlementId ? 'accent' : 'muted'}>
               {site.settlementId ? 'Within a settlement' : 'Independent location'}
             </Badge>
-            <Badge>{SACRED_TRADITION_LABELS[description.tradition]}</Badge>
+            {description && <Badge>{SACRED_TRADITION_LABELS[description.tradition]}</Badge>}
           </>
         }
       />
@@ -2566,28 +2577,39 @@ export function HolySitePage({ world, site }: { world: World; site: HolySite }) 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <Stat label="Kind" value={HOLY_SITE_LABELS[site.kind]} />
         <Stat label="Founded" value={site.foundedYear} />
-        <Stat label="Scale" value={description.scale} />
-        <Stat label="Dedication" value={HOLY_SITE_DEDICATION_LABELS[description.dedicationKind]} />
+        <Stat label="Scale" value={description?.scale ?? '—'} />
+        <Stat
+          label="Dedication"
+          value={description ? HOLY_SITE_DEDICATION_LABELS[description.dedicationKind] : '—'}
+        />
       </div>
 
       <Panel title="The place">
-        <div className="space-y-5">
-          <HolySitePassage
-            heading="Dedication"
-            text={description.dedication}
-            mention={description.dedicateeId}
-            evidence={dedicateeDeed}
-            world={world}
+        {description ? (
+          <div className="space-y-5">
+            <HolySitePassage
+              heading="Dedication"
+              text={description.dedication}
+              mention={description.dedicateeId}
+              evidence={dedicateeDeed}
+              world={world}
+            />
+            <HolySitePassage heading="Style & visuals" text={description.style} />
+            <HolySitePassage heading="Atmosphere" text={description.atmosphere} />
+            <HolySitePassage heading="Size" text={description.capacity} />
+            <HolySitePassage
+              heading={description.hasStatue ? 'Statue' : 'Focal point'}
+              text={description.focalPoint}
+            />
+            <HolySitePassage heading="Offering area" text={description.offering} />
+          </div>
+        ) : (
+          <NotInThisExport
+            what="A written account of the place"
+            since={45}
+            version={world.schema.version}
           />
-          <HolySitePassage heading="Style & visuals" text={description.style} />
-          <HolySitePassage heading="Atmosphere" text={description.atmosphere} />
-          <HolySitePassage heading="Size" text={description.capacity} />
-          <HolySitePassage
-            heading={description.hasStatue ? 'Statue' : 'Focal point'}
-            text={description.focalPoint}
-          />
-          <HolySitePassage heading="Offering area" text={description.offering} />
-        </div>
+        )}
       </Panel>
 
       <Panel title="Details">
@@ -2607,7 +2629,9 @@ export function HolySitePage({ world, site }: { world: World; site: HolySite }) 
               </span>
             )}
           </Field>
-          <Field label="Tradition">{SACRED_TRADITION_LABELS[description.tradition]}</Field>
+          <Field label="Tradition">
+            {description ? SACRED_TRADITION_LABELS[description.tradition] : '—'}
+          </Field>
           <Field label="Position">
             <span className="tabular-nums">
               {site.x}, {site.z}
@@ -3327,14 +3351,15 @@ export function HolySiteTable({ world, sites }: { world: World; sites: HolySite[
     {
       key: 'dedication',
       header: 'Dedication',
-      cell: (site) => HOLY_SITE_DEDICATION_LABELS[site.description.dedicationKind],
-      sort: (site) => site.description.dedicationKind,
+      cell: (site) =>
+        site.description ? HOLY_SITE_DEDICATION_LABELS[site.description.dedicationKind] : '—',
+      sort: (site) => site.description?.dedicationKind ?? '',
     },
     {
       key: 'tradition',
       header: 'Tradition',
-      cell: (site) => SACRED_TRADITION_LABELS[site.description.tradition],
-      sort: (site) => site.description.tradition,
+      cell: (site) => (site.description ? SACRED_TRADITION_LABELS[site.description.tradition] : '—'),
+      sort: (site) => site.description?.tradition ?? '',
     },
     {
       key: 'faith',
@@ -3386,20 +3411,20 @@ export function HolySiteTable({ world, sites }: { world: World; sites: HolySite[
     {
       key: 'tradition',
       label: 'Tradition',
-      options: present(sites.map((site) => site.description.tradition)).map((tradition) => ({
+      options: present(sites.map((site) => site.description?.tradition)).map((tradition) => ({
         value: tradition,
         label: SACRED_TRADITION_LABELS[tradition],
-        match: (site: HolySite) => site.description.tradition === tradition,
+        match: (site: HolySite) => site.description?.tradition === tradition,
       })),
     },
     {
       key: 'dedication',
       label: 'Dedication',
-      options: present(sites.map((site) => site.description.dedicationKind)).map(
+      options: present(sites.map((site) => site.description?.dedicationKind)).map(
         (kind: HolySiteDedicationKind) => ({
           value: kind,
           label: HOLY_SITE_DEDICATION_LABELS[kind],
-          match: (site: HolySite) => site.description.dedicationKind === kind,
+          match: (site: HolySite) => site.description?.dedicationKind === kind,
         }),
       ),
     },
@@ -3411,7 +3436,7 @@ export function HolySiteTable({ world, sites }: { world: World; sites: HolySite[
       columns={columns}
       facets={facets}
       searchText={(site) =>
-        `${site.name} ${site.kind} ${site.description.tradition} ${site.description.dedicationKind} ${site.description.dedication} ${site.description.style} ${world.nameOf(site.religionId)} ${world.nameOf(site.settlementId ?? site.regionId)}`
+        `${site.name} ${site.kind} ${site.description?.tradition ?? ''} ${site.description?.dedicationKind ?? ''} ${site.description?.dedication ?? ''} ${site.description?.style ?? ''} ${world.nameOf(site.religionId)} ${world.nameOf(site.settlementId ?? site.regionId)}`
       }
       placeholder="Search holy sites…"
       initialSort={{ key: 'founded', descending: false }}
@@ -3558,8 +3583,17 @@ function realmFacet<T>(
 }
 
 /** The distinct values actually present, in first-seen order, minus the "none" placeholder. */
-function present<T extends string>(values: T[]): T[] {
-  return [...new Set(values)].filter((value) => value !== 'None' && value !== 'Unknown');
+/**
+ * The distinct values worth offering as a filter.
+ *
+ * Drops `undefined` as well as the two "no answer" members, because an export older than the
+ * field being faceted on has neither — see `compat.ts`. A facet offering `undefined` renders
+ * a blank checkbox that matches nothing.
+ */
+function present<T extends string>(values: (T | undefined)[]): T[] {
+  return [...new Set(values)].filter(
+    (value): value is T => value !== undefined && value !== 'None' && value !== 'Unknown',
+  );
 }
 
 // ---------------------------------------------------------------------------

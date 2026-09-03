@@ -8,7 +8,7 @@
  * module. A built viewer remains a static file that opens off disk.
  */
 
-import type { WorldExport } from './types';
+import type { WorldExport } from './types.ts';
 
 export const CAN_GENERATE: boolean = import.meta.env.DEV;
 

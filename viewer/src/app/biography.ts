@@ -9,7 +9,7 @@ import type {
   Plot,
   SalientMemory,
   Undertaking,
-} from './types';
+} from './types.ts';
 
 export interface JourneyGroup {
   key: string;

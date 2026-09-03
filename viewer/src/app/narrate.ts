@@ -1,4 +1,4 @@
-import { kindOf, type EntityId, type HistoryEvent } from './types';
+import { kindOf, type EntityId, type HistoryEvent } from './types.ts';
 
 /**
  * Renders an event using the template the engine shipped for its kind.
