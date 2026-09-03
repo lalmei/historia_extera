@@ -26,24 +26,106 @@ public enum CompanionRole
 
     /// <summary>Ice giant outward of the shepherd (Uranus/Neptune analog).</summary>
     OuterIceGiant = 2,
+
+    /// <summary>A second gas giant outside the shepherd, the way Saturn trails Jupiter.</summary>
+    OuterGasGiant = 3,
 }
 
-/// <summary>A planet that is not the history world, placed for dynamical consistency.</summary>
+/// <summary>
+/// A planet that is not the history world, placed for dynamical consistency. Giants carry the
+/// appearance and the moon family that make them worth looking up at; rocky companions leave both
+/// empty.
+/// </summary>
 public sealed record CompanionPlanet(
     CompanionRole Role,
     double SemiMajorAxisAu,
     double MassEarth,
     double RadiusEarth,
-    double OrbitalPeriodDays);
+    double OrbitalPeriodDays,
+    GiantAppearance? Appearance = null,
+    IReadOnlyList<SystemMoon>? Moons = null)
+{
+    /// <summary>Declared rather than positional so an absent family is an empty list, never null.</summary>
+    public IReadOnlyList<SystemMoon> Moons { get; init; } = Moons ?? Array.Empty<SystemMoon>();
 
-/// <summary>One satellite of the parent giant, including the habitable world when history is set on a moon.</summary>
+    public bool IsGiant => Role is CompanionRole.ShepherdGiant
+        or CompanionRole.OuterGasGiant
+        or CompanionRole.OuterIceGiant;
+
+    public PlanetRing? Ring => Appearance?.Ring;
+
+    /// <summary>English label for the role, e.g. "shepherd giant".</summary>
+    public string RoleLabel => Role switch
+    {
+        CompanionRole.InnerRocky => "inner rocky world",
+        CompanionRole.ShepherdGiant => "shepherd giant",
+        CompanionRole.OuterGasGiant => "outer gas giant",
+        CompanionRole.OuterIceGiant => "outer ice giant",
+        _ => Role.ToString(),
+    };
+
+    /// <summary>
+    /// Written out because the moon family is a list, and a record's generated equality would
+    /// compare list references. Two rolls of the same seed build two lists, so a planet would
+    /// stop equalling itself — which is exactly what the determinism tests check.
+    /// </summary>
+    public bool Equals(CompanionPlanet? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+
+        return Role == other.Role
+               && SemiMajorAxisAu.Equals(other.SemiMajorAxisAu)
+               && MassEarth.Equals(other.MassEarth)
+               && RadiusEarth.Equals(other.RadiusEarth)
+               && OrbitalPeriodDays.Equals(other.OrbitalPeriodDays)
+               && Appearance == other.Appearance
+               && Moons.SequenceEqual(other.Moons);
+    }
+
+    public override int GetHashCode()
+    {
+        var hash = new HashCode();
+        hash.Add(Role);
+        hash.Add(SemiMajorAxisAu);
+        hash.Add(MassEarth);
+        hash.Add(RadiusEarth);
+        hash.Add(OrbitalPeriodDays);
+        hash.Add(Appearance);
+        foreach (SystemMoon moon in Moons)
+        {
+            hash.Add(moon);
+        }
+
+        return hash.ToHashCode();
+    }
+}
+
+/// <summary>
+/// One satellite of a primary — the parent giant when history is set on a moon, a companion giant,
+/// or the history world itself. Distances are in Earth radii from the primary's centre, so a family
+/// reads against the same ruler as the Roche limit and the Hill sphere that bracket it.
+/// </summary>
 public sealed record SystemMoon(
     int Index,
     double OrbitalDistanceEarthRadii,
     double MassEarth,
     double RadiusEarth,
     double DayLengthDays,
-    bool Habitable);
+    bool Habitable,
+    string? Name = null)
+{
+    /// <summary>The moon's name, or its numeral — the way an unnamed moon is written.</summary>
+    public string DisplayName => Name ?? Numeral(Index);
+
+    private static string Numeral(int index)
+    {
+        string[] numerals = { "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X" };
+        return index >= 1 && index <= numerals.Length
+            ? numerals[index - 1]
+            : index.ToString(CultureInfo.InvariantCulture);
+    }
+}
 
 /// <summary>A small icy body on an eccentric orbit, rolled for flavour after the planets are placed.</summary>
 public sealed record SystemComet(
@@ -93,6 +175,9 @@ public sealed record WorldCosmology(
     double OrbitalPeriodDays,
     double WorldMassEarth,
     double WorldRadiusEarth,
+    double MeanDensityEarth,
+    double BulkIronMassFraction,
+    double CoreMassFraction,
     double SurfaceGravityG,
     double EscapeVelocityKmS,
     double BondAlbedo,
@@ -107,7 +192,9 @@ public sealed record WorldCosmology(
     IReadOnlyList<CompanionPlanet> Companions,
     IReadOnlyList<SystemMoon> Moons,
     int? HabitableMoonIndex,
+    IReadOnlyList<SystemMoon> HomeMoons,
     HostGalaxy Galaxy,
+    CelestialOrientation Orientation,
     IReadOnlyList<SystemComet> Comets,
     CosmicChronology Chronology)
 {
@@ -126,6 +213,40 @@ public sealed record WorldCosmology(
 
     /// <summary>Maximum tidal day length before the nightside freezes an atmosphere (Earth days).</summary>
     public const double MaxMoonDayDays = 7.0;
+
+    /// <summary>Earth's bulk iron mass fraction, and the mass fraction locked in its core.</summary>
+    public const double EarthBulkIronMassFraction = 0.321;
+    public const double EarthCoreMassFraction = 0.325;
+
+    /// <summary>Longest month a giant's regular moons are given, in Earth days.</summary>
+    public const double MaxGiantMoonMonthDays = 120.0;
+
+    /// <summary>
+    /// Shortest and longest month a planet world's own moons are given, in Earth days. The floor
+    /// keeps a moon from skimming the atmosphere on a few-hour orbit; the ceiling keeps it a moon
+    /// rather than a captured rock that takes a season to come round. Earth's own is 27.3.
+    /// </summary>
+    public const double MinHomeMoonMonthDays = 2.0;
+    public const double MaxHomeMoonMonthDays = 90.0;
+
+    /// <summary>
+    /// How much further out each of a planet's moons has to sit than the one inside it. Bodies this
+    /// small are Hill-separated at far less, so this is really about the sky: two moons on all but
+    /// the same orbit would rise together every night and never tell themselves apart.
+    /// </summary>
+    public const double MinHomeMoonOrbitRatio = 1.6;
+
+    /// <summary>Fraction of the world's Hill sphere its moons stay inside to survive the star.</summary>
+    public const double HomeMoonHillFraction = 0.45;
+
+    /// <summary>
+    /// Lightest and heaviest a planet world's moon is allowed to be, in Earth masses. Earth's is
+    /// 0.0123, and it is the outlier of the solar system: nothing else that large circles anything
+    /// so small. Masses are drawn across this range in the logarithm, so most worlds get something
+    /// well under it and only a few get a moon that fills the sky.
+    /// </summary>
+    public const double MinHomeMoonMassEarth = 0.0002;
+    public const double MaxHomeMoonMassEarth = 0.020;
 
     /// <summary>
     /// Mutual Hill radii required between neighbouring planets. Packed systems can sit near 5;
@@ -162,6 +283,7 @@ public sealed record WorldCosmology(
     public static WorldCosmology From(ulong seed)
     {
         HostGalaxy galaxy = HostGalaxy.From(seed);
+        CelestialOrientation orientation = CelestialOrientation.From(seed);
         IRng rng = new Pcg32(Hash.Combine(seed, Hash.OfString("world.cosmology")));
 
         StarSpectralClass starClass = rng.Pick(StarClasses);
@@ -179,10 +301,15 @@ public sealed record WorldCosmology(
         double orbitalAu = PickOrbitalDistance(rng, innerHz, outerHz);
         double yearDays = ComputeOrbitalPeriodDays(orbitalAu, starMass);
 
+        // Iron is what the galaxy already promised the crust; here it decides how tightly that
+        // crust is packed, and so how small the world is for its mass.
+        BodyComposition composition = SampleComposition(rng);
+
         double worldMass;
         double worldRadius;
         double? giantMass = null;
         IReadOnlyList<SystemMoon> moons = Array.Empty<SystemMoon>();
+        IReadOnlyList<SystemMoon> homeMoons = Array.Empty<SystemMoon>();
         int? habitableMoonIndex = null;
         double? moonOrbitEarthRadii = null;
         double? moonDay = null;
@@ -190,8 +317,8 @@ public sealed record WorldCosmology(
 
         if (kind == WorldKind.Planet)
         {
-            worldMass = EnsureAtmosphereRetention(rng.NextDouble(0.5, 2.0), WorldKind.Planet);
-            worldRadius = WorldRadiusFromMass(worldMass);
+            worldMass = EnsureAtmosphereRetention(rng.NextDouble(0.5, 2.0), WorldKind.Planet, composition);
+            worldRadius = BodyRadius(worldMass, composition);
         }
         else
         {
@@ -219,7 +346,7 @@ public sealed record WorldCosmology(
 
         if (kind == WorldKind.Moon && giantMass.HasValue)
         {
-            moons = PlaceMoonFamily(rng, starMass, orbitalAu, giantMass.Value);
+            moons = PlaceMoonFamily(rng, starMass, orbitalAu, giantMass.Value, composition);
             SystemMoon home = moons.First(moon => moon.Habitable);
             habitableMoonIndex = home.Index;
             worldMass = home.MassEarth;
@@ -230,9 +357,14 @@ public sealed record WorldCosmology(
                 GiantRadiusEarthRadii(giantMass.Value),
                 worldRadius);
         }
+        else
+        {
+            homeMoons = PlaceHomeMoons(rng, starMass, orbitalAu, worldMass, worldRadius);
+        }
 
         double surfaceG = SurfaceGravity(worldMass, worldRadius);
         double escapeKmS = EscapeVelocity(worldMass, worldRadius);
+        double meanDensity = worldMass / DetMath.IntPow(worldRadius, 3);
 
         double habitableMass = kind == WorldKind.Moon ? giantMass ?? worldMass : worldMass;
         double snowLine = SnowLine(luminosity);
@@ -260,6 +392,9 @@ public sealed record WorldCosmology(
             yearDays,
             worldMass,
             worldRadius,
+            meanDensity,
+            composition.BulkIronMassFraction,
+            composition.CoreMassFraction,
             surfaceG,
             escapeKmS,
             albedo,
@@ -274,7 +409,9 @@ public sealed record WorldCosmology(
             companions,
             moons,
             habitableMoonIndex,
+            homeMoons,
             galaxy,
+            orientation,
             comets,
             chronology);
     }
@@ -310,12 +447,55 @@ public sealed record WorldCosmology(
         return checks;
     }
 
-    private static double EnsureAtmosphereRetention(double massEarth, WorldKind kind)
+    /// <summary>
+    /// What a rocky body is made of. Sampled rather than derived: the iron a protoplanetary disk
+    /// happened to sweep up is an accident of that disk, not something habitability settles — the
+    /// galaxy has already ruled out the metal-poor sites where no terrestrial crust forms at all.
+    /// </summary>
+    /// <param name="BulkIronMassFraction">Iron as a share of the whole body. Earth's is 0.321.</param>
+    /// <param name="CoreMassFraction">Share of the mass below the mantle. Earth's is 0.325.</param>
+    public readonly record struct BodyComposition(double BulkIronMassFraction, double CoreMassFraction)
+    {
+        /// <summary>
+        /// Mean density against Earth's. An iron-rich body is packed tighter, so it is the smaller
+        /// world for the same mass — which raises its surface gravity and its escape velocity.
+        /// </summary>
+        public double DensityRelativeToEarth =>
+            1.0 + (0.85 * ((BulkIronMassFraction - EarthBulkIronMassFraction) / EarthBulkIronMassFraction));
+    }
+
+    /// <summary>Iron and core fractions within a fifth of Earth's, the range rocky worlds occupy.</summary>
+    internal static BodyComposition SampleComposition(IRng rng)
+    {
+        double bulkIron = DetMath.Clamp(
+            DetSeries.Gaussian(rng, EarthBulkIronMassFraction, 0.022),
+            0.20,
+            0.42);
+        double core = DetMath.Clamp(
+            DetSeries.Gaussian(rng, EarthCoreMassFraction, 0.022),
+            0.20,
+            bulkIron + 0.04);
+        return new BodyComposition(bulkIron, core);
+    }
+
+    /// <summary>Radius from the mass–radius relation, then shrunk or swollen by how much iron it holds.</summary>
+    internal static double BodyRadius(double massEarth, BodyComposition composition) =>
+        WorldRadiusFromMass(massEarth) / NthRoot(composition.DensityRelativeToEarth, 3);
+
+    /// <summary>
+    /// Grows a body until it can hold onto its air. Escape velocity is measured against the radius
+    /// the body will actually have, iron and all — a low-iron world is the larger world for its
+    /// mass, and so the one that loses its atmosphere first.
+    /// </summary>
+    private static double EnsureAtmosphereRetention(
+        double massEarth,
+        WorldKind kind,
+        BodyComposition composition)
     {
         double max = kind == WorldKind.Planet ? 2.0 : 1.0;
         double mass = massEarth;
 
-        for (int i = 0; i < 16 && EscapeVelocity(mass, WorldRadiusFromMass(mass)) < MinEscapeVelocityKmS; i++)
+        for (int i = 0; i < 24 && EscapeVelocity(mass, BodyRadius(mass, composition)) < MinEscapeVelocityKmS; i++)
         {
             mass = DetMath.Clamp(mass * 1.08, massEarth, max);
         }
@@ -415,6 +595,23 @@ public sealed record WorldCosmology(
         return 2.44 * giantRadiusEarth * ratio;
     }
 
+    /// <summary>Roche limit for a rocky moon of a rocky world, in radii of that world.</summary>
+    public static double RockyRocheLimitEarthRadii(double worldRadiusEarth)
+    {
+        const double worldDensity = 5514.0;
+        const double moonDensity = 3340.0;
+        return 2.44 * worldRadiusEarth * NthRoot(worldDensity / moonDensity, 3);
+    }
+
+    /// <summary>Which orbit about a primary of this mass takes <paramref name="periodDays"/>.</summary>
+    internal static double MoonOrbitForPeriodEarthRadii(double primaryMassEarth, double periodDays)
+    {
+        double primaryMassSolar = primaryMassEarth / EarthMassesPerSolar;
+        double periodRatio = periodDays / 365.25;
+        double au = NthRoot(primaryMassSolar * periodRatio * periodRatio, 3);
+        return au * EarthRadiiPerAu;
+    }
+
     internal static double MoonOrbitalPeriodDays(double giantMassEarth, double moonOrbitEarthRadii)
     {
         double giantMassSolar = giantMassEarth / EarthMassesPerSolar;
@@ -450,7 +647,8 @@ public sealed record WorldCosmology(
         IRng rng,
         double starMassSolar,
         double giantAu,
-        double giantMassEarth)
+        double giantMassEarth,
+        BodyComposition composition)
     {
         double giantRadius = GiantRadiusEarthRadii(giantMassEarth);
         double roche = ComputeRocheLimitEarthRadii(giantRadius, WorldRadiusFromMass(0.4));
@@ -488,9 +686,9 @@ public sealed record WorldCosmology(
         {
             bool habitable = i == home;
             double mass = habitable
-                ? EnsureAtmosphereRetention(rng.NextDouble(0.12, 1.0), WorldKind.Moon)
+                ? EnsureAtmosphereRetention(rng.NextDouble(0.12, 1.0), WorldKind.Moon, composition)
                 : rng.NextDouble(0.008, 0.06);
-            double radius = WorldRadiusFromMass(mass);
+            double radius = habitable ? BodyRadius(mass, composition) : WorldRadiusFromMass(mass);
             moons.Add(new SystemMoon(
                 Index: i + 1,
                 OrbitalDistanceEarthRadii: orbits[i],
@@ -564,6 +762,17 @@ public sealed record WorldCosmology(
         return (finalEq, finalEq + gh, au, gh);
     }
 
+    /// <summary>
+    /// Fills out the rest of the system: a few rocky worlds inside the liquid-water belt, the
+    /// shepherd giant past the snow line, and whatever else the disk had material left for — a
+    /// second gas giant trailing the shepherd, and one or two ice giants beyond both.
+    /// </summary>
+    /// <remarks>
+    /// Every body is checked for mutual Hill separation against the ones already placed, so the
+    /// system is one that survives rather than one that scatters itself in a few million years.
+    /// Giants also get a face and a moon family here, because a giant is the one companion anyone
+    /// on the ground will actually look at, and the one a chronicler will write down.
+    /// </remarks>
     private static IReadOnlyList<CompanionPlanet> PlaceCompanions(
         IRng rng,
         double starMassSolar,
@@ -573,50 +782,248 @@ public sealed record WorldCosmology(
         double habitableAu,
         double habitableMassEarth)
     {
-        var placed = new List<CompanionPlanet>(3);
+        var placed = new List<CompanionPlanet>(7);
+
+        int innerCount = rng.NextDouble() switch
+        {
+            < 0.18 => 0,
+            < 0.55 => 1,
+            < 0.85 => 2,
+            _ => 3,
+        };
+
+        for (int i = 0; i < innerCount; i++)
+        {
+            double innerAu = rng.NextDouble(innerHz * 0.28, innerHz * 0.88);
+            double innerMass = rng.NextDouble(0.05, 1.40);
+            if (innerAu <= 0.03
+                || !HillSeparated(innerAu, innerMass, habitableAu, habitableMassEarth, starMassSolar)
+                || !SeparatedFromAll(placed, innerAu, innerMass, starMassSolar))
+            {
+                continue;
+            }
+
+            placed.Add(new CompanionPlanet(
+                CompanionRole.InnerRocky,
+                innerAu,
+                innerMass,
+                WorldRadiusFromMass(innerMass),
+                ComputeOrbitalPeriodDays(innerAu, starMassSolar)));
+        }
 
         CompanionPlanet shepherd = PlaceShepherd(
             rng, starMassSolar, snowLineAu, outerHz, habitableAu, habitableMassEarth);
-        placed.Add(shepherd);
+        placed.Add(WithGiantDetail(rng, shepherd, starMassSolar));
 
-        if (rng.Chance(0.55))
+        CompanionPlanet outermost = shepherd;
+        if (rng.Chance(0.45))
         {
-            double innerAu = rng.NextDouble(innerHz * 0.32, innerHz * 0.82);
-            double innerMass = rng.NextDouble(0.06, 0.70);
-            if (innerAu > 0.03
-                && HillSeparated(innerAu, innerMass, habitableAu, habitableMassEarth, starMassSolar))
+            double au = outermost.SemiMajorAxisAu * rng.NextDouble(1.55, 2.30);
+            double mass = rng.NextDouble(45.0, 260.0);
+            if (SeparatedFromAll(placed, au, mass, starMassSolar))
             {
-                placed.Add(new CompanionPlanet(
-                    CompanionRole.InnerRocky,
-                    innerAu,
-                    innerMass,
-                    WorldRadiusFromMass(innerMass),
-                    ComputeOrbitalPeriodDays(innerAu, starMassSolar)));
+                var second = new CompanionPlanet(
+                    CompanionRole.OuterGasGiant,
+                    au,
+                    mass,
+                    GiantRadiusEarthRadii(mass),
+                    ComputeOrbitalPeriodDays(au, starMassSolar));
+                placed.Add(WithGiantDetail(rng, second, starMassSolar));
+                outermost = second;
             }
         }
 
-        if (rng.Chance(0.40))
+        int iceCount = rng.NextDouble() switch
         {
-            double iceAu = shepherd.SemiMajorAxisAu * rng.NextDouble(1.65, 2.55);
-            double iceMass = rng.NextDouble(14.0, 22.0);
-            if (HillSeparated(
-                    shepherd.SemiMajorAxisAu,
-                    shepherd.MassEarth,
-                    iceAu,
-                    iceMass,
-                    starMassSolar))
-            {
-                placed.Add(new CompanionPlanet(
-                    CompanionRole.OuterIceGiant,
-                    iceAu,
-                    iceMass,
-                    IceGiantRadius(iceMass),
-                    ComputeOrbitalPeriodDays(iceAu, starMassSolar)));
-            }
+            < 0.35 => 0,
+            < 0.80 => 1,
+            _ => 2,
+        };
+
+        for (int i = 0; i < iceCount; i++)
+        {
+            double au = outermost.SemiMajorAxisAu * rng.NextDouble(1.60, 2.45);
+            double mass = rng.NextDouble(11.0, 24.0);
+            if (!SeparatedFromAll(placed, au, mass, starMassSolar)) continue;
+
+            var ice = new CompanionPlanet(
+                CompanionRole.OuterIceGiant,
+                au,
+                mass,
+                IceGiantRadius(mass),
+                ComputeOrbitalPeriodDays(au, starMassSolar));
+            placed.Add(WithGiantDetail(rng, ice, starMassSolar));
+            outermost = ice;
         }
 
         placed.Sort((a, b) => a.SemiMajorAxisAu.CompareTo(b.SemiMajorAxisAu));
         return placed;
+    }
+
+    private static bool SeparatedFromAll(
+        List<CompanionPlanet> placed,
+        double au,
+        double massEarth,
+        double starMassSolar)
+    {
+        foreach (CompanionPlanet body in placed)
+        {
+            if (!HillSeparated(body.SemiMajorAxisAu, body.MassEarth, au, massEarth, starMassSolar))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>Gives a giant its face and its moons; rocky companions are returned untouched.</summary>
+    private static CompanionPlanet WithGiantDetail(
+        IRng rng,
+        CompanionPlanet giant,
+        double starMassSolar)
+    {
+        if (!giant.IsGiant) return giant;
+
+        GiantAppearance appearance = GiantAppearances.Sample(rng, giant.Role, giant.MassEarth);
+        IReadOnlyList<SystemMoon> moons = PlaceGiantMoons(rng, starMassSolar, giant, appearance);
+        return giant with { Appearance = appearance, Moons = moons };
+    }
+
+    /// <summary>
+    /// A giant's moons, spaced geometrically from just outside the Roche limit — and outside any
+    /// ring, since ring debris is what never managed to become a moon — out to a fraction of the
+    /// Hill sphere, beyond which the star strips them away.
+    /// </summary>
+    private static IReadOnlyList<SystemMoon> PlaceGiantMoons(
+        IRng rng,
+        double starMassSolar,
+        CompanionPlanet giant,
+        GiantAppearance appearance)
+    {
+        int count = giant.MassEarth switch
+        {
+            >= 150.0 => rng.NextInt(2, 6),
+            >= 40.0 => rng.NextInt(1, 5),
+            _ => rng.NextInt(0, 4),
+        };
+
+        if (count <= 0) return Array.Empty<SystemMoon>();
+
+        double giantRadius = giant.RadiusEarth;
+        double roche = ComputeRocheLimitEarthRadii(giantRadius, 0.3);
+        double ringEdge = appearance.Ring is { } ring ? ring.OuterRadiusPlanetRadii * giantRadius : 0.0;
+        double inner = Math.Max(roche * 1.15, ringEdge * 1.08);
+        double hill = GiantHillSphereEarthRadii(giant.SemiMajorAxisAu, giant.MassEarth, starMassSolar);
+
+        // Regular moons keep short months; anything out near the Hill radius is a captured body on
+        // a years-long orbit, which is not the family this draws.
+        double monthLimit = MoonOrbitForPeriodEarthRadii(giant.MassEarth, MaxGiantMoonMonthDays);
+        double outer = Math.Max(Math.Min(hill * 0.35, monthLimit), inner * 1.6);
+        double factor = count == 1 ? 1.0 : NthRoot(outer / inner, count - 1);
+
+        var moons = new List<SystemMoon>(count);
+        for (int i = 0; i < count; i++)
+        {
+            double orbit = inner * DetMath.IntPow(factor, i) * rng.NextDouble(0.96, 1.06);
+            double mass = rng.NextDouble(0.0004, i == 0 ? 0.012 : 0.045);
+            moons.Add(new SystemMoon(
+                Index: i + 1,
+                OrbitalDistanceEarthRadii: orbit,
+                MassEarth: mass,
+                RadiusEarth: WorldRadiusFromMass(mass),
+                DayLengthDays: MoonOrbitalPeriodDays(giant.MassEarth, orbit),
+                Habitable: false));
+        }
+
+        return moons;
+    }
+
+    /// <summary>
+    /// The moons of a planet world: the bodies that actually cross that world's night sky, and so
+    /// the ones a calendar can be hung on.
+    /// </summary>
+    /// <remarks>
+    /// <para>A rocky world's moons are the one near thing its sky has, so a world without them is a
+    /// world whose nights are only stars — which happens, and is rolled here rather than papered
+    /// over.</para>
+    ///
+    /// <para>A moon is drawn as a month rather than as an orbit, because a month is what the ground
+    /// sees: how long the thing takes to come back round to full. Months run from
+    /// <see cref="MinHomeMoonMonthDays"/> — already well outside the Roche limit, and short enough
+    /// that the moon tears across the sky — out to <see cref="MaxHomeMoonMonthDays"/> or whatever
+    /// <see cref="HomeMoonHillFraction"/> of the world's Hill sphere allows, past which the star
+    /// strips the moon away. They are drawn evenly in the logarithm, which keeps the close,
+    /// sky-filling ones the minority they should be, and kept <see cref="MinHomeMoonOrbitRatio"/>
+    /// apart in orbit so two moons do not run the same track night after night.</para>
+    ///
+    /// <para>Masses are lunar and below, and also drawn in the logarithm: Earth's moon is the
+    /// largest in the solar system for the world it circles by a wide margin, so a typical world
+    /// gets something smaller and only a few get one that fills the sky.</para>
+    /// </remarks>
+    private static IReadOnlyList<SystemMoon> PlaceHomeMoons(
+        IRng rng,
+        double starMassSolar,
+        double worldAu,
+        double worldMassEarth,
+        double worldRadiusEarth)
+    {
+        int count = rng.NextDouble() switch
+        {
+            < 0.16 => 0,
+            < 0.68 => 1,
+            < 0.92 => 2,
+            _ => 3,
+        };
+
+        if (count == 0) return Array.Empty<SystemMoon>();
+
+        double shortestMonth = MinHomeMoonMonthDays;
+        double longestMonth = MaxHomeMoonMonthDays;
+        double strippedOrbit =
+            GiantHillSphereEarthRadii(worldAu, worldMassEarth, starMassSolar) * HomeMoonHillFraction;
+        double monthAtHillEdge = MoonOrbitalPeriodDays(worldMassEarth, strippedOrbit);
+        if (monthAtHillEdge < longestMonth)
+        {
+            longestMonth = Math.Max(shortestMonth, monthAtHillEdge);
+        }
+
+        double rocheFloor = RockyRocheLimitEarthRadii(worldRadiusEarth) * 1.5;
+        var orbits = new List<double>(count);
+        for (int attempt = 0; attempt < 32 && orbits.Count < count; attempt++)
+        {
+            double month = shortestMonth * DetSeries.Pow(longestMonth / shortestMonth, rng.NextDouble());
+            double orbit = MoonOrbitForPeriodEarthRadii(worldMassEarth, month);
+            if (orbit <= rocheFloor) continue;
+
+            bool separated = true;
+            foreach (double other in orbits)
+            {
+                if (Math.Max(orbit, other) / Math.Min(orbit, other) < MinHomeMoonOrbitRatio)
+                {
+                    separated = false;
+                    break;
+                }
+            }
+
+            if (separated) orbits.Add(orbit);
+        }
+
+        orbits.Sort();
+        var moons = new List<SystemMoon>(orbits.Count);
+        for (int i = 0; i < orbits.Count; i++)
+        {
+            double mass = DetSeries.LogUniform(rng, MinHomeMoonMassEarth, MaxHomeMoonMassEarth);
+            moons.Add(new SystemMoon(
+                Index: i + 1,
+                OrbitalDistanceEarthRadii: orbits[i],
+                MassEarth: mass,
+                RadiusEarth: WorldRadiusFromMass(mass),
+                DayLengthDays: MoonOrbitalPeriodDays(worldMassEarth, orbits[i]),
+                Habitable: false));
+        }
+
+        return moons;
     }
 
     private static CompanionPlanet PlaceShepherd(

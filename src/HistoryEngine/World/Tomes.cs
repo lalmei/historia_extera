@@ -1916,6 +1916,57 @@ public static class Tomes
         return Section("Origins", text, references);
     }
 
+    /// <summary>
+    /// What the sky's near bodies look like from the ground, as a faith writes them down: the
+    /// moons that cross this world's nights, and the ringed giant a good eye can resolve.
+    /// </summary>
+    /// <remarks>
+    /// A ring is the one thing in the rolled system that a pre-telescopic people cannot quite
+    /// account for, so a learned faith records it as an oddity and a careless one records it
+    /// wrongly — which is the same bargain the rest of a tome makes with what it knows.
+    /// </remarks>
+    private static string Wanderers(
+        WorldCosmology sky, IRng rng, double learning, int year, Religion religion)
+    {
+        CompanionPlanet? ringed = null;
+        foreach (CompanionPlanet body in sky.Companions)
+        {
+            if (body.Ring is not null)
+            {
+                ringed = body;
+                break;
+            }
+        }
+
+        IReadOnlyList<SystemMoon> nightly = sky.Kind == WorldKind.Moon ? sky.Moons : sky.HomeMoons;
+        int companions = sky.Kind == WorldKind.Moon
+            ? Math.Max(0, nightly.Count - 1)
+            : nightly.Count;
+
+        string moons = companions switch
+        {
+            0 => "The scribes record no lesser light at all: the nights here are stars and nothing nearer.",
+            1 => "One lesser light crosses the nights, and the rite counts its months.",
+            _ => "The scribes count " + companions.ToString(CultureInfo.InvariantCulture)
+                 + " lesser lights crossing the nights, each on its own month.",
+        };
+
+        if (ringed is null)
+        {
+            return moons;
+        }
+
+        if (Misremembers(rng, learning, Math.Max(8, year - religion.FoundedYear)))
+        {
+            return moons + " Of the great wanderer the copies disagree: some draw a girdle about it, "
+                   + "and later hands take the girdle for an error of the pen and strike it out.";
+        }
+
+        return moons + " The greatest wanderer is drawn girdled — a band of "
+               + ringed.Ring!.CompositionLabel
+               + " standing off the body itself, which the scribes hold to be no part of it.";
+    }
+
     private static TomeContents Cosmology(
         WorldState world, Religion religion, int year, IRng rng, double learning)
     {
@@ -1952,6 +2003,8 @@ public static class Tomes
                 "The " + religion.Name + " holds that several powers share the keeping of the sky.",
         };
 
+        string wanderers = Wanderers(sky, rng, learning, year, religion);
+
         HostGalaxy galaxy = sky.Galaxy;
         string host = galaxy.Blueprint.IsElliptical
             ? "The scribes place the world in a round gathering of lights, far from the crowded heart."
@@ -1969,6 +2022,7 @@ public static class Tomes
                 Section("The world", seat + ". " + world.Flavour.Designation + " is the name the scribes use.", references),
                 Section("The host", host, religion.Id),
                 Section("The lights", lights, religion.Id),
+                Section("The wanderers", wanderers, religion.Id),
                 Section("Teaching", order, religion.Id),
             },
             year);
