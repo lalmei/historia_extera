@@ -2,8 +2,21 @@ import type React from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { IconChevronRight, IconPlay, IconRefresh, IconTrash } from '../components/icons';
 import { generateHref } from '../components/SiteChrome';
-import { generatorUrl, paramsFromFilename, DEFAULT_PARAMS, type RunParams } from '../generate';
-import { BIOME_ORDER, FLAG_COAST, SCHEMA_VERSION, type Biome } from '../types';
+import {
+  DEFAULT_PARAMS,
+  POLL_MS,
+  cancelRun,
+  generatorUrl,
+  paramsFromFilename,
+  readRun,
+  startRun,
+  worldFileName,
+  type Run,
+  type RunParams,
+} from '../generate';
+import { SynthesisModal } from './NewWorld';
+import { schemaVerdict, type SchemaVerdict } from '../compat';
+import { BIOME_ORDER, FLAG_COAST, type Biome } from '../types';
 import {
   displayNameOf,
   listWorlds,
@@ -20,6 +33,53 @@ export function WorldList({ query = '' }: { query?: string }) {
   const [deleting, setDeleting] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [run, setRun] = useState<Run | null>(null);
+  const [opening, setOpening] = useState(false);
+
+  const running = run?.status === 'running';
+  const synthesizing = run !== null && run.status !== 'cancelled';
+
+  // Poll while the CLI is working. Keyed on id and status rather than the run object, so an
+  // answer that only moved the clock forward does not tear the timer down and rebuild it.
+  useEffect(() => {
+    if (run?.status !== 'running') return;
+
+    const id = run.id;
+    let stopped = false;
+
+    const timer = setInterval(async () => {
+      try {
+        const next = await readRun(id);
+        if (!stopped) setRun(next);
+      } catch (cause) {
+        if (stopped) return;
+        setActionError(messageOf(cause));
+        setRun(null);
+      }
+    }, POLL_MS);
+
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+    };
+  }, [run?.id, run?.status]);
+
+  // Then open what came out. Running a seed and staying on the catalog would leave the reader
+  // to find the row again and guess which of two identical-looking exports was the new one.
+  useEffect(() => {
+    if (run?.status !== 'done' || !run.world) return;
+    setOpening(true);
+    window.location.assign(`${import.meta.env.BASE_URL}?world=${run.world}`);
+  }, [run?.status, run?.world]);
+
+  useEffect(() => {
+    if (!synthesizing) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [synthesizing]);
 
   useEffect(() => {
     let stopped = false;
@@ -43,6 +103,64 @@ export function WorldList({ query = '' }: { query?: string }) {
     if (!needle) return worlds;
     return worlds.filter((world) => matchesQuery(world, needle));
   }, [worlds, query]);
+
+  /**
+   * Runs a saved world's settings again, here, rather than opening a form about them.
+   *
+   * The Run and Regenerate buttons used to be the same link to `/new`, so pressing Run ran
+   * nothing: it filled in a form the reader then had to submit, and — when the settings were
+   * unchanged — confirm an overwrite of. Run now means run. Regenerate still opens the form,
+   * which is the one place these numbers can be changed before the engine sees them.
+   */
+  async function rerun(world: SavedWorld) {
+    const params = worldParams(world);
+    if (!params) return;
+
+    // The generator names its output from the settings, so an older export whose filename
+    // predates the size suffix is reproduced beside itself rather than over itself. Say which.
+    const output = worldFileName(params);
+    const fate =
+      output === world.name
+        ? `This replaces ${world.name} on disk.`
+        : `This writes ${output}; ${world.name} stays on disk.`;
+
+    const confirmed = window.confirm(
+      `Run ${displayNameOf(world)} again?\n\n` +
+        `Seed ${params.seed}, ${params.years.toLocaleString()} years, ${params.civs} ` +
+        `civilization${params.civs === 1 ? '' : 's'}, ${params.size.toLocaleString()} units — ` +
+        `through the engine as it stands now.\n\n${fate}`,
+    );
+    if (!confirmed) return;
+
+    setActionError(null);
+    setNotice(null);
+
+    try {
+      setRun(await startRun(params));
+    } catch (cause) {
+      setActionError(messageOf(cause));
+    }
+  }
+
+  async function abandon() {
+    if (!run) return;
+
+    try {
+      await cancelRun(run.id);
+    } catch (cause) {
+      setActionError(messageOf(cause));
+    } finally {
+      setRun(null);
+      setOpening(false);
+      setNotice('Synthesis aborted.');
+    }
+  }
+
+  function dismissFailed() {
+    setActionError(run?.error ?? 'The generator failed');
+    setRun(null);
+    setOpening(false);
+  }
 
   async function remove(world: SavedWorld) {
     const confirmed = window.confirm(
@@ -107,7 +225,9 @@ export function WorldList({ query = '' }: { query?: string }) {
                   key={world.name}
                   world={world}
                   deleting={deleting === world.name}
-                  deleteDisabled={deleting !== null}
+                  deleteDisabled={deleting !== null || running}
+                  runDisabled={running || opening}
+                  onRerun={() => rerun(world)}
                   onDelete={() => remove(world)}
                 />
               ))}
@@ -115,8 +235,21 @@ export function WorldList({ query = '' }: { query?: string }) {
           </table>
         </div>
       )}
+
+      {synthesizing && run && (
+        <SynthesisModal
+          run={run}
+          opening={opening}
+          onAbort={abandon}
+          onDismiss={dismissFailed}
+        />
+      )}
     </div>
   );
+}
+
+function messageOf(cause: unknown): string {
+  return cause instanceof Error ? cause.message : String(cause);
 }
 
 function EmptyLibrary() {
@@ -136,11 +269,15 @@ function WorldRow({
   world,
   deleting,
   deleteDisabled,
+  runDisabled,
+  onRerun,
   onDelete,
 }: {
   world: SavedWorld;
   deleting: boolean;
   deleteDisabled: boolean;
+  runDisabled: boolean;
+  onRerun: () => void;
   onDelete: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -150,15 +287,18 @@ function WorldRow({
   } | null>(null);
   const [expansionError, setExpansionError] = useState(false);
   const [expansionLoading, setExpansionLoading] = useState(false);
-  const compatible = world.schemaVersion === SCHEMA_VERSION;
+  // Three outcomes, not two: current, older-but-readable, and refused. Collapsing the middle
+  // one into "incompatible" is what used to hide a perfectly readable world behind a greyed
+  // name, and a title attribute nobody hovers is not a way to say which of the three it is.
+  const verdict = schemaVerdict(world.schemaVersion);
   const params = worldParams(world);
   const title = displayNameOf(world);
-  const openUrl = compatible ? viewerUrl(world.world) : undefined;
-  const openHint = compatible
+  const openUrl = verdict.readable ? viewerUrl(world.world) : undefined;
+  const openHint = verdict.readable
     ? `Open ${title}`
-    : world.schemaVersion === null
-      ? (world.error ?? 'Could not inspect this export')
-      : `Needs schema v${SCHEMA_VERSION} (this file is v${world.schemaVersion})`;
+    : verdict.state === 'unreadable'
+      ? (world.error ?? verdict.summary)
+      : verdict.summary;
 
   const toggle = () => setExpanded((current) => !current);
 
@@ -197,7 +337,13 @@ function WorldRow({
               type="button"
               aria-expanded={expanded}
               aria-label={expanded ? `Collapse ${title}` : `Expand ${title}`}
-              onClick={toggle}
+              // The row toggles too, so without stopping here the chevron toggled twice and
+              // therefore never at all — which left the compatibility detail below reachable
+              // only by clicking somewhere other than the control that says it opens it.
+              onClick={(event) => {
+                event.stopPropagation();
+                toggle();
+              }}
               className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-[var(--ink-faint)] hover:text-[var(--primary)]"
             >
               <IconChevronRight
@@ -219,6 +365,7 @@ function WorldRow({
                   {world.designation}
                 </div>
               )}
+              <SchemaChip verdict={verdict} />
             </div>
           </div>
         </td>
@@ -237,20 +384,22 @@ function WorldRow({
         <td className="px-5 py-4">
           <div className="he-row-actions flex items-center justify-end gap-0.5">
             <IconAction
-              href={params ? generatorUrl(params, world.name) : undefined}
-              disabled={!params}
-              label={params ? `Run ${title} again` : 'Settings unknown'}
+              disabled={!params || runDisabled}
+              onClick={onRerun}
+              label={
+                params
+                  ? `Run ${title} again through the current engine`
+                  : 'Settings unknown'
+              }
             >
               <IconPlay className="h-4 w-4" />
             </IconAction>
             <IconAction
               href={params ? generatorUrl(params, world.name) : undefined}
-              disabled={!params}
+              disabled={!params || runDisabled}
               label={
                 params
-                  ? compatible
-                    ? `Regenerate ${title}`
-                    : `Regenerate ${title} with the current engine`
+                  ? `Open ${title}'s settings in the generator`
                   : 'Settings unknown'
               }
             >
@@ -297,6 +446,17 @@ function WorldRow({
                   {world.engineVersion ?? '—'}
                   {world.schemaVersion !== null ? ` · schema v${world.schemaVersion}` : ''}
                 </dd>
+                <dt className="text-[var(--ink-faint)]">Reads</dt>
+                <dd>
+                  <p className="text-[var(--ink-soft)]">{verdict.summary}</p>
+                  {verdict.missing.length > 0 && (
+                    <ul className="mt-1.5 list-disc space-y-0.5 pl-4 text-xs text-[var(--ink-faint)]">
+                      {verdict.missing.map((feature) => (
+                        <li key={feature}>{feature}</li>
+                      ))}
+                    </ul>
+                  )}
+                </dd>
                 <dt className="text-[var(--ink-faint)]">File</dt>
                 <dd className="he-data min-w-0">
                   <span className="block truncate" title={world.name}>
@@ -326,6 +486,41 @@ function WorldRow({
         </tr>
       )}
     </>
+  );
+}
+
+/**
+ * The row's compatibility, in the row.
+ *
+ * This used to live only in a `title` attribute on a greyed-out name, which meant the library
+ * looked like it had lost half the worlds on disk and said why only to a reader who happened
+ * to rest a pointer on one. A world that still opens says so; one that does not says why, in
+ * the place the eye already is.
+ */
+function SchemaChip({ verdict }: { verdict: SchemaVerdict }) {
+  if (verdict.state === 'current') return null;
+
+  const label =
+    verdict.state === 'older'
+      ? `schema v${verdict.version} · older engine`
+      : verdict.state === 'too-new'
+        ? `schema v${verdict.version} · newer engine`
+        : verdict.state === 'too-old'
+          ? `schema v${verdict.version} · too old to read`
+          : 'unreadable export';
+
+  const tone =
+    verdict.state === 'older'
+      ? 'border-[var(--rule)] text-[var(--ink-faint)]'
+      : 'border-[var(--error)] text-[var(--error)]';
+
+  return (
+    <span
+      title={verdict.summary}
+      className={`mt-1 inline-block rounded border px-1.5 py-0.5 text-[11px] tracking-wide uppercase ${tone}`}
+    >
+      {label}
+    </span>
   );
 }
 
