@@ -745,6 +745,7 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
       figureOf: (id) => (kindOf(id) === 'fig' ? (world.byId.get(id) as Figure | undefined) : undefined),
       eventsFor: (id) => world.eventsFor(id),
       nameOf: (id) => world.nameOf(id),
+      realmAt: (id, year) => world.timeline.realmAt(id, year),
     }),
     [world, lastYear],
   );
