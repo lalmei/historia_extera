@@ -171,7 +171,44 @@ filters such as plague, disaster and poisoning, while `deathDetail` shows the na
 specific calamity or form of accident when the engine knows it. Disaster events link the named
 court casualties they caused, just as battles already link their commanders.
 
-A figure page now opens as a causal biography. **Life at a glance** names the person's current or
+A figure page opens with a **Life arc**: the whole life as one strip, with a bar for every year
+the chronicle recorded something — the taller the bar, the more it recorded — and a dot for each of
+the turns that made it that life, read beneath as `Born → Marriage → Tribune → First of 7 →
+Consul → Loss → Died` with the age at each. Repetition is collapsed rather than listed: eleven
+children are one turn dated to the first of them, six re-elections are the first year the office
+was reached. Clicking any turn, or anywhere on the strip, moves the year the rest of the page is
+read at. The arc is deliberately the one retrospective thing on the page — it is the year control,
+and a control that hides where it can move to is useless — and says so in its caption.
+
+The year control carries a **standing readout** that changes with it: age and year, position,
+household and children, the person closest to them and what that bond reads as, the disposition
+running strongest, and how many formative memories were still active. Beside it, **at youth / at
+height / at death** jump to the three years worth comparing — the year adult life began, the year
+they first reached their highest office, and the year they died. Past a person's death these panels
+stand at the last year they were in the world rather than reporting a woman six centuries dead as
+holding no office and knowing nobody; the readout says which year it is standing at.
+
+**Known for** is what the record can say without composing a sentence: years under arms, offices
+held, children raised, close relatives outlived, how long the longest friendship lasted — counted
+through the selected year like everything else. Under it, **historical significance** places the
+person on an Ordinary–Influential scale derived from offices, command, engagements, treasures,
+conspiracies, undertakings, rulers known, descendants, readings of the sky and how often other
+people's records name them. The curve is saturating and was tuned against a full run: about three
+fifths of a world's people read Ordinary and a handful in several thousand read Influential, which
+is what makes finding one mean something.
+
+**Those around them** draws the five to eight people alive in the selected year as lines from the
+person: weight is how much the bond carries, solid is kin, dashed a companion, dotted a rivalry.
+Dragging the year is the point — a household with six lines at forty has two at seventy, and the
+social model becomes something to watch rather than something to reconstruct from the ledger.
+Kin outranks a grievance in the line style, since a son somebody fears is still their son.
+
+Once a figure is dead, **After ⟨name⟩** reports what continued because they existed: which children
+carried the line and how many children they had in turn, who took the seat they held and in what
+year, how much longer a friend carried the friendship, and how many later recorded events their
+descendants stood in, two generations down.
+
+**Life at a glance** names the person's current or
 last position, upbringing, important relationships, formative memories, wounds, open concerns, and
 up to three completed episodes. Episode lines retain their supporting entity links, years, and
 event ids. **Friendships** is the record behind the chronicle's lines about them: who the other
