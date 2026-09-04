@@ -126,8 +126,11 @@ export default function App() {
 
   const isMap = route.path === '/map';
   const isEntity = route.path.includes(':');
+  const isWar = route.path.startsWith('/war:');
   const innerWidth = isMap || route.path === '/timeline'
     ? 'w-full'
+    : isWar
+      ? 'mx-auto w-full max-w-[1480px]'
     : isEntity
       ? 'mx-auto w-full max-w-[720px]'
       : 'mx-auto w-full max-w-6xl';

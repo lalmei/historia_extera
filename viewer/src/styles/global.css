@@ -269,3 +269,68 @@ button {
 .he-pip-error {
   background: var(--error);
 }
+
+/* A compact visual spine for bounded entity chronicles such as a single war. */
+.he-event-timeline {
+  position: relative;
+}
+
+.he-event-timeline::before {
+  position: absolute;
+  top: 0.9rem;
+  bottom: 0.9rem;
+  left: 0.45rem;
+  width: 1px;
+  content: '';
+  background: color-mix(in srgb, var(--primary) 52%, var(--rule));
+}
+
+.he-event-timeline-row {
+  position: relative;
+  margin: 0;
+  padding-left: 1.5rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.he-event-timeline-row:last-child {
+  border-bottom: 0;
+}
+
+.he-event-timeline-row::before {
+  position: absolute;
+  top: 1.15rem;
+  left: 0.18rem;
+  width: 0.58rem;
+  height: 0.58rem;
+  content: '';
+  background: var(--panel);
+  border: 1px solid var(--primary);
+  border-radius: 9999px;
+}
+
+.he-event-timeline-row:not(:last-child)::before {
+  background: var(--primary);
+}
+
+.he-war-metric {
+  border-bottom: 1px solid var(--rule);
+}
+
+.he-war-metric:nth-child(odd) {
+  border-right: 1px solid var(--rule);
+}
+
+.he-war-metric:nth-child(n + 3) {
+  border-bottom: 0;
+}
+
+@media (min-width: 640px) {
+  .he-war-metric {
+    border-right: 1px solid var(--rule);
+    border-bottom: 0;
+  }
+
+  .he-war-metric:last-child {
+    border-right: 0;
+  }
+}

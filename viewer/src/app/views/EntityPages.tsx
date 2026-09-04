@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { EventList, NarratedEvent } from '../components/EventList';
 import { HistoryPanels } from '../components/History';
 import {
@@ -26,6 +26,7 @@ import {
   Stat,
   yearRange,
 } from '../components/common';
+import { IconCity, IconClock, IconPeople, IconSwords } from '../components/icons';
 import {
   battlesOf,
   cultureOf,
@@ -3659,11 +3660,15 @@ function battleOutcome(world: World, battle: Battle): string {
  */
 export function WarPage({ world, war }: { world: World; war: War }) {
   const battles = battlesOf(world, war);
+  const events = world.eventsFor(war.id);
   const dead = war.attackerLosses + war.defenderLosses;
   const victor = victorOf(war);
+  const duration = (war.endYear ?? world.export.meta.endYear) - war.startYear;
+  const sieges = battles.filter((battle) => battle.wasSiege).length;
+  const fieldBattles = battles.length - sieges;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 pb-2">
       <PageTitle
         eyebrow={CAUSE_LABELS[war.cause] ?? 'War'}
         title={war.name}
@@ -3679,78 +3684,170 @@ export function WarPage({ world, war }: { world: World; war: War }) {
         }
       />
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Stat label="Battles" value={battles.length} />
-        <Stat label="Dead" value={dead.toLocaleString()} hint="Across both coalitions" />
-        <Stat label="Territory" value={`${war.cededRegionIds.length} regions`} hint="Changed hands at the peace" />
-        <Stat
-          label="Length"
-          value={`${(war.endYear ?? world.export.meta.endYear) - war.startYear}y`}
-        />
-      </div>
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.28fr)_minmax(24rem,0.92fr)] xl:items-start">
+        <div className="min-w-0 space-y-5">
+          <section className="he-war-metrics grid grid-cols-2 overflow-hidden rounded-lg border border-[var(--rule)] bg-[var(--panel)] sm:grid-cols-4">
+            <WarMetric
+              icon={<IconSwords />}
+              label="Battles"
+              value={battles.length}
+            />
+            <WarMetric
+              icon={<IconPeople />}
+              label="Dead"
+              value={dead.toLocaleString()}
+              tone="danger"
+              hint="Across both coalitions"
+            />
+            <WarMetric
+              icon={<IconCity />}
+              label="Territory"
+              value={war.cededRegionIds.length}
+              unit={war.cededRegionIds.length === 1 ? 'region' : 'regions'}
+              hint="Changed hands at the peace"
+            />
+            <WarMetric
+              icon={<IconClock />}
+              label="Length"
+              value={`${duration}y`}
+              tone="accent"
+            />
+          </section>
 
-      <Panel title="Belligerents">
-        <dl>
-          <Field label="Declared by">
-            <EntityLink world={world} id={war.aggressorId} />
-          </Field>
-          <Field label="Declared on">
-            <EntityLink world={world} id={war.defenderId} />
-          </Field>
-          {war.claimedRelicId && (
-            <Field label="Relic sought">
-              <EntityLink world={world} id={war.claimedRelicId} />
-            </Field>
-          )}
-          {war.aggressorReligionId && war.defenderReligionId && (
-            <Field label="Faiths">
-              <EntityLink world={world} id={war.aggressorReligionId} />
-              {' against '}
-              <EntityLink world={world} id={war.defenderReligionId} />
-            </Field>
-          )}
-          {war.attackers.length > 1 && (
-            <Field label="Attacking">
-              <Coalition world={world} ids={war.attackers} />
-            </Field>
-          )}
-          {war.defenders.length > 1 && (
-            <Field label="Defending">
-              <Coalition world={world} ids={war.defenders} />
-            </Field>
-          )}
-          <Field label="Outcome">
-            {OUTCOME_LABELS[war.outcome] ?? war.outcome}
-            {victor && (
-              <>
-                {' — '}
-                <EntityLink world={world} id={war.attackers.includes(victor) ? war.aggressorId : war.defenderId} />
-              </>
+          <Panel title="Belligerents">
+            <dl>
+              <Field label="Declared by">
+                <EntityLink world={world} id={war.aggressorId} />
+              </Field>
+              <Field label="Declared on">
+                <EntityLink world={world} id={war.defenderId} />
+              </Field>
+              {war.claimedRelicId && (
+                <Field label="Relic sought">
+                  <EntityLink world={world} id={war.claimedRelicId} />
+                </Field>
+              )}
+              {war.aggressorReligionId && war.defenderReligionId && (
+                <Field label="Faiths">
+                  <EntityLink world={world} id={war.aggressorReligionId} />
+                  {' against '}
+                  <EntityLink world={world} id={war.defenderReligionId} />
+                </Field>
+              )}
+              {war.attackers.length > 1 && (
+                <Field label="Attacking">
+                  <Coalition world={world} ids={war.attackers} />
+                </Field>
+              )}
+              {war.defenders.length > 1 && (
+                <Field label="Defending">
+                  <Coalition world={world} ids={war.defenders} />
+                </Field>
+              )}
+              <Field label="Outcome">
+                {OUTCOME_LABELS[war.outcome] ?? war.outcome}
+                {victor && (
+                  <>
+                    {' — '}
+                    <EntityLink world={world} id={war.attackers.includes(victor) ? war.aggressorId : war.defenderId} />
+                  </>
+                )}
+              </Field>
+              {war.cededRegionIds.length > 0 && (
+                <Field label="Ceded">
+                  <Coalition world={world} ids={war.cededRegionIds} />
+                </Field>
+              )}
+            </dl>
+          </Panel>
+
+          <Panel title="Battles">
+            {battles.length === 0 ? (
+              <p className="p-4 text-sm text-[var(--ink-faint)]">
+                The two sides never came within reach of each other.
+              </p>
+            ) : (
+              <BattleTable world={world} battles={battles} />
             )}
-          </Field>
-          {war.cededRegionIds.length > 0 && (
-            <Field label="Ceded">
-              <Coalition world={world} ids={war.cededRegionIds} />
-            </Field>
-          )}
-        </dl>
-      </Panel>
+          </Panel>
 
-      <Panel title="Battles">
-        {battles.length === 0 ? (
-          <p className="p-4 text-sm text-[var(--ink-faint)]">
-            The two sides never came within reach of each other.
-          </p>
-        ) : (
-          <BattleTable world={world} battles={battles} />
-        )}
-      </Panel>
+          <Panel title="Context & consequences">
+            <div className="grid gap-0 md:grid-cols-3 md:divide-x md:divide-[var(--rule)]">
+              <WarConsequence
+                eyebrow="The peace"
+                text={
+                  war.cededRegionIds.length === 0
+                    ? 'No region changed hands when the fighting ended.'
+                    : `${war.cededRegionIds.length.toLocaleString()} ${war.cededRegionIds.length === 1 ? 'region changed' : 'regions changed'} hands at the peace.`
+                }
+              />
+              <WarConsequence
+                eyebrow="The cost"
+                text={`${war.attackerLosses.toLocaleString()} fell among the attackers and ${war.defenderLosses.toLocaleString()} among the defenders.`}
+              />
+              <WarConsequence
+                eyebrow="The campaign"
+                text={`${counted(sieges, 'siege')} and ${counted(fieldBattles, 'field battle')} were recorded across ${duration} ${duration === 1 ? 'year' : 'years'}.`}
+              />
+            </div>
+          </Panel>
+        </div>
 
-      <Panel title="Chronicle">
-        <EventList world={world} events={world.eventsFor(war.id)} />
-      </Panel>
+        <div className="min-w-0">
+          <Panel title="Chronicle">
+            <EventList world={world} events={events} timeline />
+          </Panel>
+        </div>
+      </div>
     </div>
   );
+}
+
+function WarMetric({
+  icon,
+  label,
+  value,
+  unit,
+  hint,
+  tone = 'neutral',
+}: {
+  icon: ReactNode;
+  label: string;
+  value: ReactNode;
+  unit?: string;
+  hint?: string;
+  tone?: 'neutral' | 'accent' | 'danger';
+}) {
+  const valueTone = {
+    neutral: 'text-[var(--ink)]',
+    accent: 'text-[var(--primary)]',
+    danger: 'text-[var(--error)]',
+  }[tone];
+
+  return (
+    <div
+      title={hint}
+      className="he-war-metric flex min-h-28 flex-col items-center justify-center px-3 py-4 text-center"
+    >
+      <span className="mb-1.5 text-xl text-[var(--ink-soft)]">{icon}</span>
+      <span className={`he-data text-2xl ${valueTone}`}>{value}</span>
+      <span className="he-label mt-1 text-[10px]">{label}</span>
+      {unit && <span className="text-[11px] text-[var(--ink-faint)]">{unit}</span>}
+    </div>
+  );
+}
+
+function WarConsequence({ eyebrow, text }: { eyebrow: string; text: string }) {
+  return (
+    <div className="border-b border-[var(--rule)] px-1 py-3 first:pt-0 last:border-b-0 last:pb-0 md:border-b-0 md:px-5 md:py-0 md:first:pl-0 md:last:pr-0">
+      <div className="he-label mb-2 text-[10px]">{eyebrow}</div>
+      <p className="text-sm leading-relaxed text-[var(--ink-soft)]">{text}</p>
+    </div>
+  );
+}
+
+function counted(value: number, noun: string): string {
+  return `${value.toLocaleString()} ${noun}${value === 1 ? '' : 's'}`;
 }
 
 /** The winning coalition's principal, or undefined when nobody won. */
