@@ -1,16 +1,28 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { EventList, NarratedEvent } from '../components/EventList';
+import {
+  KnownForPanel,
+  LifeArcStrip,
+  RelationshipConstellation,
+  RipplesPanel,
+  StandingReadout,
+} from './FigureLife';
 import { HistoryPanels } from '../components/History';
 import {
   affinityAt,
   buildBiographyEpisodes,
   disputeAt,
   groupJourneys,
+  buildLifeArc,
+  lifeVantages,
   plotAt,
+  relationshipImportance,
+  relationshipReading,
   undertakingAt,
   visibleBondAt,
   visibleMemoryAt,
   type BiographyEpisode,
+  type LifeContext,
 } from '../biography';
 import {
   Badge,
@@ -719,9 +731,26 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
     setSelectedYear(lastYear);
   }, [figure.id, lastYear]);
 
+  // One resolver for every whole-life derivation, so they all read the same world without any
+  // of them importing the store.
+  const life: LifeContext = useMemo(
+    () => ({
+      endYear: lastYear,
+      figureOf: (id) => (kindOf(id) === 'fig' ? (world.byId.get(id) as Figure | undefined) : undefined),
+      eventsFor: (id) => world.eventsFor(id),
+      nameOf: (id) => world.nameOf(id),
+    }),
+    [world, lastYear],
+  );
+
   const atLatest = selectedYear === lastYear;
   const deathYear = figure.deathYear;
   const deadAtPoint = deathYear !== undefined && deathYear <= selectedYear;
+  // The year the whole-life panels read the world at. Past a person's death the selected year
+  // stops telling you anything about them — a page left on the record's final year would report
+  // someone six centuries dead as holding no office and knowing nobody — so those panels stand
+  // at the last year the person was in the world, and say that they are doing so.
+  const pointYear = Math.min(selectedYear, deathYear ?? lastYear);
   const age = (deadAtPoint ? deathYear : selectedYear) - figure.birthYear;
   const allEvents = world.eventsFor(figure.id);
   const visibleEvents = allEvents.filter((event) => event.year <= selectedYear);
@@ -758,6 +787,11 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
     figure.spouseIds.length > 0 ||
     figure.childIds.length > 0;
   const claimed = atLatest ? treasuresOwnedBy(world, figure.id) : [];
+  const arc = useMemo(
+    () => buildLifeArc(figure, allEvents, life),
+    [figure, allEvents, life],
+  );
+  const vantages = useMemo(() => lifeVantages(figure, arc, life), [figure, arc, life]);
   const lifeUndertakings = (figure.undertakings ?? [])
     .map((undertaking) => undertakingAt(undertaking, selectedYear))
     .filter((undertaking): undertaking is Undertaking => undertaking !== undefined)
@@ -884,6 +918,10 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
         }
       />
 
+      <Panel title="Life arc">
+        <LifeArcStrip arc={arc} selectedYear={pointYear} onSelectYear={setSelectedYear} />
+      </Panel>
+
       <EntityColumns
         aside={
           <Panel title="Chronicle">
@@ -944,6 +982,32 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
               Later outcomes and facts without a historical snapshot are hidden.
             </p>
           )}
+
+          <div className="mt-4 border-t border-[var(--rule)] pt-4">
+            <StandingReadout
+              world={world}
+              figure={figure}
+              year={selectedYear}
+              ctx={life}
+              vantages={vantages}
+              onSelectYear={setSelectedYear}
+            />
+          </div>
+        </Panel>
+
+        <Panel title="Known for">
+          <KnownForPanel
+            world={world}
+            figure={figure}
+            events={allEvents}
+            throughYear={pointYear}
+            ctx={life}
+            artifactCount={treasuresOwnedBy(world, figure.id).length}
+          />
+        </Panel>
+
+        <Panel title={`Those around them in ${pointYear}`}>
+          <RelationshipConstellation world={world} figure={figure} year={pointYear} ctx={life} />
         </Panel>
 
         <Panel title="Life at a glance">
@@ -1558,6 +1622,13 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
             <ArtifactTable world={world} artifacts={claimed} />
           </Panel>
         )}
+
+        {/* Only once they are dead: what followed them is not a fact about a living person. */}
+        {deadAtPoint && (
+          <Panel title={`After ${figure.name}`}>
+            <RipplesPanel world={world} figure={figure} ctx={life} />
+          </Panel>
+        )}
       </EntityColumns>
     </div>
   );
@@ -2094,47 +2165,6 @@ function MemoryLine({ world, memory }: { world: World; memory: SalientMemory }) 
       </span>
     </li>
   );
-}
-
-function relationshipImportance(bond: FigureBond): number {
-  const roleWeight = bond.kinds.some((kind) =>
-    [
-      'Spouse',
-      'Parent',
-      'Child',
-      'Sibling',
-      'Friend',
-      'Lover',
-      'Mentor',
-      'Guardian',
-      'Ward',
-      'Patron',
-      'Rival',
-      'Enemy',
-      'CoConspirator',
-    ].includes(kind),
-  )
-    ? 0.8
-    : 0.2;
-  return (
-    roleWeight +
-    Math.abs(bond.affection) +
-    Math.abs(bond.trust) +
-    bond.obligation +
-    bond.fear +
-    bond.grievance
-  );
-}
-
-function relationshipReading(bond: FigureBond): string {
-  if (bond.grievance >= 0.65) return 'a bitter grievance';
-  if (bond.fear >= 0.55) return 'feared';
-  if (bond.trust <= -0.45) return 'deeply distrusted';
-  if (bond.obligation >= 0.55) return 'bound by duty';
-  if (bond.trust >= 0.55) return 'deeply trusted';
-  if (bond.affection >= 0.45) return 'held dear';
-  if (bond.affection <= -0.35) return 'disliked';
-  return bond.lastCause.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
 }
 
 function eventReading(kind: string): string {
