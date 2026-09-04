@@ -459,6 +459,43 @@ test('what someone is known for is counted through the selected year alone', () 
   assert.ok(whole.some((line) => line === '32 years under arms'), whole.join(' / '));
 });
 
+test('rulers lived under are counted where the figure lived, not where they ended', () => {
+  // Born in civ:1's town, moved to civ:2's on marrying at 50, and dies civ:2's subject. Each
+  // realm crowns twice, but only one accession in each falls inside the years she was there.
+  const figure = person({
+    birthYear: 10,
+    deathYear: 90,
+    civilizationId: 'civ:2',
+    residences: [
+      { settlementId: 'set:1', fromYear: 10, reason: 'Birth' },
+      { settlementId: 'set:2', fromYear: 50, reason: 'Marriage' },
+    ] as Figure['residences'],
+  });
+  const events = {
+    'civ:1': [
+      { id: 1, year: 30, kind: 'RulerCrowned', significance: 'Notable' },
+      { id: 2, year: 70, kind: 'RulerCrowned', significance: 'Notable' },
+    ] as HistoryEvent[],
+    'civ:2': [
+      { id: 3, year: 40, kind: 'RulerCrowned', significance: 'Notable' },
+      { id: 4, year: 80, kind: 'RulerCrowned', significance: 'Notable' },
+    ] as HistoryEvent[],
+  };
+  const realms: Record<string, string> = { 'set:1': 'civ:1', 'set:2': 'civ:2' };
+  const ctx = { ...context([figure], events), realmAt: (id: string) => realms[id] };
+
+  const lines = knownFor(figure, [], 90, ctx).map((line) => `${line.before}${line.after}`);
+  // Counted against the ending realm alone this would read four, half of them crowned over a
+  // realm she was not living in.
+  assert.ok(lines.includes('Lived under 2 rulers'), lines.join(' / '));
+
+  // Without a timeline to ask, the old reading stands rather than the line disappearing.
+  const blind = knownFor(figure, [], 90, context([figure], events)).map(
+    (line) => `${line.before}${line.after}`,
+  );
+  assert.ok(blind.includes('Lived under 2 rulers'), blind.join(' / '));
+});
+
 test('significance leaves an ordinary life ordinary and puts a ruler above a soldier', () => {
   const townsman = person({ childIds: [], journeys: [] });
   const soldier = person({
