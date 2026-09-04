@@ -125,14 +125,14 @@ export default function App() {
   if (!world) return <Loading />;
 
   const isMap = route.path === '/map';
+  // Every entity page now reads as facts beside a chronicle, which is the layout the war page
+  // was widened for — so they all get the same width rather than the old 720px prose column,
+  // which squeezed two columns into one column's worth of room.
   const isEntity = route.path.includes(':');
-  const isWar = route.path.startsWith('/war:');
   const innerWidth = isMap || route.path === '/timeline'
     ? 'w-full'
-    : isWar
-      ? 'mx-auto w-full max-w-[1480px]'
     : isEntity
-      ? 'mx-auto w-full max-w-[720px]'
+      ? 'mx-auto w-full max-w-[1480px]'
       : 'mx-auto w-full max-w-6xl';
 
   return (

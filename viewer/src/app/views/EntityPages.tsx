@@ -122,12 +122,36 @@ import {
 /**
  * The entity pages.
  *
- * Every page follows the same shape: identity at the top, structured facts in the
- * middle, and this entity's slice of the chronicle at the bottom — pulled straight
+ * Every page follows the same shape: identity at the top, structured facts on the
+ * left, and this entity's slice of the chronicle alongside them — pulled straight
  * from the export's per-entity index, so it costs an array lookup rather than a
  * scan. Every reference is an EntityLink, which is what makes
  * king → dynasty → war → battle → city browsable through the same linked archive.
  */
+
+/**
+ * Facts on the left, the chronicle beside them.
+ *
+ * <b>A chronicle stacked underneath the panels is unreadable in practice:</b> the reader has
+ * scrolled past every fact by the time they reach the events that explain them, and has to
+ * scroll back to check a name. Side by side, the year in the chronicle and the panel it refers
+ * to are on screen together. Below xl there is no room for two columns, so it falls back to the
+ * old stacked order — which is why the chronicle is still last in the DOM.
+ */
+function EntityColumns({ children, aside }: { children: ReactNode; aside: ReactNode }) {
+  // Nothing to put beside the facts (a culture with no events of its own): don't narrow the
+  // column for an empty gutter.
+  if (!aside) {
+    return <div className="space-y-5">{children}</div>;
+  }
+
+  return (
+    <div className="grid gap-5 xl:grid-cols-[minmax(0,1.28fr)_minmax(24rem,0.92fr)] xl:items-start">
+      <div className="min-w-0 space-y-5">{children}</div>
+      <div className="min-w-0">{aside}</div>
+    </div>
+  );
+}
 
 export function CivilizationPage({ world, civ }: { world: World; civ: Civilization }) {
   const culture = cultureOf(world, civ.cultureId);
@@ -159,120 +183,124 @@ export function CivilizationPage({ world, civ }: { world: World; civ: Civilizati
         <Stat label="Territory" value={`${civ.territoryRegionIds.length} regions`} />
       </div>
 
-      <Panel title="Details">
-        <dl>
-          <Field label="Culture">
-            <EntityLink world={world} id={civ.cultureId} />
-          </Field>
-          <Field label="Capital">
-            <EntityLink world={world} id={civ.capitalId} />
-            {capital && (
-              <span className="ml-2 text-[var(--ink-faint)]">
-                {capital.tier}, {capital.population.toLocaleString()} people
-              </span>
-            )}
-          </Field>
-          <Field label="Current ruler">
-            <EntityLink world={world} id={civ.currentRulerId} />
-            {civ.currentRulerId && (
-              <span className="ml-2 text-[var(--ink-faint)]">since {civ.rulerSinceYear}</span>
-            )}
-          </Field>
-          {civ.regentId && (
-            <Field label="Regent">
-              <EntityLink world={world} id={civ.regentId} />
-              <span className="ml-2 text-[var(--ink-faint)]">governing for a minor</span>
+      <EntityColumns
+        aside={
+          <Panel title="Chronicle">
+            <EventList world={world} events={world.eventsFor(civ.id)} separateRegister />
+          </Panel>
+        }
+      >
+        <Panel title="Details">
+          <dl>
+            <Field label="Culture">
+              <EntityLink world={world} id={civ.cultureId} />
             </Field>
-          )}
-          <Field label="Ruling house">
-            <EntityLink world={world} id={civ.rulingDynastyId} />
-          </Field>
-          <Field label="Faith">
-            {civ.stateReligionId ? (
-              <EntityLink world={world} id={civ.stateReligionId} />
-            ) : (
-              <span className="text-[var(--ink-faint)]">No faith took hold at its seat</span>
-            )}
-          </Field>
-          {culture && (
-            <Field label="Succession">
-              {SUCCESSION_LABELS[culture.successionLaw] ?? culture.successionLaw}
-              {culture.termYears > 0 && (
+            <Field label="Capital">
+              <EntityLink world={world} id={civ.capitalId} />
+              {capital && (
                 <span className="ml-2 text-[var(--ink-faint)]">
-                  terms of {culture.termYears} years
+                  {capital.tier}, {capital.population.toLocaleString()} people
                 </span>
               )}
             </Field>
-          )}
-        </dl>
-      </Panel>
-
-      <Panel title="Extent">
-        <ExtentChart world={world} civ={civ} />
-      </Panel>
-
-      <Panel title={`Rulers (${civ.rulerIds.length})`}>
-        <Succession world={world} rulerIds={civ.rulerIds} />
-      </Panel>
-
-      <Panel title="Standing with its neighbours">
-        <DiplomacyPanel world={world} civ={civ} />
-      </Panel>
-
-      <Panel title="Wars">
-        <WarTable world={world} wars={warsOf(world, civ.id)} />
-      </Panel>
-
-      <div className="grid gap-5 lg:grid-cols-2">
-        <Panel title="The values it is governed by">
-          <Dials dials={valueDials(civ.effectiveValues, culture)} />
-          <p className="mt-3 text-xs leading-relaxed text-[var(--ink-faint)]">
-            {culture ? (
-              <>
-                Its culture&rsquo;s own values, moved toward whoever was governing in{' '}
-                {world.export.meta.endYear} and then shifted by what the realm had lately been
-                through. Ticks mark <EntityLink world={world} id={culture.id} />
-                &rsquo;s reading of the same dial; the gap is the reign. Tradition and learning
-                never move with a realm&rsquo;s fortunes — a plague leaves nobody less attached to
-                their ancestral sites.
-              </>
-            ) : (
-              <>The dials the realm was actually governed by in {world.export.meta.endYear}.</>
+            <Field label="Current ruler">
+              <EntityLink world={world} id={civ.currentRulerId} />
+              {civ.currentRulerId && (
+                <span className="ml-2 text-[var(--ink-faint)]">since {civ.rulerSinceYear}</span>
+              )}
+            </Field>
+            {civ.regentId && (
+              <Field label="Regent">
+                <EntityLink world={world} id={civ.regentId} />
+                <span className="ml-2 text-[var(--ink-faint)]">governing for a minor</span>
+              </Field>
             )}
-          </p>
+            <Field label="Ruling house">
+              <EntityLink world={world} id={civ.rulingDynastyId} />
+            </Field>
+            <Field label="Faith">
+              {civ.stateReligionId ? (
+                <EntityLink world={world} id={civ.stateReligionId} />
+              ) : (
+                <span className="text-[var(--ink-faint)]">No faith took hold at its seat</span>
+              )}
+            </Field>
+            {culture && (
+              <Field label="Succession">
+                {SUCCESSION_LABELS[culture.successionLaw] ?? culture.successionLaw}
+                {culture.termYears > 0 && (
+                  <span className="ml-2 text-[var(--ink-faint)]">
+                    terms of {culture.termYears} years
+                  </span>
+                )}
+              </Field>
+            )}
+          </dl>
         </Panel>
 
-        <Panel title="What it has lately been through">
-          <Dials dials={fortuneDials(civ.fortunes)} />
-          <p className="mt-3 text-xs leading-relaxed text-[var(--ink-faint)]">
-            Where the last years left it, not a running total: all four decay, and grievance
-            decays slowest. Being beaten exhausts a realm and being humiliated angers it, which is
-            why weariness and grievance are counted apart.
-          </p>
+        <Panel title="Extent">
+          <ExtentChart world={world} civ={civ} />
         </Panel>
-      </div>
 
-      {/* Both panels above are the last year alone. These are every year of it. */}
-      <HistoryPanels world={world} id={civ.id} />
+        <Panel title={`Rulers (${civ.rulerIds.length})`}>
+          <Succession world={world} rulerIds={civ.rulerIds} />
+        </Panel>
 
-      {culture && (
+        <Panel title="Standing with its neighbours">
+          <DiplomacyPanel world={world} civ={civ} />
+        </Panel>
+
+        <Panel title="Wars">
+          <WarTable world={world} wars={warsOf(world, civ.id)} />
+        </Panel>
+
         <div className="grid gap-5 lg:grid-cols-2">
-          <Panel title="Cultural values">
-            <Dials dials={valueDials(culture)} />
+          <Panel title="The values it is governed by">
+            <Dials dials={valueDials(civ.effectiveValues, culture)} />
+            <p className="mt-3 text-xs leading-relaxed text-[var(--ink-faint)]">
+              {culture ? (
+                <>
+                  Its culture&rsquo;s own values, moved toward whoever was governing in{' '}
+                  {world.export.meta.endYear} and then shifted by what the realm had lately been
+                  through. Ticks mark <EntityLink world={world} id={culture.id} />
+                  &rsquo;s reading of the same dial; the gap is the reign. Tradition and learning
+                  never move with a realm&rsquo;s fortunes — a plague leaves nobody less attached to
+                  their ancestral sites.
+                </>
+              ) : (
+                <>The dials the realm was actually governed by in {world.export.meta.endYear}.</>
+              )}
+            </p>
           </Panel>
-          <Panel title="Naming language">
-            <LexiconPanel culture={culture} />
+
+          <Panel title="What it has lately been through">
+            <Dials dials={fortuneDials(civ.fortunes)} />
+            <p className="mt-3 text-xs leading-relaxed text-[var(--ink-faint)]">
+              Where the last years left it, not a running total: all four decay, and grievance
+              decays slowest. Being beaten exhausts a realm and being humiliated angers it, which is
+              why weariness and grievance are counted apart.
+            </p>
           </Panel>
         </div>
-      )}
 
-      <Panel title={`Settlements (${settlements.length})`}>
-        <SettlementTable world={world} settlements={settlements} />
-      </Panel>
+        {/* Both panels above are the last year alone. These are every year of it. */}
+        <HistoryPanels world={world} id={civ.id} />
 
-      <Panel title="Chronicle">
-        <EventList world={world} events={world.eventsFor(civ.id)} separateRegister />
-      </Panel>
+        {culture && (
+          <div className="grid gap-5 lg:grid-cols-2">
+            <Panel title="Cultural values">
+              <Dials dials={valueDials(culture)} />
+            </Panel>
+            <Panel title="Naming language">
+              <LexiconPanel culture={culture} />
+            </Panel>
+          </div>
+        )}
+
+        <Panel title={`Settlements (${settlements.length})`}>
+          <SettlementTable world={world} settlements={settlements} />
+        </Panel>
+      </EntityColumns>
     </div>
   );
 }
@@ -423,108 +451,112 @@ export function SettlementPage({ world, settlement }: { world: World; settlement
         />
       </div>
 
-      <Panel title="Details">
-        <dl>
-          <Field label="Known for">
-            {settlement.specialization === 'None' ? (
-              <span className="text-[var(--ink-faint)]">
-                Too small to have a character of its own
-              </span>
-            ) : (
-              <>
-                {SPECIALIZATION_LABELS[settlement.specialization]}
-                {settlement.specializedYear !== undefined && (
-                  <span className="ml-2 text-[var(--ink-faint)]">
-                    since {settlement.specializedYear}
-                  </span>
-                )}
-              </>
-            )}
-          </Field>
-          <Field label="Built here for">
-            {settlement.site === 'Plain' ? (
-              <span className="text-[var(--ink-faint)]">
-                Its soil — nothing else marks the spot
-              </span>
-            ) : (
-              SITE_LABELS[settlement.site]
-            )}
-          </Field>
-          <Field label="Civilization">
-            <EntityLink world={world} id={settlement.civilizationId} />
-          </Field>
-          {settlement.foundedBy && settlement.foundedBy !== settlement.civilizationId && (
-            <Field label="Founded by">
-              <EntityLink world={world} id={settlement.foundedBy} />
+      <EntityColumns
+        aside={
+          <Panel title="Chronicle">
+            <EventList world={world} events={world.eventsFor(settlement.id)} />
+          </Panel>
+        }
+      >
+        <Panel title="Details">
+          <dl>
+            <Field label="Known for">
+              {settlement.specialization === 'None' ? (
+                <span className="text-[var(--ink-faint)]">
+                  Too small to have a character of its own
+                </span>
+              ) : (
+                <>
+                  {SPECIALIZATION_LABELS[settlement.specialization]}
+                  {settlement.specializedYear !== undefined && (
+                    <span className="ml-2 text-[var(--ink-faint)]">
+                      since {settlement.specializedYear}
+                    </span>
+                  )}
+                </>
+              )}
             </Field>
-          )}
-          <Field label="Region">
-            <EntityLink world={world} id={settlement.regionId} />
-            {region && (
-              <span className="ml-2 text-[var(--ink-faint)]">
-                {region.biome}
-                {region.hasRiver && ' · on a river'}
-                {region.isCoastal && ' · coastal'}
-              </span>
+            <Field label="Built here for">
+              {settlement.site === 'Plain' ? (
+                <span className="text-[var(--ink-faint)]">
+                  Its soil — nothing else marks the spot
+                </span>
+              ) : (
+                SITE_LABELS[settlement.site]
+              )}
+            </Field>
+            <Field label="Civilization">
+              <EntityLink world={world} id={settlement.civilizationId} />
+            </Field>
+            {settlement.foundedBy && settlement.foundedBy !== settlement.civilizationId && (
+              <Field label="Founded by">
+                <EntityLink world={world} id={settlement.foundedBy} />
+              </Field>
             )}
-          </Field>
-          <Field label="Faith">
-            {settlement.religionId ? (
-              <>
-                <EntityLink world={world} id={settlement.religionId} />
-                {settlement.convertedYear !== undefined && (
-                  <span className="ml-2 text-[var(--ink-faint)]">
-                    since {settlement.convertedYear}
-                  </span>
-                )}
-              </>
-            ) : (
-              <span className="text-[var(--ink-faint)]">Keeps its own counsel</span>
-            )}
-          </Field>
-        </dl>
-      </Panel>
-
-      {settlement.support && (
-        <Panel title="What supports it">
-          <SupportBreakdown settlement={settlement} support={settlement.support} />
+            <Field label="Region">
+              <EntityLink world={world} id={settlement.regionId} />
+              {region && (
+                <span className="ml-2 text-[var(--ink-faint)]">
+                  {region.biome}
+                  {region.hasRiver && ' · on a river'}
+                  {region.isCoastal && ' · coastal'}
+                </span>
+              )}
+            </Field>
+            <Field label="Faith">
+              {settlement.religionId ? (
+                <>
+                  <EntityLink world={world} id={settlement.religionId} />
+                  {settlement.convertedYear !== undefined && (
+                    <span className="ml-2 text-[var(--ink-faint)]">
+                      since {settlement.convertedYear}
+                    </span>
+                  )}
+                </>
+              ) : (
+                <span className="text-[var(--ink-faint)]">Keeps its own counsel</span>
+              )}
+            </Field>
+          </dl>
         </Panel>
-      )}
 
-      <Panel title="What it has lately been through">
-        <Dials dials={fortuneDials(settlement.fortunes)} />
-        <p className="mt-3 text-xs leading-relaxed text-[var(--ink-faint)]">
-          Where the last years left this place, not a running total: all four decay, and
-          grievance decays slowest. A sack or a lost siege exhausts a town; occupation and
-          cession are the humiliation that outlives the exhaustion. Plague, fire and famine
-          are the hurt it cannot fight.
-        </p>
-      </Panel>
+        {settlement.support && (
+          <Panel title="What supports it">
+            <SupportBreakdown settlement={settlement} support={settlement.support} />
+          </Panel>
+        )}
 
-      {/* The panel above is the last year alone. These are every year of it. */}
-      <HistoryPanels world={world} id={settlement.id} />
-
-      {treasures.length > 0 && (
-        <Panel title="Treasury">
-          <ArtifactTable world={world} artifacts={treasures} />
+        <Panel title="What it has lately been through">
+          <Dials dials={fortuneDials(settlement.fortunes)} />
+          <p className="mt-3 text-xs leading-relaxed text-[var(--ink-faint)]">
+            Where the last years left this place, not a running total: all four decay, and
+            grievance decays slowest. A sack or a lost siege exhausts a town; occupation and
+            cession are the humiliation that outlives the exhaustion. Plague, fire and famine
+            are the hurt it cannot fight.
+          </p>
         </Panel>
-      )}
 
-      {routes.length > 0 && (
-        <Panel title={`Trade routes (${routes.length})`}>
-          <TradeRouteTable world={world} routes={routes} />
-        </Panel>
-      )}
+        {/* The panel above is the last year alone. These are every year of it. */}
+        <HistoryPanels world={world} id={settlement.id} />
 
-      {holySites.length > 0 && (
-        <Panel title={`Holy sites (${holySites.length})`}>
-          <HolySiteTable world={world} sites={holySites} />
-        </Panel>
-      )}
+        {treasures.length > 0 && (
+          <Panel title="Treasury">
+            <ArtifactTable world={world} artifacts={treasures} />
+          </Panel>
+        )}
 
-      <Panel title="Chronicle">
-        <EventList world={world} events={world.eventsFor(settlement.id)} />
-      </Panel>
+        {routes.length > 0 && (
+          <Panel title={`Trade routes (${routes.length})`}>
+            <TradeRouteTable world={world} routes={routes} />
+          </Panel>
+        )}
+
+        {holySites.length > 0 && (
+          <Panel title={`Holy sites (${holySites.length})`}>
+            <HolySiteTable world={world} sites={holySites} />
+          </Panel>
+        )}
+      </EntityColumns>
     </div>
   );
 }
@@ -560,27 +592,31 @@ export function TradeRoutePage({ world, route }: { world: World; route: TradeRou
         />
       </div>
 
-      <Panel title="Connection">
-        <dl>
-          <Field label="Endpoints">
-            <EntityLink world={world} id={route.settlementAId} />
-            <span className="mx-2 text-[var(--ink-faint)]">↔</span>
-            <EntityLink world={world} id={route.settlementBId} />
-          </Field>
-          <Field label="Transport">{route.mode}</Field>
-          <Field label="Physical path">
-            <span className="text-[var(--ink-faint)]">
-              Not yet modelled — this route is the demand a future road network can serve
-            </span>
-          </Field>
-        </dl>
-      </Panel>
+      <EntityColumns
+        aside={
+          <Panel title="Chronicle">
+            <EventList world={world} events={world.eventsFor(route.id)} />
+          </Panel>
+        }
+      >
+        <Panel title="Connection">
+          <dl>
+            <Field label="Endpoints">
+              <EntityLink world={world} id={route.settlementAId} />
+              <span className="mx-2 text-[var(--ink-faint)]">↔</span>
+              <EntityLink world={world} id={route.settlementBId} />
+            </Field>
+            <Field label="Transport">{route.mode}</Field>
+            <Field label="Physical path">
+              <span className="text-[var(--ink-faint)]">
+                Not yet modelled — this route is the demand a future road network can serve
+              </span>
+            </Field>
+          </dl>
+        </Panel>
 
-      <HistoryPanels world={world} id={route.id} />
-
-      <Panel title="Chronicle">
-        <EventList world={world} events={world.eventsFor(route.id)} />
-      </Panel>
+        <HistoryPanels world={world} id={route.id} />
+      </EntityColumns>
     </div>
   );
 }
@@ -678,11 +714,9 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
   const lastYear = world.export.meta.endYear;
   const firstYear = Math.max(world.export.meta.startYear, figure.birthYear);
   const [selectedYear, setSelectedYear] = useState(lastYear);
-  const [showChronicle, setShowChronicle] = useState(false);
 
   useEffect(() => {
     setSelectedYear(lastYear);
-    setShowChronicle(false);
   }, [figure.id, lastYear]);
 
   const atLatest = selectedYear === lastYear;
@@ -850,695 +884,681 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
         }
       />
 
-      <Panel
-        title="Biography at a point in time"
-        actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <label className="text-xs text-[var(--ink-faint)]">
-              Year{' '}
-              <input
-                type="number"
-                aria-label="Biography year"
-                min={firstYear}
-                max={lastYear}
-                value={selectedYear}
-                onChange={(event) => {
-                  const year = Number(event.target.value);
-                  if (Number.isFinite(year)) {
-                    setSelectedYear(Math.max(firstYear, Math.min(lastYear, year)));
-                  }
-                }}
-                className="w-20 rounded border border-[var(--rule)] bg-[var(--input)] px-2 py-1 text-xs text-[var(--ink)]"
-              />
-            </label>
-            <button
-              type="button"
-              onClick={() => setSelectedYear(lastYear)}
-              disabled={atLatest}
-              className="rounded border border-[var(--rule)] px-2 py-1 text-xs disabled:opacity-40"
-            >
-              Latest year
-            </button>
-          </div>
+      <EntityColumns
+        aside={
+          <Panel title="Chronicle">
+            <EventList world={world} events={visibleEvents} viewpoint={figure.id} />
+          </Panel>
         }
       >
-        <label htmlFor={`biography-year-${figure.id}`} className="block text-sm">
-          Through year <strong>{selectedYear}</strong>
-        </label>
-        <input
-          id={`biography-year-${figure.id}`}
-          type="range"
-          min={firstYear}
-          max={lastYear}
-          value={selectedYear}
-          onChange={(event) => setSelectedYear(Number(event.target.value))}
-          className="mt-2 w-full accent-[var(--primary)]"
-        />
-        <div className="mt-1 flex justify-between text-xs text-[var(--ink-faint)]">
-          <span>{firstYear}</span>
-          <span>{lastYear}</span>
-        </div>
-        {!atLatest && (
-          <p className="mt-2 text-xs text-[var(--ink-faint)]">
-            Later outcomes and facts without a historical snapshot are hidden.
-          </p>
-        )}
-      </Panel>
-
-      <Panel title="Life at a glance">
-        <div className="grid gap-5 lg:grid-cols-2">
-          <section>
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
-              Position
-            </h3>
-            <p className="text-sm">
-              {activeTitle ? (
-                <>
-                  {activeTitle.title} of{' '}
-                  <EntityLink world={world} id={activeTitle.scopeId ?? activeTitle.civilizationId} />
-                </>
-              ) : (
-                trade ?? 'No recorded adult position yet'
-              )}
+        <Panel
+          title="Biography at a point in time"
+          actions={
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="text-xs text-[var(--ink-faint)]">
+                Year{' '}
+                <input
+                  type="number"
+                  aria-label="Biography year"
+                  min={firstYear}
+                  max={lastYear}
+                  value={selectedYear}
+                  onChange={(event) => {
+                    const year = Number(event.target.value);
+                    if (Number.isFinite(year)) {
+                      setSelectedYear(Math.max(firstYear, Math.min(lastYear, year)));
+                    }
+                  }}
+                  className="w-20 rounded border border-[var(--rule)] bg-[var(--input)] px-2 py-1 text-xs text-[var(--ink)]"
+                />
+              </label>
+              <button
+                type="button"
+                onClick={() => setSelectedYear(lastYear)}
+                disabled={atLatest}
+                className="rounded border border-[var(--rule)] px-2 py-1 text-xs disabled:opacity-40"
+              >
+                Latest year
+              </button>
+            </div>
+          }
+        >
+          <label htmlFor={`biography-year-${figure.id}`} className="block text-sm">
+            Through year <strong>{selectedYear}</strong>
+          </label>
+          <input
+            id={`biography-year-${figure.id}`}
+            type="range"
+            min={firstYear}
+            max={lastYear}
+            value={selectedYear}
+            onChange={(event) => setSelectedYear(Number(event.target.value))}
+            className="mt-2 w-full accent-[var(--primary)]"
+          />
+          <div className="mt-1 flex justify-between text-xs text-[var(--ink-faint)]">
+            <span>{firstYear}</span>
+            <span>{lastYear}</span>
+          </div>
+          {!atLatest && (
+            <p className="mt-2 text-xs text-[var(--ink-faint)]">
+              Later outcomes and facts without a historical snapshot are hidden.
             </p>
-            {activeTitle && trade && (
-              <p className="mt-1 text-xs text-[var(--ink-faint)]">Occupation · {trade}</p>
-            )}
-            {rank && (
-              <p className="mt-1 text-xs text-[var(--ink-faint)]">Rank · {rank.title}</p>
-            )}
-            {positionPlace && (
-              <p className="mt-1 text-xs text-[var(--ink-faint)]">
-                {atLatest ? 'Residence' : 'Last recorded place'} ·{' '}
-                <EntityLink world={world} id={positionPlace} />
-              </p>
-            )}
-          </section>
-
-          <section>
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
-              Origins and upbringing
-            </h3>
-            {background ? (
-              <p className="text-sm">
-                Entered the record in {background.introducedYear} through{' '}
-                {CAREER_FAMILY_LABELS[background.careerFamily]} at{' '}
-                <EntityLink world={world} id={background.originSettlementId} />.
-              </p>
-            ) : guardianships.length > 0 || mentorships.length > 0 ? (
-              <p className="text-sm">
-                {guardianships.length > 0 && `${guardianships.length} recorded guardianship`}
-                {guardianships.length > 1 && 's'}
-                {guardianships.length > 0 && mentorships.length > 0 && ' · '}
-                {mentorships.length > 0 && `${mentorships.length} recorded mentorship`}
-                {mentorships.length > 1 && 's'}
-              </p>
-            ) : (
-              <p className="text-sm text-[var(--ink-faint)]">No exceptional upbringing was recorded.</p>
-            )}
-          </section>
-
-          <section>
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
-              Important relationships
-            </h3>
-            {importantRelationships.length > 0 ? (
-              <ul className="space-y-1 text-sm">
-                {importantRelationships.slice(0, 3).map((bond) => (
-                  <li key={bond.otherId}>
-                    <EntityLink world={world} id={bond.otherId} />
-                    <span className="ml-2 text-xs text-[var(--ink-faint)]">
-                      {bond.kinds.map((kind) => BOND_LABELS[kind] ?? kind).join(', ')} ·{' '}
-                      {relationshipReading(bond)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-[var(--ink-faint)]">No durable relationship is visible yet.</p>
-            )}
-          </section>
-
-          <section>
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
-              What they carried
-            </h3>
-            {formativeMemories.length > 0 || injuries.length > 0 ? (
-              <ul className="space-y-1 text-sm">
-                {formativeMemories.slice(0, 2).map((memory, index) => (
-                  <MemoryLine
-                    key={`${memory.kind}:${memory.year}:${memory.aboutId ?? index}`}
-                    world={world}
-                    memory={memory}
-                  />
-                ))}
-                {injuries.slice(-1).map((injury) => (
-                  <li key={`${injury.causeId}:${injury.year}`}>
-                    <span className="text-[var(--ink-faint)]">{injury.year} · </span>
-                    {injury.detail} at <EntityLink world={world} id={injury.causeId} />
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-[var(--ink-faint)]">No formative memory or wound is visible yet.</p>
-            )}
-          </section>
-        </div>
-
-        {(lifeUndertakings.some((undertaking) => undertaking.state === 'Active') ||
-          quarrels.some((dispute) => dispute.outcome === 'Open') ||
-          conspiracies.some((plot) => plot.outcome === 'Ongoing')) && (
-          <section className="mt-5 border-t border-[var(--rule)] pt-4">
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
-              Open threads
-            </h3>
-            <ul className="space-y-1.5 text-sm">
-              {lifeUndertakings
-                .filter((undertaking) => undertaking.state === 'Active')
-                .slice(0, 2)
-                .map((undertaking) => (
-                  <li key={`open-undertaking:${undertaking.id}`}>
-                    Undertaking · {undertaking.objective}
-                    {undertaking.targetId && (
-                      <>
-                        {' · '}
-                        <EntityLink world={world} id={undertaking.targetId} />
-                      </>
-                    )}
-                  </li>
-                ))}
-              {quarrels
-                .filter((dispute) => dispute.outcome === 'Open')
-                .slice(0, 2)
-                .map((dispute) => (
-                  <li key={`open-dispute:${dispute.id}:${dispute.otherId}`}>
-                    Unresolved {DISPUTE_STAGE_LABELS[dispute.stage].toLowerCase()} with{' '}
-                    <EntityLink world={world} id={dispute.otherId} />
-                  </li>
-                ))}
-              {conspiracies
-                .filter((plot) => plot.outcome === 'Ongoing')
-                .slice(0, 2)
-                .map((plot) => (
-                  <li key={`open-plot:${plot.leaderId}:${plot.id}`}>
-                    {plot.publicYear === undefined ? 'Retrospectively recorded' : 'Revealed'} conspiracy
-                    involving{' '}
-                    <EntityLink
-                      world={world}
-                      id={plot.viewpoint === 'Target' ? plot.leaderId : plot.targetId}
-                    />
-                  </li>
-                ))}
-            </ul>
-          </section>
-        )}
-
-        {episodes.length > 0 && (
-          <section className="mt-5 border-t border-[var(--rule)] pt-4">
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
-              Episodes that shaped this life
-            </h3>
-            <BiographyEpisodeList world={world} episodes={episodes} />
-          </section>
-        )}
-      </Panel>
-
-      <Panel title="Details">
-        <dl>
-          <Field label="Sex">{figure.sex}</Field>
-          <Field label="House">
-            {house ? (
-              <EntityLink world={world} id={house.id} />
-            ) : (
-              <span className="text-[var(--ink-faint)]">Of no recorded house</span>
-            )}
-          </Field>
-          <Field label="Civilization">
-            <EntityLink world={world} id={figure.civilizationId} />
-          </Field>
-          <Field label="Culture">
-            <EntityLink world={world} id={figure.cultureId} />
-          </Field>
-          <Field label="Faith">
-            {figure.religionId ? (
-              <EntityLink world={world} id={figure.religionId} />
-            ) : (
-              <span className="text-[var(--ink-faint)]">None recorded</span>
-            )}
-          </Field>
-          <Field label="Born">
-            {figure.birthYear}
-            {figure.birthSettlementId && (
-              <>
-                {' in '}
-                <EntityLink world={world} id={figure.birthSettlementId} />
-              </>
-            )}
-          </Field>
-          <Field label="Occupation">{trade ?? 'None recorded yet'}</Field>
-          {figure.origin !== 'Unrecorded' && ORIGIN_LABELS[figure.origin] && (
-            <Field label="Rose from">{ORIGIN_LABELS[figure.origin]}</Field>
           )}
-          {deadAtPoint && figure.deathYear !== undefined && (
-            <Field label="Died">
-              {figure.deathYear}
-              {figure.deathCause !== 'Unknown' && (
-                <span className="ml-2 text-[var(--ink-faint)]">
-                  of {figure.deathDetail ?? DEATH_LABELS[figure.deathCause] ?? figure.deathCause}
-                </span>
+        </Panel>
+
+        <Panel title="Life at a glance">
+          <div className="grid gap-5 lg:grid-cols-2">
+            <section>
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
+                Position
+              </h3>
+              <p className="text-sm">
+                {activeTitle ? (
+                  <>
+                    {activeTitle.title} of{' '}
+                    <EntityLink world={world} id={activeTitle.scopeId ?? activeTitle.civilizationId} />
+                  </>
+                ) : (
+                  trade ?? 'No recorded adult position yet'
+                )}
+              </p>
+              {activeTitle && trade && (
+                <p className="mt-1 text-xs text-[var(--ink-faint)]">Occupation · {trade}</p>
               )}
-            </Field>
-          )}
-          {visibleService.length > 0 && (
-            <Field label="Service">
-              <ul className="space-y-0.5">
-                {visibleService.map((step, index) => (
-                  <li key={index}>
-                    {step.title} of <EntityLink world={world} id={step.civilizationId} />
-                    <span className="ml-2 text-[var(--ink-faint)]">{step.year}</span>
-                    {step.claim && (
-                      <span className="ml-2 text-[var(--ink-faint)]">{step.claim}</span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </Field>
-          )}
-          <Field label="Titles">
-            {visibleTitles.length === 0 ? (
-              <span className="text-[var(--ink-faint)]">None</span>
-            ) : (
-              <ul className="space-y-0.5">
-                {visibleTitles.map((title, index) => (
-                  <li key={index}>
-                    {title.title} of <EntityLink world={world} id={title.civilizationId} />
-                    <span className="ml-2 text-[var(--ink-faint)]">
-                      {yearRange(title.fromYear, title.toYear)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Field>
-        </dl>
-      </Panel>
+              {rank && (
+                <p className="mt-1 text-xs text-[var(--ink-faint)]">Rank · {rank.title}</p>
+              )}
+              {positionPlace && (
+                <p className="mt-1 text-xs text-[var(--ink-faint)]">
+                  {atLatest ? 'Residence' : 'Last recorded place'} ·{' '}
+                  <EntityLink world={world} id={positionPlace} />
+                </p>
+              )}
+            </section>
 
-      <Panel title="Disposition">
-        {figure.disposition === undefined ? (
-          <NotInThisExport what="A figure's disposition" version={world.schema.version} />
-        ) : (
-        <>
-        <Dials dials={dispositionDials(figure.disposition, culture)} />
-        <p className="mt-3 text-xs leading-relaxed text-[var(--ink-faint)]">
-          Their own inclinations, on the dials their people hold.
-          {culture && (
-            <>
-              {' '}
-              Ticks mark <EntityLink world={world} id={culture.id} />
-              &rsquo;s reading of each: everyone is rolled around the values they were born to
-              {figure.religionId ? (
-                <>
-                  , then pulled toward what <EntityLink world={world} id={figure.religionId} />{' '}
-                  teaches
-                </>
-              ) : null}
-              , so the gap is the person rather than the people.
-            </>
-          )}{' '}
-          Centralism is rolled around what the office itself invites rather than around a culture,
-          so it carries no tick.
-          {figure.disposition.independence !== undefined &&
-            ' Independence is how far they let their people govern them: a follower stays near ' +
-              'the ticks, a rebel answers with their own inclinations.'}
-          {visibleTitles.length === 0 &&
-            ' Recorded for everyone, though it only ever governed anything for those who came to rule.'}
-        </p>
-        </>
-        )}
-      </Panel>
+            <section>
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
+                Origins and upbringing
+              </h3>
+              {background ? (
+                <p className="text-sm">
+                  Entered the record in {background.introducedYear} through{' '}
+                  {CAREER_FAMILY_LABELS[background.careerFamily]} at{' '}
+                  <EntityLink world={world} id={background.originSettlementId} />.
+                </p>
+              ) : guardianships.length > 0 || mentorships.length > 0 ? (
+                <p className="text-sm">
+                  {guardianships.length > 0 && `${guardianships.length} recorded guardianship`}
+                  {guardianships.length > 1 && 's'}
+                  {guardianships.length > 0 && mentorships.length > 0 && ' · '}
+                  {mentorships.length > 0 && `${mentorships.length} recorded mentorship`}
+                  {mentorships.length > 1 && 's'}
+                </p>
+              ) : (
+                <p className="text-sm text-[var(--ink-faint)]">No exceptional upbringing was recorded.</p>
+              )}
+            </section>
 
-      {hasLifeSummary && (
-        <Panel title="Episode ledger">
-          <div className="space-y-5">
-            {(background || guardianships.length > 0 || mentorships.length > 0) && (
-              <section>
-                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
-                  Origins and upbringing
-                </h3>
-                {background && (
-                  <p className="text-sm">
-                    Became part of the record in {background.introducedYear}, having risen through{' '}
-                    {CAREER_FAMILY_LABELS[background.careerFamily]} at{' '}
-                    <EntityLink world={world} id={background.originSettlementId} />
-                    {background.institutionId &&
-                      background.institutionId !== background.originSettlementId && (
-                        <>
-                          {' through '}
-                          <EntityLink world={world} id={background.institutionId} />
-                        </>
-                      )}
-                    {background.sponsorId && (
-                      <>
-                        {', backed by '}
-                        <EntityLink world={world} id={background.sponsorId} />
-                      </>
-                    )}
-                    .
-                  </p>
-                )}
-                {guardianships.length > 0 && (
-                  <ul className={`${background ? 'mt-2 ' : ''}space-y-1.5 text-sm`}>
-                    {guardianships.map((guardianship) => {
-                      const wasGuardian = guardianship.guardianId === figure.id;
-                      return (
-                        <li key={`${guardianship.guardianId}:${guardianship.wardId}:${guardianship.startYear}`}>
-                          <span className="text-[var(--ink-faint)]">{guardianship.startYear} · </span>
-                          {wasGuardian ? 'Guardian of ' : 'Guarded by '}
-                          <EntityLink
-                            world={world}
-                            id={wasGuardian ? guardianship.wardId : guardianship.guardianId}
-                          />
-                          <span className="ml-2 text-xs text-[var(--ink-faint)]">
-                            {guardianship.end === 'Ongoing'
-                              ? 'ongoing'
-                              : `until ${guardianship.endYear ?? guardianship.startYear}`}
-                          </span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-                {mentorships.length > 0 && (
-                  <ul
-                    className={`${background || guardianships.length > 0 ? 'mt-2 ' : ''}space-y-1.5 text-sm`}
-                  >
-                    {mentorships.map((mentorship) => {
-                      const taught = mentorship.mentorId === figure.id;
-                      return (
-                        <li key={`${mentorship.mentorId}:${mentorship.apprenticeId}:${mentorship.startYear}`}>
-                          <span className="text-[var(--ink-faint)]">{mentorship.startYear} · </span>
-                          {taught ? 'Mentored ' : 'Mentored in '}
-                          {taught ? (
-                            <EntityLink world={world} id={mentorship.apprenticeId} />
-                          ) : (
-                            <>
-                              {CAREER_FAMILY_LABELS[mentorship.careerFamily]} by{' '}
-                              <EntityLink world={world} id={mentorship.mentorId} />
-                            </>
-                          )}
-                          {mentorship.locationId && (
-                            <span className="text-[var(--ink-faint)]">
-                              {' at '}
-                              <EntityLink world={world} id={mentorship.locationId} />
-                            </span>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </section>
-            )}
-
-            {lifeUndertakings.length > 0 && (
-              <section>
-                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
-                  Undertakings
-                </h3>
-                <div className="space-y-3">
-                  {lifeUndertakings.map((undertaking) => (
-                    <LifeUndertaking
-                      key={`${undertaking.id}:${undertaking.startYear}`}
-                      world={world}
-                      undertaking={undertaking}
-                    />
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {importantRelationships.length > 0 && (
-              <section>
-                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
-                  Important relationships
-                </h3>
-                <ul className="space-y-2 text-sm">
-                  {importantRelationships.map((bond) => (
-                    <li key={bond.otherId} className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+            <section>
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
+                Important relationships
+              </h3>
+              {importantRelationships.length > 0 ? (
+                <ul className="space-y-1 text-sm">
+                  {importantRelationships.slice(0, 3).map((bond) => (
+                    <li key={bond.otherId}>
                       <EntityLink world={world} id={bond.otherId} />
-                      <span className="flex flex-wrap gap-1">
-                        {bond.kinds.map((kind) => (
-                          <Badge
-                            key={kind}
-                            tone={kind === 'Rival' || kind === 'Enemy' ? 'muted' : 'neutral'}
-                          >
-                            {BOND_LABELS[kind] ?? kind}
-                          </Badge>
-                        ))}
-                      </span>
-                      <span className="text-xs text-[var(--ink-faint)]">
-                        {relationshipReading(bond)} · since {bond.sinceYear} ·{' '}
-                        {eventReading(bond.lastEventKind)} in {bond.lastChangedYear}
-                        {bond.lastEntityId &&
-                          bond.lastEntityId !== bond.otherId &&
-                          bond.lastEntityId !== figure.id && (
-                          <>
-                            {' · '}
-                            <EntityLink world={world} id={bond.lastEntityId} />
-                          </>
-                        )}
+                      <span className="ml-2 text-xs text-[var(--ink-faint)]">
+                        {bond.kinds.map((kind) => BOND_LABELS[kind] ?? kind).join(', ')} ·{' '}
+                        {relationshipReading(bond)}
                       </span>
                     </li>
                   ))}
                 </ul>
-              </section>
-            )}
+              ) : (
+                <p className="text-sm text-[var(--ink-faint)]">No durable relationship is visible yet.</p>
+              )}
+            </section>
 
-            {formativeMemories.length > 0 && (
-              <section>
-                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
-                  Formative memories
-                </h3>
-                {atLatest && <FeelingBadges feelings={figure.feelings} />}
-                <ul className="mt-2 space-y-1.5 text-sm">
-                  {formativeMemories.map((memory, index) => (
+            <section>
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
+                What they carried
+              </h3>
+              {formativeMemories.length > 0 || injuries.length > 0 ? (
+                <ul className="space-y-1 text-sm">
+                  {formativeMemories.slice(0, 2).map((memory, index) => (
                     <MemoryLine
                       key={`${memory.kind}:${memory.year}:${memory.aboutId ?? index}`}
                       world={world}
                       memory={memory}
                     />
                   ))}
+                  {injuries.slice(-1).map((injury) => (
+                    <li key={`${injury.causeId}:${injury.year}`}>
+                      <span className="text-[var(--ink-faint)]">{injury.year} · </span>
+                      {injury.detail} at <EntityLink world={world} id={injury.causeId} />
+                    </li>
+                  ))}
                 </ul>
-              </section>
-            )}
+              ) : (
+                <p className="text-sm text-[var(--ink-faint)]">No formative memory or wound is visible yet.</p>
+              )}
+            </section>
+          </div>
 
-            {(friendships === undefined || friendships.length > 0) && (
-              <section>
-                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
-                  Friendships
-                </h3>
-                {friendships === undefined ? (
-                  <NotInThisExport
-                    what="A figure's friendships"
-                    since={48}
-                    version={world.schema.version}
-                  />
-                ) : (
-                  <div className="space-y-3">
-                    {friendships.map((affinity) => (
-                      <Friendship
-                        key={`${affinity.id}:${affinity.otherId}:${affinity.startYear}`}
+          {(lifeUndertakings.some((undertaking) => undertaking.state === 'Active') ||
+            quarrels.some((dispute) => dispute.outcome === 'Open') ||
+            conspiracies.some((plot) => plot.outcome === 'Ongoing')) && (
+            <section className="mt-5 border-t border-[var(--rule)] pt-4">
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
+                Open threads
+              </h3>
+              <ul className="space-y-1.5 text-sm">
+                {lifeUndertakings
+                  .filter((undertaking) => undertaking.state === 'Active')
+                  .slice(0, 2)
+                  .map((undertaking) => (
+                    <li key={`open-undertaking:${undertaking.id}`}>
+                      Undertaking · {undertaking.objective}
+                      {undertaking.targetId && (
+                        <>
+                          {' · '}
+                          <EntityLink world={world} id={undertaking.targetId} />
+                        </>
+                      )}
+                    </li>
+                  ))}
+                {quarrels
+                  .filter((dispute) => dispute.outcome === 'Open')
+                  .slice(0, 2)
+                  .map((dispute) => (
+                    <li key={`open-dispute:${dispute.id}:${dispute.otherId}`}>
+                      Unresolved {DISPUTE_STAGE_LABELS[dispute.stage].toLowerCase()} with{' '}
+                      <EntityLink world={world} id={dispute.otherId} />
+                    </li>
+                  ))}
+                {conspiracies
+                  .filter((plot) => plot.outcome === 'Ongoing')
+                  .slice(0, 2)
+                  .map((plot) => (
+                    <li key={`open-plot:${plot.leaderId}:${plot.id}`}>
+                      {plot.publicYear === undefined ? 'Retrospectively recorded' : 'Revealed'} conspiracy
+                      involving{' '}
+                      <EntityLink
                         world={world}
-                        affinity={affinity}
-                        self={figure.id}
-                        throughYear={selectedYear}
+                        id={plot.viewpoint === 'Target' ? plot.leaderId : plot.targetId}
+                      />
+                    </li>
+                  ))}
+              </ul>
+            </section>
+          )}
+
+          {episodes.length > 0 && (
+            <section className="mt-5 border-t border-[var(--rule)] pt-4">
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
+                Episodes that shaped this life
+              </h3>
+              <BiographyEpisodeList world={world} episodes={episodes} />
+            </section>
+          )}
+        </Panel>
+
+        <Panel title="Details">
+          <dl>
+            <Field label="Sex">{figure.sex}</Field>
+            <Field label="House">
+              {house ? (
+                <EntityLink world={world} id={house.id} />
+              ) : (
+                <span className="text-[var(--ink-faint)]">Of no recorded house</span>
+              )}
+            </Field>
+            <Field label="Civilization">
+              <EntityLink world={world} id={figure.civilizationId} />
+            </Field>
+            <Field label="Culture">
+              <EntityLink world={world} id={figure.cultureId} />
+            </Field>
+            <Field label="Faith">
+              {figure.religionId ? (
+                <EntityLink world={world} id={figure.religionId} />
+              ) : (
+                <span className="text-[var(--ink-faint)]">None recorded</span>
+              )}
+            </Field>
+            <Field label="Born">
+              {figure.birthYear}
+              {figure.birthSettlementId && (
+                <>
+                  {' in '}
+                  <EntityLink world={world} id={figure.birthSettlementId} />
+                </>
+              )}
+            </Field>
+            <Field label="Occupation">{trade ?? 'None recorded yet'}</Field>
+            {figure.origin !== 'Unrecorded' && ORIGIN_LABELS[figure.origin] && (
+              <Field label="Rose from">{ORIGIN_LABELS[figure.origin]}</Field>
+            )}
+            {deadAtPoint && figure.deathYear !== undefined && (
+              <Field label="Died">
+                {figure.deathYear}
+                {figure.deathCause !== 'Unknown' && (
+                  <span className="ml-2 text-[var(--ink-faint)]">
+                    of {figure.deathDetail ?? DEATH_LABELS[figure.deathCause] ?? figure.deathCause}
+                  </span>
+                )}
+              </Field>
+            )}
+            {visibleService.length > 0 && (
+              <Field label="Service">
+                <ul className="space-y-0.5">
+                  {visibleService.map((step, index) => (
+                    <li key={index}>
+                      {step.title} of <EntityLink world={world} id={step.civilizationId} />
+                      <span className="ml-2 text-[var(--ink-faint)]">{step.year}</span>
+                      {step.claim && (
+                        <span className="ml-2 text-[var(--ink-faint)]">{step.claim}</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </Field>
+            )}
+            <Field label="Titles">
+              {visibleTitles.length === 0 ? (
+                <span className="text-[var(--ink-faint)]">None</span>
+              ) : (
+                <ul className="space-y-0.5">
+                  {visibleTitles.map((title, index) => (
+                    <li key={index}>
+                      {title.title} of <EntityLink world={world} id={title.civilizationId} />
+                      <span className="ml-2 text-[var(--ink-faint)]">
+                        {yearRange(title.fromYear, title.toYear)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Field>
+          </dl>
+        </Panel>
+
+        <Panel title="Disposition">
+          {figure.disposition === undefined ? (
+            <NotInThisExport what="A figure's disposition" version={world.schema.version} />
+          ) : (
+          <>
+          <Dials dials={dispositionDials(figure.disposition, culture)} />
+          <p className="mt-3 text-xs leading-relaxed text-[var(--ink-faint)]">
+            Their own inclinations, on the dials their people hold.
+            {culture && (
+              <>
+                {' '}
+                Ticks mark <EntityLink world={world} id={culture.id} />
+                &rsquo;s reading of each: everyone is rolled around the values they were born to
+                {figure.religionId ? (
+                  <>
+                    , then pulled toward what <EntityLink world={world} id={figure.religionId} />{' '}
+                    teaches
+                  </>
+                ) : null}
+                , so the gap is the person rather than the people.
+              </>
+            )}{' '}
+            Centralism is rolled around what the office itself invites rather than around a culture,
+            so it carries no tick.
+            {figure.disposition.independence !== undefined &&
+              ' Independence is how far they let their people govern them: a follower stays near ' +
+                'the ticks, a rebel answers with their own inclinations.'}
+            {visibleTitles.length === 0 &&
+              ' Recorded for everyone, though it only ever governed anything for those who came to rule.'}
+          </p>
+          </>
+          )}
+        </Panel>
+
+        {hasLifeSummary && (
+          <Panel title="Episode ledger">
+            <div className="space-y-5">
+              {(background || guardianships.length > 0 || mentorships.length > 0) && (
+                <section>
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
+                    Origins and upbringing
+                  </h3>
+                  {background && (
+                    <p className="text-sm">
+                      Became part of the record in {background.introducedYear}, having risen through{' '}
+                      {CAREER_FAMILY_LABELS[background.careerFamily]} at{' '}
+                      <EntityLink world={world} id={background.originSettlementId} />
+                      {background.institutionId &&
+                        background.institutionId !== background.originSettlementId && (
+                          <>
+                            {' through '}
+                            <EntityLink world={world} id={background.institutionId} />
+                          </>
+                        )}
+                      {background.sponsorId && (
+                        <>
+                          {', backed by '}
+                          <EntityLink world={world} id={background.sponsorId} />
+                        </>
+                      )}
+                      .
+                    </p>
+                  )}
+                  {guardianships.length > 0 && (
+                    <ul className={`${background ? 'mt-2 ' : ''}space-y-1.5 text-sm`}>
+                      {guardianships.map((guardianship) => {
+                        const wasGuardian = guardianship.guardianId === figure.id;
+                        return (
+                          <li key={`${guardianship.guardianId}:${guardianship.wardId}:${guardianship.startYear}`}>
+                            <span className="text-[var(--ink-faint)]">{guardianship.startYear} · </span>
+                            {wasGuardian ? 'Guardian of ' : 'Guarded by '}
+                            <EntityLink
+                              world={world}
+                              id={wasGuardian ? guardianship.wardId : guardianship.guardianId}
+                            />
+                            <span className="ml-2 text-xs text-[var(--ink-faint)]">
+                              {guardianship.end === 'Ongoing'
+                                ? 'ongoing'
+                                : `until ${guardianship.endYear ?? guardianship.startYear}`}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                  {mentorships.length > 0 && (
+                    <ul
+                      className={`${background || guardianships.length > 0 ? 'mt-2 ' : ''}space-y-1.5 text-sm`}
+                    >
+                      {mentorships.map((mentorship) => {
+                        const taught = mentorship.mentorId === figure.id;
+                        return (
+                          <li key={`${mentorship.mentorId}:${mentorship.apprenticeId}:${mentorship.startYear}`}>
+                            <span className="text-[var(--ink-faint)]">{mentorship.startYear} · </span>
+                            {taught ? 'Mentored ' : 'Mentored in '}
+                            {taught ? (
+                              <EntityLink world={world} id={mentorship.apprenticeId} />
+                            ) : (
+                              <>
+                                {CAREER_FAMILY_LABELS[mentorship.careerFamily]} by{' '}
+                                <EntityLink world={world} id={mentorship.mentorId} />
+                              </>
+                            )}
+                            {mentorship.locationId && (
+                              <span className="text-[var(--ink-faint)]">
+                                {' at '}
+                                <EntityLink world={world} id={mentorship.locationId} />
+                              </span>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </section>
+              )}
+
+              {lifeUndertakings.length > 0 && (
+                <section>
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
+                    Undertakings
+                  </h3>
+                  <div className="space-y-3">
+                    {lifeUndertakings.map((undertaking) => (
+                      <LifeUndertaking
+                        key={`${undertaking.id}:${undertaking.startYear}`}
+                        world={world}
+                        undertaking={undertaking}
                       />
                     ))}
                   </div>
-                )}
-              </section>
-            )}
+                </section>
+              )}
 
-            {quarrels.length > 0 && (
-              <section>
-                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
-                  Quarrels
-                </h3>
-                <div className="space-y-3">
-                  {quarrels.map((dispute) => (
-                    <Quarrel
-                      key={`${dispute.id}:${dispute.otherId}:${dispute.startYear}`}
-                      world={world}
-                      dispute={dispute}
-                      self={figure.id}
-                    />
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {conspiracies.length > 0 && (
-              <section>
-                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
-                  Conspiracies
-                </h3>
-                <div className="space-y-3">
-                  {conspiracies.map((plot) => (
-                    <Conspiracy
-                      key={`${plot.leaderId}:${plot.id}`}
-                      world={world}
-                      plot={plot}
-                      self={figure.id}
-                      historical={!atLatest}
-                    />
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {seenInTheSky.length > 0 && (
-              <section>
-                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
-                  Recorded in the sky
-                </h3>
-                <ul className="space-y-1.5 text-sm">
-                  {seenInTheSky.map((seen, index) => (
-                    <li key={`${seen.cometIndex}:${seen.year}:${index}`}>
-                      <span className="text-[var(--ink-faint)]">{seen.year} · </span>
-                      {APPARITION_LABELS[seen.grade] ?? seen.grade}
-                      {seen.settlementId && (
-                        <>
-                          {' at '}
-                          <EntityLink world={world} id={seen.settlementId} />
-                        </>
-                      )}
-                      <span className="ml-2 text-xs text-[var(--ink-faint)]">
-                        {seen.interval !== undefined
-                          ? `${seen.interval} years after the last their people had written down`
-                          : 'the first their people had written down'}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
-
-            {heldAboutTheSky.length > 0 && (
-              <section>
-                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
-                  Held about the sky
-                </h3>
-                <ul className="space-y-2 text-sm">
-                  {heldAboutTheSky.map((claim) => (
-                    <li key={`${claim.id}:${claim.year}`} className="border-l border-[var(--line)] pl-3">
-                      <p className="flex flex-wrap items-baseline gap-2">
-                        <span>
-                          {claim.year} · {claim.reading}
+              {importantRelationships.length > 0 && (
+                <section>
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
+                    Important relationships
+                  </h3>
+                  <ul className="space-y-2 text-sm">
+                    {importantRelationships.map((bond) => (
+                      <li key={bond.otherId} className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                        <EntityLink world={world} id={bond.otherId} />
+                        <span className="flex flex-wrap gap-1">
+                          {bond.kinds.map((kind) => (
+                            <Badge
+                              key={kind}
+                              tone={kind === 'Rival' || kind === 'Enemy' ? 'muted' : 'neutral'}
+                            >
+                              {BOND_LABELS[kind] ?? kind}
+                            </Badge>
+                          ))}
                         </span>
-                        <Badge
-                          tone={
-                            claim.verdict === 'Confirmed'
-                              ? 'accent'
-                              : claim.verdict === 'Refuted'
-                                ? 'muted'
-                                : 'neutral'
-                          }
-                        >
-                          {claim.register}
-                        </Badge>
-                      </p>
-                      <p className="mt-0.5 text-xs text-[var(--ink-faint)]">
-                        {CLAIM_VERDICT_LABELS[claim.verdict] ?? claim.verdict}
-                        {claim.predictedYear !== undefined && ` · looked for it in ${claim.predictedYear}`}
-                        {claim.settledYear !== undefined && ` · settled ${claim.settledYear}`}
-                        {claim.settledYear !== undefined &&
-                          !claim.claimantSawTheAnswer &&
-                          ', after their death'}
-                      </p>
-                      {claim.restsOnYears.length > 0 && (
-                        <p className="mt-0.5 text-xs text-[var(--ink-faint)]">
-                          From sightings in {claim.restsOnYears.join(', ')}
+                        <span className="text-xs text-[var(--ink-faint)]">
+                          {relationshipReading(bond)} · since {bond.sinceYear} ·{' '}
+                          {eventReading(bond.lastEventKind)} in {bond.lastChangedYear}
+                          {bond.lastEntityId &&
+                            bond.lastEntityId !== bond.otherId &&
+                            bond.lastEntityId !== figure.id && (
+                            <>
+                              {' · '}
+                              <EntityLink world={world} id={bond.lastEntityId} />
+                            </>
+                          )}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+
+              {formativeMemories.length > 0 && (
+                <section>
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
+                    Formative memories
+                  </h3>
+                  {atLatest && <FeelingBadges feelings={figure.feelings} />}
+                  <ul className="mt-2 space-y-1.5 text-sm">
+                    {formativeMemories.map((memory, index) => (
+                      <MemoryLine
+                        key={`${memory.kind}:${memory.year}:${memory.aboutId ?? index}`}
+                        world={world}
+                        memory={memory}
+                      />
+                    ))}
+                  </ul>
+                </section>
+              )}
+
+              {(friendships === undefined || friendships.length > 0) && (
+                <section>
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
+                    Friendships
+                  </h3>
+                  {friendships === undefined ? (
+                    <NotInThisExport
+                      what="A figure's friendships"
+                      since={48}
+                      version={world.schema.version}
+                    />
+                  ) : (
+                    <div className="space-y-3">
+                      {friendships.map((affinity) => (
+                        <Friendship
+                          key={`${affinity.id}:${affinity.otherId}:${affinity.startYear}`}
+                          world={world}
+                          affinity={affinity}
+                          self={figure.id}
+                          throughYear={selectedYear}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </section>
+              )}
+
+              {quarrels.length > 0 && (
+                <section>
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
+                    Quarrels
+                  </h3>
+                  <div className="space-y-3">
+                    {quarrels.map((dispute) => (
+                      <Quarrel
+                        key={`${dispute.id}:${dispute.otherId}:${dispute.startYear}`}
+                        world={world}
+                        dispute={dispute}
+                        self={figure.id}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {conspiracies.length > 0 && (
+                <section>
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
+                    Conspiracies
+                  </h3>
+                  <div className="space-y-3">
+                    {conspiracies.map((plot) => (
+                      <Conspiracy
+                        key={`${plot.leaderId}:${plot.id}`}
+                        world={world}
+                        plot={plot}
+                        self={figure.id}
+                        historical={!atLatest}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {seenInTheSky.length > 0 && (
+                <section>
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
+                    Recorded in the sky
+                  </h3>
+                  <ul className="space-y-1.5 text-sm">
+                    {seenInTheSky.map((seen, index) => (
+                      <li key={`${seen.cometIndex}:${seen.year}:${index}`}>
+                        <span className="text-[var(--ink-faint)]">{seen.year} · </span>
+                        {APPARITION_LABELS[seen.grade] ?? seen.grade}
+                        {seen.settlementId && (
+                          <>
+                            {' at '}
+                            <EntityLink world={world} id={seen.settlementId} />
+                          </>
+                        )}
+                        <span className="ml-2 text-xs text-[var(--ink-faint)]">
+                          {seen.interval !== undefined
+                            ? `${seen.interval} years after the last their people had written down`
+                            : 'the first their people had written down'}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+
+              {heldAboutTheSky.length > 0 && (
+                <section>
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
+                    Held about the sky
+                  </h3>
+                  <ul className="space-y-2 text-sm">
+                    {heldAboutTheSky.map((claim) => (
+                      <li key={`${claim.id}:${claim.year}`} className="border-l border-[var(--line)] pl-3">
+                        <p className="flex flex-wrap items-baseline gap-2">
+                          <span>
+                            {claim.year} · {claim.reading}
+                          </span>
+                          <Badge
+                            tone={
+                              claim.verdict === 'Confirmed'
+                                ? 'accent'
+                                : claim.verdict === 'Refuted'
+                                  ? 'muted'
+                                  : 'neutral'
+                            }
+                          >
+                            {claim.register}
+                          </Badge>
                         </p>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
+                        <p className="mt-0.5 text-xs text-[var(--ink-faint)]">
+                          {CLAIM_VERDICT_LABELS[claim.verdict] ?? claim.verdict}
+                          {claim.predictedYear !== undefined && ` · looked for it in ${claim.predictedYear}`}
+                          {claim.settledYear !== undefined && ` · settled ${claim.settledYear}`}
+                          {claim.settledYear !== undefined &&
+                            !claim.claimantSawTheAnswer &&
+                            ', after their death'}
+                        </p>
+                        {claim.restsOnYears.length > 0 && (
+                          <p className="mt-0.5 text-xs text-[var(--ink-faint)]">
+                            From sightings in {claim.restsOnYears.join(', ')}
+                          </p>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
 
-            {injuries.length > 0 && (
-              <section>
-                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
-                  Wounds carried
-                </h3>
-                <ul className="space-y-1.5 text-sm">
-                  {injuries.map((injury, index) => (
-                    <li key={`${injury.causeId}:${injury.year}:${index}`}>
-                      <span className="text-[var(--ink-faint)]">{injury.year} · </span>
-                      {injury.detail}{' '}
-                      {injury.sourceKind === 'DuelFought' ? 'at the hand of' : 'at'}{' '}
-                      <EntityLink world={world} id={injury.causeId} />
-                      <span className="ml-2 text-xs text-[var(--ink-faint)]">
-                        {injury.permanent
-                          ? 'permanent'
-                          : injury.recoveryYear !== undefined && injury.recoveryYear <= selectedYear
-                            ? `recovered by ${injury.recoveryYear}`
-                            : 'still recovering'}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
-          </div>
-        </Panel>
-      )}
-
-      {hasFamily && atLatest && (
-        <Panel title="Family">
-          <FamilyTree world={world} figure={figure} />
-        </Panel>
-      )}
-
-      {campaigns.length > 0 && (
-        <Panel title="Campaigns">
-          <CampaignList world={world} campaigns={campaigns} />
-        </Panel>
-      )}
-
-      {journeys.length > 0 && (
-        <Panel title="Travels">
-          <JourneyList world={world} journeys={journeys} throughYear={selectedYear} />
-        </Panel>
-      )}
-
-      {claimed.length > 0 && (
-        <Panel title="Treasures">
-          <ArtifactTable world={world} artifacts={claimed} />
-        </Panel>
-      )}
-
-      <Panel
-        title="Complete chronicle"
-        actions={
-          <button
-            type="button"
-            onClick={() => setShowChronicle((shown) => !shown)}
-            className="rounded border border-[var(--rule)] px-2 py-1 text-xs"
-          >
-            {showChronicle ? 'Hide chronicle' : 'Show chronicle'}
-          </button>
-        }
-      >
-        {showChronicle ? (
-          <EventList world={world} events={visibleEvents} viewpoint={figure.id} />
-        ) : (
-          <p className="text-sm text-[var(--ink-faint)]">
-            The complete event list is available on demand; the biography above keeps the causal
-            episodes in view first.
-          </p>
+              {injuries.length > 0 && (
+                <section>
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
+                    Wounds carried
+                  </h3>
+                  <ul className="space-y-1.5 text-sm">
+                    {injuries.map((injury, index) => (
+                      <li key={`${injury.causeId}:${injury.year}:${index}`}>
+                        <span className="text-[var(--ink-faint)]">{injury.year} · </span>
+                        {injury.detail}{' '}
+                        {injury.sourceKind === 'DuelFought' ? 'at the hand of' : 'at'}{' '}
+                        <EntityLink world={world} id={injury.causeId} />
+                        <span className="ml-2 text-xs text-[var(--ink-faint)]">
+                          {injury.permanent
+                            ? 'permanent'
+                            : injury.recoveryYear !== undefined && injury.recoveryYear <= selectedYear
+                              ? `recovered by ${injury.recoveryYear}`
+                              : 'still recovering'}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+            </div>
+          </Panel>
         )}
-      </Panel>
+
+        {hasFamily && atLatest && (
+          <Panel title="Family">
+            <FamilyTree world={world} figure={figure} />
+          </Panel>
+        )}
+
+        {campaigns.length > 0 && (
+          <Panel title="Campaigns">
+            <CampaignList world={world} campaigns={campaigns} />
+          </Panel>
+        )}
+
+        {journeys.length > 0 && (
+          <Panel title="Travels">
+            <JourneyList world={world} journeys={journeys} throughYear={selectedYear} />
+          </Panel>
+        )}
+
+        {claimed.length > 0 && (
+          <Panel title="Treasures">
+            <ArtifactTable world={world} artifacts={claimed} />
+          </Panel>
+        )}
+      </EntityColumns>
     </div>
   );
 }
@@ -2265,36 +2285,40 @@ export function DynastyPage({ world, house }: { world: World; house: Dynasty }) 
         <Stat label="Thrones" value={thrones.size} />
       </div>
 
-      <Panel title="Details">
-        <dl>
-          <Field label="Founder">
-            <EntityLink world={world} id={house.founderId} />
-            {founder && (
-              <span className="ml-2 text-[var(--ink-faint)]">
-                {yearRange(founder.birthYear, founder.deathYear)}
-              </span>
-            )}
-          </Field>
-          <Field label="Rose in">
-            <EntityLink world={world} id={house.originCivilizationId} />
-          </Field>
-          <Field label="Culture">
-            <EntityLink world={world} id={house.cultureId} />
-          </Field>
-        </dl>
-      </Panel>
+      <EntityColumns
+        aside={
+          <Panel title="Chronicle">
+            <EventList world={world} events={world.eventsFor(house.id)} />
+          </Panel>
+        }
+      >
+        <Panel title="Details">
+          <dl>
+            <Field label="Founder">
+              <EntityLink world={world} id={house.founderId} />
+              {founder && (
+                <span className="ml-2 text-[var(--ink-faint)]">
+                  {yearRange(founder.birthYear, founder.deathYear)}
+                </span>
+              )}
+            </Field>
+            <Field label="Rose in">
+              <EntityLink world={world} id={house.originCivilizationId} />
+            </Field>
+            <Field label="Culture">
+              <EntityLink world={world} id={house.cultureId} />
+            </Field>
+          </dl>
+        </Panel>
 
-      <Panel title={`Reigns (${house.rulerIds.length})`}>
-        <Succession world={world} rulerIds={house.rulerIds} />
-      </Panel>
+        <Panel title={`Reigns (${house.rulerIds.length})`}>
+          <Succession world={world} rulerIds={house.rulerIds} />
+        </Panel>
 
-      <Panel title={`Members (${members.length})`}>
-        <MemberTable world={world} members={members} />
-      </Panel>
-
-      <Panel title="Chronicle">
-        <EventList world={world} events={world.eventsFor(house.id)} />
-      </Panel>
+        <Panel title={`Members (${members.length})`}>
+          <MemberTable world={world} members={members} />
+        </Panel>
+      </EntityColumns>
     </div>
   );
 }
@@ -2392,52 +2416,56 @@ export function RegionPage({ world, region }: { world: World; region: Region }) 
         />
       </div>
 
-      <Panel title="Ground">
-        <dl>
-          <Field label="Biome">{region.biome}</Field>
-          <Field label="Terrain">
-            {region.isLand ? 'Land' : 'Open water'}
-            {region.hasRiver && ' · a river runs through it'}
-            {region.isCoastal && ' · meets the sea'}
-            {!region.hasRiver && !region.isCoastal && region.isLand && ' · no river, no coast'}
-          </Field>
-          <Field label="Claimed by">
-            {region.owner ? (
-              <EntityLink world={world} id={region.owner} />
-            ) : (
-              <span className="text-[var(--ink-faint)]">Unclaimed at the end of the run</span>
-            )}
-          </Field>
-        </dl>
-      </Panel>
-
-      <Panel title="Held by">
-        <Tenures world={world} region={region} />
-      </Panel>
-
-      <Panel title="Neighbours">
-        <div className="flex flex-wrap gap-x-3 gap-y-1.5 text-sm">
-          {region.adjacent.map((id) => (
-            <EntityLink key={id} world={world} id={id} />
-          ))}
-        </div>
-      </Panel>
-
-      {settlements.length > 0 && (
-        <Panel title="Settlements">
-          <SettlementTable world={world} settlements={settlements} />
+      <EntityColumns
+        aside={
+          <Panel title="Chronicle">
+            <EventList world={world} events={world.eventsFor(region.id)} separateRegister />
+          </Panel>
+        }
+      >
+        <Panel title="Ground">
+          <dl>
+            <Field label="Biome">{region.biome}</Field>
+            <Field label="Terrain">
+              {region.isLand ? 'Land' : 'Open water'}
+              {region.hasRiver && ' · a river runs through it'}
+              {region.isCoastal && ' · meets the sea'}
+              {!region.hasRiver && !region.isCoastal && region.isLand && ' · no river, no coast'}
+            </Field>
+            <Field label="Claimed by">
+              {region.owner ? (
+                <EntityLink world={world} id={region.owner} />
+              ) : (
+                <span className="text-[var(--ink-faint)]">Unclaimed at the end of the run</span>
+              )}
+            </Field>
+          </dl>
         </Panel>
-      )}
 
-      {holySites.length > 0 && (
-        <Panel title="Holy sites">
-          <HolySiteTable world={world} sites={holySites} />
+        <Panel title="Held by">
+          <Tenures world={world} region={region} />
         </Panel>
-      )}
 
-      <Panel title="Chronicle">
-        <EventList world={world} events={world.eventsFor(region.id)} separateRegister />
-      </Panel>
+        <Panel title="Neighbours">
+          <div className="flex flex-wrap gap-x-3 gap-y-1.5 text-sm">
+            {region.adjacent.map((id) => (
+              <EntityLink key={id} world={world} id={id} />
+            ))}
+          </div>
+        </Panel>
+
+        {settlements.length > 0 && (
+          <Panel title="Settlements">
+            <SettlementTable world={world} settlements={settlements} />
+          </Panel>
+        )}
+
+        {holySites.length > 0 && (
+          <Panel title="Holy sites">
+            <HolySiteTable world={world} sites={holySites} />
+          </Panel>
+        )}
+      </EntityColumns>
     </div>
   );
 }
@@ -2610,93 +2638,97 @@ export function ReligionPage({ world, religion }: { world: World; religion: Reli
         <Stat label="Offshoots" value={offshoots.length} />
       </div>
 
-      <Panel title="Following">
-        <FollowingChart world={world} religion={religion} />
-      </Panel>
+      <EntityColumns
+        aside={
+          <Panel title="Chronicle">
+            <EventList world={world} events={world.eventsFor(religion.id)} />
+          </Panel>
+        }
+      >
+        <Panel title="Following">
+          <FollowingChart world={world} religion={religion} />
+        </Panel>
 
-      <Panel title="Beliefs">
-        <dl>
-          <Field label="Gods">{DEITY_LABELS[religion.character.deity]}</Field>
-          <Field label="Afterlife">{AFTERLIFE_LABELS[religion.character.afterlife]}</Field>
-          <Field label="Soul">{SOUL_LABELS[religion.character.soul]}</Field>
-          <Field label="Virtue">{DOGMA_LABELS[religion.character.dogma]}</Field>
-        </dl>
-      </Panel>
+        <Panel title="Beliefs">
+          <dl>
+            <Field label="Gods">{DEITY_LABELS[religion.character.deity]}</Field>
+            <Field label="Afterlife">{AFTERLIFE_LABELS[religion.character.afterlife]}</Field>
+            <Field label="Soul">{SOUL_LABELS[religion.character.soul]}</Field>
+            <Field label="Virtue">{DOGMA_LABELS[religion.character.dogma]}</Field>
+          </dl>
+        </Panel>
 
-      <Panel title="Church">
-        <dl>
-          <Field label="Authority">{AUTHORITY_LABELS[religion.character.authority]}</Field>
-          <Field label="Clergy">
-            {CLERGY_LABELS[religion.character.clergy]}
-            {religion.character.celibateClergy ? ' · celibate' : ''}
-          </Field>
-          <Field label="Wealth">{WEALTH_LABELS[religion.character.wealth]}</Field>
-          <Field label="Prayer">{PRAYER_LABELS[religion.character.prayer]}</Field>
-          <Field label="Diet">{DIET_LABELS[religion.character.diet]}</Field>
-          <Field label="Dress">{DRESS_LABELS[religion.character.dress]}</Field>
-          <Field label="Festival">{FESTIVAL_LABELS[religion.character.festival]}</Field>
-        </dl>
-      </Panel>
-
-      <Panel title="Temper">
-        <Dials dials={faithDials(religion.character)} />
-      </Panel>
-
-      <Panel title="Details">
-        <dl>
-          <Field label="First preached">
-            <EntityLink world={world} id={religion.originSettlementId} /> in {religion.foundedYear}
-          </Field>
-          <Field label="By">
-            <EntityLink world={world} id={religion.founderId} />
-          </Field>
-          <Field label="Arose among">
-            <EntityLink world={world} id={religion.cultureId} />
-          </Field>
-          {religion.parentId && (
-            <Field label="Broke from">
-              <EntityLink world={world} id={religion.parentId} />
+        <Panel title="Church">
+          <dl>
+            <Field label="Authority">{AUTHORITY_LABELS[religion.character.authority]}</Field>
+            <Field label="Clergy">
+              {CLERGY_LABELS[religion.character.clergy]}
+              {religion.character.celibateClergy ? ' · celibate' : ''}
             </Field>
-          )}
-          {offshoots.length > 0 && (
-            <Field label="Broken by">
-              <span className="flex flex-wrap gap-x-3 gap-y-1">
-                {offshoots.map((r) => (
-                  <EntityLink key={r.id} world={world} id={r.id} />
-                ))}
-              </span>
+            <Field label="Wealth">{WEALTH_LABELS[religion.character.wealth]}</Field>
+            <Field label="Prayer">{PRAYER_LABELS[religion.character.prayer]}</Field>
+            <Field label="Diet">{DIET_LABELS[religion.character.diet]}</Field>
+            <Field label="Dress">{DRESS_LABELS[religion.character.dress]}</Field>
+            <Field label="Festival">{FESTIVAL_LABELS[religion.character.festival]}</Field>
+          </dl>
+        </Panel>
+
+        <Panel title="Temper">
+          <Dials dials={faithDials(religion.character)} />
+        </Panel>
+
+        <Panel title="Details">
+          <dl>
+            <Field label="First preached">
+              <EntityLink world={world} id={religion.originSettlementId} /> in {religion.foundedYear}
             </Field>
-          )}
-        </dl>
-      </Panel>
-
-      {relics.length > 0 && (
-        <Panel title="Sacred to it">
-          <ArtifactTable world={world} artifacts={relics} />
+            <Field label="By">
+              <EntityLink world={world} id={religion.founderId} />
+            </Field>
+            <Field label="Arose among">
+              <EntityLink world={world} id={religion.cultureId} />
+            </Field>
+            {religion.parentId && (
+              <Field label="Broke from">
+                <EntityLink world={world} id={religion.parentId} />
+              </Field>
+            )}
+            {offshoots.length > 0 && (
+              <Field label="Broken by">
+                <span className="flex flex-wrap gap-x-3 gap-y-1">
+                  {offshoots.map((r) => (
+                    <EntityLink key={r.id} world={world} id={r.id} />
+                  ))}
+                </span>
+              </Field>
+            )}
+          </dl>
         </Panel>
-      )}
 
-      {holySites.length > 0 && (
-        <Panel title={`Holy sites (${holySites.length})`}>
-          <HolySiteTable world={world} sites={holySites} />
-        </Panel>
-      )}
+        {relics.length > 0 && (
+          <Panel title="Sacred to it">
+            <ArtifactTable world={world} artifacts={relics} />
+          </Panel>
+        )}
 
-      {notable.length > 0 && (
-        <Panel title={`Notable faithful (${notable.length})`}>
-          <MemberTable world={world} members={notable} />
-        </Panel>
-      )}
+        {holySites.length > 0 && (
+          <Panel title={`Holy sites (${holySites.length})`}>
+            <HolySiteTable world={world} sites={holySites} />
+          </Panel>
+        )}
 
-      {following.length > 0 && (
-        <Panel title={`Settlements (${following.length})`}>
-          <SettlementTable world={world} settlements={following} />
-        </Panel>
-      )}
+        {notable.length > 0 && (
+          <Panel title={`Notable faithful (${notable.length})`}>
+            <MemberTable world={world} members={notable} />
+          </Panel>
+        )}
 
-      <Panel title="Chronicle">
-        <EventList world={world} events={world.eventsFor(religion.id)} />
-      </Panel>
+        {following.length > 0 && (
+          <Panel title={`Settlements (${following.length})`}>
+            <SettlementTable world={world} settlements={following} />
+          </Panel>
+        )}
+      </EntityColumns>
     </div>
   );
 }
@@ -2736,65 +2768,69 @@ export function HolySitePage({ world, site }: { world: World; site: HolySite }) 
         />
       </div>
 
-      <Panel title="The place">
-        {description ? (
-          <div className="space-y-5">
-            <HolySitePassage
-              heading="Dedication"
-              text={description.dedication}
-              mention={description.dedicateeId}
-              evidence={dedicateeDeed}
-              world={world}
+      <EntityColumns
+        aside={
+          <Panel title="Chronicle">
+            <EventList world={world} events={world.eventsFor(site.id)} />
+          </Panel>
+        }
+      >
+        <Panel title="The place">
+          {description ? (
+            <div className="space-y-5">
+              <HolySitePassage
+                heading="Dedication"
+                text={description.dedication}
+                mention={description.dedicateeId}
+                evidence={dedicateeDeed}
+                world={world}
+              />
+              <HolySitePassage heading="Style & visuals" text={description.style} />
+              <HolySitePassage heading="Atmosphere" text={description.atmosphere} />
+              <HolySitePassage heading="Size" text={description.capacity} />
+              <HolySitePassage
+                heading={description.hasStatue ? 'Statue' : 'Focal point'}
+                text={description.focalPoint}
+              />
+              <HolySitePassage heading="Offering area" text={description.offering} />
+            </div>
+          ) : (
+            <NotInThisExport
+              what="A written account of the place"
+              since={45}
+              version={world.schema.version}
             />
-            <HolySitePassage heading="Style & visuals" text={description.style} />
-            <HolySitePassage heading="Atmosphere" text={description.atmosphere} />
-            <HolySitePassage heading="Size" text={description.capacity} />
-            <HolySitePassage
-              heading={description.hasStatue ? 'Statue' : 'Focal point'}
-              text={description.focalPoint}
-            />
-            <HolySitePassage heading="Offering area" text={description.offering} />
-          </div>
-        ) : (
-          <NotInThisExport
-            what="A written account of the place"
-            since={45}
-            version={world.schema.version}
-          />
-        )}
-      </Panel>
+          )}
+        </Panel>
 
-      <Panel title="Details">
-        <dl>
-          <Field label="Faith">
-            <EntityLink world={world} id={site.religionId} />
-          </Field>
-          <Field label="Region">
-            <EntityLink world={world} id={site.regionId} />
-          </Field>
-          <Field label="Location">
-            {site.settlementId ? (
-              <EntityLink world={world} id={site.settlementId} />
-            ) : (
-              <span className="text-[var(--ink-faint)]">
-                A distinct site outside any settlement
+        <Panel title="Details">
+          <dl>
+            <Field label="Faith">
+              <EntityLink world={world} id={site.religionId} />
+            </Field>
+            <Field label="Region">
+              <EntityLink world={world} id={site.regionId} />
+            </Field>
+            <Field label="Location">
+              {site.settlementId ? (
+                <EntityLink world={world} id={site.settlementId} />
+              ) : (
+                <span className="text-[var(--ink-faint)]">
+                  A distinct site outside any settlement
+                </span>
+              )}
+            </Field>
+            <Field label="Tradition">
+              {description ? SACRED_TRADITION_LABELS[description.tradition] : '—'}
+            </Field>
+            <Field label="Position">
+              <span className="tabular-nums">
+                {site.x}, {site.z}
               </span>
-            )}
-          </Field>
-          <Field label="Tradition">
-            {description ? SACRED_TRADITION_LABELS[description.tradition] : '—'}
-          </Field>
-          <Field label="Position">
-            <span className="tabular-nums">
-              {site.x}, {site.z}
-            </span>
-          </Field>
-        </dl>
-      </Panel>
-
-      <Panel title="Chronicle">
-        <EventList world={world} events={world.eventsFor(site.id)} />
-      </Panel>
+            </Field>
+          </dl>
+        </Panel>
+      </EntityColumns>
     </div>
   );
 }
@@ -2930,148 +2966,152 @@ export function ArtifactPage({ world, artifact }: { world: World; artifact: Arti
         }
       />
 
-      <Panel title="Details">
-        <dl>
-          <Field label="Made at">
-            <EntityLink world={world} id={artifact.originSettlementId} />
-          </Field>
-          <Field label="Made for">
-            <EntityLink world={world} id={artifact.creatorId} />
-          </Field>
-          {artifact.ownerId && (
-            <Field label="Claimed by">
-              <EntityLink world={world} id={artifact.ownerId} />
+      <EntityColumns
+        aside={
+          <Panel title="Chronicle">
+            <EventList world={world} events={world.eventsFor(artifact.id)} />
+          </Panel>
+        }
+      >
+        <Panel title="Details">
+          <dl>
+            <Field label="Made at">
+              <EntityLink world={world} id={artifact.originSettlementId} />
             </Field>
-          )}
-          {artifact.religionId && (
-            <Field label="Sacred to">
-              <EntityLink world={world} id={artifact.religionId} />
+            <Field label="Made for">
+              <EntityLink world={world} id={artifact.creatorId} />
             </Field>
-          )}
-          {artifact.tomeContents && (
-            <>
-              <Field label="Contents">
-                {TOME_CONTENT_LABELS[artifact.tomeContents.kind] ?? artifact.tomeContents.kind}
+            {artifact.ownerId && (
+              <Field label="Claimed by">
+                <EntityLink world={world} id={artifact.ownerId} />
               </Field>
-              <Field label="Subject">
-                <EntityLink world={world} id={artifact.tomeContents.subjectId} />
+            )}
+            {artifact.religionId && (
+              <Field label="Sacred to">
+                <EntityLink world={world} id={artifact.religionId} />
               </Field>
-              {artifact.tomeContents.contextId && (
-                <Field label="Campaign">
-                  <EntityLink world={world} id={artifact.tomeContents.contextId} />
+            )}
+            {artifact.tomeContents && (
+              <>
+                <Field label="Contents">
+                  {TOME_CONTENT_LABELS[artifact.tomeContents.kind] ?? artifact.tomeContents.kind}
                 </Field>
-              )}
-              <Field label="Circulation">
-                {(artifact.tomeContents.copyLimit ?? 0) === 0
-                  ? 'Unique manuscript'
-                  : copies.length === 0
-                    ? 'Not yet copied'
-                    : `${copies.length} additional settlement ${copies.length === 1 ? 'copy' : 'copies'}`}
-              </Field>
-            </>
-          )}
-          <Field label="Changed hands">
-            {artifact.provenance.length - 1}{' '}
-            {artifact.provenance.length === 2 ? 'time' : 'times'}
-          </Field>
-        </dl>
-      </Panel>
-
-      {artifact.kind === 'Tome' && (
-        <Panel title="Contents">
-          {sections.length > 0 ? (
-            <div className="space-y-5">
-              {sections.map((section, index) => (
-                <article key={`${section.heading}-${index}`}>
-                  <h3 className="text-lg font-medium">
-                    {section.heading}
-                    {section.year ? (
-                      <span className="ml-2 text-xs font-normal text-[var(--ink-faint)]">
-                        {section.year}
-                      </span>
-                    ) : null}
-                  </h3>
-                  <p className="mt-1 text-sm leading-relaxed text-[var(--ink-soft)]">
-                    {section.text}
-                  </p>
-                  {section.references.length > 0 && (
-                    <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-xs text-[var(--ink-faint)]">
-                      <span className="font-medium tracking-wide uppercase">Mentions</span>
-                      {section.references.map((id) => (
-                        <EntityLink key={id} world={world} id={id} />
-                      ))}
-                    </div>
-                  )}
-                </article>
-              ))}
-            </div>
-          ) : artifact.tomeContents ? (
-            <p className="text-sm leading-relaxed text-[var(--ink-soft)]">
-              A brief written account concerning the {briefSubjectRole}{' '}
-              <EntityLink world={world} id={artifact.tomeContents.subjectId} />.
-            </p>
-          ) : (
-            <p className="text-sm leading-relaxed text-[var(--ink-soft)]">
-              A brief written account concerning the {briefSubjectRole}{' '}
-              {briefSubjectId ? (
-                <>
-                  <EntityLink world={world} id={briefSubjectId} />.
-                </>
-              ) : (
-                <>{briefSubject}.</>
-              )}
-            </p>
-          )}
+                <Field label="Subject">
+                  <EntityLink world={world} id={artifact.tomeContents.subjectId} />
+                </Field>
+                {artifact.tomeContents.contextId && (
+                  <Field label="Campaign">
+                    <EntityLink world={world} id={artifact.tomeContents.contextId} />
+                  </Field>
+                )}
+                <Field label="Circulation">
+                  {(artifact.tomeContents.copyLimit ?? 0) === 0
+                    ? 'Unique manuscript'
+                    : copies.length === 0
+                      ? 'Not yet copied'
+                      : `${copies.length} additional settlement ${copies.length === 1 ? 'copy' : 'copies'}`}
+                </Field>
+              </>
+            )}
+            <Field label="Changed hands">
+              {artifact.provenance.length - 1}{' '}
+              {artifact.provenance.length === 2 ? 'time' : 'times'}
+            </Field>
+          </dl>
         </Panel>
-      )}
 
-      {copies.length > 0 && (
-        <Panel title="Circulation">
+        {artifact.kind === 'Tome' && (
+          <Panel title="Contents">
+            {sections.length > 0 ? (
+              <div className="space-y-5">
+                {sections.map((section, index) => (
+                  <article key={`${section.heading}-${index}`}>
+                    <h3 className="text-lg font-medium">
+                      {section.heading}
+                      {section.year ? (
+                        <span className="ml-2 text-xs font-normal text-[var(--ink-faint)]">
+                          {section.year}
+                        </span>
+                      ) : null}
+                    </h3>
+                    <p className="mt-1 text-sm leading-relaxed text-[var(--ink-soft)]">
+                      {section.text}
+                    </p>
+                    {section.references.length > 0 && (
+                      <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-xs text-[var(--ink-faint)]">
+                        <span className="font-medium tracking-wide uppercase">Mentions</span>
+                        {section.references.map((id) => (
+                          <EntityLink key={id} world={world} id={id} />
+                        ))}
+                      </div>
+                    )}
+                  </article>
+                ))}
+              </div>
+            ) : artifact.tomeContents ? (
+              <p className="text-sm leading-relaxed text-[var(--ink-soft)]">
+                A brief written account concerning the {briefSubjectRole}{' '}
+                <EntityLink world={world} id={artifact.tomeContents.subjectId} />.
+              </p>
+            ) : (
+              <p className="text-sm leading-relaxed text-[var(--ink-soft)]">
+                A brief written account concerning the {briefSubjectRole}{' '}
+                {briefSubjectId ? (
+                  <>
+                    <EntityLink world={world} id={briefSubjectId} />.
+                  </>
+                ) : (
+                  <>{briefSubject}.</>
+                )}
+              </p>
+            )}
+          </Panel>
+        )}
+
+        {copies.length > 0 && (
+          <Panel title="Circulation">
+            <ol className="space-y-1.5 text-sm">
+              {copies.map((copy, index) => (
+                <li key={`${copy.year}-${copy.settlementId}-${index}`} className="flex items-baseline gap-3">
+                  <span className="w-14 shrink-0 text-right tabular-nums text-[var(--ink-faint)]">
+                    {copy.year}
+                  </span>
+                  <span>
+                    Copied at <EntityLink world={world} id={copy.settlementId} /> from the exemplar at{' '}
+                    <EntityLink world={world} id={copy.sourceSettlementId} />
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </Panel>
+        )}
+
+        <Panel title="Provenance">
           <ol className="space-y-1.5 text-sm">
-            {copies.map((copy, index) => (
-              <li key={`${copy.year}-${copy.settlementId}-${index}`} className="flex items-baseline gap-3">
+            {artifact.provenance.map((holding, index) => (
+              <li key={index} className="flex items-baseline gap-3">
                 <span className="w-14 shrink-0 text-right tabular-nums text-[var(--ink-faint)]">
-                  {copy.year}
+                  {holding.year}
                 </span>
                 <span>
-                  Copied at <EntityLink world={world} id={copy.settlementId} /> from the exemplar at{' '}
-                  <EntityLink world={world} id={copy.sourceSettlementId} />
+                  {holding.settlementId ? (
+                    <EntityLink world={world} id={holding.settlementId} />
+                  ) : (
+                    <span className="text-[var(--ink-faint)]">lost</span>
+                  )}
+                  {holding.ownerId && (
+                    <>
+                      {', '}
+                      <EntityLink world={world} id={holding.ownerId} />
+                    </>
+                  )}
+                  <span className="ml-2 text-[var(--ink-faint)]">{holding.how}</span>
                 </span>
               </li>
             ))}
           </ol>
         </Panel>
-      )}
-
-      <Panel title="Provenance">
-        <ol className="space-y-1.5 text-sm">
-          {artifact.provenance.map((holding, index) => (
-            <li key={index} className="flex items-baseline gap-3">
-              <span className="w-14 shrink-0 text-right tabular-nums text-[var(--ink-faint)]">
-                {holding.year}
-              </span>
-              <span>
-                {holding.settlementId ? (
-                  <EntityLink world={world} id={holding.settlementId} />
-                ) : (
-                  <span className="text-[var(--ink-faint)]">lost</span>
-                )}
-                {holding.ownerId && (
-                  <>
-                    {', '}
-                    <EntityLink world={world} id={holding.ownerId} />
-                  </>
-                )}
-                <span className="ml-2 text-[var(--ink-faint)]">{holding.how}</span>
-              </span>
-            </li>
-          ))}
-        </ol>
-      </Panel>
-
-      <Panel title="Chronicle">
-        <EventList world={world} events={world.eventsFor(artifact.id)} />
-      </Panel>
+      </EntityColumns>
     </div>
   );
 }
@@ -3252,64 +3292,68 @@ export function CulturePage({ world, culture }: { world: World; culture: Culture
         meta={<Badge>Rulers styled &ldquo;{culture.rulerTitle}&rdquo;</Badge>}
       />
 
-      <Panel title="Details">
-        <dl>
-          <Field label="Government">{culture.government}</Field>
-          <Field label="Succession">
-            {SUCCESSION_LABELS[culture.successionLaw] ?? culture.successionLaw}
-          </Field>
-          <Field label="Term">
-            {culture.termYears > 0 ? (
-              `${culture.termYears} years, then the office is filled again`
-            ) : (
-              <span className="text-[var(--ink-faint)]">Held for life</span>
-            )}
-          </Field>
-        </dl>
-      </Panel>
-
-      <Panel title="Titles">
-        <dl>
-          {titleStyles.map(({ office, titles }) => (
-            <Field key={office} label={office}>
-              {titles.join(' / ')}
+      <EntityColumns
+        aside={
+          cultureEvents.length > 0 ? (
+            <Panel title="Chronicle">
+              <EventList world={world} events={cultureEvents} />
+            </Panel>
+          ) : null
+        }
+      >
+        <Panel title="Details">
+          <dl>
+            <Field label="Government">{culture.government}</Field>
+            <Field label="Succession">
+              {SUCCESSION_LABELS[culture.successionLaw] ?? culture.successionLaw}
             </Field>
-          ))}
-        </dl>
-      </Panel>
-
-      <div className="grid gap-5 lg:grid-cols-2">
-        <Panel title="Cultural values">
-          <Dials dials={valueDials(culture)} />
-          <p className="mt-3 text-xs leading-relaxed text-[var(--ink-faint)]">
-            Fixed at worldgen and read by the systems rather than hard-coded into them. What a
-            realm is actually governed by is this, moved toward its ruler and its recent past —
-            see any of its civilizations below.
-          </p>
+            <Field label="Term">
+              {culture.termYears > 0 ? (
+                `${culture.termYears} years, then the office is filled again`
+              ) : (
+                <span className="text-[var(--ink-faint)]">Held for life</span>
+              )}
+            </Field>
+          </dl>
         </Panel>
-        <Panel title="Naming language">
-          <LexiconPanel culture={culture} />
-        </Panel>
-      </div>
 
-      <Panel title="Civilizations">
-        <ul className="space-y-1 text-sm">
-          {civs.map((civ) => (
-            <li key={civ.id}>
-              <EntityLink world={world} id={civ.id} />
-              <span className="ml-2 text-[var(--ink-faint)]">
-                {yearRange(civ.foundedYear, civ.endedYear)}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </Panel>
-
-      {cultureEvents.length > 0 && (
-        <Panel title="Chronicle">
-          <EventList world={world} events={cultureEvents} />
+        <Panel title="Titles">
+          <dl>
+            {titleStyles.map(({ office, titles }) => (
+              <Field key={office} label={office}>
+                {titles.join(' / ')}
+              </Field>
+            ))}
+          </dl>
         </Panel>
-      )}
+
+        <div className="grid gap-5 lg:grid-cols-2">
+          <Panel title="Cultural values">
+            <Dials dials={valueDials(culture)} />
+            <p className="mt-3 text-xs leading-relaxed text-[var(--ink-faint)]">
+              Fixed at worldgen and read by the systems rather than hard-coded into them. What a
+              realm is actually governed by is this, moved toward its ruler and its recent past —
+              see any of its civilizations below.
+            </p>
+          </Panel>
+          <Panel title="Naming language">
+            <LexiconPanel culture={culture} />
+          </Panel>
+        </div>
+
+        <Panel title="Civilizations">
+          <ul className="space-y-1 text-sm">
+            {civs.map((civ) => (
+              <li key={civ.id}>
+                <EntityLink world={world} id={civ.id} />
+                <span className="ml-2 text-[var(--ink-faint)]">
+                  {yearRange(civ.foundedYear, civ.endedYear)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+      </EntityColumns>
     </div>
   );
 }
@@ -3812,121 +3856,119 @@ export function WarPage({ world, war }: { world: World; war: War }) {
         }
       />
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.28fr)_minmax(24rem,0.92fr)] xl:items-start">
-        <div className="min-w-0 space-y-5">
-          <section className="he-war-metrics grid grid-cols-2 overflow-hidden rounded-lg border border-[var(--rule)] bg-[var(--panel)] sm:grid-cols-4">
-            <WarMetric
-              icon={<IconSwords />}
-              label="Battles"
-              value={battles.length}
-            />
-            <WarMetric
-              icon={<IconPeople />}
-              label="Dead"
-              value={dead.toLocaleString()}
-              tone="danger"
-              hint="Across both coalitions"
-            />
-            <WarMetric
-              icon={<IconCity />}
-              label="Territory"
-              value={war.cededRegionIds.length}
-              unit={war.cededRegionIds.length === 1 ? 'region' : 'regions'}
-              hint="Changed hands at the peace"
-            />
-            <WarMetric
-              icon={<IconClock />}
-              label="Length"
-              value={`${duration}y`}
-              tone="accent"
-            />
-          </section>
-
-          <Panel title="Belligerents">
-            <dl>
-              <Field label="Declared by">
-                <EntityLink world={world} id={war.aggressorId} />
-              </Field>
-              <Field label="Declared on">
-                <EntityLink world={world} id={war.defenderId} />
-              </Field>
-              {war.claimedRelicId && (
-                <Field label="Relic sought">
-                  <EntityLink world={world} id={war.claimedRelicId} />
-                </Field>
-              )}
-              {war.aggressorReligionId && war.defenderReligionId && (
-                <Field label="Faiths">
-                  <EntityLink world={world} id={war.aggressorReligionId} />
-                  {' against '}
-                  <EntityLink world={world} id={war.defenderReligionId} />
-                </Field>
-              )}
-              {war.attackers.length > 1 && (
-                <Field label="Attacking">
-                  <Coalition world={world} ids={war.attackers} />
-                </Field>
-              )}
-              {war.defenders.length > 1 && (
-                <Field label="Defending">
-                  <Coalition world={world} ids={war.defenders} />
-                </Field>
-              )}
-              <Field label="Outcome">
-                {OUTCOME_LABELS[war.outcome] ?? war.outcome}
-                {victor && (
-                  <>
-                    {' — '}
-                    <EntityLink world={world} id={war.attackers.includes(victor) ? war.aggressorId : war.defenderId} />
-                  </>
-                )}
-              </Field>
-              {war.cededRegionIds.length > 0 && (
-                <Field label="Ceded">
-                  <Coalition world={world} ids={war.cededRegionIds} />
-                </Field>
-              )}
-            </dl>
-          </Panel>
-
-          <Panel title="Battles">
-            {battles.length === 0 ? (
-              <p className="p-4 text-sm text-[var(--ink-faint)]">
-                The two sides never came within reach of each other.
-              </p>
-            ) : (
-              <BattleTable world={world} battles={battles} />
-            )}
-          </Panel>
-
-          <Panel title="Context & consequences">
-            <div className="grid gap-0 md:grid-cols-3 md:divide-x md:divide-[var(--rule)]">
-              <WarConsequence
-                eyebrow="The peace"
-                text={
-                  war.cededRegionIds.length === 0
-                    ? 'No region changed hands when the fighting ended.'
-                    : `${war.cededRegionIds.length.toLocaleString()} ${war.cededRegionIds.length === 1 ? 'region changed' : 'regions changed'} hands at the peace.`
-                }
-              />
-              <WarConsequence
-                eyebrow="The cost"
-                text={`${war.attackerLosses.toLocaleString()} fell among the attackers and ${war.defenderLosses.toLocaleString()} among the defenders.`}
-              />
-              <WarConsequence
-                eyebrow="The campaign"
-                text={`${counted(sieges, 'siege')} and ${counted(fieldBattles, 'field battle')} were recorded across ${duration} ${duration === 1 ? 'year' : 'years'}.`}
-              />
-            </div>
-          </Panel>
-        </div>
-
-        <div className="min-w-0">
+      <EntityColumns
+        aside={
           <Panel title="Chronicle">
             <EventList world={world} events={events} timeline />
           </Panel>
-        </div>
-      </div>
+        }
+      >
+        <section className="he-war-metrics grid grid-cols-2 overflow-hidden rounded-lg border border-[var(--rule)] bg-[var(--panel)] sm:grid-cols-4">
+          <WarMetric
+            icon={<IconSwords />}
+            label="Battles"
+            value={battles.length}
+          />
+          <WarMetric
+            icon={<IconPeople />}
+            label="Dead"
+            value={dead.toLocaleString()}
+            tone="danger"
+            hint="Across both coalitions"
+          />
+          <WarMetric
+            icon={<IconCity />}
+            label="Territory"
+            value={war.cededRegionIds.length}
+            unit={war.cededRegionIds.length === 1 ? 'region' : 'regions'}
+            hint="Changed hands at the peace"
+          />
+          <WarMetric
+            icon={<IconClock />}
+            label="Length"
+            value={`${duration}y`}
+            tone="accent"
+          />
+        </section>
+
+        <Panel title="Belligerents">
+          <dl>
+            <Field label="Declared by">
+              <EntityLink world={world} id={war.aggressorId} />
+            </Field>
+            <Field label="Declared on">
+              <EntityLink world={world} id={war.defenderId} />
+            </Field>
+            {war.claimedRelicId && (
+              <Field label="Relic sought">
+                <EntityLink world={world} id={war.claimedRelicId} />
+              </Field>
+            )}
+            {war.aggressorReligionId && war.defenderReligionId && (
+              <Field label="Faiths">
+                <EntityLink world={world} id={war.aggressorReligionId} />
+                {' against '}
+                <EntityLink world={world} id={war.defenderReligionId} />
+              </Field>
+            )}
+            {war.attackers.length > 1 && (
+              <Field label="Attacking">
+                <Coalition world={world} ids={war.attackers} />
+              </Field>
+            )}
+            {war.defenders.length > 1 && (
+              <Field label="Defending">
+                <Coalition world={world} ids={war.defenders} />
+              </Field>
+            )}
+            <Field label="Outcome">
+              {OUTCOME_LABELS[war.outcome] ?? war.outcome}
+              {victor && (
+                <>
+                  {' — '}
+                  <EntityLink world={world} id={war.attackers.includes(victor) ? war.aggressorId : war.defenderId} />
+                </>
+              )}
+            </Field>
+            {war.cededRegionIds.length > 0 && (
+              <Field label="Ceded">
+                <Coalition world={world} ids={war.cededRegionIds} />
+              </Field>
+            )}
+          </dl>
+        </Panel>
+
+        <Panel title="Battles">
+          {battles.length === 0 ? (
+            <p className="p-4 text-sm text-[var(--ink-faint)]">
+              The two sides never came within reach of each other.
+            </p>
+          ) : (
+            <BattleTable world={world} battles={battles} />
+          )}
+        </Panel>
+
+        <Panel title="Context & consequences">
+          <div className="grid gap-0 md:grid-cols-3 md:divide-x md:divide-[var(--rule)]">
+            <WarConsequence
+              eyebrow="The peace"
+              text={
+                war.cededRegionIds.length === 0
+                  ? 'No region changed hands when the fighting ended.'
+                  : `${war.cededRegionIds.length.toLocaleString()} ${war.cededRegionIds.length === 1 ? 'region changed' : 'regions changed'} hands at the peace.`
+              }
+            />
+            <WarConsequence
+              eyebrow="The cost"
+              text={`${war.attackerLosses.toLocaleString()} fell among the attackers and ${war.defenderLosses.toLocaleString()} among the defenders.`}
+            />
+            <WarConsequence
+              eyebrow="The campaign"
+              text={`${counted(sieges, 'siege')} and ${counted(fieldBattles, 'field battle')} were recorded across ${duration} ${duration === 1 ? 'year' : 'years'}.`}
+            />
+          </div>
+        </Panel>
+      </EntityColumns>
     </div>
   );
 }
@@ -4051,63 +4093,67 @@ export function BattlePage({ world, battle }: { world: World; battle: Battle }) 
         <Stat label="When" value={battleSpan(battle)} />
       </div>
 
-      <Panel title="Details">
-        <dl>
-          <Field label="War">
-            <EntityLink world={world} id={battle.warId} />
-          </Field>
-          <Field label="Attacker">
-            <EntityLink world={world} id={battle.attackerId} />
-          </Field>
-          <Field label="Defender">
-            <EntityLink world={world} id={battle.defenderId} />
-          </Field>
-          {battle.wasSiege && <Field label="Outcome">{battleOutcome(world, battle)}</Field>}
-          <Field label="Ground">
-            <EntityLink world={world} id={battle.regionId} />
-          </Field>
-          {battle.settlementId && (
-            <Field label={battle.wasSiege ? 'Besieged' : 'Fought over'}>
-              <EntityLink world={world} id={battle.settlementId} />
-              {battle.sacked && <span className="ml-2 text-[var(--ink-faint)]">put to the sack</span>}
+      <EntityColumns
+        aside={
+          <Panel title="Chronicle">
+            <EventList world={world} events={world.eventsFor(battle.id)} />
+          </Panel>
+        }
+      >
+        <Panel title="Details">
+          <dl>
+            <Field label="War">
+              <EntityLink world={world} id={battle.warId} />
             </Field>
-          )}
-          {battle.attackerCommanderId && (
-            <Field label="Led the attack">
-              <EntityLink world={world} id={battle.attackerCommanderId} />
+            <Field label="Attacker">
+              <EntityLink world={world} id={battle.attackerId} />
             </Field>
-          )}
-          {battle.defenderCommanderId && (
-            <Field label="Led the defence">
-              <EntityLink world={world} id={battle.defenderCommanderId} />
+            <Field label="Defender">
+              <EntityLink world={world} id={battle.defenderId} />
             </Field>
-          )}
-        </dl>
-      </Panel>
-
-      {present.length > 0 && (
-        <Panel title="Present">
-          <ul className="space-y-1.5 text-sm">
-            {present.map(({ figure, campaign }) => (
-              <li key={`${figure.id}:${campaign.role}`}>
-                <EntityLink world={world} id={figure.id} />
-                <span className="ml-2 text-[var(--ink-faint)]">
-                  {CAMPAIGN_ROLE_LABELS[campaign.role] ?? campaign.role}
-                  {campaign.triumphant === undefined
-                    ? ''
-                    : campaign.triumphant
-                      ? ' · triumphant'
-                      : ' · defeated'}
-                </span>
-              </li>
-            ))}
-          </ul>
+            {battle.wasSiege && <Field label="Outcome">{battleOutcome(world, battle)}</Field>}
+            <Field label="Ground">
+              <EntityLink world={world} id={battle.regionId} />
+            </Field>
+            {battle.settlementId && (
+              <Field label={battle.wasSiege ? 'Besieged' : 'Fought over'}>
+                <EntityLink world={world} id={battle.settlementId} />
+                {battle.sacked && <span className="ml-2 text-[var(--ink-faint)]">put to the sack</span>}
+              </Field>
+            )}
+            {battle.attackerCommanderId && (
+              <Field label="Led the attack">
+                <EntityLink world={world} id={battle.attackerCommanderId} />
+              </Field>
+            )}
+            {battle.defenderCommanderId && (
+              <Field label="Led the defence">
+                <EntityLink world={world} id={battle.defenderCommanderId} />
+              </Field>
+            )}
+          </dl>
         </Panel>
-      )}
 
-      <Panel title="Chronicle">
-        <EventList world={world} events={world.eventsFor(battle.id)} />
-      </Panel>
+        {present.length > 0 && (
+          <Panel title="Present">
+            <ul className="space-y-1.5 text-sm">
+              {present.map(({ figure, campaign }) => (
+                <li key={`${figure.id}:${campaign.role}`}>
+                  <EntityLink world={world} id={figure.id} />
+                  <span className="ml-2 text-[var(--ink-faint)]">
+                    {CAMPAIGN_ROLE_LABELS[campaign.role] ?? campaign.role}
+                    {campaign.triumphant === undefined
+                      ? ''
+                      : campaign.triumphant
+                        ? ' · triumphant'
+                        : ' · defeated'}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </Panel>
+        )}
+      </EntityColumns>
     </div>
   );
 }
