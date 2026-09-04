@@ -389,7 +389,16 @@ succession, offices, and bereavement all follow from it.
   **A betrayal needs something to betray.** It is reachable only from the two upper rungs and only
   where the world already wrote a reason: a grievance recorded against the friend, an open quarrel
   between them, or a plot the betrayer is running against the friend's life. Where no such pull
-  exists nobody turns at any odds. It is also the second way into a betrayal memory and the first
+  exists nobody turns at any odds. **A marriage is the other tie somebody can be inside**, and it
+  goes through the same gate rather than a second one — a spouse holds the most trust and the most
+  access anybody in this model has, and a consort who joined a plot against their crowned husband
+  used to leave the marriage recording nothing about it. A spouse gets no discount for being a
+  spouse; what makes a marriage harder to turn on is that its bond carries more obligation, which
+  is a fact about the bond and reads the same either way. It does not end the marriage, because
+  there is no divorce here: the two remain married and one of them now holds an enmity. Since a
+  marriage has no record of its own to close, the thing that stops it happening twice is a durable
+  mark on the bond — the one fact about a betrayal that has to outlive a memory list twelve long
+  that fades. It is also the second way into a betrayal memory and the first
   that does not require having joined a plot — until now the only person who could be betrayed was
   a conspirator informed on by their own accomplice. What a betrayal leaves is enmity, and what
   enmity becomes is already answered by quarrels and conspiracies; nothing here kills anybody, and
@@ -527,6 +536,7 @@ default.
 | M24 | Each realm's army is a ladder its soldiers climb on service and renown | Done |
 | M25 | The affiliative half of the social graph: friendships that begin in a shared town, and the betrayals they make possible | Done |
 | M26 | A wrong between equals: the post that went to somebody standing beside them | Done |
+| M27 | A marriage can be turned on too, by the gate a friendship goes through | Done |
 
 M13 landed in independently reviewable stages: the clock and dated record first, seasonal
 war and expansion next, then plague travel and outbreak clocks, and finally sieges as
