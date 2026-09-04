@@ -390,6 +390,13 @@ test('the arc weighs a busy year above a quiet one, and a notable year above a b
     context([figure]),
   );
   assert.equal(withASiege.busiestYear, 20);
+
+  // The counts travel with the weight so a bar can say what it is made of: two events, one of
+  // them the siege, in a year drawn taller than the three journeys before it.
+  assert.deepEqual(withASiege.density, [
+    { year: 12, weight: 3 / 4, count: 3, notable: 0 },
+    { year: 20, weight: 1, count: 2, notable: 1 },
+  ]);
 });
 
 test('standing past a death reports the year they stopped, and says the year asked for', () => {

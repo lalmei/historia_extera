@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type ReactNode } from 'react';
+import { useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import {
   buildConstellation,
   historicalSignificance,
@@ -419,8 +419,8 @@ export function LifeArcStrip({
         The whole life, retrospectively — the panels below show only what was known in the year
         selected. Bar height is how much the chronicle recorded in that year, counting what it
         marked notable for three; the number beside each turn is the {scale === 'age' ? 'age' : 'year'} it
-        happened at, and its colour is what the turn was about. Click anywhere on the strip to move
-        the year.
+        happened at, and its colour is what the turn was about. Click anywhere on the strip — or focus it
+        and use the arrow keys — to move the year.
         {arc.busiestYear !== undefined && (
           <>
             {' '}
