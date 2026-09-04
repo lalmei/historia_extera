@@ -69,6 +69,19 @@
   --rule: var(--hairline);
   --accent: var(--primary);
   --accent-soft: color-mix(in srgb, var(--primary) 14%, transparent);
+
+  /*
+    Chronicle tones. Six hues for the kinds of thing a life is made of, so that a marriage, a
+    campaign and a promotion are not all the same blue. They are tuned to sit at roughly one
+    lightness against the dark surfaces — the point is to tell the categories apart at a glance,
+    not to rank them, so none of them should read as louder than the others.
+  */
+  --tone-kin: #a6c9f8;
+  --tone-office: #eebf76;
+  --tone-war: #ffb4ab;
+  --tone-craft: #9fd8a4;
+  --tone-faith: #d3bdf0;
+  --tone-learning: #8ed4d8;
 }
 
 html,

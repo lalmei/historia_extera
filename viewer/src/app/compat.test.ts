@@ -24,6 +24,7 @@ import {
   lifeVantages,
   ripplesAfter,
   standingAt,
+  standingSentence,
   type LifeContext,
 } from './biography.ts';
 import { SCHEMA_VERSION, type WorldExport } from './types.ts';
@@ -212,7 +213,7 @@ for (const { name, data } of saved) {
       const arc = buildLifeArc(figure, events, life);
       lifeVantages(figure, arc, life);
       for (const year of [figure.birthYear, figure.deathYear ?? end, end]) {
-        standingAt(figure, year, life);
+        standingSentence(figure, standingAt(figure, year, life), life);
         buildConstellation(figure, year, life);
       }
       knownFor(figure, events, end, life);
