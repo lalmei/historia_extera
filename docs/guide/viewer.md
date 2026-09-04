@@ -184,11 +184,13 @@ the turns that made it that life, read beneath as `Born → Marriage → Tribune
 Consul → Loss → Died` with the age at each. Repetition is collapsed rather than listed: eleven
 children are one turn dated to the first of them, six re-elections are the first year the office
 was reached. Clicking any turn, or anywhere on the strip, moves the year the rest of the page is
-read at. Each turn is coloured by what it was about — household, office, arms, trade,
-companionship — with a key under the strip, and **Age / Year** switches the whole strip between
-counting in years of the life and years of the world. The arc is deliberately the one retrospective
-thing on the page — it is the year control, and a control that hides where it can move to is
-useless — and says so in its caption.
+read at; the strip is a slider, so it can also be focused and moved with the arrow keys, a page at
+a tenth of the life, and Home and End to birth and death. Hovering a bar says the year, how much
+the chronicle recorded in it, and how much of that it marked notable. Each turn is coloured by
+what it was about — household, office, arms, trade, companionship — with a key under the strip,
+and **Age / Year** switches the whole strip between counting in years of the life and years of the
+world. The arc is deliberately the one retrospective thing on the page — it is the year control,
+and a control that hides where it can move to is useless — and says so in its caption.
 
 The year control carries a **standing readout** that changes with it: age and year, then a
 sentence saying who they were in that year — position and place, household and children, the person
