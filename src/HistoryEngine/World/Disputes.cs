@@ -9,10 +9,16 @@ namespace HistoryEngine.World;
 /// </summary>
 /// <remarks>
 /// <para><b>A quarrel is opened by an event, not by a survey.</b> Nothing here looks for two people
-/// who dislike each other. The four causes are pushed in at the moment the world writes them — an
-/// office taken away, a succession lost, a relative murdered, an accusation laid — so every dispute
-/// can name the year and the entity it came from, and no pair can quarrel over having been born in
-/// the same realm.</para>
+/// who dislike each other. The five causes are pushed in at the moment the world writes them — an
+/// office taken away, a succession lost, a relative murdered, an accusation laid, a post given to
+/// somebody else — so every dispute can name the year and the entity it came from, and no pair can
+/// quarrel over having been born in the same realm.</para>
+///
+/// <para><b>Four of the five are vertical, and the fifth is why.</b> A crown and the man it
+/// dismissed, an heir and the claimant he beat, a court and the hand it named: every original cause
+/// needed a difference in power to exist, so two people of the same standing could not quarrel at
+/// all. <see cref="DisputeCause.PassedOverForOffice"/> is the wrong between equals, and it is what
+/// gives a friendship something it can be betrayed over — see <see cref="Affinities"/>.</para>
 ///
 /// <para><b>The ladder is public visibility.</b> A grudge is felt, an insult is heard, an accusation
 /// is laid before someone who can judge it, and a challenge asks for satisfaction. Climbing is
@@ -674,6 +680,7 @@ public static class Disputes
         DisputeCause.OfficeRevoked => "an office taken from them",
         DisputeCause.SuccessionPassedOver => "a succession they lost",
         DisputeCause.KinMurdered => "the murder of their kin",
+        DisputeCause.PassedOverForOffice => "a post they were passed over for",
         _ => "an accusation at court",
     };
 

@@ -190,6 +190,17 @@ public enum EventKind
     /// </remarks>
     FriendshipBetrayed = 347,
 
+    /// <summary>
+    /// A post went to somebody else, and the person who had a claim on it minded.
+    /// </summary>
+    /// <remarks>
+    /// Routine, and only written where it landed. An appointment passes over every eligible
+    /// courtier in the realm and almost all of them take it; this is the one who did not, and it
+    /// exists as an event because it is the only wrong the engine records between two people of
+    /// the same standing — which is what a quarrel or a betrayal between equals needs.
+    /// </remarks>
+    OfficePassedOver = 348,
+
     // ---- Territory (400) ----
     // Claims are written so ownership can be replayed year by year; they are marked Routine
     // so the timeline is not a run of "extended its reach". Cessions and releases stay on

@@ -132,6 +132,111 @@ public static class Offices
     };
 
     /// <summary>
+    /// Records that a post went to somebody who was standing beside them.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>The first wrong in the engine between equals.</b> Every other cause a quarrel can
+    /// have needs a difference in power: a crown dismissing a man, an heir beating a claimant, a
+    /// court naming a hand. Two courtiers of the same standing had nothing they could fall out
+    /// over, which is why a friendship could almost never be betrayed — a betrayal needs a wrong
+    /// the record already holds, and none of the wrongs on offer could occur between friends.</para>
+    ///
+    /// <para><b>Only somebody who actually had a claim.</b> The caller supplies the person, and
+    /// there are exactly two who qualify: the candidate the court's own measure ranked next for a
+    /// marshalcy, and the heir of the family that held this very seat, whom a mandate stepped over.
+    /// Being merely eligible is not a claim — an appointment passes over every courtier in the
+    /// realm, and if all of them were wronged by it the wrong would mean nothing.</para>
+    ///
+    /// <para><b>Most people take it.</b> The grievance is gated on a roll forked from the pair and
+    /// the year, weighted by how much of the post this person thought was theirs, so the ordinary
+    /// outcome of being passed over is that nothing happens — as it should be, because posts are
+    /// filled constantly and a court where every disappointment became a rivalry would be a court
+    /// of nothing else. What is left is a grievance smaller than a dismissal's and smaller than a
+    /// lost succession's, which is the right order: they lost something they never had.</para>
+    /// </remarks>
+    public static void NotePassedOver(
+        WorldState world,
+        Figure passedOver,
+        Figure appointed,
+        string title,
+        string claim,
+        int year)
+    {
+        if (passedOver.Id == appointed.Id) return;
+        if (!passedOver.IsAlive || !appointed.IsAlive) return;
+        if (passedOver.AgeIn(year) < Succession.MajorityAge) return;
+        if (passedOver.CivilizationId != appointed.CivilizationId) return;
+
+        // How much of it they thought was theirs. Independence is the closest thing a disposition
+        // has to ambition — a person who defers to the court is not the person who takes its
+        // decision personally — and aggression decides whether that lands as a grievance or as a
+        // disappointment.
+        double entitlement = (passedOver.Disposition.Independence * 0.55)
+            + (passedOver.Disposition.Values.Aggression * 0.30)
+            + (passedOver.Offices.Exists(office => office.ToYear is null) ? 0.15 : 0.0);
+
+        // Who it went to is part of the injury. Being passed over for a stranger is the court's
+        // decision; being passed over for somebody who owed you better is theirs, and a person
+        // who trusted the appointee had more reason to expect the seat than the court ever gave
+        // them. This is the only term that reads the relationship, and it is what lets an
+        // appointment reach a friendship rather than only a roster.
+        FigureBond? bond = LifeStories.BondTo(passedOver, appointed.Id);
+        if (bond is not null)
+        {
+            entitlement += Math.Max(0.0, bond.Trust) * 0.24;
+            entitlement += Math.Max(0.0, bond.Affection) * 0.16;
+            if (bond.Kinds.HasFlag(BondKind.Friend)) entitlement += 0.20;
+        }
+
+        entitlement = DetMath.Clamp01(entitlement);
+
+        IRng fate = world.Root
+            .Fork("passed-over", passedOver.Id.ToDiscriminator())
+            .Fork("to", appointed.Id.ToDiscriminator())
+            .Fork("post", year);
+        if (!fate.Chance(0.10 + (0.34 * entitlement))) return;
+
+        EntityId place = world.ResidenceOf(passedOver);
+
+        LifeStories.AddRivalry(
+            passedOver,
+            appointed,
+            year,
+            EventKind.OfficeGranted,
+            place,
+            grievance: 0.36,
+            sourceEntity: appointed.Id);
+        LifeStories.Remember(
+            passedOver,
+            MemoryKind.Humiliation,
+            year,
+            EventKind.OfficeGranted,
+            appointed.Id,
+            place,
+            0.52);
+
+        world.Chronicle.Record(
+            year,
+            EventKind.OfficePassedOver,
+            passedOver.Id,
+            obj: appointed.Id,
+            location: place,
+            data: Chronicle.Data(
+                ("office", title),
+                ("claim", claim)),
+            significance: Significance.Routine);
+
+        Disputes.Consider(
+            world,
+            passedOver,
+            appointed,
+            DisputeCause.PassedOverForOffice,
+            EventKind.OfficeGranted,
+            appointed.Id,
+            year);
+    }
+
+    /// <summary>
     /// Grants an office and records it.
     /// </summary>
     /// <param name="scope">The settlement or faith held over, or None for an office over the realm.</param>

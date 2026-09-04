@@ -11,7 +11,7 @@
  */
 
 /** The schema the current engine writes. `compat.ts` has the oldest one the viewer reads. */
-export const SCHEMA_VERSION = 48;
+export const SCHEMA_VERSION = 49;
 
 /**
  * Whether an event carries the history or merely records a life.
@@ -1708,7 +1708,8 @@ export type DisputeCause =
   | 'OfficeRevoked'
   | 'SuccessionPassedOver'
   | 'KinMurdered'
-  | 'Accusation';
+  | 'Accusation'
+  | 'PassedOverForOffice';
 
 export type DisputeStage = 'Grudge' | 'Insult' | 'Accusation' | 'Challenge';
 
@@ -1725,6 +1726,7 @@ export const DISPUTE_CAUSE_LABELS: Record<DisputeCause, string> = {
   SuccessionPassedOver: 'Over a succession they lost',
   KinMurdered: 'Over the murder of their kin',
   Accusation: 'Over an accusation',
+  PassedOverForOffice: 'Over a post they were passed over for',
 };
 
 export const DISPUTE_STAGE_LABELS: Record<DisputeStage, string> = {

@@ -295,12 +295,13 @@ public sealed class OfficeSystem : ISystem
         FillMode mode = ChooseMode(world, civilization, culture, kind, scope, governing, rng);
 
         Figure? holder;
+        Figure? runnerUp = null;
         EntityId grantedBy = EntityId.None;
 
         if (mode == FillMode.Mandated && governing is not null)
         {
             List<Figure> candidates = Eligible(world, civilization, kind, Offices.Courtiers(world, civilization, year));
-            holder = PickCandidate(candidates, kind, rng);
+            holder = PickCandidate(candidates, kind, rng, out runnerUp);
             if (holder is not null) grantedBy = governing.Id;
         }
         else if (kind == OfficeKind.HighPriest && BloodlineFaith(world, civilization))
@@ -311,7 +312,7 @@ public sealed class OfficeSystem : ISystem
             // house holding every seat of its faith — so this branch runs first and a bloodline
             // faith whose court has nobody to spare still falls through to the last priest's heir.
             List<Figure> candidates = Eligible(world, civilization, kind, Offices.Courtiers(world, civilization, year));
-            holder = PickCandidate(candidates, kind, rng);
+            holder = PickCandidate(candidates, kind, rng, out _);
         }
         else
         {
@@ -354,6 +355,50 @@ public sealed class OfficeSystem : ISystem
         Offices.Grant(
             world, civilization, culture, holder, kind, scope, grantedBy,
             ClaimFor(mode, kind, culture), year);
+
+        NoteTheDisappointed(world, civilization, culture, holder, kind, scope, mode, runnerUp, year);
+    }
+
+    /// <summary>
+    /// Offers the two people who had a claim on this seat the chance to mind that it went elsewhere.
+    /// </summary>
+    /// <remarks>
+    /// <para>Exactly two, and both are already computed by the appointment rather than looked for
+    /// afterwards: the candidate the court's own measure ranked next for a marshalcy, and the heir
+    /// of the family that held this very seat, whom a mandate stepped over. Mere eligibility is not
+    /// a claim — every appointment passes over every courtier in the realm.</para>
+    ///
+    /// <para>The heir is asked only where the crown mandated somebody, because that is the only
+    /// path that pre-empts a family's claim. On every other path the heir was tried first and the
+    /// seat went elsewhere because no heir was available, which is nobody's doing.</para>
+    /// </remarks>
+    private static void NoteTheDisappointed(
+        WorldState world,
+        Civilization civilization,
+        Culture culture,
+        Figure holder,
+        OfficeKind kind,
+        EntityId scope,
+        FillMode mode,
+        Figure? runnerUp,
+        int year)
+    {
+        string title = culture.TitleFor(kind, holder.Sex);
+
+        if (runnerUp is not null)
+        {
+            Offices.NotePassedOver(
+                world, runnerUp, holder, title, "stood next in the court's reckoning", year);
+        }
+
+        if (mode != FillMode.Mandated) return;
+
+        Figure? heir = Offices.HeirTo(world, civilization, kind, scope, year);
+        if (heir is null || heir.Id == holder.Id) return;
+        if (runnerUp is not null && heir.Id == runnerUp.Id) return;
+
+        Offices.NotePassedOver(
+            world, heir, holder, title, "a claim on the seat their family held", year);
     }
 
     /// <summary>
@@ -485,13 +530,25 @@ public sealed class OfficeSystem : ISystem
     /// seat to a genuinely famous outsider. Before the ladder the score was renown alone, which
     /// meant a realm at peace for a generation named whoever won the tie-break.
     /// </remarks>
-    private static Figure? PickCandidate(List<Figure> candidates, OfficeKind kind, IRng rng)
+    /// <param name="runnerUp">
+    /// The candidate the court's own measure ranked next, where the court used one.
+    /// </param>
+    /// <remarks>
+    /// The runner-up is reported because it is the only person an appointment can honestly be said
+    /// to have wronged. Where the seat is filled by <see cref="IRng.Pick"/> the court applied no
+    /// measure, so nobody was ranked second and nobody is passed over in any sense they could
+    /// resent — see <see cref="Offices.NotePassedOver"/>.
+    /// </remarks>
+    private static Figure? PickCandidate(
+        List<Figure> candidates, OfficeKind kind, IRng rng, out Figure? runnerUp)
     {
+        runnerUp = null;
         if (candidates.Count == 0) return null;
         if (kind != OfficeKind.Marshal) return rng.Pick(candidates);
 
         Figure? best = null;
         double bestScore = double.NegativeInfinity;
+        double runnerScore = double.NegativeInfinity;
         foreach (Figure candidate in candidates)
         {
             // A per-candidate tie-break means adding a courtier does not reshuffle everyone else.
@@ -501,8 +558,19 @@ public sealed class OfficeSystem : ISystem
             if (score > bestScore
                 || (score == bestScore && best is not null && candidate.Id.CompareTo(best.Id) < 0))
             {
+                if (best is not null && bestScore > runnerScore)
+                {
+                    runnerUp = best;
+                    runnerScore = bestScore;
+                }
+
                 best = candidate;
                 bestScore = score;
+            }
+            else if (score > runnerScore)
+            {
+                runnerUp = candidate;
+                runnerScore = score;
             }
         }
 
