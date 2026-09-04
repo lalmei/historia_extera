@@ -146,8 +146,9 @@ export function LifeArcStrip({
 
       <p className="mt-3 text-xs leading-relaxed text-[var(--ink-faint)]">
         The whole life, retrospectively — the panels below show only what was known in the year
-        selected. Bar height is how much the chronicle recorded in that year; the number beside each
-        turn is the age it happened at. Click anywhere on the strip to move the year.
+        selected. Bar height is how much the chronicle recorded in that year, counting what it
+        marked notable for three; the number beside each turn is the age it happened at. Click
+        anywhere on the strip to move the year.
         {arc.busiestYear !== undefined && (
           <>
             {' '}

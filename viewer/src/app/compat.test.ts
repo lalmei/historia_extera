@@ -14,7 +14,18 @@ import {
   wallsStanding,
   waterMarks,
 } from './mapLayers.ts';
-import { buildBiographyEpisodes, groupJourneys } from './biography.ts';
+import {
+  buildBiographyEpisodes,
+  buildConstellation,
+  buildLifeArc,
+  groupJourneys,
+  historicalSignificance,
+  knownFor,
+  lifeVantages,
+  ripplesAfter,
+  standingAt,
+  type LifeContext,
+} from './biography.ts';
 import { SCHEMA_VERSION, type WorldExport } from './types.ts';
 
 /**
@@ -183,9 +194,30 @@ for (const { name, data } of saved) {
     // Bounded: a thousand-year world has tens of thousands of people, and the point here is
     // the shape of a figure record rather than the size of the population.
     const end = world.export.meta.yearsSimulated;
+    const life: LifeContext = {
+      endYear: end,
+      figureOf: (id) => world.export.figures.find((figure) => figure.id === id),
+      eventsFor: (id) => world.eventsFor(id),
+      nameOf: (id) => world.nameOf(id),
+    };
+
     for (const figure of world.export.figures.slice(0, 300)) {
-      buildBiographyEpisodes(figure, world.eventsFor(figure.id), end);
+      const events = world.eventsFor(figure.id);
+      buildBiographyEpisodes(figure, events, end);
       groupJourneys(figure.journeys, end);
+
+      // The whole-life derivations reach into containers that arrived at different schemas —
+      // affinities at 48, disposition and service later than the figures that lack them — so an
+      // older world is the only thing that proves they degrade instead of throwing.
+      const arc = buildLifeArc(figure, events, life);
+      lifeVantages(figure, arc, life);
+      for (const year of [figure.birthYear, figure.deathYear ?? end, end]) {
+        standingAt(figure, year, life);
+        buildConstellation(figure, year, life);
+      }
+      knownFor(figure, events, end, life);
+      historicalSignificance(figure, events, end, life);
+      ripplesAfter(figure, life);
     }
   });
 }
