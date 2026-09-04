@@ -4758,6 +4758,50 @@ times whatever the odds inside that intersection.
 **Schema 49.** `DisputeCause` gains a fifth member and the chronicle a `OfficePassedOver` line,
 Routine and written only where somebody actually minded.
 
+
+### M27: the other tie somebody can be inside
+
+**The gap.** M25 could betray a friendship and nothing else, because `Affinities` bars
+`BondKind.Spouse` from the ladder — correctly, since a marriage is not a friendship and must not
+climb one. The effect was that the person with the most trust and the most access in the whole
+model was the one person who could not turn: `Conspiracies` has always counted `Spouse` among the
+privileged ways to reach a target, so a consort could join a plot against their crowned husband and
+the marriage recorded nothing about it. That is the betrayal a chronicle most wants.
+
+**One gate, two ties.** The decision worth writing down is that the gate was extracted and shared
+rather than copied — the same reason a duel and a battle share one wound model. A spouse is given
+no discount for being a spouse: the pull is the wrong the record already holds, and what holds
+somebody back is read from the bond, so a marriage is harder to turn on only because a marriage
+bond carries more obligation than a friendship's. That is a fact about the bond and it reads the
+same either way, which is what a shared gate is for.
+
+**It does not end the marriage.** There is no divorce in this engine and this is not one under
+another name. The two remain married; one of them now holds an enmity and the other a wrong they
+will carry, and where that goes is already answered by `Disputes` and `Conspiracies`.
+
+**`BondKind.Betrayer`, and why a flag rather than a memory.** A friendship's betrayal is stopped
+from recurring by its own record being closed. A marriage has no such record, so the question "has
+this person already been turned on by their husband" had to be answerable from durable state. The
+first candidate was the memory, and the test that asserted it **failed**: the betrayed party had
+buried three relatives since, and a bereavement at 0.94 evicts a betrayal from a twelve-slot list.
+The second was `BondCause.Betrayal`, which the next material change to the bond overwrites. So the
+fact is a flag on the wronged party's side of the bond, never cleared — and the friendship path
+gets it too, which makes a betrayal legible on the bond rather than only on the record.
+
+**Measured, over the first forty seeds:** a marriage is turned on in 14 worlds, 19 times, against
+15 betrayed friendships in 11 worlds. Comparable, and the reason is legible: there are about as
+many marriages as friendships that reach the top rung, and spouses are courtiers and dynasts, which
+is precisely the population that accumulates grievances — a good share of them from M26's passing
+over, since two dynasts married to each other are exactly two people who can stand for the same
+post. The causes that appear include an open quarrel and a design on the other's life.
+
+**The panel was resampled** to the five seeds of the first forty that carry both kinds of betrayal
+(17, 19, 22, 32, 39). A panel picked on the scarcest thing is the one that notices when the
+scarcest thing stops happening.
+
+**Schema 50.** A new `BondKind` member and a `SpouseBetrayed` line, Notable — the rarest thing
+either ladder produces, and the one a chronicle would still be repeating a century later.
+
 ---
 
 ## Notes for Phase 2

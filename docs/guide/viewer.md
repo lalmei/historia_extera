@@ -182,7 +182,7 @@ its icon rail so the reading column remains usable.
 
 ## Schema
 
-The viewer reads exports from schema **21** to **49**, and refuses anything outside that
+The viewer reads exports from schema **21** to **50**, and refuses anything outside that
 range rather than misrendering it. Inside the range, an older export is not a file the viewer
 misunderstands — it is a file with less in it: every schema change since 21 has added fields
 rather than moved or reinterpreted them, so the loader supplies the containers a later schema
@@ -193,6 +193,10 @@ below 21, one written by a newer engine than the viewer, or one with no `schemaV
 all, is refused with a message saying which. `viewer/src/app/compat.ts` holds the range and
 the normalization; `compat.test.ts` loads every export in `public/worlds/` through the real
 loader and derivations, so the floor is a tested claim rather than an intention.
+
+Version 50 lets a marriage be turned on as well as a friendship, and gives a bond a durable mark
+saying who turned on whom — the one fact about a betrayal that outlives the memory of it, since a
+memory list is twelve long and fades.
 
 Version 49 adds a fifth cause a quarrel can have: a post that went to somebody standing beside
 them. It is the only one of the five between two people of comparable standing, and it is far the
