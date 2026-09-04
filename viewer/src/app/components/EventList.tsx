@@ -58,6 +58,7 @@ export function EventList({
   showFilters = true,
   separateRegister = false,
   pageSize = 150,
+  timeline = false,
   viewpoint,
 }: {
   world: World;
@@ -66,6 +67,8 @@ export function EventList({
   showFilters?: boolean;
   separateRegister?: boolean;
   pageSize?: number;
+  /** Draw this entity's events as one chronological spine rather than a plain register. */
+  timeline?: boolean;
   /** When set, events are told as something this figure did. */
   viewpoint?: string;
 }) {
@@ -180,14 +183,22 @@ export function EventList({
         </div>
       )}
 
-      <ol className="space-y-0">
+      <ol className={timeline ? 'he-event-timeline' : 'space-y-0'}>
         {visible.map((event) => (
           <li
             key={event.id}
-            className="-mx-2 flex gap-3 rounded px-2 py-1.5 hover:bg-[var(--hover)]"
+            className={`flex gap-3 px-2 hover:bg-[var(--hover)] ${
+              timeline
+                ? 'he-event-timeline-row py-3'
+                : '-mx-2 rounded py-1.5'
+            }`}
           >
             <span
-              className="he-data w-14 shrink-0 text-right text-[var(--ink-faint)]"
+              className={`he-data shrink-0 ${
+                timeline
+                  ? 'w-11 text-left text-[var(--primary)]'
+                  : 'w-14 text-right text-[var(--ink-faint)]'
+              }`}
               title={`Year ${event.year}`}
             >
               {event.year}
