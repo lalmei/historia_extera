@@ -751,7 +751,7 @@ public static class Affinities
     {
         AffinityStage.Kindness => "did a good turn for",
         AffinityStage.Confidence => "put their trust in",
-        AffinityStage.Friendship => "came to count as a friend",
+        AffinityStage.Friendship => "came to count as a friend of",
         _ => "came to know",
     };
 
@@ -759,7 +759,7 @@ public static class Affinities
     {
         AffinityStage.Kindness => "Did a good turn for",
         AffinityStage.Confidence => "Put their trust in",
-        AffinityStage.Friendship => "Came to count as a friend",
+        AffinityStage.Friendship => "Came to count as a friend of",
         _ => "Came to know",
     };
 }

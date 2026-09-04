@@ -648,6 +648,17 @@ public enum DisputeCause
     SuccessionPassedOver = 1,
     KinMurdered = 2,
     Accusation = 3,
+
+    /// <summary>
+    /// A post they had a claim on, given to somebody standing beside them.
+    /// </summary>
+    /// <remarks>
+    /// The first wrong in the engine between two people of comparable standing. The other four are
+    /// all vertical — a crown and the man it dismissed, an heir and the claimant he beat, a court
+    /// and the hand it named — which left peers with nothing to fall out over, and so left the
+    /// friendship model's betrayal reachable in five worlds out of forty.
+    /// </remarks>
+    PassedOverForOffice = 4,
 }
 
 /// <summary>How far a quarrel has been carried into the open.</summary>

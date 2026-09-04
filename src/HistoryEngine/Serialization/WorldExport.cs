@@ -141,7 +141,7 @@ public sealed record WorldExport(
     /// Version 47 added a figure's military service: the rungs of their realm's army they were
     /// raised to, each with the year, the realm and the name that realm gives the rung.
     /// </remarks>
-    public const int CurrentSchemaVersion = 48;
+    public const int CurrentSchemaVersion = 49;
 }
 
 public sealed record ExportMeta(

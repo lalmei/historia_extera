@@ -74,6 +74,7 @@ public sealed class DisputeTests
                         or EventKind.ConspiracyAttempted
                         or EventKind.RulerDeposed
                         or EventKind.SkyClaimRefuted
+                        or EventKind.OfficeGranted
                         or EventKind.FigureDied,
                     $"Seed {seed}: a quarrel came from {dispute.SourceKind}, which is not one of "
                     + "the recorded causes.");
@@ -256,7 +257,13 @@ public sealed class DisputeTests
     /// <remarks>
     /// The upper bound is the one this system most needs. A world in which two hundred courtiers
     /// are feuding is not a livelier world, it is a timeline in which nothing else is legible; the
-    /// four causes are rare political events and the quarrel count should stay of their order.
+    /// five causes are rare political events and the quarrel count should stay of their order.
+    ///
+    /// <para>The bound was worth keeping when the fifth cause landed. A post given to somebody
+    /// else is far commoner than a dismissal or a contested succession — appointments happen every
+    /// year and the other four need a crown to act — so it roughly quadrupled the quarrels a world
+    /// carries. It stays well inside both ceilings, which is what says the gate on who actually
+    /// minds is doing its work.</para>
     /// </remarks>
     [Fact]
     public void QuarrelsStayRareFiniteAndReachBothPeacefulAndViolentEndings()
@@ -311,7 +318,7 @@ public sealed class DisputeTests
         _output.WriteLine("outcomes " + string.Join(", ", outcomes.Select(p => $"{p.Key}={p.Value}")));
         _output.WriteLine("causes   " + string.Join(", ", causes.Select(p => $"{p.Key}={p.Value}")));
 
-        Assert.Equal(4, causes.Count);
+        Assert.Equal(5, causes.Count);
         Assert.True(
             outcomes.GetValueOrDefault(DisputeOutcome.Reconciled)
             + outcomes.GetValueOrDefault(DisputeOutcome.Settled) > 0,
@@ -322,6 +329,64 @@ public sealed class DisputeTests
             "No quarrel across the seed panel ever came to blows.");
         Assert.True(duels > 0);
         Assert.True(total > 0);
+    }
+
+    /// <summary>
+    /// A passing-over is held against the person who took the seat, and only where there was a seat.
+    /// </summary>
+    /// <remarks>
+    /// The fifth cause is the only one between two people of comparable standing, and the thing
+    /// that keeps it honest is that both parties were candidates for one specific post in one
+    /// specific year: the appointee holds an office granted in the year the quarrel opened, and the
+    /// aggrieved party does not hold that same post. A model that let anybody resent anybody for a
+    /// job they were never in line for would be back to quarrelling over having been born in the
+    /// same realm.
+    /// </remarks>
+    [Fact]
+    public void APassingOverIsHeldAgainstWhoeverActuallyTookTheSeat()
+    {
+        int checkedQuarrels = 0;
+
+        foreach (ulong seed in Seeds)
+        {
+            WorldState world = HistoryRun.Execute(TestWorlds.Standard(seed)).World;
+
+            foreach (FigureDispute dispute in All(world))
+            {
+                if (dispute.Cause != DisputeCause.PassedOverForOffice) continue;
+
+                Figure passedOver = world.Figures[dispute.OpenerId];
+                Figure appointed = world.Figures[dispute.RivalId];
+
+                Assert.Equal(EventKind.OfficeGranted, dispute.SourceKind);
+                Assert.Equal(appointed.Id, dispute.SourceEntityId);
+
+                // Not asserting they are still in the same realm. They were when it opened —
+                // NotePassedOver requires it — but a border that moves afterwards is a fact about
+                // the border, and the quarrel lapses for distance rather than being unmade.
+
+                OfficeHolding? seat = appointed.Offices.Find(
+                    office => office.FromYear == dispute.StartYear);
+                Assert.True(
+                    seat is not null,
+                    $"Seed {seed}: a quarrel over a passing-over in {dispute.StartYear}, but the "
+                    + "other party took no office that year.");
+
+                Assert.False(
+                    passedOver.Offices.Exists(office =>
+                        office.Kind == seat!.Kind
+                        && office.ScopeId == seat.ScopeId
+                        && office.FromYear == dispute.StartYear),
+                    $"Seed {seed}: somebody quarrelled over a post they were given.");
+
+                checkedQuarrels++;
+            }
+        }
+
+        Assert.True(
+            checkedQuarrels > 0,
+            "No quarrel across the seed panel came from a post given to somebody else, which is "
+            + "the cause this panel most needs to carry.");
     }
 
     /// <summary>
