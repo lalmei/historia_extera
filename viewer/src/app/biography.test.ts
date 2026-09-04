@@ -357,7 +357,7 @@ test('the life arc keeps birth and death, collapses the children, and reads in o
   assert.equal(consul?.year, 60);
 });
 
-test('the arc weighs a busy year above a quiet one', () => {
+test('the arc weighs a busy year above a quiet one, and a notable year above a busy one', () => {
   const figure = person({ deathYear: 30 });
   const events = [12, 12, 12, 20].map(
     (year, index) => ({ id: index, year, kind: 'FigureMoved', significance: 'Routine' }) as HistoryEvent,
@@ -369,6 +369,15 @@ test('the arc weighs a busy year above a quiet one', () => {
     { year: 12, weight: 1 },
     { year: 20, weight: 1 / 3 },
   ]);
+
+  // One siege outweighs three journeys: the chronicle's own significance is what makes a year
+  // stand tall, rather than the number of lines it happened to take.
+  const withASiege = buildLifeArc(
+    figure,
+    [...events, { id: 9, year: 20, kind: 'SiegeBegan', significance: 'Notable' } as HistoryEvent],
+    context([figure]),
+  );
+  assert.equal(withASiege.busiestYear, 20);
 });
 
 test('standing past a death reports the year they stopped, and says the year asked for', () => {

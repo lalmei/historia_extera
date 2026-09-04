@@ -406,7 +406,10 @@ export interface LifeArc {
   firstYear: number;
   lastYear: number;
   moments: LifeMoment[];
-  /** Years in which anything was recorded, and how much, as a fraction of the busiest year. */
+  /**
+   * Years in which anything was recorded, and how heavy each was against the heaviest — a
+   * notable event counting for three routine ones.
+   */
   density: { year: number; weight: number }[];
   busiestYear?: number;
 }
@@ -636,10 +639,13 @@ export function buildLifeArc(
     });
   }
 
+  // Weighted by what the chronicle itself calls significance, not by raw count: three births and
+  // a move is a quiet year, and a year with a siege in it should not have to compete with one.
   const counts = new Map<number, number>();
   for (const event of events) {
     if (event.year < figure.birthYear || event.year > lastYear) continue;
-    counts.set(event.year, (counts.get(event.year) ?? 0) + 1);
+    const weight = event.significance === 'Notable' ? 3 : 1;
+    counts.set(event.year, (counts.get(event.year) ?? 0) + weight);
   }
   const busiest = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0];
   const density = [...counts.entries()]
@@ -1097,10 +1103,9 @@ export function historicalSignificance(
   const total = contributions.reduce((sum, entry) => sum + entry.weight, 0);
   // Saturating rather than linear: the difference between a king and a general should be small,
   // and the difference between a farmer and a general large.
-  // Divisor tuned against a full run rather than by taste: at 30 roughly three fifths of a
-  // world's people read Ordinary, one in thirty is Consequential and a handful in several
-  // thousand are Influential. A scale that calls a quarter of the population influential is
-  // a scale that says nothing.
+  // Divisor tuned against every saved world rather than by taste: at 30, between 45% and 82% of
+  // a world's people read Ordinary and at most 1.3% read Influential, across seventeen runs from
+  // schema 21 to 50. A scale that calls a quarter of the population influential says nothing.
   const score = 1 - Math.exp(-total / 30);
   const band = SIGNIFICANCE_BANDS.find(([floor]) => score >= floor)![1];
 
