@@ -137,7 +137,7 @@ export default function App() {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden">
-      <SiteNav fluid active="reading" readingHref={readingHref(currentWorldQuery())} />
+      <SiteNav active="reading" readingHref={readingHref(currentWorldQuery())} />
       <OlderSchemaBanner world={world} />
       <div className="flex min-h-0 flex-1">
         <WorldNav world={world} activePath={route.path} />
