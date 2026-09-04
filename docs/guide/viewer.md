@@ -182,9 +182,11 @@ accented, and it is read from the record's `betrayerId`, so the same fact says "
 page and "was turned on by" on the other. The year slider or exact year field turns the page into a
 contemporary cut: later bond changes, memories, outcomes, plot revelations, and the rungs and
 endings of a friendship disappear. Routine returns along the same route
-are compressed without folding in a waylay or loss. **Show chronicle** exposes the complete raw
-event ledger through the same selected year. On a phone-sized display the world index collapses to
-its icon rail so the reading column remains usable.
+are compressed without folding in a waylay or loss. The **Chronicle** column beside the page is
+the complete raw event ledger through the same selected year, so a year in the ledger and the panel
+it explains are on screen together; on a narrower display it falls back below the panels. On a
+phone-sized display the world index collapses to its icon rail so the reading column remains
+usable.
 
 ## Schema
 
@@ -247,7 +249,8 @@ Surfaces are layered by tone rather than shadow; hairline borders (`#26282C`) se
 adjacent panels. Primary actions are a desaturated steel blue (`#a6c9f8`). Every page
 shares the same top bar: **Worlds** and **Reading**, with a 2px underline on the active
 tab. Inside a loaded world, the chronicle index is a collapsible left sidebar (Overview,
-Map, Timeline, and the entity lists). Entity pages sit in a 720px reading column. The map
+Map, Timeline, and the entity lists). Entity pages sit in a 1480px column, wide enough to set
+the panels and the chronicle side by side; below 1280px the chronicle drops beneath them. The map
 fills the remaining viewport, with year and zoom controls floating on it and filters plus
 map keys in a right inspector.
 
