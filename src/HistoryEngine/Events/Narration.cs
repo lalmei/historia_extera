@@ -160,6 +160,9 @@ public static class Narration
             + "[ when {data:manner}][ before {extra:fig}].");
         // A friendship names both parties in every line, for the reason a quarrel does: the fact
         // is about the two of them, and the town is only where they happened to be standing.
+        Set(EventKind.SpouseBetrayed,
+            "{subject} turned on {object}, their own {data:tie}[ at {location}]"
+            + "[, over {data:cause}].");
         Set(EventKind.OfficePassedOver,
             "{subject} was passed over for {data:office}[ at {location}]"
             + "[ in favour of {object}][, having {data:claim}].");
@@ -405,6 +408,11 @@ public static class Narration
             + "[{self:extra}Judged between {subject} and {object}.]");
         // The one asymmetric rung is the favour, and it is asymmetric in the data rather than in
         // the record: the giver is the subject, so the same two templates carry both sides of it.
+        SetSelf(EventKind.SpouseBetrayed,
+            "[{self:subject}Turned on {other}, their own {data:tie}]"
+            + "[{self:subject}, over {data:cause}][{self:subject}.]"
+            + "[{self:object}Was betrayed by {other}][{self:object}, over {data:cause}]"
+            + "[{self:object}.]");
         SetSelf(EventKind.OfficePassedOver,
             "[{self:subject}Was passed over for {data:office}][{self:subject} in favour of {other}]"
             + "[{self:subject}, having {data:claim}][{self:subject}.]"

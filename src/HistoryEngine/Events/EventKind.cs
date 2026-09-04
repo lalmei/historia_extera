@@ -201,6 +201,18 @@ public enum EventKind
     /// </remarks>
     OfficePassedOver = 348,
 
+    /// <summary>
+    /// One of a married pair turned on the other.
+    /// </summary>
+    /// <remarks>
+    /// Notable, and the rarest thing on the ladder. A spouse holds the most trust and the most
+    /// access anybody in this model has, so a marriage turned on is both the hardest betrayal to
+    /// reach and the one a chronicle would still be repeating a century later. It does not end the
+    /// marriage: there is no divorce here, and the two remain married with one of them holding an
+    /// enmity toward the other.
+    /// </remarks>
+    SpouseBetrayed = 349,
+
     // ---- Territory (400) ----
     // Claims are written so ownership can be replayed year by year; they are marked Routine
     // so the timeline is not a run of "extended its reach". Cessions and releases stay on

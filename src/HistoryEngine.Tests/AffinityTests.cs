@@ -14,23 +14,23 @@ namespace HistoryEngine.Tests;
 public sealed class AffinityTests
 {
     /// <summary>
-    /// Seeds that carry a betrayal, which is the scarce ending.
+    /// Seeds that carry both kinds of betrayal, which are the scarce endings.
     /// </summary>
     /// <remarks>
     /// <para>Every seed with a standing realm produces friendships in the hundreds, so the panel is
-    /// chosen entirely on the rare outcome: a friend turning on the other appears in five of the
-    /// first forty seeds and never more than once in a world. That is a property of the gate rather
-    /// than of the odds — a betrayal needs a wrong the world already recorded between the two of
-    /// them, and the engine's wrongs are almost all vertical (a ruler and the man he dismissed, an
-    /// heir and the claimant he beat) while friendships are almost all horizontal, because rank is
-    /// one of the things that keeps two people from becoming friends in the first place. Raising
-    /// the chance would not fix that; giving peers something to fall out over would. See the
-    /// decision log.</para>
+    /// chosen entirely on the rare outcomes: a friend turning appears in 11 worlds of the first 40
+    /// and a marriage turned on in 14, and only five seeds carry both. Those five are these, which
+    /// is fortunate rather than engineered — a panel picked on the scarcest thing is the one that
+    /// notices when the scarcest thing stops happening.</para>
+    ///
+    /// <para>Resampled once already, when a post given to somebody else became a wrong a quarrel
+    /// could be built on. Before it, peers had nothing to fall out over and the betrayal gate was
+    /// starved: a friend turned in five worlds of forty and a spouse could not turn at all.</para>
     ///
     /// <para>Seeds 20, 24, 28, 31 and 34 are unusable here and it is not this model's doing: they
     /// produce no figures at all.</para>
     /// </remarks>
-    private static readonly ulong[] Seeds = { 5, 12, 15, 22, 26 };
+    private static readonly ulong[] Seeds = { 17, 19, 22, 32, 39 };
 
     private readonly ITestOutputHelper _output;
 
@@ -96,7 +96,7 @@ public sealed class AffinityTests
     [Fact]
     public void BothPartiesCarryTheSameEpisodeFromTheirOwnSide()
     {
-        HistoryRun run = HistoryRun.Execute(TestWorlds.Standard(5));
+        HistoryRun run = HistoryRun.Execute(TestWorlds.Standard(17));
         WorldState world = run.World;
         WorldExport export = run.ToExport();
         int checkedPairs = 0;
@@ -130,7 +130,7 @@ public sealed class AffinityTests
             checkedPairs++;
         }
 
-        Assert.True(checkedPairs > 0, "Seed 5 produced no friendship to read from both sides.");
+        Assert.True(checkedPairs > 0, "Seed 17 produced no friendship to read from both sides.");
     }
 
     /// <summary>
@@ -268,6 +268,10 @@ public sealed class AffinityTests
                 Assert.True(
                     bond!.Kinds.HasFlag(BondKind.Enemy),
                     $"Seed {seed}: a betrayal left no enmity behind it.");
+                Assert.True(
+                    bond.Kinds.HasFlag(BondKind.Betrayer),
+                    $"Seed {seed}: a betrayal left no durable mark on the bond, so nothing can "
+                    + "tell later that this person was turned on.");
 
                 // The friendship itself is not erased by it. Two people who were friends and are
                 // now enemies are not two people who were never friends.
@@ -378,7 +382,7 @@ public sealed class AffinityTests
     [Fact]
     public void AFavourLeavesTheGratitudeWithThePersonWhoReceivedIt()
     {
-        WorldState world = HistoryRun.Execute(TestWorlds.Standard(5)).World;
+        WorldState world = HistoryRun.Execute(TestWorlds.Standard(17)).World;
         int favours = 0;
         int onTheReceiver = 0;
         int onTheGiver = 0;
@@ -400,7 +404,7 @@ public sealed class AffinityTests
             favours++;
         }
 
-        Assert.True(favours > 0, "Seed 5 produced no favour between friends.");
+        Assert.True(favours > 0, "Seed 17 produced no favour between friends.");
         Assert.True(
             onTheReceiver > onTheGiver,
             $"Of {favours} favours, {onTheReceiver} left the receiver grateful and "
@@ -410,6 +414,67 @@ public sealed class AffinityTests
     private static bool Grateful(Figure figure, Figure toward) =>
         figure.Memories.Exists(
             memory => memory.Kind == MemoryKind.Gratitude && memory.AboutId == toward.Id);
+
+    /// <summary>
+    /// A marriage can be turned on, once, and only for a reason the world already wrote.
+    /// </summary>
+    /// <remarks>
+    /// The same gate as a friendship's, which is the point of sharing it: a spouse is not given a
+    /// discount for being a spouse, and what makes a marriage harder to betray is that its bond
+    /// carries more obligation. It does not end the marriage — there is no divorce here — so the
+    /// only thing that stops it happening again is the mark left on the bond, and that is what
+    /// this test exists to hold.
+    /// </remarks>
+    [Fact]
+    public void AMarriageIsTurnedOnOnceAndOnlyForARecordedReason()
+    {
+        int betrayals = 0;
+
+        foreach (ulong seed in Seeds)
+        {
+            WorldState world = HistoryRun.Execute(TestWorlds.Standard(seed)).World;
+            var turned = new HashSet<(EntityId, EntityId)>();
+
+            foreach (HistoryEvent entry in world.Chronicle.Events)
+            {
+                if (entry.Kind != EventKind.SpouseBetrayed) continue;
+
+                Figure betrayer = world.Figures[entry.Subject];
+                Figure betrayed = world.Figures[entry.Object];
+
+                Assert.NotEqual(betrayer.Id, betrayed.Id);
+                Assert.Contains(betrayed.Id, betrayer.SpouseIds);
+                Assert.Contains(betrayer.Id, betrayed.SpouseIds);
+
+                // Both were alive to do it and to have it done to them.
+                Assert.True((betrayer.DeathYear ?? world.EndYear) >= entry.Year);
+                Assert.True((betrayed.DeathYear ?? world.EndYear) >= entry.Year);
+
+                FigureBond? bond = LifeStories.BondTo(betrayed, betrayer.Id);
+                Assert.NotNull(bond);
+                Assert.True(bond!.Kinds.HasFlag(BondKind.Betrayer));
+                Assert.True(bond.Kinds.HasFlag(BondKind.Enemy));
+
+                // The marriage is not unmade by it.
+                Assert.True(bond.Kinds.HasFlag(BondKind.Spouse));
+
+                // Not asserting the memory survives. It is written at the time and it is a memory:
+                // twelve slots, deterministic fading, and a person who has buried three relatives
+                // since will have lost it. That is the memory model working, and it is the whole
+                // reason the durable fact of a betrayal is a flag on the bond instead.
+
+                Assert.True(
+                    turned.Add((betrayer.Id, betrayed.Id)) && !turned.Contains((betrayed.Id, betrayer.Id)),
+                    $"Seed {seed}: the same marriage was turned on more than once.");
+
+                betrayals++;
+            }
+        }
+
+        Assert.True(
+            betrayals > 0,
+            "The panel produced no marital betrayal, which is half of what it is for.");
+    }
 
     /// <summary>Reads each friendship once, from the side that sought it.</summary>
     private static IEnumerable<FigureAffinity> All(WorldState world)

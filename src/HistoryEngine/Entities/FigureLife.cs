@@ -31,6 +31,18 @@ public enum BondKind
     Lover = 1 << 14,
     Guardian = 1 << 15,
     Ward = 1 << 16,
+
+    /// <summary>
+    /// This person turned on the one holding the bond.
+    /// </summary>
+    /// <remarks>
+    /// Carried by the wronged party's side only, and never cleared, because it is the one fact
+    /// about a betrayal that has to outlive everything else the bond records: causes are
+    /// overwritten by the next material change, memories fade and are evicted, and a friendship's
+    /// own record is closed. Without it the engine cannot answer "has this person already been
+    /// turned on by their husband", and a marriage would be free to be betrayed every decade.
+    /// </remarks>
+    Betrayer = 1 << 17,
 }
 
 /// <summary>The last material event to alter a bond.</summary>
