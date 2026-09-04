@@ -409,9 +409,10 @@ export interface LifeArc {
   moments: LifeMoment[];
   /**
    * Years in which anything was recorded, and how heavy each was against the heaviest — a
-   * notable event counting for three routine ones.
+   * notable event counting for three routine ones. The counts travel with the weight so a bar
+   * can say what it is made of rather than only how tall it is.
    */
-  density: { year: number; weight: number }[];
+  density: { year: number; weight: number; count: number; notable: number }[];
   busiestYear?: number;
 }
 
@@ -642,16 +643,25 @@ export function buildLifeArc(
 
   // Weighted by what the chronicle itself calls significance, not by raw count: three births and
   // a move is a quiet year, and a year with a siege in it should not have to compete with one.
-  const counts = new Map<number, number>();
+  const counts = new Map<number, { weight: number; count: number; notable: number }>();
   for (const event of events) {
     if (event.year < figure.birthYear || event.year > lastYear) continue;
-    const weight = event.significance === 'Notable' ? 3 : 1;
-    counts.set(event.year, (counts.get(event.year) ?? 0) + weight);
+    const notable = event.significance === 'Notable';
+    const tally = counts.get(event.year) ?? { weight: 0, count: 0, notable: 0 };
+    tally.weight += notable ? 3 : 1;
+    tally.count += 1;
+    tally.notable += notable ? 1 : 0;
+    counts.set(event.year, tally);
   }
-  const busiest = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0];
+  const busiest = [...counts.entries()].sort((a, b) => b[1].weight - a[1].weight || a[0] - b[0])[0];
   const density = [...counts.entries()]
     .sort((a, b) => a[0] - b[0])
-    .map(([year, count]) => ({ year, weight: busiest ? count / busiest[1] : 0 }));
+    .map(([year, tally]) => ({
+      year,
+      weight: busiest ? tally.weight / busiest[1].weight : 0,
+      count: tally.count,
+      notable: tally.notable,
+    }));
 
   // Keep the strongest moments, then put them back in the order they happened: the arc is read
   // left to right as a life, not as a ranking.
