@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { EventList, NarratedEvent } from '../components/EventList';
 import {
+  FigureHero,
   KnownForPanel,
-  LifeArcStrip,
+  LifeArcPanel,
   RelationshipConstellation,
   RipplesPanel,
   StandingReadout,
@@ -12,6 +13,8 @@ import {
   affinityAt,
   buildBiographyEpisodes,
   disputeAt,
+  historicalSignificance,
+  standingAt,
   groupJourneys,
   buildLifeArc,
   lifeVantages,
@@ -751,7 +754,6 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
   // someone six centuries dead as holding no office and knowing nobody — so those panels stand
   // at the last year the person was in the world, and say that they are doing so.
   const pointYear = Math.min(selectedYear, deathYear ?? lastYear);
-  const age = (deadAtPoint ? deathYear : selectedYear) - figure.birthYear;
   const allEvents = world.eventsFor(figure.id);
   const visibleEvents = allEvents.filter((event) => event.year <= selectedYear);
   const visibleTitles = figure.titles
@@ -887,6 +889,22 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
     figure.background && figure.background.introducedYear <= selectedYear
       ? figure.background
       : undefined;
+  const positionPlaceName = positionPlace ? world.nameOf(positionPlace) : undefined;
+  // The header reads the same standing the panel below it does, at the same year, so the two
+  // never disagree — a header showing a widow beside a readout showing a wife is the failure
+  // mode that comes of deriving the summary twice.
+  const standing = useMemo(() => standingAt(figure, pointYear, life), [figure, pointYear, life]);
+  const significance = useMemo(
+    () =>
+      historicalSignificance(
+        figure,
+        allEvents,
+        pointYear,
+        life,
+        treasuresOwnedBy(world, figure.id).length,
+      ),
+    [figure, allEvents, pointYear, life, world],
+  );
   const hasLifeSummary =
     background !== undefined ||
     guardianships.length > 0 ||
@@ -902,25 +920,24 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
 
   return (
     <div className="space-y-5">
-      <PageTitle
-        eyebrow={house ? `${role ?? 'Of the house of'} · ${house.name}` : (role ?? 'Figure')}
-        title={figure.name}
-        meta={
-          <>
-            <Badge tone={deadAtPoint ? 'muted' : 'accent'}>
-              {deadAtPoint ? 'Deceased' : `Living in ${selectedYear}`}
-            </Badge>
-            <span className="text-[var(--ink-faint)]">
-              {deadAtPoint ? yearRange(figure.birthYear, figure.deathYear) : `born ${figure.birthYear}`}
-              {' · '}aged {age}
-            </span>
-          </>
-        }
+      <FigureHero
+        world={world}
+        figure={figure}
+        standing={standing}
+        eyebrow={[role ?? 'Figure', house?.name, culture?.name].filter(Boolean).join(' · ')}
+        cultureId={figure.cultureId}
+        recordStart={world.export.meta.startYear}
+        recordEnd={lastYear}
+        significance={significance.band}
+        place={positionPlaceName}
       />
 
-      <Panel title="Life arc">
-        <LifeArcStrip arc={arc} selectedYear={pointYear} onSelectYear={setSelectedYear} />
-      </Panel>
+      <LifeArcPanel
+        arc={arc}
+        birthYear={figure.birthYear}
+        selectedYear={pointYear}
+        onSelectYear={setSelectedYear}
+      />
 
       <EntityColumns
         aside={
@@ -990,6 +1007,7 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
               year={selectedYear}
               ctx={life}
               vantages={vantages}
+              place={positionPlaceName}
               onSelectYear={setSelectedYear}
             />
           </div>

@@ -1,16 +1,25 @@
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   buildConstellation,
   historicalSignificance,
   knownFor,
   ripplesAfter,
   standingAt,
+  standingSentence,
   type LifeArc,
   type LifeContext,
   type LifeMomentKind,
+  type LifeStanding,
   type LifeVantage,
 } from '../biography';
-import { EntityLink } from '../components/common';
+import { Badge, EntityLink, Panel } from '../components/common';
+import {
+  IconCrown,
+  IconPeople,
+  IconPerson,
+  IconStar,
+  IconSwords,
+} from '../components/icons';
 import type { World } from '../store';
 import type { Figure, HistoryEvent } from '../types';
 
@@ -27,17 +36,261 @@ import type { Figure, HistoryEvent } from '../types';
 
 const MOMENT_TONE: Record<LifeMomentKind, string> = {
   Birth: 'var(--ink-faint)',
-  Trade: 'var(--secondary)',
-  Rank: 'var(--tertiary)',
-  Office: 'var(--primary)',
-  Marriage: 'var(--secondary)',
-  Children: 'var(--secondary)',
+  Trade: 'var(--tone-craft)',
+  Rank: 'var(--tone-war)',
+  Office: 'var(--tone-office)',
+  Marriage: 'var(--tone-kin)',
+  Children: 'var(--tone-kin)',
   Loss: 'var(--error)',
-  Friendship: 'var(--primary)',
-  Wound: 'var(--error)',
-  Campaign: 'var(--tertiary)',
+  Friendship: 'var(--tone-faith)',
+  Wound: 'var(--tone-war)',
+  Campaign: 'var(--tone-war)',
   Death: 'var(--ink-faint)',
 };
+
+/**
+ * What each hue in the arc means, so the colour is a key rather than decoration.
+ *
+ * Grouped by what the turn was about rather than given a hue apiece: a marriage and a sixth
+ * child are the same kind of fact about a life, and colouring them differently would say they
+ * were not.
+ */
+const TONE_LEGEND: { tone: string; label: string }[] = [
+  { tone: 'var(--tone-kin)', label: 'household' },
+  { tone: 'var(--tone-office)', label: 'office' },
+  { tone: 'var(--tone-war)', label: 'arms' },
+  { tone: 'var(--tone-craft)', label: 'trade' },
+  { tone: 'var(--tone-faith)', label: 'companionship' },
+  { tone: 'var(--ink-faint)', label: 'birth and death' },
+];
+
+const SIGIL_TONES = [
+  'var(--tone-kin)',
+  'var(--tone-office)',
+  'var(--tone-war)',
+  'var(--tone-craft)',
+  'var(--tone-faith)',
+  'var(--tone-learning)',
+];
+
+/** Stable across pages and reloads: the same culture is the same colour wherever it appears. */
+function toneFor(id: string | undefined): string {
+  if (!id) return SIGIL_TONES[0];
+  let hash = 0;
+  for (let index = 0; index < id.length; index += 1) {
+    hash = (hash * 31 + id.charCodeAt(index)) >>> 0;
+  }
+  return SIGIL_TONES[hash % SIGIL_TONES.length];
+}
+
+/**
+ * A mark for a person, in place of a portrait we do not have and should not invent.
+ *
+ * Two things are true of it and neither is decoration: the colour is the culture's, so a page
+ * of Swethil figures reads as one people, and the ring is the years the life covers set against
+ * the years the record covers — a figure who spans a third of the history has a third of a ring.
+ * A drawn face would be a claim about someone the simulation never described.
+ */
+export function FigureSigil({
+  name,
+  tone,
+  fromYear,
+  toYear,
+  recordStart,
+  recordEnd,
+  size = 76,
+}: {
+  name: string;
+  tone: string;
+  fromYear: number;
+  toYear: number;
+  recordStart: number;
+  recordEnd: number;
+  size?: number;
+}) {
+  const span = Math.max(1, recordEnd - recordStart);
+  const start = Math.min(1, Math.max(0, (fromYear - recordStart) / span));
+  const end = Math.min(1, Math.max(0, (toYear - recordStart) / span));
+  const radius = 34;
+  const circumference = 2 * Math.PI * radius;
+  const initial = name.trim().charAt(0).toUpperCase() || '?';
+
+  return (
+    <svg
+      viewBox="0 0 88 88"
+      width={size}
+      height={size}
+      role="img"
+      aria-label={`${name}, ${fromYear} to ${toYear}`}
+      className="shrink-0"
+    >
+      <rect
+        x="1"
+        y="1"
+        width="86"
+        height="86"
+        rx="10"
+        fill={`color-mix(in srgb, ${tone} 10%, var(--panel))`}
+        stroke={`color-mix(in srgb, ${tone} 34%, transparent)`}
+      />
+      <circle
+        cx="44"
+        cy="44"
+        r={radius}
+        fill="none"
+        stroke={`color-mix(in srgb, ${tone} 22%, transparent)`}
+        strokeWidth="2"
+      />
+      <circle
+        cx="44"
+        cy="44"
+        r={radius}
+        fill="none"
+        stroke={tone}
+        strokeWidth="3"
+        strokeLinecap="round"
+        // Rotated so the ring starts at the top, where a reader expects a year zero.
+        transform="rotate(-90 44 44)"
+        strokeDasharray={`${Math.max(2, (end - start) * circumference)} ${circumference}`}
+        strokeDashoffset={-start * circumference}
+      />
+      <text
+        x="44"
+        y="44"
+        textAnchor="middle"
+        dominantBaseline="central"
+        fill={tone}
+        fontSize="30"
+        fontFamily="var(--font-mono)"
+      >
+        {initial}
+      </text>
+    </svg>
+  );
+}
+
+/**
+ * The top of a figure's page: who they were, in the year being read.
+ *
+ * It exists because the page used to open on a name and a date and then ask the reader to
+ * assemble a person out of eleven panels. The five facts in the chip row are the same five the
+ * standing readout carries, hoisted to where the eye lands first — and because they are read at
+ * the selected year like everything else, the header is the fastest way to see that the year
+ * control does something.
+ */
+export function FigureHero({
+  world,
+  figure,
+  standing,
+  eyebrow,
+  cultureId,
+  recordStart,
+  recordEnd,
+  significance,
+  place,
+}: {
+  world: World;
+  figure: Figure;
+  standing: LifeStanding;
+  eyebrow: string;
+  cultureId?: string;
+  recordStart: number;
+  recordEnd: number;
+  significance?: string;
+  place?: string;
+}) {
+  const tone = toneFor(cultureId ?? figure.cultureId);
+  const chips: { key: string; icon: ReactNode; fact: ReactNode; note: string; tone: string }[] = [
+    {
+      key: 'position',
+      icon: figure.titles.length > 0 ? <IconCrown /> : <IconSwords />,
+      fact: standing.position ?? 'No position on record',
+      note: standing.position ? (place ?? 'place unrecorded') : 'nothing the record names',
+      tone: figure.titles.length > 0 ? 'var(--tone-office)' : 'var(--tone-craft)',
+    },
+    {
+      key: 'household',
+      icon: <IconPeople />,
+      fact: sentenceCase(standing.household),
+      note:
+        standing.childCount === 0
+          ? 'no children'
+          : `${standing.childCount} ${standing.childCount === 1 ? 'child' : 'children'}`,
+      tone: 'var(--tone-kin)',
+    },
+    {
+      key: 'closest',
+      icon: <IconPerson />,
+      fact: standing.closest ? <EntityLink world={world} id={standing.closest.id} /> : 'Nobody',
+      note: standing.closest ? standing.closest.reading : 'stands close on record',
+      tone: 'var(--tone-faith)',
+    },
+    {
+      key: 'disposition',
+      icon: <IconStar />,
+      fact: standing.dominantDisposition ?? 'Even',
+      note: standing.dominantDisposition ? 'runs strongest' : 'nothing runs strongly',
+      tone: 'var(--tone-learning)',
+    },
+  ];
+
+  return (
+    <header className="mb-6 overflow-hidden rounded-lg border border-[var(--rule)] bg-[var(--panel)]">
+      <div
+        className="flex flex-wrap items-start gap-5 border-b border-[var(--rule)] p-5"
+        style={{
+          background: `linear-gradient(120deg, color-mix(in srgb, ${tone} 9%, transparent), transparent 60%)`,
+        }}
+      >
+        <FigureSigil
+          name={figure.name}
+          tone={tone}
+          fromYear={figure.birthYear}
+          toYear={figure.deathYear ?? recordEnd}
+          recordStart={recordStart}
+          recordEnd={recordEnd}
+        />
+        <div className="min-w-[14rem] flex-1">
+          <div className="he-label" style={{ color: `color-mix(in srgb, ${tone} 70%, var(--ink-faint))` }}>
+            {eyebrow}
+          </div>
+          <h1 className="he-headline mt-1.5">{figure.name}</h1>
+          <div className="mt-2.5 flex flex-wrap items-center gap-2 text-sm">
+            <Badge tone={standing.alive ? 'accent' : 'muted'}>
+              {standing.alive ? `Living in ${standing.year}` : 'Deceased'}
+            </Badge>
+            {significance && significance !== 'Ordinary' && <Badge tone="neutral">{significance}</Badge>}
+            <span className="he-data text-[var(--ink-faint)]">
+              {figure.deathYear === undefined
+                ? `b. ${figure.birthYear}`
+                : `${figure.birthYear}–${figure.deathYear}`}
+              {' · aged '}
+              {standing.age}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <dl className="grid grid-cols-2 gap-px bg-[var(--rule)] sm:grid-cols-4">
+        {chips.map((chip) => (
+          <div key={chip.key} className="flex items-start gap-2.5 bg-[var(--panel)] px-4 py-3">
+            <span aria-hidden style={{ color: chip.tone }} className="mt-0.5 text-base">
+              {chip.icon}
+            </span>
+            <div className="min-w-0">
+              <dt className="truncate text-sm text-[var(--ink)]">{chip.fact}</dt>
+              <dd className="truncate text-xs text-[var(--ink-faint)]">{chip.note}</dd>
+            </div>
+          </div>
+        ))}
+      </dl>
+    </header>
+  );
+}
+
+function sentenceCase(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
 
 /**
  * A life as one strip: the years that had something in them, and the turns that made it that life.
@@ -53,14 +306,20 @@ const MOMENT_TONE: Record<LifeMomentKind, string> = {
  */
 export function LifeArcStrip({
   arc,
+  birthYear,
   selectedYear,
+  scale,
   onSelectYear,
 }: {
   arc: LifeArc;
+  birthYear: number;
   selectedYear: number;
+  /** Whether the strip counts in years of the world or years of the life. Same data either way. */
+  scale: 'age' | 'year';
   onSelectYear: (year: number) => void;
 }) {
   const trackRef = useRef<HTMLDivElement>(null);
+  const reading = (year: number) => (scale === 'age' ? year - birthYear : year);
   const span = Math.max(1, arc.lastYear - arc.firstYear);
   const at = (year: number) => ((year - arc.firstYear) / span) * 100;
 
@@ -84,7 +343,7 @@ export function LifeArcStrip({
           {arc.density.map(({ year, weight }) => (
             <span
               key={year}
-              title={`${year}`}
+              title={`${reading(year)}`}
               className="absolute bottom-0 bg-[var(--accent-soft)]"
               style={{
                 left: `${at(year)}%`,
@@ -103,7 +362,7 @@ export function LifeArcStrip({
           style={{ left: `${at(Math.min(Math.max(selectedYear, arc.firstYear), arc.lastYear))}%`, height: '3.75rem' }}
         >
           <span className="absolute -bottom-5 -translate-x-1/2 whitespace-nowrap text-[0.7rem] text-[var(--primary)]">
-            {selectedYear}
+            {reading(selectedYear)}
           </span>
         </div>
 
@@ -131,14 +390,26 @@ export function LifeArcStrip({
               type="button"
               title={moment.detail}
               onClick={() => onSelectYear(moment.year)}
-              className={`rounded border px-2 py-0.5 text-xs transition-colors ${
+              className="rounded border px-2 py-0.5 text-xs transition-colors"
+              style={
                 moment.year === selectedYear
-                  ? 'border-[var(--primary)] text-[var(--primary)]'
-                  : 'border-[var(--rule)] text-[var(--ink-soft)] hover:border-[var(--primary)] hover:text-[var(--primary)]'
-              }`}
+                  ? {
+                      borderColor: MOMENT_TONE[moment.kind],
+                      color: MOMENT_TONE[moment.kind],
+                      background: `color-mix(in srgb, ${MOMENT_TONE[moment.kind]} 12%, transparent)`,
+                    }
+                  : { borderColor: 'var(--rule)', color: 'var(--ink-soft)' }
+              }
             >
+              <span
+                aria-hidden
+                className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full align-middle"
+                style={{ background: MOMENT_TONE[moment.kind] }}
+              />
               {moment.label}
-              <span className="ml-1.5 text-[var(--ink-faint)]">{moment.age}</span>
+              <span className="ml-1.5 text-[var(--ink-faint)]">
+                {scale === 'age' ? moment.age : moment.year}
+              </span>
             </button>
           </li>
         ))}
@@ -147,26 +418,107 @@ export function LifeArcStrip({
       <p className="mt-3 text-xs leading-relaxed text-[var(--ink-faint)]">
         The whole life, retrospectively — the panels below show only what was known in the year
         selected. Bar height is how much the chronicle recorded in that year, counting what it
-        marked notable for three; the number beside each turn is the age it happened at. Click
-        anywhere on the strip to move the year.
+        marked notable for three; the number beside each turn is the {scale === 'age' ? 'age' : 'year'} it
+        happened at, and its colour is what the turn was about. Click anywhere on the strip to move
+        the year.
         {arc.busiestYear !== undefined && (
           <>
             {' '}
-            Their busiest year was <strong className="text-[var(--ink-soft)]">{arc.busiestYear}</strong>.
+            Their busiest year was{' '}
+            <strong className="text-[var(--ink-soft)]">
+              {scale === 'age' ? `age ${reading(arc.busiestYear)}` : arc.busiestYear}
+            </strong>
+            .
           </>
         )}
       </p>
+
+      <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[0.7rem] text-[var(--ink-faint)]">
+        {TONE_LEGEND.map((entry) => (
+          <li key={entry.label} className="flex items-center gap-1.5">
+            <span
+              aria-hidden
+              className="inline-block h-1.5 w-1.5 rounded-full"
+              style={{ background: entry.tone }}
+            />
+            {entry.label}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
 
 /**
- * Who they were in the selected year, in five lines that all change as it moves.
+ * The arc with its own panel and its own scale control.
+ *
+ * <b>Age or year is not a formatting preference.</b> "Married at 33" is a fact about a person and
+ * "married in 412" is a fact about a world, and a reader arrives wanting one or the other — the
+ * same strip answers both, so it should not have to be redrawn to do it.
+ */
+export function LifeArcPanel({
+  arc,
+  birthYear,
+  selectedYear,
+  onSelectYear,
+}: {
+  arc: LifeArc;
+  birthYear: number;
+  selectedYear: number;
+  onSelectYear: (year: number) => void;
+}) {
+  const [scale, setScale] = useState<'age' | 'year'>('age');
+
+  return (
+    <Panel
+      title="Life arc"
+      actions={
+        <div
+          role="group"
+          aria-label="Life arc scale"
+          className="flex overflow-hidden rounded border border-[var(--rule)]"
+        >
+          {(['age', 'year'] as const).map((option) => (
+            <button
+              key={option}
+              type="button"
+              aria-pressed={scale === option}
+              onClick={() => setScale(option)}
+              className={`px-2.5 py-1 text-xs capitalize transition-colors ${
+                scale === option
+                  ? 'bg-[var(--primary)] text-[var(--on-primary)]'
+                  : 'text-[var(--ink-soft)] hover:text-[var(--primary)]'
+              }`}
+            >
+              {option}
+            </button>
+          ))}
+        </div>
+      }
+    >
+      <LifeArcStrip
+        arc={arc}
+        birthYear={birthYear}
+        selectedYear={selectedYear}
+        scale={scale}
+        onSelectYear={onSelectYear}
+      />
+    </Panel>
+  );
+}
+
+/**
+ * Who they were in the selected year, in a sentence that rewrites itself as it moves.
  *
  * The slider was conceptually the most interesting thing on this page and read as a filter,
  * because nothing next to it visibly changed except which rows were hidden. This is the readout
  * that makes it an instrument: age, position, household, the person closest to them, the
  * inclination that ran strongest, and how much they were still carrying.
+ *
+ * <b>It was a definition list before, and the header above the page now carries the same five
+ * facts as chips.</b> Saying them a third time in a column of labels was not more rigorous, only
+ * longer — the sentence is the form that shows the year moving, because a reader watching one
+ * clause change reads it, and a reader watching a table cell change does not.
  */
 export function StandingReadout({
   world,
@@ -174,6 +526,7 @@ export function StandingReadout({
   year,
   ctx,
   vantages,
+  place,
   onSelectYear,
 }: {
   world: World;
@@ -181,9 +534,15 @@ export function StandingReadout({
   year: number;
   ctx: LifeContext;
   vantages: LifeVantage[];
+  /** Where the position was held, when the page could work one out. */
+  place?: string;
   onSelectYear: (year: number) => void;
 }) {
   const standing = useMemo(() => standingAt(figure, year, ctx), [figure, year, ctx]);
+  const sentence = useMemo(
+    () => standingSentence(figure, standing, ctx, place),
+    [figure, standing, ctx, place],
+  );
 
   return (
     <div>
@@ -198,47 +557,15 @@ export function StandingReadout({
         )}
       </div>
 
-      <p className="mt-1.5 text-sm">
-        {[
-          standing.position ?? 'no recorded position',
-          standing.household,
-          standing.childCount === 1 ? '1 child' : `${standing.childCount} children`,
-        ].join(' · ')}
+      <p className="mt-2 text-[0.95rem] leading-relaxed text-[var(--ink-soft)]">
+        {sentence.map((part, index) =>
+          part.type === 'text' ? (
+            <span key={index}>{part.text}</span>
+          ) : (
+            <EntityLink key={index} world={world} id={part.id} />
+          ),
+        )}
       </p>
-
-      <dl className="mt-3 space-y-1 text-sm">
-        <div className="flex gap-2">
-          <dt className="w-44 shrink-0 text-[var(--ink-faint)]">Closest relationship</dt>
-          <dd className="min-w-0">
-            {standing.closest ? (
-              <>
-                <EntityLink world={world} id={standing.closest.id} />
-                <span className="ml-2 text-xs text-[var(--ink-faint)]">
-                  {standing.closest.reading}
-                </span>
-              </>
-            ) : (
-              <span className="text-[var(--ink-faint)]">none yet visible</span>
-            )}
-          </dd>
-        </div>
-        <div className="flex gap-2">
-          <dt className="w-44 shrink-0 text-[var(--ink-faint)]">Dominant disposition</dt>
-          <dd className="min-w-0">
-            {standing.dominantDisposition ?? (
-              <span className="text-[var(--ink-faint)]">nothing runs strongly</span>
-            )}
-          </dd>
-        </div>
-        <div className="flex gap-2">
-          <dt className="w-44 shrink-0 text-[var(--ink-faint)]">Still carried</dt>
-          <dd className="min-w-0">
-            {standing.activeMemories === 0
-              ? 'nothing formative yet'
-              : `${standing.activeMemories} formative ${standing.activeMemories === 1 ? 'memory' : 'memories'}`}
-          </dd>
-        </div>
-      </dl>
 
       {vantages.length > 1 && (
         <div className="mt-4 flex flex-wrap gap-2 border-t border-[var(--rule)] pt-3">

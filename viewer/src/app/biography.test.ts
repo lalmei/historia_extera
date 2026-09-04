@@ -11,6 +11,7 @@ import {
   plotAt,
   ripplesAfter,
   standingAt,
+  standingSentence,
   undertakingAt,
   visibleBondAt,
   visibleMemoryAt,
@@ -258,6 +259,17 @@ test('a friendship read before its ending carries neither the ending nor the bet
 // The whole-life derivations.
 // ---------------------------------------------------------------------------
 
+/** Every dial at rest, so a test can raise exactly the one it is about. */
+const DISPOSITION = {
+  aggression: 0.1,
+  expansionism: 0.1,
+  piety: 0.1,
+  tradition: 0.1,
+  mercantile: 0.1,
+  learning: 0.1,
+  centralism: 0.1,
+};
+
 function person(overrides: Partial<Figure>): Figure {
   return {
     id: 'fig:1',
@@ -405,6 +417,47 @@ test('standing past a death reports the year they stopped, and says the year ask
   assert.equal(before.position, undefined, 'the office was not held yet');
   assert.equal(before.household, 'married');
   assert.equal(before.childCount, 1);
+});
+
+test('the standing sentence reports the fields and invents nothing to fill a gap', () => {
+  const spouse = person({ id: 'fig:9', name: 'Ainikka', birthYear: 8 });
+  const child = person({ id: 'fig:2', birthYear: 35 });
+  const figure = person({
+    childIds: ['fig:2'],
+    disposition: { ...DISPOSITION, tradition: 0.9 },
+    bonds: [bond('fig:9', { kinds: ['Spouse'], sinceYear: 30, lastChangedYear: 30, trust: 0.8 })],
+    titles: [
+      { kind: 'Ruler', title: 'Consul', civilizationId: 'civ:1', fromYear: 50 },
+    ] as Figure['titles'],
+  });
+  const ctx = context([figure, spouse, child]);
+
+  const said = (year: number, place?: string) =>
+    standingSentence(figure, standingAt(figure, year, ctx), ctx, place)
+      .map((part) => (part.type === 'text' ? part.text : ctx.nameOf(part.id)))
+      .join('');
+
+  const held = said(64, 'Orvinowotsi');
+  assert.match(held, /At age 54, Kullerwa was a consul in Orvinowotsi\./);
+  assert.match(held, /She was married with one child/);
+  assert.match(held, /the person closest to her was Ainikka \(deeply trusted\)/);
+  assert.match(held, /tradition ran strongest/);
+
+  const before = said(20);
+  assert.match(before, /held no position the record names/, 'no office is a shorter sentence');
+  assert.match(before, /unmarried with no children/);
+  assert.doesNotMatch(before, / in undefined/, 'a place nobody passed is left out, not printed');
+});
+
+test('the standing sentence follows the recorded sex, and says how far the record outlives them', () => {
+  const figure = person({ id: 'fig:7', name: 'Olaw', sex: 'Male', deathYear: 70 });
+  const ctx = context([figure]);
+  const said = standingSentence(figure, standingAt(figure, 200, ctx), ctx)
+    .map((part) => (part.type === 'text' ? part.text : ctx.nameOf(part.id)))
+    .join('');
+
+  assert.match(said, /He was unmarried with no children/);
+  assert.match(said, /He died in 70, and the record runs 130 years past him\./);
 });
 
 test('the constellation drops whoever is not alive in the year drawn', () => {

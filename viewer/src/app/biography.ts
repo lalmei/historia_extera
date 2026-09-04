@@ -11,6 +11,7 @@ import type {
   Journey,
   Plot,
   SalientMemory,
+  Sex,
   Undertaking,
 } from './types.ts';
 
@@ -798,6 +799,124 @@ export function standingAt(figure: Figure, requestedYear: number, ctx: LifeConte
     dominantDisposition: dominantDisposition(figure),
     activeMemories: figure.memories.filter((memory) => visibleMemoryAt(memory, year)).length,
   };
+}
+
+/** A sentence in pieces, so the names inside it can be links rather than text. */
+export type StandingPart = { type: 'text'; text: string } | { type: 'entity'; id: EntityId };
+
+const PRONOUNS: Record<Sex, { subject: string; object: string }> = {
+  Female: { subject: 'She', object: 'her' },
+  Male: { subject: 'He', object: 'him' },
+};
+
+/**
+ * The standing readout said as a sentence, for the reader who wants the year in one breath.
+ *
+ * <b>Composed, not written.</b> Every clause is a field of {@link LifeStanding} in a fixed frame
+ * — there is no adjective here that the simulation did not produce, and nothing is inferred to
+ * fill a gap: a person with no recorded position gets a shorter sentence, not a guessed one. That
+ * is the line this stays on the right side of. The moment a clause starts characterising a life
+ * rather than reporting a count, it belongs in the engine or nowhere.
+ *
+ * Pronouns come from the recorded sex, and fall back to they/them for anything else.
+ */
+export function standingSentence(
+  figure: Figure,
+  standing: LifeStanding,
+  ctx: LifeContext,
+  place?: string,
+): StandingPart[] {
+  const parts: StandingPart[] = [];
+  const text = (value: string) => parts.push({ type: 'text', text: value });
+  const pronoun = PRONOUNS[figure.sex] ?? { subject: 'They', object: 'them' };
+  const plural = !PRONOUNS[figure.sex];
+
+  text(`At age ${standing.age}, ${figure.name} `);
+  if (standing.position) {
+    text(`${plural ? 'were' : 'was'} ${article(standing.position)}${lower(standing.position)}`);
+    text(place ? ` in ${place}. ` : '. ');
+  } else {
+    text(`held no position the record names. `);
+  }
+
+  const children =
+    standing.childCount === 0
+      ? 'no children'
+      : standing.childCount === 1
+        ? 'one child'
+        : `${count(standing.childCount)} children`;
+  text(`${pronoun.subject} ${plural ? 'were' : 'was'} ${standing.household} with ${children}`);
+
+  if (standing.closest) {
+    text(`, and the person closest to ${pronoun.object} was `);
+    parts.push({ type: 'entity', id: standing.closest.id });
+    // Parenthesised because the reading is sometimes an adjective ("deeply trusted") and
+    // sometimes a noun the engine last moved the bond by ("bereavement"), and only one of
+    // those two survives being appended to a name with a comma.
+    text(` (${standing.closest.reading}). `);
+  } else {
+    text('. ');
+  }
+
+  if (standing.dominantDisposition) {
+    text(
+      `Of the inclinations the record dials, ${lower(standing.dominantDisposition)} ran strongest`,
+    );
+    text(standing.activeMemories > 0 ? ', and ' : '. ');
+  } else if (standing.activeMemories > 0) {
+    text(`${pronoun.subject} `);
+  }
+
+  if (standing.activeMemories > 0) {
+    const carried = `${standing.activeMemories === 1 ? 'one' : count(standing.activeMemories)} formative ${
+      standing.activeMemories === 1 ? 'memory' : 'memories'
+    }`;
+    const verb = standing.dominantDisposition
+      ? `${pronoun.subject.toLowerCase()} ${plural ? 'were' : 'was'} still carrying`
+      : `${plural ? 'were' : 'was'} still carrying`;
+    text(`${verb} ${carried}. `);
+  }
+
+  if (!standing.alive && figure.deathYear !== undefined) {
+    const outlived = ctx.endYear - figure.deathYear;
+    text(
+      `${pronoun.subject} died in ${figure.deathYear}${
+        outlived > 0 ? `, and the record runs ${outlived} ${outlived === 1 ? 'year' : 'years'} past ${pronoun.object}` : ''
+      }.`,
+    );
+  }
+
+  return parts;
+}
+
+/** Small numbers read better as words in a sentence; past twelve the digits are clearer. */
+const NUMBER_WORDS = [
+  'no',
+  'one',
+  'two',
+  'three',
+  'four',
+  'five',
+  'six',
+  'seven',
+  'eight',
+  'nine',
+  'ten',
+  'eleven',
+  'twelve',
+];
+
+function count(value: number): string {
+  return NUMBER_WORDS[value] ?? `${value}`;
+}
+
+function article(word: string): string {
+  return /^[aeiou]/i.test(word) ? 'an ' : 'a ';
+}
+
+/** Lowercases a label unless it is a proper name the engine capitalised for its own reasons. */
+function lower(label: string): string {
+  return label.charAt(0).toLowerCase() + label.slice(1);
 }
 
 export type ConstellationTie = 'kin' | 'friend' | 'rival';
