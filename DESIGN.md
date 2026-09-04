@@ -347,9 +347,18 @@ terminal arc from immediately becoming a queue of replacement goals. Steps must 
 invalid destination, exposure, success, failure, or loss of office closes the arc explicitly.
 
 - **Quarrels** are personal disputes between two named people, from a wrong the chronicle already
-  recorded to how it ended. Four causes can start one — an office revoked, a succession lost, a
-  relative murdered, an accusation laid — and nothing else can; two people sharing a realm is not
-  a cause. A quarrel climbs a ladder of public visibility one rung at a time, from a grudge held to
+  recorded to how it ended. Five causes can start one — an office revoked, a succession lost, a
+  relative murdered, an accusation laid, a post given to somebody standing beside them — and
+  nothing else can; two people sharing a realm is not a cause. Four of the five are vertical, and
+  the fifth exists because they are: a crown and the man it dismissed, an heir and the claimant he
+  beat, a court and the hand it named all need a difference in power, so two people of the same
+  standing had nothing they could fall out over — and a friendship, which is horizontal by
+  construction, had almost nothing it could be betrayed over. A passing-over is claimed only by
+  the two people the appointment itself already identified, the candidate the court's own measure
+  ranked next and the heir of the family that held the seat, because mere eligibility is not a
+  claim; and most people take it, because posts are filled every year. Who it went to is part of
+  the injury, so being passed over in favour of somebody you trusted lands harder than losing to a
+  stranger. A quarrel climbs a ladder of public visibility one rung at a time, from a grudge held to
   an insult given, a charge laid, and satisfaction demanded, and it may end at any rung in
   reconciliation, a judgement imposed by someone with standing, a meeting that draws blood, a
   death, or nothing at all when death or distance takes one of the parties first. Both people hold
@@ -517,6 +526,7 @@ default.
 | M23 | Journey time consumes the road that was built and records a dated return | Done |
 | M24 | Each realm's army is a ladder its soldiers climb on service and renown | Done |
 | M25 | The affiliative half of the social graph: friendships that begin in a shared town, and the betrayals they make possible | Done |
+| M26 | A wrong between equals: the post that went to somebody standing beside them | Done |
 
 M13 landed in independently reviewable stages: the clock and dated record first, seasonal
 war and expansion next, then plague travel and outbreak clocks, and finally sieges as
@@ -536,13 +546,6 @@ Beyond the numbered milestones:
   a declared east/west topology the loader can check against the seam.
 - Let campaign movement consume road geometry now that travel safety and time both do. The same
   condition applies: it must read something the route's traffic does not already say.
-- Give peers something to fall out over. M25 built friendships and the betrayals they allow, and
-  measurement found the gate starved: a betrayal needs a wrong the record already holds between
-  the two of them, and every wrong the engine writes is vertical — a ruler and the man he
-  dismissed, an heir and the claimant he beat — while friendships are horizontal, because rank is
-  one of the things that stops two people becoming friends. So a betrayal appears in five worlds
-  in forty. The fix is a wrong between equals, and the obvious one is the post two friends both
-  stood for; raising the odds instead would make it the flavour roll the model exists not to be.
 - Carry the ladder into courtship and marriage. `HouseholdSystem` still picks a partner with
   `rng.Pick` over every unmarried dynast in the world, or invents one, and reads none of the bonds,
   residence or memories the engine now holds — so `BondKind.Lover` remains declared and unwritten
