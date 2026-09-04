@@ -199,6 +199,7 @@ for (const { name, data } of saved) {
       figureOf: (id) => world.export.figures.find((figure) => figure.id === id),
       eventsFor: (id) => world.eventsFor(id),
       nameOf: (id) => world.nameOf(id),
+      realmAt: (id, year) => world.timeline.realmAt(id, year),
     };
 
     for (const figure of world.export.figures.slice(0, 300)) {

@@ -44,6 +44,9 @@ export interface Timeline {
   /** What one settlement followed in `year`, if anything. */
   faithAt: (settlementId: EntityId, year: number) => EntityId | undefined;
 
+  /** Which realm held one settlement in `year` — the ground's owner, not the town's last realm. */
+  realmAt: (settlementId: EntityId, year: number) => EntityId | undefined;
+
   /** How many settlements followed one faith in `year`. */
   followingAt: (religionId: EntityId, year: number) => number;
 
@@ -157,7 +160,9 @@ export function buildTimeline(data: WorldExport): Timeline {
   // Settlements start at the tier they were founded with, which no event announces — only
   // changes are recorded. Without this seed a settlement reads as a city from its founding
   // if it ever became one.
+  const settlementsById = new Map<EntityId, Settlement>();
   for (const settlement of data.settlements) {
+    settlementsById.set(settlement.id, settlement);
     append(tiers, settlement.id, { from: settlement.foundedYear, value: 'Hamlet' });
     tiers.get(settlement.id)!.sort((a, b) => a.from - b.from);
   }
@@ -293,6 +298,14 @@ export function buildTimeline(data: WorldExport): Timeline {
     },
     settlementsAt,
     faithAt: (settlementId, year) => byYear(faiths.get(settlementId), year)?.value ?? undefined,
+    realmAt: (settlementId, year) => {
+      const settlement = settlementsById.get(settlementId);
+      if (!settlement || settlement.foundedYear > year) return undefined;
+
+      // The rule `settlementsAt` follows: a town belongs to whoever holds the ground under it,
+      // and its own field is only the answer for ground nobody claims.
+      return holdingAt(settlement.regionId, year)?.owner ?? settlement.civilizationId;
+    },
     followingAt: (religionId, year) => {
       let following = 0;
 

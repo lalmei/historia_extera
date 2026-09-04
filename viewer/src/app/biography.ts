@@ -373,6 +373,12 @@ export interface LifeContext {
   figureOf: (id: EntityId) => Figure | undefined;
   eventsFor: (id: EntityId) => HistoryEvent[];
   nameOf: (id: EntityId) => string;
+  /**
+   * Which realm held one settlement in a year. Optional: an older export answers it, but a
+   * caller that only has figures and events (a test, a compatibility pass) does not, and the
+   * derivations that use it fall back to the figure's own realm rather than refusing to run.
+   */
+  realmAt?: (settlementId: EntityId, year: number) => EntityId | undefined;
 }
 
 export type LifeMomentKind =
@@ -850,6 +856,64 @@ export function buildConstellation(
   }));
 }
 
+/**
+ * How many rulers took a throne over the figure while they were alive under it.
+ *
+ * <b>Where they lived, not where they ended.</b> `figure.civilizationId` is the realm they held
+ * at death; counting a whole life against it charges a woman who married across a border, or
+ * whose town changed hands under her, with accessions in a chronicle she was never living in.
+ * The residences say where she was in each year and the timeline says who held that ground, so
+ * the count walks the two together and only counts a crowning in a realm she was under that year.
+ *
+ * Where the record cannot answer that — no residences, or a caller without a timeline — it falls
+ * back to the old reading against the ending realm, which is right for the majority who never
+ * moved and no worse than what it replaces for those who did.
+ */
+function accessionsLivedUnder(figure: Figure, throughYear: number, ctx: LifeContext): number {
+  const lastYear = Math.min(throughYear, figure.deathYear ?? throughYear);
+  const realmAt = ctx.realmAt;
+  const residences = figure.residences ?? [];
+
+  const crownings = (realmId: EntityId, holds: (year: number) => boolean) =>
+    ctx
+      .eventsFor(realmId)
+      .filter(
+        (event) =>
+          event.kind === 'RulerCrowned' &&
+          event.year > figure.birthYear &&
+          event.year <= lastYear &&
+          holds(event.year),
+      ).length;
+
+  if (!realmAt || residences.length === 0) {
+    return crownings(figure.civilizationId, () => true);
+  }
+
+  // A lifetime is at most a couple of hundred years, and both lookups are a binary search, so
+  // the honest thing is also cheap: ask where they were and who held it, year by year.
+  const yearsUnder = new Map<EntityId, Set<number>>();
+  for (let year = figure.birthYear + 1; year <= lastYear; year++) {
+    const residence = residences.filter((lived) => lived.fromYear <= year).at(-1);
+    if (!residence) continue;
+
+    const realmId = realmAt(residence.settlementId, year);
+    if (!realmId) continue;
+
+    const years = yearsUnder.get(realmId);
+    if (years) years.add(year);
+    else yearsUnder.set(realmId, new Set([year]));
+  }
+
+  if (yearsUnder.size === 0) return crownings(figure.civilizationId, () => true);
+
+  let accessions = 0;
+  for (const [realmId, years] of yearsUnder) {
+    accessions += crownings(realmId, (year) => years.has(year));
+  }
+
+  return accessions;
+}
+
 export interface KnownForLine {
   key: string;
   /** Text before an entity link, the entity, then the rest. Most lines are text alone. */
@@ -904,16 +968,9 @@ export function knownFor(
     );
   }
 
-  const accessions = ctx
-    .eventsFor(figure.civilizationId)
-    .filter(
-      (event) =>
-        event.kind === 'RulerCrowned' &&
-        event.year > figure.birthYear &&
-        event.year <= Math.min(throughYear, figure.deathYear ?? throughYear),
-    );
-  if (accessions.length >= 2) {
-    push(70, 'rulers', `Lived under ${counted(accessions.length, 'ruler')}`);
+  const accessions = accessionsLivedUnder(figure, throughYear, ctx);
+  if (accessions >= 2) {
+    push(70, 'rulers', `Lived under ${counted(accessions, 'ruler')}`);
   }
 
   const children = figure.childIds
