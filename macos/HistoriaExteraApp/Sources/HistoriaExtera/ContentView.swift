@@ -131,7 +131,7 @@ struct ContentView: View {
 }
 
 @MainActor
-final class BrowserModel: NSObject, ObservableObject, WKNavigationDelegate {
+final class BrowserModel: NSObject, ObservableObject, WKNavigationDelegate, WKUIDelegate {
     let webView: WKWebView
 
     @Published private(set) var canGoBack = false
@@ -143,6 +143,9 @@ final class BrowserModel: NSObject, ObservableObject, WKNavigationDelegate {
         webView = WKWebView(frame: .zero, configuration: configuration)
         super.init()
         webView.navigationDelegate = self
+        // Without a UI delegate WKWebView answers every confirm() with false,
+        // which silently swallows the viewer's destructive-action prompts.
+        webView.uiDelegate = self
         webView.allowsMagnification = true
     }
 
@@ -181,6 +184,54 @@ final class BrowserModel: NSObject, ObservableObject, WKNavigationDelegate {
         }
 
         decisionHandler(.allow)
+    }
+
+    func webView(
+        _ webView: WKWebView,
+        runJavaScriptAlertPanelWithMessage message: String,
+        initiatedByFrame frame: WKFrameInfo,
+        completionHandler: @escaping () -> Void
+    ) {
+        let alert = Self.panel(message)
+        alert.addButton(withTitle: "OK")
+        Self.present(alert, over: webView) { _ in completionHandler() }
+    }
+
+    func webView(
+        _ webView: WKWebView,
+        runJavaScriptConfirmPanelWithMessage message: String,
+        initiatedByFrame frame: WKFrameInfo,
+        completionHandler: @escaping (Bool) -> Void
+    ) {
+        let alert = Self.panel(message)
+        alert.addButton(withTitle: "OK")
+        alert.addButton(withTitle: "Cancel")
+        Self.present(alert, over: webView) { response in
+            completionHandler(response == .alertFirstButtonReturn)
+        }
+    }
+
+    /// The viewer sends multi-line prompts; the first line is the question.
+    private static func panel(_ message: String) -> NSAlert {
+        let lines = message.split(separator: "\n", omittingEmptySubsequences: false)
+        let alert = NSAlert()
+        alert.messageText = String(lines.first ?? "")
+        alert.informativeText = lines.dropFirst()
+            .joined(separator: "\n")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return alert
+    }
+
+    private static func present(
+        _ alert: NSAlert,
+        over webView: WKWebView,
+        then handle: @escaping (NSApplication.ModalResponse) -> Void
+    ) {
+        if let window = webView.window {
+            alert.beginSheetModal(for: window, completionHandler: handle)
+        } else {
+            handle(alert.runModal())
+        }
     }
 
     private func updateNavigationState(_ webView: WKWebView) {
