@@ -3,7 +3,8 @@
 #   make generate          # run the history engine → viewer/public/worlds/world.json
 #   make viewer            # Astro dev server
 #   make docs-serve        # ProperDocs live reload
-#   make test              # xunit suite
+#   make test              # xunit suite, reporting each test as it finishes
+#   make test FILTER=Affinity   # one class or method
 #   make generate SEED=7 YEARS=500 CIVS=12
 
 .DEFAULT_GOAL := help
@@ -58,7 +59,7 @@ ifneq ($(SAMPLE),)
 endif
 CLI_FLAGS += $(ARGS)
 
-.PHONY: help bump bump-patch bump-minor bump-major bump-dry generate fingerprint terrain-bake terrain-worldengine terrain-generate test build viewer install preview macos-app macos-run macos-release macos-release-upload docs-build docs-serve clean
+.PHONY: help bump bump-patch bump-minor bump-major bump-dry generate fingerprint terrain-bake terrain-worldengine terrain-generate test test-quiet build viewer install preview macos-app macos-run macos-release macos-release-upload docs-build docs-serve clean
 
 help:
 	@echo "Historia Extera"
@@ -68,7 +69,8 @@ help:
 	@echo "  make terrain-bake  # bake the noise world to rasters (TERRAIN, TERRAIN_RES)"
 	@echo "  make terrain-worldengine  # convert a WorldEngine world into a raster set"
 	@echo "  make terrain-generate  # then run a history over them"
-	@echo "  make test"
+	@echo "  make test [FILTER=Affinity]   # streams each test as it finishes"
+	@echo "  make test-quiet    # summary only"
 	@echo "  make build"
 	@echo "  make viewer        # npm run dev in viewer/"
 	@echo "  make install       # npm install in viewer/"
@@ -123,8 +125,17 @@ terrain-worldengine:
 terrain-generate:
 	dotnet run --project $(CLI_PROJECT) -- $(CLI_FLAGS) --terrain $(TERRAIN)/terrain.json
 
+# The suite generates hundreds of multi-century worlds and takes about a quarter
+# of an hour. Bare `dotnet test` says nothing at all until the very end, which is
+# indistinguishable from a hang; the console logger prints each test and its
+# duration as it finishes, and xunit.runner.json adds a heartbeat for any single
+# test still running after thirty seconds.
 test:
-	dotnet test
+	dotnet test -l "console;verbosity=normal" $(if $(FILTER),--filter "FullyQualifiedName~$(FILTER)",)
+
+# The same suite with only the summary, for a CI log that nobody watches live.
+test-quiet:
+	dotnet test $(if $(FILTER),--filter "FullyQualifiedName~$(FILTER)",)
 
 build:
 	dotnet build

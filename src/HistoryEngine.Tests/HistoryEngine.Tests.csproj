@@ -18,6 +18,15 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Runner settings must sit beside the test assembly to be read at all.
+         They are what turns a fifteen-minute silence into a suite that says
+         which world it is still generating. -->
+    <None Update="xunit.runner.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- DeterminismGuardTests scans engine source text for banned constructs
          (unordered iteration, non-reproducible transcendentals). It needs the
          source path at runtime. -->
