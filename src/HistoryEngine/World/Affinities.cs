@@ -76,6 +76,7 @@ public static class Affinities
     public static void Tick(WorldState world, int year)
     {
         Advance(world, year);
+        Marriages(world, year);
         Form(world, year);
     }
 
@@ -137,7 +138,7 @@ public static class Affinities
 
         bool together = world.ResidenceOf(opener) == world.ResidenceOf(friend);
 
-        if (Turns(world, opener, friend, affinity, year)) return;
+        if (TurnsOnAFriend(world, opener, friend, affinity, year)) return;
 
         if (year - affinity.LastActionYear >= StaleYears)
         {
@@ -345,18 +346,33 @@ public static class Affinities
     /// cannot betray them at any odds, so a betrayal in the export is always answerable with the
     /// year and the entity that produced it.
     /// </remarks>
+    /// <summary>What the world had already written that let one person turn on another.</summary>
+    private readonly record struct Turning(double Pull, bool Quarrelling, bool Plotting);
+
+    /// <summary>
+    /// Whether this person turns on that one, and on what.
+    /// </summary>
+    /// <remarks>
+    /// <para>The gate, shared by both kinds of tie so there is one answer to "could they" rather
+    /// than two that drift apart — the same reason a duel and a battle share one wound model. A
+    /// grievance the record already holds, an open quarrel between them, or a plot against the
+    /// other's life; where there is none of the three nobody turns at any odds.</para>
+    ///
+    /// <para>What the tie is worth is what holds them back, and it is read from the bond rather
+    /// than from the kind of tie: a marriage carried on obligation survives a grievance that one
+    /// carried on nothing would not, and so does a friendship. That is why the same arithmetic can
+    /// serve both without a spouse being given a discount for being a spouse.</para>
+    /// </remarks>
     private static bool Turns(
-        WorldState world, Figure opener, Figure friend, FigureAffinity affinity, int year)
+        WorldState world,
+        Figure betrayer,
+        Figure betrayed,
+        int year,
+        string question,
+        out Turning turning)
     {
-        if (affinity.Stage < AffinityStage.Confidence) return false;
+        turning = default;
 
-        return Turn(world, opener, friend, affinity, year)
-            || Turn(world, friend, opener, affinity, year);
-    }
-
-    private static bool Turn(
-        WorldState world, Figure betrayer, Figure betrayed, FigureAffinity affinity, int year)
-    {
         FigureBond? bond = LifeStories.BondTo(betrayer, betrayed.Id);
         double grievance = bond?.Grievance ?? 0.0;
         bool quarrelling = betrayer.Disputes.Exists(
@@ -371,9 +387,6 @@ public static class Affinities
             + (plotting ? 0.34 : 0.0)
             + (betrayer.Disposition.Values.Aggression * 0.14);
 
-        // What the friendship itself is worth is what holds a person back, and it is read from the
-        // bond rather than from the rung: a friendship carried on obligation survives a grievance
-        // that one carried on nothing would not.
         double hold = bond is null
             ? 0.0
             : (bond.Obligation * 0.40)
@@ -384,7 +397,26 @@ public static class Affinities
             (0.08 + (0.46 * DetMath.Clamp01(pull))) * (1.0 - DetMath.Clamp01(hold)),
             0.01,
             0.50);
-        if (!Fork(world, betrayer, betrayed, year, "turn").Chance(chance)) return false;
+        if (!Fork(world, betrayer, betrayed, year, question).Chance(chance)) return false;
+
+        turning = new Turning(DetMath.Clamp01(pull), quarrelling, plotting);
+        return true;
+    }
+
+    /// <summary>Whether either friend turns on the other. Both are asked; at most one turns.</summary>
+    private static bool TurnsOnAFriend(
+        WorldState world, Figure opener, Figure friend, FigureAffinity affinity, int year)
+    {
+        if (affinity.Stage < AffinityStage.Confidence) return false;
+
+        return Turn(world, opener, friend, affinity, year)
+            || Turn(world, friend, opener, affinity, year);
+    }
+
+    private static bool Turn(
+        WorldState world, Figure betrayer, Figure betrayed, FigureAffinity affinity, int year)
+    {
+        if (!Turns(world, betrayer, betrayed, year, "turn", out Turning turning)) return false;
 
         EntityId place = world.ResidenceOf(betrayed);
         affinity.BetrayerId = betrayer.Id;
@@ -404,7 +436,7 @@ public static class Affinities
             year,
             EventKind.FriendshipBetrayed,
             place,
-            DetMath.Clamp01(0.45 + (0.55 * DetMath.Clamp01(pull))));
+            DetMath.Clamp01(0.45 + (0.55 * turning.Pull)));
 
         world.Chronicle.Record(
             year,
@@ -412,10 +444,93 @@ public static class Affinities
             betrayer.Id,
             obj: betrayed.Id,
             location: place,
-            data: Chronicle.Data(("cause", TurnDetail(quarrelling, plotting))));
+            data: Chronicle.Data(
+                ("cause", TurnDetail(turning.Quarrelling, turning.Plotting))));
 
         return true;
     }
+
+    // -----------------------------------------------------------------------
+    // Marriages
+    // -----------------------------------------------------------------------
+
+    /// <summary>
+    /// Lets a marriage be turned on, by the same gate a friendship is.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>A marriage is the other tie somebody can be inside.</b> A spouse holds the most
+    /// trust and the most access of anyone in the model — <see cref="Conspiracies"/> has always
+    /// counted <see cref="BondKind.Spouse"/> among the privileged ways to reach a target — and
+    /// until now a consort could join a plot against their crowned husband and the marriage
+    /// recorded nothing about it. That is the betrayal the chronicle most wants and the one it
+    /// could not write.</para>
+    ///
+    /// <para><b>It shares the gate rather than copying it.</b> One question, asked of a bond: is
+    /// there a wrong the record already holds, and is what the tie is worth enough to hold this
+    /// person back. A spouse is not given a discount for being a spouse; what makes a marriage
+    /// harder to betray than a friendship is that its bond carries more obligation, which is a
+    /// fact about the bond and reads the same either way.</para>
+    ///
+    /// <para><b>It does not end the marriage.</b> There is no divorce in this engine and this is
+    /// not one by another name — the two remain married, and what changes is that one of them now
+    /// holds an enmity and the other a betrayal they will carry. <see cref="BondKind.Betrayer"/> is
+    /// what stops it happening twice, because a marriage has no record of its own to close.</para>
+    /// </remarks>
+    private static void Marriages(WorldState world, int year)
+    {
+        foreach (Figure figure in world.Figures)
+        {
+            if (!figure.IsAlive || !figure.IsMarried) continue;
+            if (!world.Figures.Contains(figure.SpouseId)) continue;
+
+            Figure spouse = world.Figures[figure.SpouseId];
+            if (!spouse.IsAlive) continue;
+
+            // Once per couple. Both sides are asked below, so entering from the lower id is a
+            // guard against asking twice rather than a decision about who turns.
+            if (figure.Id.CompareTo(spouse.Id) > 0) continue;
+            if (Turned(figure, spouse) || Turned(spouse, figure)) continue;
+
+            if (TurnOnASpouse(world, figure, spouse, year)) continue;
+
+            TurnOnASpouse(world, spouse, figure, year);
+        }
+    }
+
+    private static bool TurnOnASpouse(
+        WorldState world, Figure betrayer, Figure betrayed, int year)
+    {
+        if (!Turns(world, betrayer, betrayed, year, "turn-spouse", out Turning turning))
+        {
+            return false;
+        }
+
+        EntityId place = world.ResidenceOf(betrayed);
+
+        LifeStories.Betray(
+            betrayer,
+            betrayed,
+            year,
+            EventKind.SpouseBetrayed,
+            place,
+            DetMath.Clamp01(0.55 + (0.45 * turning.Pull)));
+
+        world.Chronicle.Record(
+            year,
+            EventKind.SpouseBetrayed,
+            betrayer.Id,
+            obj: betrayed.Id,
+            location: place,
+            data: Chronicle.Data(
+                ("cause", TurnDetail(turning.Quarrelling, turning.Plotting)),
+                ("tie", betrayed.Sex == Sex.Female ? "wife" : "husband")));
+
+        return true;
+    }
+
+    /// <summary>Whether this person has already been turned on by that one.</summary>
+    private static bool Turned(Figure wronged, Figure other) =>
+        LifeStories.BondTo(wronged, other.Id)?.Kinds.HasFlag(BondKind.Betrayer) == true;
 
     // -----------------------------------------------------------------------
     // Endings

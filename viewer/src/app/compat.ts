@@ -53,6 +53,7 @@ export interface SchemaVerdict {
  * which of the two an old world has.
  */
 const ADDED_IN: readonly { since: number; feature: string }[] = [
+  { since: 50, feature: 'marriages turned on, and the mark a betrayal leaves on a bond' },
   { since: 49, feature: 'quarrels over a post given to somebody standing beside them' },
   { since: 48, feature: 'the friendships people made, and the betrayals they allowed' },
   { since: 47, feature: 'the ranks soldiers rose through in their realm’s army' },

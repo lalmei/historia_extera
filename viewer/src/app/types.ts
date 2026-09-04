@@ -11,7 +11,7 @@
  */
 
 /** The schema the current engine writes. `compat.ts` has the oldest one the viewer reads. */
-export const SCHEMA_VERSION = 49;
+export const SCHEMA_VERSION = 50;
 
 /**
  * Whether an event carries the history or merely records a life.
@@ -1417,7 +1417,8 @@ export type BondKind =
   | 'Friend'
   | 'Lover'
   | 'Guardian'
-  | 'Ward';
+  | 'Ward'
+  | 'Betrayer';
 
 export const BOND_LABELS: Record<BondKind, string> = {
   Kin: 'Kin',
@@ -1437,6 +1438,7 @@ export const BOND_LABELS: Record<BondKind, string> = {
   Lover: 'Lover',
   Guardian: 'Guardian',
   Ward: 'Ward',
+  Betrayer: 'Turned on them',
 };
 
 export type BondCause =

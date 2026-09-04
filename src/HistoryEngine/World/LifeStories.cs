@@ -435,7 +435,7 @@ public static class LifeStories
 
         Relate(
             betrayed, betrayer,
-            BondKind.Rival | BondKind.Enemy,
+            BondKind.Rival | BondKind.Enemy | BondKind.Betrayer,
             BondKind.Rival,
             BondCause.Betrayal,
             year,
