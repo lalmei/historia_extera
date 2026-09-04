@@ -171,18 +171,31 @@ filters such as plague, disaster and poisoning, while `deathDetail` shows the na
 specific calamity or form of accident when the engine knows it. Disaster events link the named
 court casualties they caused, just as battles already link their commanders.
 
-A figure page opens with a **Life arc**: the whole life as one strip, with a bar for every year
+A figure page opens with a **header** for the person: a mark in their culture's colour whose ring
+is the years their life covers set against the years the record covers, the position, house and
+culture they are read under, and four facts taken at the selected year — position and where it was
+held, household and children, the person standing closest to them, and the inclination running
+strongest. The mark is a sigil rather than a portrait on purpose: the simulation never described a
+face, and drawing one would be the only claim on the page nothing produced.
+
+Under it comes the **Life arc**: the whole life as one strip, with a bar for every year
 the chronicle recorded something — the taller the bar, the more it recorded — and a dot for each of
 the turns that made it that life, read beneath as `Born → Marriage → Tribune → First of 7 →
 Consul → Loss → Died` with the age at each. Repetition is collapsed rather than listed: eleven
 children are one turn dated to the first of them, six re-elections are the first year the office
 was reached. Clicking any turn, or anywhere on the strip, moves the year the rest of the page is
-read at. The arc is deliberately the one retrospective thing on the page — it is the year control,
-and a control that hides where it can move to is useless — and says so in its caption.
+read at. Each turn is coloured by what it was about — household, office, arms, trade,
+companionship — with a key under the strip, and **Age / Year** switches the whole strip between
+counting in years of the life and years of the world. The arc is deliberately the one retrospective
+thing on the page — it is the year control, and a control that hides where it can move to is
+useless — and says so in its caption.
 
-The year control carries a **standing readout** that changes with it: age and year, position,
-household and children, the person closest to them and what that bond reads as, the disposition
-running strongest, and how many formative memories were still active. Beside it, **at youth / at
+The year control carries a **standing readout** that changes with it: age and year, then a
+sentence saying who they were in that year — position and place, household and children, the person
+closest to them and what that bond reads as, the disposition running strongest, and how many
+formative memories were still active. The sentence is composed from those fields in a fixed frame
+and nothing else: a person with no recorded position gets a shorter sentence rather than a guessed
+one, and pronouns come from the recorded sex. Beside it, **at youth / at
 height / at death** jump to the three years worth comparing — the year adult life began, the year
 they first reached their highest office, and the year they died. Past a person's death these panels
 stand at the last year they were in the world rather than reporting a woman six centuries dead as
