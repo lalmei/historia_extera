@@ -90,8 +90,10 @@ export function NotInThisExport({
     <p className="text-sm text-[var(--ink-faint)]">
       {what} {what.endsWith('s') ? 'are' : 'is'} not in this export
       {version === null ? '' : `, written to schema v${version}`}
-      {since === undefined ? '' : `; the engine began recording it at v${since}`}. Run the seed
-      again through the current engine to get {what.endsWith('s') ? 'them' : 'it'}.
+      {since === undefined
+        ? ''
+        : `; the engine began recording ${what.endsWith('s') ? 'them' : 'it'} at v${since}`}. Run
+      the seed again through the current engine to get {what.endsWith('s') ? 'them' : 'it'}.
     </p>
   );
 }

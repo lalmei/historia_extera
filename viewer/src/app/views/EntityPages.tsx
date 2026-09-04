@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { EventList, NarratedEvent } from '../components/EventList';
 import { HistoryPanels } from '../components/History';
 import {
+  affinityAt,
   buildBiographyEpisodes,
   disputeAt,
   groupJourneys,
@@ -42,6 +43,9 @@ import {
   type World,
 } from '../store';
 import {
+  AFFINITY_ORIGIN_LABELS,
+  AFFINITY_OUTCOME_LABELS,
+  AFFINITY_STAGE_LABELS,
   APPARITION_LABELS,
   ARTIFACT_LABELS,
   BOND_LABELS,
@@ -85,6 +89,7 @@ import {
   TOME_CONTENT_LABELS,
   WEALTH_LABELS,
   kindOf,
+  type Affinity,
   type Artifact,
   type Battle,
   type Campaign,
@@ -751,6 +756,19 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
         : claim,
     )
     .sort((a, b) => a.year - b.year);
+  // Absent means an export written before schema 48, which the panel says outright rather than
+  // showing a person with no friends. An empty list is a world that recorded none for them.
+  const friendships = figure.affinities
+    ?.map((affinity) => affinityAt(affinity, selectedYear))
+    .filter((affinity): affinity is Affinity => affinity !== undefined)
+    // Standing first, then the betrayals. Recency alone buries a turn under whatever acquaintance
+    // went cold last, and the turn is the rarest thing on the page — a betrayal appears in about
+    // one world in four, against friendships in the thousands.
+    .sort((a, b) => {
+      const rank = (affinity: Affinity) =>
+        affinity.outcome === 'Open' ? 0 : affinity.outcome === 'Betrayed' ? 1 : 2;
+      return rank(a) - rank(b) || (b.endYear ?? b.startYear) - (a.endYear ?? a.startYear);
+    });
   const quarrels = (figure.disputes ?? [])
     .map((dispute) => disputeAt(dispute, selectedYear))
     .filter((dispute): dispute is Dispute => dispute !== undefined)
@@ -1314,6 +1332,33 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
               </section>
             )}
 
+            {(friendships === undefined || friendships.length > 0) && (
+              <section>
+                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
+                  Friendships
+                </h3>
+                {friendships === undefined ? (
+                  <NotInThisExport
+                    what="A figure's friendships"
+                    since={48}
+                    version={world.schema.version}
+                  />
+                ) : (
+                  <div className="space-y-3">
+                    {friendships.map((affinity) => (
+                      <Friendship
+                        key={`${affinity.id}:${affinity.otherId}:${affinity.startYear}`}
+                        world={world}
+                        affinity={affinity}
+                        self={figure.id}
+                        throughYear={selectedYear}
+                      />
+                    ))}
+                  </div>
+                )}
+              </section>
+            )}
+
             {quarrels.length > 0 && (
               <section>
                 <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
@@ -1598,6 +1643,89 @@ function JourneyList({
         );
       })}
     </ul>
+  );
+}
+
+/**
+ * One friendship, read from the page it is on.
+ *
+ * One record held by both parties, as a quarrel is, so the only thing that changes between their
+ * two pages is the voice — one sought the other out, and the other was sought out. `betrayerId` is
+ * the exception: it is the one field that tells the two pages apart in substance rather than
+ * grammar, and it is why the ending is printed from it rather than from the resolution, which says
+ * only that one of them turned.
+ *
+ * A friendship still standing when somebody died is the good ending. It is badged as plainly as it
+ * happened and only a betrayal is given the accent, because the accent is for the thing a reader
+ * would want to find on the page.
+ */
+function Friendship({
+  world,
+  affinity,
+  self,
+  throughYear,
+}: {
+  world: World;
+  affinity: Affinity;
+  self: EntityId;
+  throughYear: number;
+}) {
+  const open = affinity.outcome === 'Open';
+  const betrayer = affinity.betrayerId;
+  // Still standing, so the span is read to the year being looked at rather than left unfinished.
+  const years = (affinity.endYear ?? throughYear) - affinity.startYear;
+  return (
+    <article className="border-l border-[var(--line)] pl-3">
+      <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
+        <span>
+          {affinity.sought ? 'Sought out' : 'Was sought out by'}{' '}
+          <EntityLink world={world} id={affinity.otherId} />
+        </span>
+        <Badge tone={affinity.outcome === 'Betrayed' ? 'accent' : open ? 'neutral' : 'muted'}>
+          {open ? AFFINITY_STAGE_LABELS[affinity.stage] : AFFINITY_OUTCOME_LABELS[affinity.outcome]}
+        </Badge>
+      </p>
+      <p className="mt-1 text-xs text-[var(--ink-faint)]">
+        {AFFINITY_ORIGIN_LABELS[affinity.origin]} · {affinity.startYear}
+        {affinity.endYear !== undefined && affinity.endYear !== affinity.startYear
+          ? `–${affinity.endYear}`
+          : ''}
+        {years > 0 && ` · known to each other for ${years} ${years === 1 ? 'year' : 'years'}`}
+        {!open && affinity.stage !== 'Friendship' && ' · it never became a friendship'}
+      </p>
+      {betrayer !== undefined ? (
+        <p className="mt-1 text-sm">
+          {betrayer === self ? (
+            <>
+              Turned on <EntityLink world={world} id={affinity.otherId} />
+            </>
+          ) : (
+            <>
+              Was turned on by <EntityLink world={world} id={affinity.otherId} />
+            </>
+          )}
+          {affinity.placeId && (
+            <>
+              {' at '}
+              <EntityLink world={world} id={affinity.placeId} />
+            </>
+          )}
+        </p>
+      ) : (
+        affinity.resolution && (
+          <p className="mt-1 text-xs text-[var(--ink-faint)]">Ended when {affinity.resolution}</p>
+        )
+      )}
+      {affinity.acts.length > 0 && (
+        <ol className="mt-2 space-y-1 text-xs text-[var(--ink-faint)]">
+          {affinity.acts.map((act, index) => (
+            <li key={`${act.year}:${act.stage}:${index}`}>
+              {act.year} · {act.detail}
+            </li>
+          ))}
+        </ol>
+      )}
+    </article>
   );
 }
 
