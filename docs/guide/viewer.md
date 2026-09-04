@@ -174,8 +174,14 @@ court casualties they caused, just as battles already link their commanders.
 A figure page now opens as a causal biography. **Life at a glance** names the person's current or
 last position, upbringing, important relationships, formative memories, wounds, open concerns, and
 up to three completed episodes. Episode lines retain their supporting entity links, years, and
-event ids. The year slider or exact year field turns the page into a contemporary cut: later bond
-changes, memories, outcomes, and plot revelations disappear. Routine returns along the same route
+event ids. **Friendships** is the record behind the chronicle's lines about them: who the other
+person was, what brought the two together, how many years they were known to each other, the rung
+the tie reached and the dated acts that got it there, and how it ended. A friendship still standing
+when one of them died is an ending like any other and is written as one; only a betrayal is
+accented, and it is read from the record's `betrayerId`, so the same fact says "turned on" on one
+page and "was turned on by" on the other. The year slider or exact year field turns the page into a
+contemporary cut: later bond changes, memories, outcomes, plot revelations, and the rungs and
+endings of a friendship disappear. Routine returns along the same route
 are compressed without folding in a waylay or loss. **Show chronicle** exposes the complete raw
 event ledger through the same selected year. On a phone-sized display the world index collapses to
 its icon rail so the reading column remains usable.
