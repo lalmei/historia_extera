@@ -49,21 +49,16 @@ export function SiteNav({
   active,
   search,
   readingHref: reading,
-  fluid = false,
 }: {
   active: 'worlds' | 'reading';
   search?: { value: string; onChange: (value: string) => void };
   readingHref?: string;
-  fluid?: boolean;
 }) {
   const chronicle = reading ?? readingHref();
   return (
     <header className="shrink-0 border-b border-[var(--rule)]">
-      <div
-        className={`mx-auto flex h-14 items-center gap-8 px-4 ${
-          fluid ? 'max-w-none md:px-6' : 'max-w-6xl md:px-10'
-        }`}
-      >
+      {/* Flush left on every page so the brand and tabs never shift between views. */}
+      <div className="flex h-14 w-full items-center gap-8 px-4 md:px-6">
         <a href={worldsHref()} className="shrink-0 text-[15px] font-medium tracking-tight">
           Historia Extera
         </a>
