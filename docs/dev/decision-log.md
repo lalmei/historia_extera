@@ -4693,6 +4693,71 @@ parties hold the same object and read it from their own side, as they do a quarr
 was needed for the four new event kinds, which is what the narration table is for — the viewer's
 figure page does not yet render the record itself.
 
+
+### M26: a wrong between equals
+
+**The problem M25 left.** A betrayal needs a wrong the record already holds between the two people
+in it, and measurement found that friendships almost never had one: across forty seeds a world
+carries about ninety grievance-bearing bond sides, of which **two to ten involved a pair who were
+also friends and nought to four a friendship that had reached the rung where trust had been given**.
+Betrayal therefore appeared in five worlds of forty. The reason was structural rather than
+numerical: every cause a quarrel could have needed a difference in power — a crown dismissing a
+man, an heir beating a claimant, a court naming a hand — while a friendship is horizontal by
+construction, partly because rank is one of the terms that stops two people becoming friends at all.
+Peers had nothing to fall out over.
+
+**The fifth cause.** A post that went to somebody standing beside them. It is the first wrong in
+the engine between two people of comparable standing, and it was chosen over the alternatives
+because appointments already compute everybody the decision was made about: nothing has to be
+looked for afterwards.
+
+**Only two people have a claim, and both were already known to the appointment.** The candidate the
+court's own measure ranked next — `PickCandidate` scores marshals on renown and rank, so the
+runner-up is a fact rather than an opinion, and where the court fills a seat by `Pick` it applied no
+measure and nobody was ranked second. And the heir of the family that held this very seat, whom a
+mandate stepped over; that one is asked only on the mandated path, because every other path tries
+the heir first and finding none is nobody's doing. **Mere eligibility is not a claim** — an
+appointment passes over every courtier in the realm, and if all of them were wronged the wrong would
+mean nothing.
+
+**Most people take it.** The grievance is gated on a roll forked from the pair and the year and
+weighted by how much of the post this person thought was theirs, so the ordinary outcome is that
+nothing happens: 25 grievances from 408 grants on seed 42, about six per cent. The grievance is
+0.36, below a dismissal's 0.52 and a lost succession's 0.58, which is the right order — they lost
+something they never had.
+
+**Who it went to is part of the injury.** The first version read only the disposition of the person
+passed over, and it moved the betrayal rate from five worlds in forty to seven, because being
+wronged and being friends remained two independently sampled sparse processes that had to coincide.
+The term that fixed it is the one that should have been there from the start: a person passed over
+in favour of somebody they trusted takes it harder than one who lost to a stranger, because they
+expected better of the person and not of the court. That is the only term reading the relationship,
+it consumes state the engine already holds rather than adding a roll, and it is what lets an
+appointment reach a friendship rather than only a roster.
+
+**Measured, over the first forty seeds.**
+
+| | Before M26 | After |
+|---|---|---|
+| Quarrels across forty worlds | ~100 | 404 |
+| Worlds carrying a betrayal | 5 of 40 | 11 of 40 |
+| Betrayals | 5 | 14 |
+
+The quarrel model is the larger of the two results and was not the goal: roughly half of all
+quarrels now come from the new cause, because appointments happen every year while the other four
+causes need a crown to act. Both of `DisputeTests`' ceilings — quarrels against adults, quarrel
+lines against total events — still hold with room, which is what says the gate on who minds is
+doing its work rather than the bound being generous.
+
+**What is still true.** A betrayal remains rare, and deliberately: at roughly one world in four it
+is a thing a chronicle keeps. It cannot be made common without either cheapening the grievance or
+manufacturing the coincidence, and the arithmetic says so plainly — twenty-five passings-over a
+world against four hundred friendships among sixteen hundred people will intersect a handful of
+times whatever the odds inside that intersection.
+
+**Schema 49.** `DisputeCause` gains a fifth member and the chronicle a `OfficePassedOver` line,
+Routine and written only where somebody actually minded.
+
 ---
 
 ## Notes for Phase 2
