@@ -1,4 +1,5 @@
 import type {
+  Affinity,
   Campaign,
   Dispute,
   EntityId,
@@ -92,6 +93,33 @@ export function disputeAt(dispute: Dispute, year: number): Dispute | undefined {
     arbiterId: undefined,
     endYear: undefined,
     lastActionYear: acts.at(-1)?.year ?? dispute.startYear,
+    acts,
+  };
+}
+
+/**
+ * A friendship as it stood in a given year.
+ *
+ * The same withholding `disputeAt` does, with one addition: `placeId` is dropped along with the
+ * rest of an ending that has not happened yet. It is one mutable slot holding two different facts
+ * — the town the two met in, until a betrayal overwrites it with the town the turn happened in —
+ * so a record read before its ending must not carry it.
+ */
+export function affinityAt(affinity: Affinity, year: number): Affinity | undefined {
+  if (affinity.startYear > year) return undefined;
+
+  const acts = affinity.acts.filter((act) => act.year <= year);
+  if (affinity.endYear !== undefined && affinity.endYear <= year) return { ...affinity, acts };
+
+  return {
+    ...affinity,
+    stage: acts.at(-1)?.stage ?? 'Acquaintance',
+    outcome: 'Open',
+    resolution: undefined,
+    betrayerId: undefined,
+    placeId: undefined,
+    endYear: undefined,
+    lastActionYear: acts.at(-1)?.year ?? affinity.startYear,
     acts,
   };
 }

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  affinityAt,
   buildBiographyEpisodes,
   groupJourneys,
   plotAt,
@@ -9,6 +10,7 @@ import {
   visibleMemoryAt,
 } from './biography.ts';
 import type {
+  Affinity,
   Figure,
   FigureBond,
   HistoryEvent,
@@ -205,3 +207,42 @@ function plot(viewpoint: Plot['viewpoint']): Plot {
     ],
   };
 }
+
+test('a friendship read before its ending carries neither the ending nor the betrayal', () => {
+  const friendship = {
+    id: 1,
+    otherId: 'fig:2',
+    sought: true,
+    origin: 'SharedResidence',
+    stage: 'Friendship',
+    outcome: 'Betrayed',
+    resolution: 'one of them turned on the other',
+    betrayerId: 'fig:2',
+    placeId: 'set:9',
+    startYear: 10,
+    endYear: 20,
+    lastActionYear: 20,
+    acts: [
+      { year: 10, stage: 'Acquaintance', detail: 'they lived in the same town' },
+      { year: 14, stage: 'Kindness', detail: 'a good turn was done' },
+      { year: 20, stage: 'Friendship', detail: 'turned on them' },
+    ],
+  } as Affinity;
+
+  assert.equal(affinityAt(friendship, 9), undefined);
+
+  const during = affinityAt(friendship, 15);
+  assert.equal(during?.outcome, 'Open');
+  assert.equal(during?.stage, 'Kindness');
+  assert.equal(during?.betrayerId, undefined);
+  assert.equal(during?.resolution, undefined);
+  // The town is where the turn happened, and the turn has not happened yet.
+  assert.equal(during?.placeId, undefined);
+  assert.equal(during?.lastActionYear, 14);
+  assert.deepEqual(during?.acts.map((act) => act.year), [10, 14]);
+
+  const after = affinityAt(friendship, 20);
+  assert.equal(after?.outcome, 'Betrayed');
+  assert.equal(after?.betrayerId, 'fig:2');
+  assert.equal(after?.acts.length, 3);
+});
