@@ -140,8 +140,12 @@ public sealed record WorldExport(
     /// dedication quotes; a missing link now means the dedicatee is explicitly legendary.
     /// Version 47 added a figure's military service: the rungs of their realm's army they were
     /// raised to, each with the year, the realm and the name that realm gives the rung.
+    /// Version 51 added the betrayal itself as an episode both parties hold — the year, the place,
+    /// the tie it happened inside and the recorded wrong it came from — so a marital betrayal is
+    /// something a page can show and a consumer can ask a question of, rather than a chronicle line
+    /// and one bit on a bond.
     /// </remarks>
-    public const int CurrentSchemaVersion = 50;
+    public const int CurrentSchemaVersion = 51;
 }
 
 public sealed record ExportMeta(
@@ -876,6 +880,7 @@ public sealed record ExportFigure(
     IReadOnlyList<ExportUndertaking> Undertakings,
     IReadOnlyList<ExportDispute> Disputes,
     IReadOnlyList<ExportAffinity> Affinities,
+    IReadOnlyList<ExportBetrayal> Betrayals,
     IReadOnlyList<ExportPlot> Plots,
     IReadOnlyList<ExportGuardianship> Guardianships,
     IReadOnlyList<ExportMentorship> Mentorships,
@@ -1187,6 +1192,37 @@ public sealed record ExportAffinityAct(
     AffinityStage Stage,
     EntityId? ActorId,
     string Detail);
+
+/// <summary>
+/// One betrayal, written from the side of the figure page carrying it.
+/// </summary>
+/// <remarks>
+/// Both parties carry the same episode and the fields are identical on both pages.
+/// <paramref name="Turned"/> is what separates them, and it is the only thing that does — the two
+/// entity ids are absolute rather than relative for exactly that reason, so a consumer that ignores
+/// the flag still reads the direction correctly.
+/// </remarks>
+/// <param name="Turned">
+/// Whether the figure this record hangs on is the one who turned. What lets a page say "turned on"
+/// rather than "was turned on by".
+/// </param>
+/// <param name="Tie">
+/// Which kind of tie it happened inside. A <see cref="BetrayalTie.Friendship"/> also closed an
+/// <see cref="ExportAffinity"/> between the same two people in the same year, and that record is
+/// where the acts leading up to it are; a <see cref="BetrayalTie.Marriage"/> has no such record,
+/// and the marriage it happened inside was not ended by it.
+/// </param>
+public sealed record ExportBetrayal(
+    int Id,
+    EntityId BetrayerId,
+    EntityId BetrayedId,
+    EntityId OtherId,
+    bool Turned,
+    BetrayalTie Tie,
+    BetrayalCause Cause,
+    EventKind SourceKind,
+    EntityId? PlaceId,
+    int Year);
 
 /// <summary>
 /// One conspiracy, written from the side of the figure page carrying it.

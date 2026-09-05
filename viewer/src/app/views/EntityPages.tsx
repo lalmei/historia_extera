@@ -63,6 +63,8 @@ import {
   AFFINITY_STAGE_LABELS,
   APPARITION_LABELS,
   ARTIFACT_LABELS,
+  BETRAYAL_CAUSE_LABELS,
+  BETRAYAL_TIE_LABELS,
   BOND_LABELS,
   CAMPAIGN_ROLE_LABELS,
   CAREER_FAMILY_LABELS,
@@ -106,6 +108,7 @@ import {
   kindOf,
   type Affinity,
   type Artifact,
+  type Betrayal as BetrayalRecord,
   type Battle,
   type Campaign,
   type Civilization,
@@ -839,6 +842,12 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
         affinity.outcome === 'Open' ? 0 : affinity.outcome === 'Betrayed' ? 1 : 2;
       return rank(a) - rank(b) || (b.endYear ?? b.startYear) - (a.endYear ?? a.startYear);
     });
+  // Absent means an export written before schema 51, for the reason friendships are. Not derived
+  // from the friendship list: a marital betrayal has no friendship behind it, which is the whole
+  // reason the record exists.
+  const betrayals = figure.betrayals
+    ?.filter((betrayal) => betrayal.year <= selectedYear)
+    .sort((a, b) => b.year - a.year || a.otherId.localeCompare(b.otherId));
   const quarrels = (figure.disputes ?? [])
     .map((dispute) => disputeAt(dispute, selectedYear))
     .filter((dispute): dispute is Dispute => dispute !== undefined)
@@ -1482,6 +1491,31 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
                 </section>
               )}
 
+              {/*
+                No schema-gap note here, unlike the friendships above, and the difference is what
+                the reader would conclude from an empty panel. Almost everybody has friends and
+                almost nobody is betrayed, so a missing friendship list reads as a person with none
+                and has to be corrected, while a missing betrayal list reads as what it almost
+                always is. The banner on the reading view already names what a pre-v51 export
+                predates; repeating it on thousands of pages that would be empty anyway is noise.
+              */}
+              {betrayals !== undefined && betrayals.length > 0 && (
+                <section>
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
+                    Betrayals
+                  </h3>
+                  <ul className="space-y-2">
+                    {betrayals.map((betrayal) => (
+                      <Betrayal
+                        key={`${betrayal.betrayerId}:${betrayal.id}`}
+                        world={world}
+                        betrayal={betrayal}
+                      />
+                    ))}
+                  </ul>
+                </section>
+              )}
+
               {quarrels.length > 0 && (
                 <section>
                   <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
@@ -1835,6 +1869,43 @@ function Friendship({
         </ol>
       )}
     </article>
+  );
+}
+
+/**
+ * One betrayal, read from the page it is on.
+ *
+ * A line rather than a panel, and that is the decision worth saying out loud. A betrayed friendship
+ * is already on this page in full — the record above holds the rungs it climbed and the acts that
+ * got there — so repeating it here would be the same episode twice. What this list is for is that a
+ * marital betrayal has no such record anywhere and used to be a chronicle line and one flag on a
+ * bond, and that a reader asking who turned on this person should not have to know which kind of
+ * tie it was to find out.
+ *
+ * `turned` is the only thing that differs between the two pages, so the whole line is built from
+ * it: the same episode reads "turned on" here and "was turned on by" there.
+ */
+function Betrayal({ world, betrayal }: { world: World; betrayal: BetrayalRecord }) {
+  return (
+    <li className="text-sm">
+      <span className="font-medium">
+        {betrayal.turned ? 'Turned on' : 'Was turned on by'}{' '}
+        <EntityLink world={world} id={betrayal.otherId} />
+      </span>
+      <span className="text-[var(--ink-faint)]">
+        {' — '}
+        {BETRAYAL_TIE_LABELS[betrayal.tie].toLowerCase()} · {betrayal.year}
+        {betrayal.placeId && (
+          <>
+            {' · '}
+            <EntityLink world={world} id={betrayal.placeId} />
+          </>
+        )}
+      </span>
+      <p className="text-xs text-[var(--ink-faint)]">
+        Over {BETRAYAL_CAUSE_LABELS[betrayal.cause].toLowerCase()}
+      </p>
+    </li>
   );
 }
 

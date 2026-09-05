@@ -259,6 +259,7 @@ public sealed class Figure
         Undertakings = new List<FigureUndertaking>();
         Disputes = new List<FigureDispute>();
         Affinities = new List<FigureAffinity>();
+        Betrayals = new List<FigureBetrayal>();
         Plots = new List<FigurePlot>();
         Observations = new List<SkyObservation>();
         Claims = new List<SkyClaim>();
@@ -462,6 +463,17 @@ public sealed class Figure
     /// are read from the same two lists and neither is a survey of who was standing nearby.
     /// </remarks>
     public List<FigureAffinity> Affinities { get; }
+
+    /// <summary>
+    /// Times this figure turned on somebody they were tied to, or was turned on, in the order they
+    /// happened.
+    /// </summary>
+    /// <remarks>
+    /// Shared with the other party rather than copied, for the reason <see cref="Disputes"/> is.
+    /// Both kinds of tie a person can be turned on inside write here, so a page asking who betrayed
+    /// whom reads one list and does not have to know whether it was a friendship or a marriage.
+    /// </remarks>
+    public List<FigureBetrayal> Betrayals { get; }
 
     /// <summary>
     /// Conspiracies this figure led or knowingly joined, in the order they began.

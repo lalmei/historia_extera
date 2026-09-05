@@ -920,6 +920,7 @@ public static class WorldExporter
                 Undertakings: BuildUndertakings(figure),
                 Disputes: BuildDisputes(figure),
                 Affinities: BuildAffinities(figure),
+                Betrayals: BuildBetrayals(figure),
                 Plots: BuildPlots(world, figure),
                 Guardianships: BuildGuardianships(figure),
                 Mentorships: BuildMentorships(figure),
@@ -1265,6 +1266,36 @@ public static class WorldExporter
                 affinity.EndYear,
                 affinity.LastActionYear,
                 acts));
+        }
+
+        return list;
+    }
+
+    /// <summary>
+    /// Every time this person turned on somebody, or was turned on, from their own side.
+    /// </summary>
+    /// <remarks>
+    /// Both ties in one list, in the order they happened, which is the order the shared record was
+    /// appended to both lives. A friendship's betrayal appears here and on the closed
+    /// <see cref="ExportAffinity"/> as well; that is not a duplicate to reconcile, it is the ending
+    /// named in one place and the episode in the other.
+    /// </remarks>
+    private static List<ExportBetrayal> BuildBetrayals(Figure figure)
+    {
+        var list = new List<ExportBetrayal>(figure.Betrayals.Count);
+        foreach (FigureBetrayal betrayal in figure.Betrayals)
+        {
+            list.Add(new ExportBetrayal(
+                betrayal.Id,
+                betrayal.BetrayerId,
+                betrayal.BetrayedId,
+                betrayal.Other(figure.Id),
+                betrayal.BetrayerId == figure.Id,
+                betrayal.Tie,
+                betrayal.Cause,
+                betrayal.SourceKind,
+                OrNull(betrayal.PlaceId),
+                betrayal.Year));
         }
 
         return list;
