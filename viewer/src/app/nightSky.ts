@@ -1,6 +1,6 @@
 import type { ExportGalaxy } from './types.ts';
 
-/** Astra's all-sky glow size, scaled down so a page paint stays under a frame or two. */
+/** Historia Extera's all-sky glow size, kept small enough for an interactive page paint. */
 export const SKY_WIDTH = 480;
 export const SKY_HEIGHT = 240;
 const STEPS = 40;

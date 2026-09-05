@@ -1,253 +1,205 @@
 # Architecture
 
-## Boundaries
+## Execution path
 
-| Piece | Role |
-|---|---|
-| `HistoryEngine` | Simulation only. No NuGet packages. No viewer or game references. |
-| `HistoryEngine.Cli` | Builds a `WorldConfig`, runs `HistoryRun.Execute`, writes JSON. |
-| Viewer | Reads the export; never drives the simulation. |
-| Vintage Story (Phase 3) | Will supply terrain via `ITerrainSampler`; engine stays free of VS types. |
+```text
+CLI or library caller
+        │
+        ▼
+   WorldConfig ── optional ITerrainSampler
+        │
+        ▼
+ HistoryRun.Execute
+        │
+        ├── WorldBuilder.Create: terrain atlas, regions, cosmology, founding peoples
+        ├── Simulator.Run: ordered systems, seasons, scheduled episodes
+        └── WorldExporter.Build: map raster, entities, events, series, indices
+                                      │
+                                      ▼
+                               one JSON export
+                                      │
+                                      ▼
+                          viewer load, replay, and rendering
+```
 
-CLI and tests share `HistoryRun` so they cannot drift into different assembly
-sequences.
+`HistoryRun.Execute` is the normal library entry point. The CLI and tests use it so their
+assembly sequence cannot drift. It validates `WorldConfig`, creates or wraps the terrain
+sampler in `CountingTerrainSampler`, builds year-zero state, runs the simulator, and returns
+the mutable world plus run metadata. `ToExport` performs presentation raster sampling and
+builds the immutable transfer document.
 
-## Simulation systems
+## Engine and host boundaries
 
-Order and cadence are part of the run's identity (hashed into the export). As built:
-
-1. `crown`
-2. `population`
-3. `plague`
-4. `disaster`
-5. `settlement-lifecycle`
-6. `specialization`
-7. `expansion`
-8. `religion`
-9. `diplomacy`
-10. `war`
-11. `unrest`
-12. `trade-routes`
-13. `cultural-drift`
-14. `travel`
-15. `figure-incidents`
-16. `figure-lifecycle`
-17. `succession`
-18. `houses`
-19. `offices`
-20. `ranks`
-21. `artifacts`
-
-Most systems are annual, `unrest`, `travel` and `cultural-drift` among them. `expansion`,
-`war` and `artifacts` are seasonal; artifacts still create and circulate only in the opening
-season, and its later ticks exist to settle the estate of an owner killed by a death the
-docket resolved after it. `plague` also answers for
-scheduled outbreak steps and arrivals through the docket, so an active outbreak can keep its own
-clock without creating a daily global loop. `war` answers for scheduled siege decisions: the
-seasonal campaign starts an investment, and the docket carries it to the day it is carried,
-relieved, or overtaken by the season or the peace.
-
-Causal chain: the crown settles the values governing this step → harvest and population →
-pestilence and the land taking their share → settlement change → character → pressure → borders
-→ faiths across them → opinion of the neighbours by both → the wars that follow → the risings
-those wars and hard years leave behind → commerce responding to the resulting peace → who was
-on the road that year → exceptional incidents → biological mortality → thrones
-filled → households and offices against the line as it now stands → the army's own promotions
-against the seats just filled → what the survivors made.
-
-`unrest` follows `war` so the grievance a campaign earns can boil over the same year, and
-precedes `trade-routes` so the brigandage a rising raises suppresses that year's traffic.
-`travel` follows `trade-routes` so a merchant's journey uses a corridor that is actually open, and
-so the hazard of that journey is read off a route whose road and security are this year's.
-`cultural-drift` follows all of them because it moves a people's baseline against the relations,
-wars and faiths the year has just settled. It is `crown`'s counterpart at the far end of the year:
-crown reads the baseline and settles what the realm is governed by, drift writes the baseline for
-next year's crown to read.
-
-## Cultural drift
-
-`Culture.Values` is a people's founding seed and never changes. What moves is
-`Civilization.BaseValues` — that realm's own baseline, seeded from the culture at founding (or from
-the parent realm's current baseline for a breakaway) and stepped once a year by `cultural-drift`.
-`crown` bends *that* rather than the culture, so a ruler argues with the people as they now are.
-
-Four terms, no random numbers: contact pulls a realm toward its neighbours' baselines by proximity
-and the square root of their population; sustained weariness and grievance pull aggression toward a
-war target; a state faith pulls piety toward its fervour; and a weak anchor pulls back toward the
-founding culture. Contact is convergent by default and only an active war reverses it — culture
-spreads down a border whether or not the neighbours are friendly. The anchor is what stops
-convergence ending in one culture; see the decision log for the two calibrations that found both
-failure modes.
-
-Diplomacy follows expansion so opinions are formed about the frontier that exists rather
-than last year's, and religion precedes diplomacy for the same reason. War precedes
-`figure-incidents` and `figure-lifecycle` for the same reason deaths precede `succession`: a ruler killed at a
-siege must be dead before the throne is filled, or the realm spends a year vacant for no
-reason the chronicle can explain.
-
-Plague and disaster follow `population` rather than preceding it, so a step's growth is
-applied before its mortality — the other order lets a town regrow inside the tick that
-emptied it. They precede the lifecycle so a settlement gutted this year is judged this
-year, which is what lets a plague finish a place.
-
-## Holy sites
-
-`HolySite` represents temples, churches, shrines, monasteries and sanctuaries raised by a
-congregation. A site within a settlement carries that settlement id and shares its coordinate. An
-independent site carries no settlement id and has a permanent coordinate of its own within the
-region. In either case it points to the faith for which it was founded and remains in the entity
-table if that faith is forgotten.
-
-The religion system creates one site with every faith and may create more when settlements adopt
-it. Independent locations are selected from the exact four-per-axis terrain refinement already
-used to site the settlement, keeping terrain work tied to founding decisions rather than yearly
-ticks. The form of the house — shrine, temple, church, monastery, sanctuary — is weighted by
-the faith's authority and wealth practice, not drawn uniformly. A church is refused by
-animistic and pantheistic faiths: the word names a second theology. Dedication is admitted
-the same way, so an animism does not raise a house to a saint and a monotheism does not
-appease a nature spirit. Offerings follow dietary rules, and the description's remaining
-lines are filtered so a dry congregation is not described leaving wine.
-
-Each site carries a description composed once at founding: architectural tradition (from the
-culture's naming language, coloured by climate), dedication, fabric, atmosphere, scale, focal
-point and offering. Real figures are used when the chronicle has a king, martyr or founder to
-name; otherwise the dedicatee is legendary and named in the culture's own tongue. The text is
-stored on the entity, like a tome's contents, so later growth of the town cannot rewrite the
-church that was raised in a village.
-
-## Faith character
-
-A faith is more than fervour. `FaithCharacter` is rolled once at founding from the culture the
-faith arose among and is never revised — a later congregation that believes something else is a
-schism. Fervour remains how hard the faith presses outwards. Zealotry, tolerance, schism
-proneness and syncretism are the other dials, and they are read by conversion and schism in the
-religion tick. Deity structure, authority, clergy admission and wealth practice change holy-site
-form, who may hold a temple, and whether a high priest marries. Cosmology, dogma and observance
-are what two codices of one religion agree about.
-
-See the [decision log](decision-log.md) for the terms deliberately *not* wired yet (tithes on the harvest, festival
-trade, hereditary priesthood as true office succession, tolerance as a diplomatic standing
-term). Those belong to other systems; the character stores them so those systems can read a
-single vocabulary.
-
-## Trade routes and roads
-
-`TradeRoute` is a persistent, undirected connection between two settlements. It records its
-founding and closure, preferred transport (`Overland`, `River`, or `Coastal`), current traffic,
-peak traffic, and economic status. Closed routes remain entities, so reopening the same pair
-later creates new history rather than rewriting the old route.
-
-The route is **topology**; the road is the geometry hanging off it. River and coastal modes say
-both endpoints have that access; an overland route records demand between its endpoints. A land
-route whose peak traffic reaches `Roads.BuildThreshold` gains a `Road` — a stored polyline, the
-year it was cut, and the year it was bridged and paved if its traffic later reached
-`Roads.PaveThreshold`. The route's id, founding and traffic record survive both events, because a
-road is a fact about how a relationship is served rather than a relationship of its own.
-
-`TradeRouteSystem` decides *when*; `World/Roads.cs` decides *where*. That split is not tidiness:
-finding a path reads terrain, and `TerrainDisciplineTests` fails the build if anything under
-`Systems/` so much as names `ITerrainSampler`. The search is Dijkstra over the 64-unit grid
-hydrology already primed at world creation, so a road costs **no terrain samples at all** — and it
-is run once per construction, never per year, which is what `TradeRoute.RoadSurveyed` protects for
-the pairs no road can reach. Every toll is an integer and the frontier is keyed on
-`cost × cells + index`, so the minimum is unique and the path does not depend on a heap's
-tie-breaking, which no framework guarantees.
-
-One thing consumes a road: `travel` reads it to decide how dangerous a journey is. A cut track
-takes less of the hazard than open country and a paved road less again, and then the ratio of the
-road's length to the straight distance between the towns gives some of that back, since a way
-forced the long way round measures how hard the intervening country is. That is the condition the
-geometry had to meet — it says something `TradeRoute.Traffic` cannot. Nothing else reads a road:
-carrying capacity in particular must not, because the traffic that built the road is already in
-the number, and campaign movement is not modelled positionally at all.
-
-Tome circulation, plague spread and carrying capacity consume active routes. This keeps the
-engine's different notions of ordinary travel on one shared network instead of letting each system
-invent a fresh distance heuristic.
-
-## Carrying capacity
-
-How many people a settlement can support is the sum of three sourced terms, then modified:
-
-| Term | Source |
-|---|---|
-| Site | `Specializations.SiteCapacity` — the ore body, the fishery, the spring |
-| Land | Squared regional fertility × `FertilityWeight` × **hinterland share** |
-| Trade | Live route traffic × `Specializations.ImportReliance` |
-
-Then scaled by the harvest, distance from the seat of government, culture, capital status and
-walls.
-
-**The land is contested.** `Hinterland` gives each settlement its share of the ground within reach
-— its own pull over the total pull on that ground, where pull is the square root of population.
-That is preferential attachment held sublinear: a large place takes more of the fields between
-them without extinguishing its neighbour. It is the only mechanism in the model by which a
-settlement can be *kept* small rather than killed, and without it the tier ladder reported worlds
-in which three quarters of every settlement was a city.
-
-**Cities are made by connection, not by soil.** The land term alone tops out around a small town
-on the best ground in the world. Anything larger got there through trade, a capital's
-administration, or both — which is where cities historically came from, and what gives the size
-distribution a tail instead of a hump. A trading port with no live route to anywhere is a village.
-
-`SettlementHierarchyTests` asserts the resulting distribution across seeds, because the failure
-this replaced was a property of a whole world that every per-entity unit test passed through.
-
-## Terrain: `ITerrainSampler` and `TerrainAtlas`
-
-The simulation never talks to a backend directly.
-
-- **`ITerrainSampler`** — dumb point queries + capabilities. No caching.
-- **`TerrainAtlas`** — coarse lattice, refined rectangles, memoised exact samples.
-
-Phase 1 uses noise (`ProceduralTerrainSampler`). Phase 2/3 swap the sampler without
-touching systems. Every run wraps the sampler in `CountingTerrainSampler` so tests can
-budget sample counts.
-
-### Backends
-
-| Backend | Source | Declares |
+| Component | Owns | Does not own |
 |---|---|---|
-| `ProceduralTerrainSampler` | Value noise, from the seed | `Standard` — every field |
-| `RasterTerrainSampler` | PGM planes + a JSON manifest | Only the layers actually supplied |
+| `HistoryEngine` | world creation, simulation decisions, factual events, cosmology, export construction, raster loading helpers | host file lifecycle, command-line parsing, browser UI, Vintage Story types |
+| `HistoryEngine.Cli` | arguments, raster-manifest loading, progress, summaries, JSON output | simulation policy |
+| Astro development middleware | local world library, CLI process launch, cancellation, previews, file management | simulation or export interpretation |
+| React viewer | compatibility checks, event replay, filtering, narration rendering, maps and pages | generation or hidden mutable state |
+| SwiftUI app | writable paths, packaged runtime cache, local server lifecycle, `WKWebView` | simulation and viewer logic |
 
-`RasterTerrainSampler` requires a height layer and nothing else; absent fields are
-modelled from elevation and latitude and **deliberately excluded from
-`TerrainCapabilities`**, so a world built on a bare heightmap reports which of its
-measurements were measured. `TerrainRasterBake` writes the format from any sampler,
-which is how the round trip is tested (`RasterTerrainTests`).
+A production Astro build is static and read-only. The generator endpoints exist only under
+`astro dev`; the packaged app intentionally runs that local server as a private application
+process. There is no remote application server or network protocol between the engine and
+viewer.
 
-A raster set's content digest goes into `WorldConfig.TerrainSource` and from there into
-the config hash — a file path is not the pixels, and the determinism contract has to keep
-covering the terrain. It contributes only when set, so procedural worlds hash unchanged.
+Vintage Story is a planned terrain host. No current assembly references its API, registers a
+mod, adds commands, or installs handbook entries.
 
-`tools/terrain/worldengine_to_raster.py` converts an external generator's output into the
-format; `make terrain-worldengine` runs the whole route. The
-[terrain trial](terrain-trial.md) records what that proved and the two places it did not:
-the manifest cannot describe an ocean mask, measured rivers or a wrapping map, and
-`Hydrology` fills no depressions — which costs Phase 1's smooth noise nothing and costs
-real eroded terrain most of its drainage.
+## World creation and terrain
 
-## Naming
+`WorldBuilder.Create` creates `WorldState` in this order:
 
-Markov models over language corpora under `Naming/Corpora/`. Licenses for corpus text
-are recorded in that folder's `LICENSES.md`.
+1. validate configuration;
+2. construct the selected sampler and `TerrainAtlas`;
+3. derive the world's name, cosmology, random root, and naming service;
+4. build the region grid (128-unit default); the atlas has already derived hydrology;
+5. record the beginning of civic history;
+6. choose habitable, separated homelands and found the requested civilizations where
+   possible.
 
-The world itself is named once from the seed, in the same world-level language as its
-regions: a planet ("The planet Borion") or a moon ("The 3rd moon of Endor"). That
-designation is flavour — it does not feed any simulation decision — and is unique to the
-seed, so stretching a run cannot rename it. The seed still travels in the export beside
-it, which is what reproduces the history. The host galaxy and the local star system travel
-the same way: rolled from the seed (the galaxy on its own stream, so it cannot reshuffle
-the star), shown in the export and the cosmology tomes, and never read by a simulation
-decision. Cosmic time is kept beside that physical model rather than forced into the civic
-calendar: the host galaxy begins assembling, earlier stellar generations enrich its gas,
-the star and protoplanetary disk form, and the world finishes accreting tens of millions of
-years later. Year 1 is only the beginning of recorded history. The same chronology records
-the host star's remaining main-sequence lifetime and its mass-dependent next phase, including
-the outward-moving habitable zone and eventual white-dwarf remnant.
+Simulation systems never hold an `ITerrainSampler`. They ask `TerrainAtlas`, which owns a
+primed coarse lattice, bounded refinement, exact-sample memoization, landforms, and hydrology.
+`TerrainDisciplineTests` enforce that boundary and sample budgets.
 
-## Serialization
+`ProceduralTerrainSampler` supplies height, temperature, rainfall, geologic activity,
+vegetation, and lakes from deterministic noise. `RasterTerrainSampler` requires height and
+can read optional climate, ecology, geology, and lake planes. Fields missing from a raster are
+modeled where possible but not reported as measured capabilities.
 
-`WorldExporter` produces the viewer JSON and the fingerprint digest. Canonical form is
-compact (not `--pretty`). Fingerprints pin simulation behaviour in golden tests.
+Hydrology is derived once on the 64-unit grid. A priority-flood pass creates a drainage-only
+spill surface so land depressions reach an outlet. The actual height samples are unchanged.
+D8 flow accumulation selects the highest-flow land cells for vector river segments. Raster
+inputs cannot currently provide measured flow or declare their own topology.
+
+## Coordinates and topology
+
+The world is a square plane with abstract `(x, z)` units and origin `(0, 0)`. Region,
+terrain, hydrology, and road grids have separate configured strides.
+
+When `EastWestPeriodic` is false, all four edges are bounded. When true, `x` wraps and `z`
+remains bounded. Terrain noise, sampling, region adjacency, hydrology, road search, simulation
+distance, export metadata, and viewer lines all honor the seam. The size must align with every
+grid used at the seam.
+
+Generated climate treats the center row as the equator and the north and south edges as
+poles. This is a model convention, not an exported latitude/longitude coordinate system.
+There is no local time or observer position in map coordinates.
+
+## Time
+
+The default civic calendar contains 360 days and four 90-day seasons. The simulator does not
+run a daily loop.
+
+- Annual systems run on day 0, the opening season.
+- Seasonal systems run at the start of all four seasons.
+- The docket stores individual due days for work that needs finer timing.
+- Due entries are resolved before the systems on the next reached season boundary.
+- Series are sampled once after the final season of each year.
+
+The docket order is `(absolute day, kind, subject index, sequence)`. `PlagueSystem` handles
+outbreak steps and arrivals; `WarSystem` handles siege resolutions. Docket state is mutable
+run state and is not exported. Its consequences survive as events and entity changes.
+
+## System order
+
+Names, order, and cadence are part of the run identity. The current default order is:
+
+| # | Name | Cadence | Main responsibility |
+|---:|---|---|---|
+| 1 | `crown` | annual | fade realm memories and settle effective governing values |
+| 2 | `population` | annual | harvest, carrying capacity, population change, and famine |
+| 3 | `plague` | annual plus docket | ignite and progress outbreaks and travel |
+| 4 | `disaster` | annual | terrain-sensitive calamities and mortality |
+| 5 | `settlement-lifecycle` | annual | promotion, decline, and abandonment |
+| 6 | `specialization` | annual | settlement economic character |
+| 7 | `expansion` | seasonal | claims and founding movement |
+| 8 | `religion` | annual | faith creation, adoption, schism, and holy sites |
+| 9 | `diplomacy` | annual | relations, alliances, and truces |
+| 10 | `war` | seasonal plus docket | campaigns, battles, peace, and siege resolution |
+| 11 | `unrest` | annual | revolt, secession, usurpation, and brigandage |
+| 12 | `trade-routes` | annual | route opening, traffic, closure, and road construction |
+| 13 | `cultural-drift` | annual | move realm baselines through contact and pressure |
+| 14 | `travel` | annual | journeys, returns, mishaps, and residence changes |
+| 15 | `hardship` | annual | memories of famine, plague, sacks, and disasters |
+| 16 | `figure-incidents` | annual | personal wounds, quarrels, plots, and undertakings |
+| 17 | `figure-lifecycle` | annual | aging and biological mortality |
+| 18 | `succession` | annual | fill vacant thrones |
+| 19 | `houses` | annual | marriage, birth, and household continuity |
+| 20 | `offices` | annual | appointments and court careers |
+| 21 | `ranks` | annual | military service and promotion |
+| 22 | `artifacts` | seasonal | artifacts, circulation, sky records, and unresolved estates |
+
+Later systems read state left by earlier systems in the same step. Reordering a pair can
+change causality even if both implementations stay untouched. `SystemOrderHash` therefore
+folds in each name and every non-annual cadence.
+
+## State, events, and derived history
+
+`WorldState` is the mutable owner of entity tables, chronicle, yearly series, active
+outbreaks, docket, terrain atlas, and deterministic random root. Entities use typed,
+dense `EntityId` values rather than object-reference identity.
+
+The chronicle records flat facts. References remain ids, optional `data` remains structured,
+and prose is produced later from exported templates. Systems must record every change that a
+historical consumer needs. Final entity fields alone cannot answer who owned a region in year
+120 or which ruler held a seat then.
+
+The viewer builds spans from the event list for ownership, settlement tiers, capitals,
+reigns, and faith adherence. This keeps export size proportional to changes instead of
+number of years times number of entities. Tests compare replayed territory with final state.
+
+## Cosmology and sky records
+
+`WorldCosmology.From(seed)` runs during world creation. It produces the host galaxy, star,
+habitable body, companions, moons, comets, orientation, and deep-time chronology. The model
+is deterministic and independent of run length or civilization count.
+
+Most cosmology is descriptive and has no effect on terrain or political decisions. Comet
+return schedules are the exception: `ArtifactSystem` calls `Skywatch.Record` and
+`Skywatch.Answer` in the opening season, allowing simulated figures to observe returns and
+make claims. The viewer's rendered night sky uses the galaxy model directly and is separate
+from those historical observations.
+
+See [Cosmology and scientific scope](cosmology.md) before changing physical formulas,
+coordinate language, or sky rendering.
+
+## Catalogs and names
+
+Historia Extera has no runtime star, planet, comet, constellation, or content catalog
+loader. System bodies are generated from the seed. The word “catalog” in the viewer means a
+saved-world listing, not an astronomical catalog.
+
+Naming uses Markov models over text corpora embedded in `HistoryEngine.dll`. Each name is a
+function of entity identity and a culture language seed, so request order cannot rename later
+entities. A custom `INameGenerator` can be supplied to `WorldBuilder.Create`, but the standard
+`HistoryRun.Execute` path does not expose that parameter.
+
+## Caches and derived state
+
+The engine's main cache is `TerrainAtlas`; it belongs to one `WorldState` and is populated
+during creation and bounded refinement. No public cache-invalidation API exists because run
+inputs are treated as immutable. Replacing terrain after a world is built is unsupported.
+
+The viewer fetches an export once, normalizes it, builds id maps and replay spans, then renders
+from that in-memory `World`. It does not refresh a file automatically after generation; the
+development flow reloads the page when it overwrites the export already open.
+
+The packaged app copies its bundled viewer runtime and dependencies to a versioned writable
+cache. Generated worlds remain in Application Support rather than in that cache or the signed
+bundle.
+
+## Where to modify a subsystem
+
+| Change | Start here | Contract to check |
+|---|---|---|
+| generation inputs | `WorldConfig.cs`, CLI parser, `viewer/src/app/generate.ts` | config hash, all three default surfaces |
+| terrain backend | `ITerrainSampler.cs`, `TerrainAtlas.cs` | capabilities, topology, sampling budget, provenance |
+| river or road geometry | `Hydrology.cs`, `Roads.cs` | deterministic tie-breaking and periodic seam |
+| simulation behavior | relevant file in `Systems/` and `Simulator.cs` | order, cadence, RNG fork, chronicle facts, golden |
+| person-level history | figure entities, bonds/memories, relevant systems | year cutoff and source-event links |
+| cosmology | `Cosmology.cs`, `Galaxy.cs`, `CelestialOrientation.cs` | approximation labels and deterministic math |
+| comet records | `Skywatch.cs`, `SkyClaims.cs`, `ArtifactSystem.cs` | simulated observer eligibility and return schedule |
+| export field | `WorldExport.cs`, `WorldExporter.cs`, `viewer/src/app/types.ts` | schema bump, compatibility, fingerprint |
+| historical rendering | `viewer/src/app/timeline.ts`, relevant view | event replay and final-state distinction |
+| native lifecycle | `ViewerServer.swift`, build script | writable paths, cache identity, packaged tools |

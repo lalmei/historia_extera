@@ -1,47 +1,93 @@
 # Testing
 
+Historia Extera has separate engine, viewer, documentation, and packaging checks. No one
+command proves every surface.
+
+## Engine suite
+
 ```bash
 make test
-# same as: dotnet test
+make test FILTER=Affinity
+make test-quiet
 ```
 
-Tests live in `src/HistoryEngine.Tests` (xunit) and run against the net10 build of
-the engine.
+The xUnit suite runs against the .NET 10 build. `make test` prints individual progress because
+multi-seed, multi-century calibration tests can take long enough that silent output looks
+stalled. `test-quiet` runs the same suite with summary output.
 
-## What the suite guards
+The suite covers:
 
-| Area | Intent |
+| Area | Contract |
 |---|---|
-| Determinism | Same seed/config → same export / fingerprint |
-| Determinism guards | Ban non-deterministic BCL patterns in engine source |
-| Terrain discipline | Sample budgets; no accidental exact-sample storms |
-| Raster terrain | Sea level is exactly zero whatever scale a generator used; absent layers are modelled but never claimed as measured; a baked world reloads as the same terrain; a raster run costs the same samples as a noise one |
-| Lifecycle | Decline, abandonment, specialization actually fire |
-| Dynasties / succession | Houses, reigns, ballot behaviour |
-| Diplomacy / war | Wars occur and settle; every grievance is reachable; relic claims name and yield one object; religious wars preserve both faiths; territory and its settlements move together; truces hold; war costs no terrain samples |
-| Territory | The event log alone replays to the exported map, across seeds — what the viewer's year slider depends on |
-| Trade routes | Endpoints and modes are valid; active pairs are unique; closure preserves historical entities; split runs preserve the network |
-| Roads | Only sustained-traffic land routes are roaded, and a minority of them; a road runs over dry ground between its two towns and goes round water the direct line would cross; a river route's path stays nearer the water than the same journey cut overland; paving keeps the route's identity and never lengthens the way; cutting a road costs no terrain samples |
-| Travel | Every journey names the thing it was made for and renders as prose; journeys are trips and not moves; some of them end badly and the mishap is written where it happened; a lost traveller died on that journey, that year, of the road; a cut road lowers the hazard, an engineered one lowers it further, and a road dragged the long way round gives some of that back |
-| Flavour | Plague, disaster, faith and artifacts each fire; no plague takes the world; disasters match the ground they struck; provenance agrees with where a thing is |
-| Naming / narration | Stable names and chronicle wording; world designation unique to the seed; every event kind has a template, every template uses a known placeholder and a known entity-kind prefix, and segments are balanced |
-| Export / goldens | Fingerprint for the standard seed-42 config |
+| determinism and config identity | repeated and split runs agree; hashed fields and system order stay complete |
+| deterministic-source guards | unordered iteration, unstable hashing, and unreviewed numerical calls stay off decision paths |
+| terrain and topology | sampling budgets, raster round trips, sea-level mapping, capabilities, periodic seams, hydrology, roads, and landforms |
+| world lifecycle | founding, settlement growth and decline, carrying capacity, specialization, faith, plague, disaster, and collapse |
+| politics and war | succession, offices, unrest, diplomacy, campaigns, sieges, territory transfer, and truce behavior |
+| travel and trade | route identity, road geometry, journey purpose, duration, mishaps, residence changes, and plague/tome movement |
+| people | households, upbringing, ranks, bonds, memories, quarrels, plots, friendships, betrayal, and mortality |
+| cosmology and sky records | generated-system checks, coordinate rotations, comet schedules, observations, and claims |
+| events and narration | chronological facts, known placeholders, balanced optional segments, typed references, and wording stability |
+| serialization | schema shape, indices, canonical JSON, replayable territory, and standard fingerprint |
+
+Calibration assertions describe the tested seed panel and model, not real-world accuracy.
+Changing a threshold may require a fresh measurement rather than widening a test until it
+passes.
+
+## Viewer checks
+
+```bash
+npm test --prefix viewer
+npm run astro --prefix viewer -- check
+npm run build --prefix viewer
+```
+
+The Node test runner covers compatibility, biography, and figure discovery, including selected
+map and narration derivations on available exports. It is not comprehensive coverage of
+generation, maps, or timeline replay. `astro check` catches type and component errors that
+the Node tests do not compile. `astro build` verifies the
+static production bundle and confirms that development-only generation code stays outside it.
+
+Retained exports under `viewer/public/worlds/` are compatibility fixtures. Both current
+fixtures use schema 50; accepting schemas 21–51 is not evidence that every version has been
+tested. Add representative older exports before claiming backward-compatibility coverage.
+
+## Documentation
+
+```bash
+uv sync
+make docs-build
+```
+
+The strict ProperDocs build checks navigation, Markdown parsing, and internal links. It does
+not confirm that commands, UI text, defaults, or scientific claims match the implementation;
+those require the source checks described in `docs/README.md`.
+
+## Native app and release package
+
+```bash
+make macos-app
+make macos-release
+```
+
+These build the checkout-dependent app and self-contained distribution respectively. A
+successful build does not establish first-launch behavior, process shutdown, world generation,
+or Gatekeeper behavior. Check those in the actual app when release-facing documentation
+changes.
+
+Local release artifacts are ad-hoc signed. Public distribution also needs Developer ID
+signing and notarization, which the local build does not prove.
 
 ## Regenerating the golden
 
-Standard config: seed `42`, 300 years, 8 civs, size `4096`, raster `64`.
+The standard fingerprint uses seed 42, 300 years, 8 civilizations, size 4096, and raster 64:
 
 ```bash
 make fingerprint
-# writes src/HistoryEngine.Tests/Goldens/standard-seed42.sha256
 ```
 
-Or:
+The target writes through a temporary file so a failed run does not damage the committed
+golden. Only update it after explaining which system behavior or exported facts changed.
 
-```bash
-dotnet run --project src/HistoryEngine.Cli -- \
-  --seed 42 --years 300 --civs 8 --size 4096 --raster 64 --fingerprint \
-  > src/HistoryEngine.Tests/Goldens/standard-seed42.sha256
-```
-
-Only regenerate when you understand *why* the digest moved.
+The raster resolution affects export bytes but not the simulation config hash, which is why
+the golden command fixes it explicitly.

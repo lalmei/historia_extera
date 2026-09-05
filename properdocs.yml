@@ -1,5 +1,5 @@
 site_name: Historia Extera
-site_description: Procedural world history generator and viewer for Vintage Story.
+site_description: Deterministic world-history generator and viewer.
 docs_dir: docs
 site_dir: site
 exclude_docs: |
@@ -55,13 +55,20 @@ nav:
   - Home: index.md
   - Guide:
       - Getting started: guide/getting-started.md
-      - CLI: guide/cli.md
       - Viewer: guide/viewer.md
-      - Makefile: guide/makefile.md
+      - CLI: guide/cli.md
+  - Reference:
+      - Configuration: reference/configuration.md
+      - Export format: reference/export.md
   - Developer:
       - Overview: dev/index.md
       - Architecture: dev/architecture.md
+      - Engine integration: dev/integration.md
+      - Cosmology and scientific scope: dev/cosmology.md
+      - Viewer internals: dev/viewer.md
       - Determinism: dev/determinism.md
       - Testing: dev/testing.md
+      - Makefile: guide/makefile.md
       - Terrain trial: dev/terrain-trial.md
       - Decision log: dev/decision-log.md
+      - Documentation audit: dev/documentation-audit.md

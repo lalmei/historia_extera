@@ -44,11 +44,9 @@ public sealed record HistoryEvent(
     /// they have a reason to. It is the same choice schema 9 made when <c>ExportTitle</c> gained
     /// four fields and kept <c>civilizationId</c>.</para>
     ///
-    /// <para>Init-only with a default of zero rather than a positional member, so that an event
-    /// recorded by a system with nothing finer to say than a year is spelled the way it is
-    /// meant — the opening of the year — instead of forcing several hundred call sites to name a
-    /// day none of them has yet. Every system in the engine is still
-    /// <see cref="Systems.Cadence.Annual"/>, so every day in a world today is zero.</para>
+    /// <para>Init-only with a default of zero rather than a positional member, so an annual event
+    /// remains the opening of its year without forcing every recording call to repeat that date.
+    /// The chronicle supplies seasonal and scheduled-event days when a system has finer timing.</para>
     /// </remarks>
     public int Day { get; init; }
 

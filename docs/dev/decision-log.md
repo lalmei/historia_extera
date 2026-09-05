@@ -1,9 +1,15 @@
 # Historia Extera — Decision Log
 
-A Dwarf Fortress-style world history generator for Vintage Story, plus a history
-viewer. This is the detailed record of what was chosen, what was measured, and why.
-It preserves milestone-era assumptions and implementation retrospectives; the concise,
-current design lives in the repository root as `DESIGN.md`.
+Historia Extera is a world-history generator and viewer designed with a possible future
+Vintage Story terrain adapter in mind. This is the detailed record of what was chosen,
+measured, rejected, and later revised. It preserves milestone-era assumptions and status
+snapshots; the concise current design lives in the repository root as `DESIGN.md`, and the
+current implementation remains authoritative.
+
+!!! warning "Historical document"
+    Statements such as “in progress,” “every system is annual,” and “hydrology has no
+    depression filling” describe the checkout at that point in the log. Use the current
+    architecture, configuration, export, and integration pages for present behavior.
 
 **Status at the time of this snapshot:** Milestones 0–17 complete. Real naming languages, a settlement lifecycle that
 runs its full course rather than only ever growing, rulers who inherit from a family
@@ -4840,9 +4846,9 @@ one function is what made it a single change rather than four.
 
 ~~What is left of Phase 2 is the piece that needs a file rather than a decision: driving a real
 external generator through the raster route end to end.~~ Done, against WorldEngine — see
-*The Phase 2 terrain trial* above. It found one defect worth fixing before Phase 3
-(hydrology does not fill depressions) and four places the manifest is too thin to describe
-somebody else's map.
+*The Phase 2 terrain trial* above. It found one implementation defect, the original lack of
+depression filling, which was fixed after the trial. It also found four places where the
+manifest remains too thin to describe somebody else's map.
 
 ## Notes for Phase 3
 

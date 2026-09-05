@@ -8,8 +8,9 @@ sampler wrote both sides of the conversation.
 
 The headline: **it works, and the interesting part is the list of things it got away
 with.** A 300-year history runs on foreign terrain with no engine code changes and the
-full suite green. Six assumptions leaked, and one of them — hydrology has no depression
-filling — is a real defect that eight milestones of procedural terrain never exposed.
+full suite green. Six assumptions leaked. One was a real defect that eight milestones of
+procedural terrain had hidden: hydrology did not fill depressions. That defect was fixed
+after this trial; the measurements below preserve the before-and-after evidence.
 
 ## What was run
 
@@ -121,7 +122,7 @@ more mountainous than any procedural world of the same seed, and nothing said so
 It belongs in whatever a Phase 3 world records about how it was built, and it deserves the
 same "same seed, same world" scrutiny the config hash gets.
 
-### 3. `Hydrology` has no depression filling, and eight milestones of noise hid it
+### 3. The original hydrology lacked depression filling
 
 This is the one that matters. D8 flow accumulation on foreign terrain piles water into
 undrained pits, and the cells with the most accumulated drainage — which is exactly how
@@ -137,8 +138,8 @@ undrained pits, and the cells with the most accumulated drainage — which is ex
 | Connected components | 18 | 10 |
 
 Two-thirds of the rivers the engine names on this terrain are the bottoms of closed
-basins. They export no segment, because a sink has no downstream link — which is why the
-network is not merely fragmented but sparse: 15 segments where the reference gets 54.
+basins. They export no segment because a sink has no downstream link. The result is sparse
+as well as fragmented: 15 segments where the reference gets 54.
 
 The mechanism was confirmed by reimplementing `ComputeFlowDirections` /
 `ComputeAccumulation` / `ClassifyRivers` outside the engine; it reproduces 54, 15 and 26
@@ -149,7 +150,7 @@ Phase 1's noise never produced enough sinks to notice, because it is smooth by
 construction. Real eroded terrain is not, and Vintage Story's will not be either.
 
 **Fixed.** Priority flood with an epsilon tilt now runs ahead of the flow directions — see
-*Depression filling* in the decision log. Every land cell drains to the sea, the sink counts
+*Depression filling* in the decision log. Every land cell drains to an outlet (sea or a map edge), the sink counts
 above go to zero on both backends, and the fragmented networks become networks:
 
 | | procedural bake | WorldEngine |
@@ -275,12 +276,11 @@ digest is that the pixels can be reproduced from the generator's seed rather tha
 
 The abstraction held where it was designed to: the datum, the capability declaration, the
 provenance digest and the sample budget all worked on data the engine did not make, and
-the simulation did not need to know. Everything that leaked leaked in one of two places —
-**the manifest is too thin** (no ocean mask, no rivers, no topology, no units the
-generator can supply honestly), or **`Hydrology` was tuned against smooth noise** (no
-depression filling, no prefilter before a coarse stride).
+the simulation did not need to know. The leaks fell in two places: **the manifest is too
+thin** (no ocean mask, rivers, topology, or units the generator can supply honestly), and
+**the original hydrology was tuned against smooth noise** (no depression filling and no
+prefilter before a coarse stride).
 
-The second is the one to fix before the Vintage Story adapter, because it is not a format
-problem and it will not announce itself. It produced a world that looked entirely
-reasonable — eight standing civilizations, seven cities, plausible coastal siting — whose
-rivers were mostly puddles.
+Depression filling was the implementation defect and is now fixed. Prefiltering was measured
+again after that repair and rejected because its remaining effect did not justify the sample
+cost. The manifest gaps remain open integration constraints.

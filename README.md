@@ -1,10 +1,12 @@
 # Historia Extera
 
-A deterministic world-history generator. Give it a seed and it builds centuries of
-settlements, peoples, rulers, faiths, wars, trade, plagues, disasters and artifacts —
-then hands you a finished history to read.
+A deterministic world-history generator. Give it a seed and a simulation configuration,
+and it builds centuries of settlements, peoples, rulers, faiths, wars, trade, plagues,
+disasters and artifacts. The result is a finished history to read rather than a world
+that continues running in the background.
 
-Same seed, same history. Every time.
+The same seed, simulation settings, engine version, and system order reproduce the same
+history byte for byte.
 
 ![Historia Extera](docs/historia_extera.png)
 
@@ -36,7 +38,7 @@ A finished world contains:
 
 ## Reading a world
 
-Histories open in the viewer — the native macOS app, or the same thing in a browser.
+Histories open in the native macOS app or in the browser viewer used during development.
 
 **The library** lists every world you have generated: seed, years, civilizations, size,
 a biome map, and how it all ended. Open one, run the same seed again for more years, or
@@ -44,16 +46,16 @@ delete it.
 
 ![The Worlds Library](docs/screenshots/library.png)
 
-**The overview** is the world at a glance — how many settlements, figures, houses, wars,
+**The overview** is the world at a glance: how many settlements, figures, houses, wars,
 faiths, plagues and disasters it produced, its great houses by reigns held, its largest
 cities, and a tally of everything that happened.
 
 ![World overview](docs/screenshots/overview.png)
 
-**The map** is drawn for a year, not just for the end. Pull the year slider and borders
+**The map** is drawn for a selected year. Pull the year slider and borders
 move, towns appear and grow, battles mark the year they were fought. Colour the dots by
-realm or by faith — two political maps of the same world, disagreeing in the interesting
-places. Overlays for trade routes, roads, harbours, houses, walls, holy sites and
+realm or by faith to compare political control with religious affiliation. Overlays for
+trade routes, roads, harbours, houses, walls, holy sites and
 landmarks sit on the same year, and the year's chronicle sits beside it.
 
 ![The map, drawn for year 300](docs/screenshots/map.png)
@@ -62,15 +64,15 @@ landmarks sit on the same year, and the year's chronicle sits beside it.
 region → faith → holy site → artifact. Lists filter by what you would actually ask for:
 cities known for mining, faiths that were forgotten, figures who died of plague.
 
-**The timeline** is the whole chronicle, filterable by kind and by year — every death,
+**The timeline** is the whole chronicle, filterable by kind and by year: every death,
 marriage, crowning, siege, schism and waylaid journey the world recorded.
 
 ![The timeline](docs/screenshots/timeline.png)
 
 **A person's page** is a biography, not a data dump: their position, upbringing,
-relationships, formative memories, wounds and open concerns. Set it to an earlier year
-and it becomes a contemporary account — later revelations vanish. The raw event ledger is
-one click away when you want the facts behind the prose.
+relationships, formative memories, wounds and open concerns. A year control can turn it
+into a contemporary account; later revelations disappear. The raw event ledger is one
+click away when you want the facts behind the prose.
 
 ![A figure page](docs/screenshots/figure.png)
 
@@ -78,8 +80,8 @@ one click away when you want the facts behind the prose.
 
 ### The macOS app
 
-The app is self-contained — it carries its own engine and runtime, so nothing else needs
-to be installed. Build it once from a checkout:
+The release app is self-contained: it carries its own engine and runtime. Building that
+package requires a checkout and its build dependencies:
 
 ```bash
 make macos-release
@@ -90,8 +92,8 @@ image, drag **Historia Extera** to Applications, and open it. Worlds you generat
 outside the app, in `~/Library/Application Support/Historia Extera/Worlds`, so they survive
 reinstalling it.
 
-The build is ad-hoc signed rather than notarized, so the first launch needs the usual
-right-click → **Open**.
+Local release builds are ad-hoc signed rather than notarized. On first launch, macOS may
+require Control-clicking the app and choosing **Open**.
 
 ### In a browser
 
@@ -103,7 +105,7 @@ make install     # once
 make viewer
 ```
 
-Open the URL Astro prints — usually `http://localhost:4321` — and you land in the Worlds
+Open the URL Astro prints, usually `http://localhost:4321`. The first page is the Worlds
 Library. To generate a world without the interface:
 
 ```bash
@@ -119,26 +121,29 @@ and packaging instructions are in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 | Knob | What it changes |
 |---|---|
-| Seed | The world. Everything else follows from it. |
+| Seed | The random identity used to derive names, terrain, cosmology, and simulation choices. |
 | Years | How much history to simulate. |
 | Civilizations | How many peoples start out. |
-| World size | Small, medium, large, or an exact size — and whether it wraps east to west. |
+| World size | Small, medium, large, or an exact size, plus whether east and west meet. |
 
-The run shows its progress and the engine's own summary as it arrives, which is what
-answers "was that seed worth looking at". You can abort a run in flight. Each finished run
-is saved under its own name, so an earlier, shorter history of the same seed stays on disk.
+The run shows progress and the engine's summary as it arrives. You can abort a run in
+flight. Each finished run is saved under its own name, so an earlier, shorter history of
+the same seed stays on disk.
 
 ![Generating a world](docs/screenshots/new-world.png)
 
-A world is worth what its seed is worth: the same seed, years and size always rebuild the
-same history, so a seed is the whole world in one number — short enough to write down and
-hand to somebody else.
+The seed is only one input. To reproduce a world, keep its years, starting-civilization
+count, size, east/west topology, terrain source, and engine version with it. The export
+records the seed, configuration hash, engine version, and system order. Extending a run
+with the same simulation inputs reproduces the shorter run as a prefix before continuing.
 
 ## Docs
 
 - [Getting started](docs/guide/getting-started.md)
-- [CLI](docs/guide/cli.md)
 - [Viewer](docs/guide/viewer.md)
+- [Configuration reference](docs/reference/configuration.md)
+- [CLI](docs/guide/cli.md)
+- [Developer overview](docs/dev/index.md)
 - [DESIGN.md](DESIGN.md) — how the world is built, and why
 
 ## License and packaged app

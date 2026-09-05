@@ -1,107 +1,134 @@
 # Getting started
 
-Generate a procedural history, then open it in the Historia Extera viewer.
+Historia Extera generates a complete history and saves it as a JSON world file. The viewer
+opens that file; it does not continue the simulation while you read.
 
-## Prerequisites
+This repository is not the Astra Terra astronomy mod. The current application does not run
+inside Vintage Story or add handbook entries, telescope controls, constellations, player
+observations, or craftable astronomy journals.
+
+## Packaged macOS app
+
+Open **Historia Extera** and choose **Generate new world**. A packaged app includes the
+history engine and Node runtime. It stores generated worlds here:
+
+```text
+~/Library/Application Support/Historia Extera/Worlds
+```
+
+Choose a world in the library to read it. Deleting a world from the current library is
+permanent after confirmation.
+
+Local packages built with `make macos-release` are ad-hoc signed and not notarized. macOS may
+require Control-clicking the app and choosing **Open** the first time. A public distribution
+still needs Developer ID signing and notarization.
+
+## From a source checkout
+
+Install:
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
-- [Node.js](https://nodejs.org/) 22.12+
-- [uv](https://docs.astral.sh/uv/) (docs only)
+- [Node.js](https://nodejs.org/) 22.12 or newer
 
-## Install viewer deps
+Then run from the repository root:
 
 ```bash
 make install
-# same as: npm install --prefix viewer
+make viewer
 ```
 
-## Generate a world
+Open the URL Astro prints, normally `http://localhost:4321`, and choose **Generate new
+world**. The development server saves worlds in `viewer/public/worlds/`.
 
-From the repo root:
+`make viewer` must stay running while the browser generates worlds. A production static
+build can read existing exports but has no local process that can run the C# generator.
+
+## Generation settings
+
+The form starts a fresh world with a random 32-bit seed, 300 years, 5 civilizations, a
+4096-unit map, and east/west wrapping enabled. These are form defaults, not the raw CLI
+defaults.
+
+| Setting | Meaning |
+|---|---|
+| Seed | Master random identity. Decimal and hexadecimal input are accepted. |
+| Years | Number of civic years simulated from year 1. |
+| Civilizations | Number of founding peoples requested. A wet or mountainous seed may seat fewer. |
+| World size | Side length of the square map in abstract world units. |
+| East/west periodic | Joins the left and right edges. North and south stay bounded. |
+
+The form accepts 1–5,000 years, 1–64 civilizations, and world sizes from 512 to 8,192 in
+256-unit steps. It rejects a map too small to give the requested civilizations enough
+regions. [Configuration](../reference/configuration.md) explains the command-line and
+library settings that are not exposed in the form.
+
+Only one generation job runs at a time. **Abort synthesis** requests cancellation. Check the
+library if the job was already finishing when it was cancelled.
+
+## Run, regenerate, and continue
+
+The library offers three related actions:
+
+- **Run** repeats the reconstructed settings with the engine currently installed. Confirm whether
+  the result replaces the same filename or is saved beside it.
+- **Regenerate** opens the form with the reconstructed settings so you can change them.
+- **Continue** proposes a longer run with the same settings. The engine starts again at year
+  1 and writes another file; it does not resume mutable state from the shorter export.
+
+These actions recover only the settings exposed in the form. The initial civilization count
+comes from the generated filename and falls back to 8 when that name is missing. External
+terrain and custom library configuration are not restored. For those worlds, rerun the
+original CLI command or library invocation instead.
+
+With the same engine, terrain, seed, simulation configuration, and system order, the first
+years of a longer run reproduce the shorter history. A seed by itself is not enough if the
+other settings or engine have changed.
+
+## First reading
+
+Open a world, then:
+
+1. Use **Overview** for counts and prominent realms, cities, houses, and events.
+2. Open **Map** and move the year control to watch settlements and borders change.
+3. Open **Timeline** to filter the chronicle by year and event kind.
+4. Follow linked names to entity pages. Figure pages have their own year control for reading
+   a life without later knowledge.
+5. Open **Cosmology** for the generated galaxy, local system, world, moons, and comets.
+
+If a fact seems to be missing, check the selected year and filters. The entity may not yet
+exist, may already have ended, or may still be secret at that point in the record. The
+[viewer guide](viewer.md) explains the controls and the limits of historical replay.
+
+## Terminal generation
+
+`make generate` writes the Makefile's default world to
+`viewer/public/worlds/world.json`:
 
 ```bash
 make generate
-```
-
-Defaults: seed `42`, 300 years, 8 civilizations, world size `4096`, raster `256`.
-Output is written to:
-
-```text
-viewer/public/worlds/world.json
-```
-
-That path is what the viewer loads. Override parameters as needed:
-
-```bash
 make generate SEED=7 YEARS=500 CIVS=12
-make generate ARGS='--pretty --sample 20'
-make generate OUT=viewer/public/worlds/custom.json
 ```
 
-When using a custom output name, select it with the viewer's `world` query parameter:
+The Makefile defaults are seed 42, 300 years, 8 civilizations, size 4096, and a 256-pixel
+map raster. See the [CLI guide](cli.md) for direct invocation and external terrain.
 
-```text
-http://localhost:4321/?world=worlds/custom.json
-```
+## Building the app or documentation
 
-Equivalent without Make:
-
-```bash
-dotnet run --project src/HistoryEngine.Cli -- --seed 42 --years 300 --civs 8
-```
-
-## Open the viewer
-
-### Native macOS app
-
-The SwiftUI app opens the same generator, saved-world library, maps, timelines and entity
-pages in a native macOS window. It supervises the local Astro server and keeps the history
-engine in C#; no simulation code is duplicated in Swift.
+Developer builds use the checkout and installed tools:
 
 ```bash
 make macos-run
 ```
 
-The app bundle is written to `build/Historia Extera.app`. It still uses this checkout as its
-working data, so install the viewer dependencies first with `make install`. Node.js 22.12+
-and the .NET 10 SDK must be discoverable in the shell path, Homebrew, Volta, NVM or the
-standard .NET locations.
-
-For a release archive that does not need the checkout, Node.js or .NET installed on the target
-Mac, build the self-contained variant:
+A self-contained package is produced with:
 
 ```bash
 make macos-release
 ```
 
-This writes `build/release/Historia-Extera-v<version>-macos-<architecture>.zip`, the same name
-with a `.dmg` extension, and a SHA-256 file for each. The disk image mounts to the app beside an
-`Applications` shortcut, so installing is a drag. Generated worlds live outside the signed app in
-`~/Library/Application Support/Historia Extera/Worlds`. The local release build is ad-hoc
-signed; a Developer ID signature and notarization are still required before public distribution.
-
-### Browser
-
-```bash
-make viewer
-```
-
-Then open the URL Astro prints (usually `http://localhost:4321`). Under the
-dev server that landing page is the Worlds Library; open `world.json` from the
-list, or pass `?world=` for a named export.
-
-## Run tests
-
-```bash
-make test
-# same as: dotnet test
-```
-
-## Build the docs
+Documentation contributors also need [uv](https://docs.astral.sh/uv/):
 
 ```bash
 uv sync
 make docs-serve
 ```
-
-See [CLI](cli.md), [Viewer](viewer.md), and [Makefile](makefile.md) for details.

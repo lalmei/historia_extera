@@ -14,7 +14,7 @@ measurements, rejected alternatives, and milestone retrospectives.
 | Concern | Decision |
 |---|---|
 | Simulation | Pure C# library with no NuGet dependencies |
-| Reproducibility | Identical seed and config produce identical exported history |
+| Reproducibility | Identical seed, simulation config, system order, and implementation produce identical exported history |
 | Space | Expensive terrain is accessed through a budgeted, three-tier atlas |
 | Time | Years remain the spine; seasons and scheduled days are used only where earned |
 | History | Flat events plus persistent entities and sampled series |
@@ -44,8 +44,9 @@ pages, filters, and narration, but it does not own simulation rules or hidden st
 
 `HistoryEngine` has no third-party runtime dependency. Keeping the eventual mod-facing
 assembly on the BCL avoids dependency conflicts with Vintage Story and other mods.
-The `net7.0` target protects the current game-integration boundary; `net10.0` is used
-by the CLI and test suite. The game target must be rechecked when Phase 3 begins.
+The `net7.0` target protects the game-integration boundary recorded when it was chosen;
+`net10.0` is used by the CLI and test suite. The game target must be rechecked when Phase 3
+begins and is not evidence of compatibility with a current Vintage Story release.
 
 ## Core contracts
 
@@ -53,7 +54,8 @@ by the CLI and test suite. The game target must be rechecked when Phase 3 begins
 
 The contract is:
 
-> Identical seed + simulation-affecting config = identical history, byte for byte.
+> Identical seed + simulation-affecting config + system order + implementation = identical
+> history, byte for byte.
 
 That contract is enforced by a few non-negotiable rules:
 
@@ -185,13 +187,14 @@ The current system order is part of the run identity:
 12. `trade-routes`
 13. `cultural-drift`
 14. `travel`
-15. `figure-incidents`
-16. `figure-lifecycle`
-17. `succession`
-18. `houses`
-19. `offices`
-20. `ranks`
-21. `artifacts`
+15. `hardship`
+16. `figure-incidents`
+17. `figure-lifecycle`
+18. `succession`
+19. `houses`
+20. `offices`
+21. `ranks`
+22. `artifacts`
 
 The order is causal, not merely organizational. Mortality precedes succession; succession
 precedes household and office decisions; `ranks` follows `offices`, because a marshal's seat is
@@ -404,8 +407,8 @@ succession, offices, and bereavement all follow from it.
   enmity becomes is already answered by quarrels and conspiracies; nothing here kills anybody, and
   the friendship is not erased, for the same reason a reconciliation does not erase the rivalry.
 
-- **Observations** are what a named person wrote down about the sky. The comets were rolled at world
-  creation with real orbits, so their returns are a schedule the simulation knows before anybody is
+- **Observations** are what a named person wrote down about the sky. The comets receive generated
+  orbital elements and Keplerian periods at world creation, so their returns are a schedule the simulation knows before anybody is
   born; a bright comet earns a line at any period, a faint one only if it is rare enough that most
   who see it are seeing it once. Whether a realm records a return depends on having somebody who
   keeps records, on its learning, and on whether it was at war that year — so an apparition can pass
@@ -483,7 +486,7 @@ throughout — a road is a fact about how a relationship is served, not a relati
 own — and outlives the commerce that paid for it. Coastal routes are sailed and carry no
 road, because the engine models no ships.
 
-One thing reads a road: how safe it is to travel. A cut track takes less of a journey's
+Travel reads a road for safety and duration. A cut track takes less of a journey's
 hazard than open country and an engineered road less again, and then the ratio of the road's
 length to the straight distance gives some of that back, because a way forced the long way
 round is a measurement of how hard the country between the towns is. That is the condition
@@ -497,22 +500,21 @@ traffic that paid for it is already in the number.
 The viewer reads a world export and derives presentation state client-side. It replays
 territory and settlement existence for a selected year, then layers maps, timelines,
 filters, summaries, and entity histories over the same facts. The overview titles the
-history by the world's own designation and keeps the seed next to it, so a list of
-exports is recognisable without opening a file and still reproducible from the number.
+history by the world's own designation and keeps its seed and recorded provenance close at
+hand, so exports remain recognisable and comparable.
 
-Development may invoke the CLI to generate a world for the viewer, but that is tooling,
-not a runtime architecture. A deployed viewer remains a reader of exported histories.
+The development server and packaged macOS app invoke the CLI to generate worlds. A static
+deployment remains a reader of exported histories.
 
-A figure page leads with **Life at a glance** before its structured episode ledger and raw
-chronology. It shows current or last position and place, grounded upbringing, important
+A figure page combines a life arc, biography, structured episodes, and a chronicle.
+It shows current or last position and place, grounded upbringing, important
 relationships, formative memories and wounds, open undertakings or conflicts, and a deterministic
 selection of completed causal episodes. Every selected episode retains the exported entity links,
 years, and source-event ids that support it; the viewer does not invent motives, emotions, or
 chronology. Repeated routine returns along the same journey are one line, while a waylay or loss is
 always separate. A year control hides later relationship mutations, memories, outcomes, plot
 revelations, and other facts that have no historical snapshot. The complete filtered chronicle
-remains available through an explicit disclosure rather than competing with the biography by
-default.
+remains available beside the biography on wide layouts and below it on narrow layouts.
 
 ## Roadmap
 
@@ -586,8 +588,13 @@ questions and the evidence behind each proposal.
 ## Documentation map
 
 - [Architecture](docs/dev/architecture.md) describes the implemented boundaries.
+- [Engine integration](docs/dev/integration.md) classifies current APIs and extension seams.
+- [Cosmology and scientific scope](docs/dev/cosmology.md) distinguishes the model from physical astronomy.
+- [Viewer internals](docs/dev/viewer.md) documents loading, replay, and native hosting.
 - [Determinism](docs/dev/determinism.md) explains the reproducibility rules.
 - [Testing](docs/dev/testing.md) covers the suite and golden fingerprints.
+- [Configuration](docs/reference/configuration.md) records defaults and constraints.
+- [Export format](docs/reference/export.md) describes the JSON boundary.
 - [CLI guide](docs/guide/cli.md) documents generation and raster interchange.
 - [Viewer guide](docs/guide/viewer.md) documents the history-browsing interface.
 - [Decision log](docs/dev/decision-log.md) preserves full rationale, measurements,
