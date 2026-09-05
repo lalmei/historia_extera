@@ -89,7 +89,7 @@ public sealed class TerritoryTests
     /// which is how the omission would first be noticed.
     /// </remarks>
     /// <remarks>
-    /// Over several long-running seeds rather than one, because whether a particular seed contains
+    /// Over several standard seeds rather than one, because whether a particular seed contains
     /// a fallen realm at all is a property of the balance constants, not of the invariant being
     /// checked. Pinned to seed 42 at 300 years, this failed after deliberate simulation tuning —
     /// not because a dead realm held land, but because that seed no longer had a dead realm, and
@@ -103,7 +103,7 @@ public sealed class TerritoryTests
         foreach (ulong seed in new ulong[] { 2, 7, 11, 42, 99 })
         {
             WorldExport export = HistoryRun.Execute(
-                TestWorlds.Standard(seed) with { Years = 800 }).ToExport();
+                TestWorlds.Standard(seed)).ToExport();
 
             var endedIn = new Dictionary<EntityId, int>();
             foreach (ExportCivilization civilization in export.Civilizations)
