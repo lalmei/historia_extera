@@ -476,6 +476,135 @@ public sealed class AffinityTests
             "The panel produced no marital betrayal, which is half of what it is for.");
     }
 
+    /// <summary>
+    /// Every betrayal, from either tie, is one episode both parties hold and agree about.
+    /// </summary>
+    /// <remarks>
+    /// <para>The invariant this file already holds for a friendship, extended to the record that
+    /// covers both ties. What it is really testing is the reason the record exists: a marital
+    /// betrayal used to survive as a chronicle line and one flag on a bond, so there was nothing to
+    /// assert about it beyond that it happened. Here the year, the place, the tie and the wrong it
+    /// came from are all things a page can be wrong about, and this is what says they are not.</para>
+    ///
+    /// <para>The chronicle is the cross-check rather than the source: a record with no line behind
+    /// it would be an episode nobody could read about, and a line with no record is the gap this
+    /// closed.</para>
+    /// </remarks>
+    [Fact]
+    public void ABetrayalIsOneEpisodeBothPartiesHold()
+    {
+        int friendships = 0;
+        int marriages = 0;
+
+        foreach (ulong seed in Seeds)
+        {
+            HistoryRun run = HistoryRun.Execute(TestWorlds.Standard(seed));
+            WorldState world = run.World;
+            WorldExport export = run.ToExport();
+
+            var seen = new HashSet<(EntityId, EntityId, int)>();
+
+            foreach (Figure figure in world.Figures)
+            {
+                foreach (FigureBetrayal betrayal in figure.Betrayals)
+                {
+                    Assert.True(betrayal.Involves(figure.Id));
+                    Assert.NotEqual(betrayal.BetrayerId, betrayal.BetrayedId);
+
+                    Figure betrayer = world.Figures[betrayal.BetrayerId];
+                    Figure betrayed = world.Figures[betrayal.BetrayedId];
+
+                    // The same object on both lives, not two that agree today.
+                    Assert.Contains(betrayal, betrayer.Betrayals);
+                    Assert.Contains(betrayal, betrayed.Betrayals);
+                    Assert.Same(
+                        betrayer.Betrayals.Find(other => other.Id == betrayal.Id
+                            && other.BetrayerId == betrayal.BetrayerId),
+                        betrayed.Betrayals.Find(other => other.Id == betrayal.Id
+                            && other.BetrayerId == betrayal.BetrayerId));
+
+                    // Both were alive to do it and to have it done to them.
+                    Assert.True(betrayer.BirthYear <= betrayal.Year);
+                    Assert.True((betrayer.DeathYear ?? world.EndYear) >= betrayal.Year);
+                    Assert.True((betrayed.DeathYear ?? world.EndYear) >= betrayal.Year);
+
+                    // The durable mark the record does not replace.
+                    FigureBond? bond = LifeStories.BondTo(betrayed, betrayer.Id);
+                    Assert.NotNull(bond);
+                    Assert.True(bond!.Kinds.HasFlag(BondKind.Betrayer));
+
+                    if (betrayal.Tie == BetrayalTie.Marriage)
+                    {
+                        Assert.Equal(EventKind.SpouseBetrayed, betrayal.SourceKind);
+                        Assert.Contains(betrayed.Id, betrayer.SpouseIds);
+
+                        // No divorce here: the marriage it happened inside still stands.
+                        Assert.True(bond.Kinds.HasFlag(BondKind.Spouse));
+                    }
+                    else
+                    {
+                        Assert.Equal(EventKind.FriendshipBetrayed, betrayal.SourceKind);
+
+                        // The friendship the ending belongs to, closed in the same year.
+                        FigureAffinity affinity = betrayer.Affinities.Single(
+                            candidate => candidate.Involves(betrayed.Id)
+                                && candidate.Outcome == AffinityOutcome.Betrayed);
+                        Assert.Equal(betrayal.BetrayerId, affinity.BetrayerId);
+                        Assert.Equal(betrayal.Year, affinity.EndYear);
+                    }
+
+                    // The chronicle line the episode was written alongside.
+                    Assert.Contains(
+                        world.Chronicle.Events,
+                        entry => entry.Kind == betrayal.SourceKind
+                            && entry.Year == betrayal.Year
+                            && entry.Subject == betrayal.BetrayerId
+                            && entry.Object == betrayal.BetrayedId);
+
+                    if (!seen.Add((betrayal.BetrayerId, betrayal.BetrayedId, betrayal.Year)))
+                    {
+                        continue;
+                    }
+
+                    if (betrayal.Tie == BetrayalTie.Marriage) marriages++;
+                    else friendships++;
+                }
+            }
+
+            // Both pages read the same episode, and only the voice differs.
+            foreach (ExportFigure exported in export.Figures)
+            {
+                foreach (ExportBetrayal betrayal in exported.Betrayals)
+                {
+                    Assert.Equal(betrayal.Turned, betrayal.BetrayerId == exported.Id);
+                    Assert.Equal(
+                        betrayal.Turned ? betrayal.BetrayedId : betrayal.BetrayerId,
+                        betrayal.OtherId);
+
+                    ExportFigure other = export.Figures.Single(
+                        candidate => candidate.Id == betrayal.OtherId);
+                    ExportBetrayal theirs = other.Betrayals.Single(
+                        candidate => candidate.Id == betrayal.Id
+                            && candidate.BetrayerId == betrayal.BetrayerId);
+
+                    Assert.Equal(betrayal.Year, theirs.Year);
+                    Assert.Equal(betrayal.Tie, theirs.Tie);
+                    Assert.Equal(betrayal.Cause, theirs.Cause);
+                    Assert.Equal(betrayal.PlaceId, theirs.PlaceId);
+                    Assert.NotEqual(betrayal.Turned, theirs.Turned);
+                }
+            }
+        }
+
+        Assert.True(friendships > 0, "No friendship betrayal was recorded across the panel.");
+        Assert.True(
+            marriages > 0,
+            "No marital betrayal was recorded, which is the half of this the record was added for.");
+
+        _output.WriteLine(
+            $"{friendships} friendships and {marriages} marriages turned on across {Seeds.Length} seeds.");
+    }
+
     /// <summary>Reads each friendship once, from the side that sought it.</summary>
     private static IEnumerable<FigureAffinity> All(WorldState world)
     {

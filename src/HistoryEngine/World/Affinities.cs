@@ -438,6 +438,15 @@ public static class Affinities
             place,
             DetMath.Clamp01(0.45 + (0.55 * turning.Pull)));
 
+        Record(
+            betrayer,
+            betrayed,
+            year,
+            BetrayalTie.Friendship,
+            turning,
+            EventKind.FriendshipBetrayed,
+            place);
+
         world.Chronicle.Record(
             year,
             EventKind.FriendshipBetrayed,
@@ -474,7 +483,9 @@ public static class Affinities
     /// <para><b>It does not end the marriage.</b> There is no divorce in this engine and this is
     /// not one by another name — the two remain married, and what changes is that one of them now
     /// holds an enmity and the other a betrayal they will carry. <see cref="BondKind.Betrayer"/> is
-    /// what stops it happening twice, because a marriage has no record of its own to close.</para>
+    /// what stops it happening twice: a marriage has no record of its own to close, and the
+    /// <see cref="FigureBetrayal"/> written below is the episode rather than the state, so nothing
+    /// reads it back to decide anything.</para>
     /// </remarks>
     private static void Marriages(WorldState world, int year)
     {
@@ -515,6 +526,15 @@ public static class Affinities
             place,
             DetMath.Clamp01(0.55 + (0.45 * turning.Pull)));
 
+        Record(
+            betrayer,
+            betrayed,
+            year,
+            BetrayalTie.Marriage,
+            turning,
+            EventKind.SpouseBetrayed,
+            place);
+
         world.Chronicle.Record(
             year,
             EventKind.SpouseBetrayed,
@@ -526,6 +546,65 @@ public static class Affinities
                 ("tie", betrayed.Sex == Sex.Female ? "wife" : "husband")));
 
         return true;
+    }
+
+    /// <summary>
+    /// Writes the episode both parties keep, from whichever tie it was.
+    /// </summary>
+    /// <remarks>
+    /// Both paths come here rather than only the marital one, though a betrayed friendship also has
+    /// its closed <see cref="FigureAffinity"/>: the point of the record is that "who turned on whom"
+    /// is one list, and a list that held only the marriages would answer the question wrongly for
+    /// every friendship in the world. It duplicates nothing a consumer has to reconcile — the
+    /// friendship says how the tie ended, and this says what the ending was.
+    /// </remarks>
+    private static void Record(
+        Figure betrayer,
+        Figure betrayed,
+        int year,
+        BetrayalTie tie,
+        Turning turning,
+        EventKind source,
+        EntityId place)
+    {
+        var betrayal = new FigureBetrayal(
+            TurnedBy(betrayer),
+            betrayer.Id,
+            betrayed.Id,
+            year,
+            tie,
+            Cause(turning),
+            source,
+            place);
+
+        betrayer.Betrayals.Add(betrayal);
+        betrayed.Betrayals.Add(betrayal);
+    }
+
+    /// <summary>The recorded wrong the turn came from, in the order the gate weighs them.</summary>
+    /// <remarks>
+    /// A design on somebody's life outranks a quarrel with them, and a quarrel outranks a grievance
+    /// nobody has acted on, which is the same order <see cref="TurnDetail"/> prints and the same
+    /// order the pull is built in. Where more than one was true this names the gravest, because
+    /// that is the one a reader is owed.
+    /// </remarks>
+    private static BetrayalCause Cause(Turning turning) =>
+        turning.Plotting
+            ? BetrayalCause.Design
+            : turning.Quarrelling
+                ? BetrayalCause.Quarrel
+                : BetrayalCause.Grievance;
+
+    /// <summary>How many times this person has already turned, which is the next id.</summary>
+    private static int TurnedBy(Figure figure)
+    {
+        int turned = 0;
+        foreach (FigureBetrayal betrayal in figure.Betrayals)
+        {
+            if (betrayal.BetrayerId == figure.Id) turned++;
+        }
+
+        return turned;
     }
 
     /// <summary>Whether this person has already been turned on by that one.</summary>

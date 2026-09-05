@@ -11,7 +11,7 @@
  */
 
 /** The schema the current engine writes. `compat.ts` has the oldest one the viewer reads. */
-export const SCHEMA_VERSION = 50;
+export const SCHEMA_VERSION = 51;
 
 /**
  * Whether an event carries the history or merely records a life.
@@ -1786,6 +1786,27 @@ export const AFFINITY_OUTCOME_LABELS: Record<AffinityOutcome, string> = {
   Lapsed: 'Ended in death',
 };
 
+export type BetrayalTie = 'Friendship' | 'Marriage';
+
+export type BetrayalCause = 'Grievance' | 'Quarrel' | 'Design';
+
+export const BETRAYAL_TIE_LABELS: Record<BetrayalTie, string> = {
+  Friendship: 'A friendship',
+  Marriage: 'A marriage',
+};
+
+/**
+ * The wrong the record already held when somebody turned, in the engine's own reading.
+ *
+ * Written as what it was rather than as a motive, because that is all the engine knows: it asked
+ * whether the record held a reason and these are the three answers it accepts.
+ */
+export const BETRAYAL_CAUSE_LABELS: Record<BetrayalCause, string> = {
+  Grievance: 'A wrong they held against them',
+  Quarrel: 'The quarrel between them',
+  Design: 'A design on their life',
+};
+
 export type PlotObjective = 'Assassinate' | 'Depose';
 
 export type PlotCause =
@@ -1964,6 +1985,28 @@ export interface Affinity {
 }
 
 /**
+ * One betrayal, from either kind of tie. Both parties carry the same record; `turned` says which
+ * side this page is, so the viewer can say "turned on" where the other page says "was turned on
+ * by". The two entity ids are absolute, so the direction reads correctly without the flag.
+ *
+ * A `Friendship` betrayal also closed an `Affinity` between the same two people in the same year,
+ * and that record holds the acts leading up to it. A `Marriage` has no such record and was not
+ * ended by it — there is no divorce in this engine.
+ */
+export interface Betrayal {
+  id: number;
+  betrayerId: EntityId;
+  betrayedId: EntityId;
+  otherId: EntityId;
+  turned: boolean;
+  tie: BetrayalTie;
+  cause: BetrayalCause;
+  sourceKind: string;
+  placeId?: EntityId;
+  year: number;
+}
+
+/**
  * One person, with enough of the family tree attached to draw it.
  *
  * `name` is the styled name the chronicle uses, regnal numeral included — the engine
@@ -2028,6 +2071,11 @@ export interface Figure {
   disputes: Dispute[];
   /** Friendships they made. Absent in exports written before schema 48 — see `compat.ts`. */
   affinities?: Affinity[];
+  /**
+   * Times they turned on somebody they were tied to, or were turned on, from either kind of tie.
+   * Absent in exports written before schema 51 — see `compat.ts`.
+   */
+  betrayals?: Betrayal[];
   /** Conspiracies they led, knowingly joined, or learned had targeted them. */
   plots: Plot[];
   guardianships: Guardianship[];

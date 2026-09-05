@@ -949,6 +949,107 @@ public sealed class FigureAffinity
     public bool Involves(EntityId id) => id == OpenerId || id == FriendId;
 }
 
+/// <summary>The tie somebody was inside when they turned on the other person.</summary>
+/// <remarks>
+/// Two, because two are what the engine lets anybody be inside of: a friendship walked up a ladder
+/// of risked things, and a marriage. Both reach the same gate in <c>Affinities</c> and both leave
+/// the same mark on a bond, so both write the same record and "who has turned on whom" is one list
+/// rather than two shapes.
+/// </remarks>
+public enum BetrayalTie
+{
+    Friendship = 0,
+    Marriage = 1,
+}
+
+/// <summary>The wrong the world had already written down before anybody turned.</summary>
+/// <remarks>
+/// Nothing here is a mood. Each value names a thing the record holds at the moment the gate is
+/// asked — a grievance carried on the bond, a quarrel standing open between the two, a plot the
+/// betrayer is already running against the other's life — which is the same three the chronicle
+/// line has always printed in prose. Recording which one it was is the whole difference between an
+/// episode a reader can ask about and a sentence.
+/// </remarks>
+public enum BetrayalCause
+{
+    /// <summary>A grievance the bond already carried, and nothing more formal than that.</summary>
+    Grievance = 0,
+
+    /// <summary>A quarrel standing open between them. See <see cref="FigureDispute"/>.</summary>
+    Quarrel = 1,
+
+    /// <summary>A conspiracy the betrayer was running against the other's life.</summary>
+    Design = 2,
+}
+
+/// <summary>
+/// One person turning on another they were tied to, from whichever tie it was.
+/// </summary>
+/// <remarks>
+/// <para>One object held by both parties, as a <see cref="FigureDispute"/> and a
+/// <see cref="FigureAffinity"/> are, and for the reason those give: it is a single fact about two
+/// lives and two copies would come to disagree about it. <see cref="BetrayerId"/> is what tells the
+/// two pages apart, and it is the only thing that does.</para>
+///
+/// <para><b>Why it exists next to the records that already hold one.</b> A friendship's betrayal
+/// closes the friendship, and the closed <see cref="FigureAffinity"/> is the episode. A marriage
+/// has no record to close — there is no divorce in this engine and a betrayed marriage stands —
+/// so before this the most personal wrong the model can produce survived as a chronicle line and
+/// one bit on a bond, which a page cannot show as an episode and a consumer cannot ask a question
+/// of. Writing it from both paths rather than only the marital one is deliberate: a reader asking
+/// who turned on this person should not have to know which kind of tie it was to find out.</para>
+///
+/// <para>It is not durable state and nothing reads it back. <see cref="BondKind.Betrayer"/>
+/// remains what stops a marriage being turned on twice, because a bond outlives a memory and this
+/// record is a record.</para>
+/// </remarks>
+public sealed class FigureBetrayal
+{
+    public FigureBetrayal(
+        int id,
+        EntityId betrayerId,
+        EntityId betrayedId,
+        int year,
+        BetrayalTie tie,
+        BetrayalCause cause,
+        EventKind sourceKind,
+        EntityId placeId)
+    {
+        Id = id;
+        BetrayerId = betrayerId;
+        BetrayedId = betrayedId;
+        Year = year;
+        Tie = tie;
+        Cause = cause;
+        SourceKind = sourceKind;
+        PlaceId = placeId;
+    }
+
+    /// <summary>Stable within the person who turned.</summary>
+    public int Id { get; }
+
+    public EntityId BetrayerId { get; }
+
+    public EntityId BetrayedId { get; }
+
+    public int Year { get; }
+
+    public BetrayalTie Tie { get; }
+
+    public BetrayalCause Cause { get; }
+
+    /// <summary>The chronicle line this was written alongside.</summary>
+    public EventKind SourceKind { get; }
+
+    /// <summary>Where the wronged party was living when it happened.</summary>
+    public EntityId PlaceId { get; }
+
+    /// <summary>The other party, read from whichever side is asking.</summary>
+    public EntityId Other(EntityId self) => self == BetrayerId ? BetrayedId : BetrayerId;
+
+    public bool Involves(EntityId id) => id == BetrayerId || id == BetrayedId;
+}
+
 /// <summary>What a plot is trying to do to the person it names.</summary>
 /// <remarks>
 /// Two, because two are enough to prove the lifecycle carries an objective rather than assuming
