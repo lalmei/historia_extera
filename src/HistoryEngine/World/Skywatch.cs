@@ -18,8 +18,9 @@ public sealed record Apparition(int CometIndex, int Year, ApparitionGrade Grade)
 /// What the sky did, and who was standing under it with a pen.
 /// </summary>
 /// <remarks>
-/// <para><b>The sky is rolled, not invented.</b> M17 placed real comets on real orbits and left them
-/// as flavour in the export. Their periods are the interesting part: seed 11 carries one on 74.8
+/// <para><b>The schedule precedes the history.</b> M17 gave generated comets orbital elements and
+/// Keplerian periods before leaving them as flavour in the export. Their periods are the
+/// interesting part: seed 11 carries one on 74.8
 /// years and one on 160.7, so a 300-year run sees the first four times and the second twice. That is
 /// long enough for the same object to be seen by people who never met, which is the only reason an
 /// interval can be noticed at all.</para>

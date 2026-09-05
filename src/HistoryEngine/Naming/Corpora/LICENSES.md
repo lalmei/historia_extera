@@ -1,11 +1,11 @@
 # Corpus provenance
 
-Every file in this directory is free of attribution and share-alike obligations, so
-the corpora can be redistributed inside a published Vintage Story mod indefinitely.
+Every file in this directory is free of attribution and share-alike obligations, so the
+corpora can ship inside the engine, the packaged app, or a future game adapter.
 
 This was a deliberate choice over the faster route. Wiktionary and Wikipedia name
 lists would have given broader coverage sooner, but they are CC BY-SA 4.0, and
-share-alike is awkward to unwind once it is inside a shipped mod.
+share-alike is awkward to unwind once it is inside a shipped artifact.
 
 ## What these files are
 
@@ -42,5 +42,5 @@ world; there are civilizations whose names lean on Norse phonology, mutated.
 [peoplesuffix] suffixes that form ethnonyms, leading hyphen
 ```
 
-Adding a family means dropping a file here and adding it to `NameCorpus.FamilyNames`.
-Nothing else needs to change.
+Adding a family means adding a file here and registering it in `NameCorpus.FamilyNames`,
+then rebuilding so the corpus is embedded in the engine assembly.

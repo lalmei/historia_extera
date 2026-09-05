@@ -30,9 +30,8 @@ public readonly record struct Stamp(int Year, int Day) : IComparable<Stamp>
 {
     /// <summary>The first day of a year.</summary>
     /// <remarks>
-    /// Every stamp in the engine is this until seasons land: a system ticked once a year has
-    /// nowhere finer to claim it acted, and claiming the middle of the year would be inventing a
-    /// date the model has not earned.
+    /// Annual systems use this stamp. Seasonal steps use their first day, and scheduled episodes
+    /// carry the particular day the model assigned them.
     /// </remarks>
     public static Stamp Opening(int year) => new(year, 0);
 

@@ -20,7 +20,7 @@ export and does not own simulation rules.
 
 ## Prerequisites
 
-Needed to build and run from source only — the packaged macOS app ships its own
+Needed to build and run from source only. The packaged macOS app ships its own
 self-contained .NET CLI and Node runtime.
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
@@ -71,7 +71,7 @@ with the `world` query parameter:
 http://localhost:4321/?world=worlds/custom.json
 ```
 
-Generating from the page (`/new`) is **development only** — an Astro integration injects
+Generating from the page (`/new`) requires `astro dev`, including in the packaged app. An Astro integration injects
 that page and its Vite middleware for `astro dev` alone, so `astro build` produces a
 static bundle with no server behind it. `make build` then `make preview` serves the
 production build, which reads existing exports only.
@@ -102,7 +102,13 @@ publication gate.
 
 ```bash
 make test
+npm test --prefix viewer
+npm run astro --prefix viewer -- check
+make docs-build
 ```
+
+These are separate gates. `make test` covers the engine; it does not run the viewer or
+documentation checks. See [Testing](docs/dev/testing.md) for the evidence each command provides.
 
 ## Docs
 
@@ -113,14 +119,19 @@ make docs-serve      # or: make docs-build
 
 - [Developer overview](docs/dev/index.md)
 - [Architecture](docs/dev/architecture.md)
+- [Engine integration](docs/dev/integration.md)
+- [Cosmology and scientific scope](docs/dev/cosmology.md)
+- [Viewer internals](docs/dev/viewer.md)
+- [Configuration](docs/reference/configuration.md)
+- [Export format](docs/reference/export.md)
 - [Determinism](docs/dev/determinism.md)
 - [Testing](docs/dev/testing.md)
 - [Decision log](docs/dev/decision-log.md)
 
 ## Before you send a change
 
-**Determinism is the contract**: identical seed plus simulation-affecting config must
-produce an identical history, byte for byte. That constrains how code is written —
+**Determinism is the contract**: identical seed, simulation-affecting config, system order,
+and implementation must produce an identical history byte for byte. That constrains how code is written:
 forked `Pcg32` streams, ordered iteration (`DetMap`, `EntityTable` or an explicitly sorted
 sequence, never `Dictionary`/`HashSet` order), ordinal string comparison and
 `Hash.OfString`, `DetMath` instead of transcendental functions on decision paths, and
@@ -128,11 +139,11 @@ every simulation-affecting config field participating in `ConfigHash`. Read
 [DESIGN.md](DESIGN.md) and [docs/dev/determinism.md](docs/dev/determinism.md) before
 touching the engine.
 
-- Run `make test` — the suite covers determinism, terrain discipline and serialization.
+- Run the engine, viewer, type, and documentation checks appropriate to the changed surfaces.
 - New exported facts or changed behavior move the world fingerprint; regenerate the
   goldens in the same change and say so in the message.
-- Adding an exported field means bumping `schemaVersion`; the viewer pins it and refuses
-  files it does not understand.
+- Adding an exported field means bumping `schemaVersion`; the viewer accepts only its tested
+  range and must define what an older readable export lacks.
 - Keep `HistoryEngine` free of third-party runtime dependencies.
 - Presentation belongs in the viewer, simulation rules in the engine. Narration templates
   turn flat event facts into prose; the facts stay filterable when the wording changes.

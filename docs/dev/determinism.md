@@ -1,44 +1,74 @@
 # Determinism
 
-**Contract:** identical seed + config → identical history, byte for byte, across
-processes and machines.
+The engine contract is:
 
-## Rules of the road
+> The same seed, simulation-affecting configuration, system list, and implementation produce
+> the same canonical exported history byte for byte.
 
-- **Forked RNG substreams** via `Pcg32.Fork(purpose, discriminator)` from the parent's
-  immutable seed, never its position. One fork per system per year by convention.
-- **No `Dictionary` / `HashSet` iteration** on decision paths — use `DetMap` /
-  `EntityTable`.
-- **Ordinal string comparers** always (`StringComparer.Ordinal`).
-- **No transcendentals on decision paths** — `DetMath` polynomials instead of
-  `Sin`/`Pow`/`Exp` where outcomes fork on comparisons.
-- **No `string.GetHashCode()`** — use `Hash.OfString` (FNV-1a).
-- **Strictly sequential tick loop** — no parallel mutation.
-- **System order is hashed** — swapping two systems changes history as much as
-  changing the seed.
+`meta.seed`, `meta.configHash`, `meta.systemOrderHash`, and `meta.engineVersion` identify
+those inputs in an export. A seed alone does not identify the world when years, topology,
+terrain, system order, or engine behavior differ.
 
-`DeterminismGuardTests` scans engine source for these constructs. Escape hatch: a
-trailing `// det:ok` comment — deliberate and annotated.
+## Decision-path rules
+
+- Randomness comes from `Pcg32.Fork(purpose, discriminator)`, derived from an immutable
+  parent seed rather than its current draw position.
+- Simulation iteration uses `DetMap`, `EntityTable`, or an explicitly sorted sequence.
+  `Dictionary` and `HashSet` enumeration must not choose outcomes.
+- Strings use ordinal comparison and `Hash.OfString`; process-randomized and
+  culture-sensitive operations stay off decision paths.
+- `DetMath` and `DetSeries` provide controlled numerical functions where a platform-level
+  difference could cross a decision threshold.
+- The tick loop mutates state sequentially. Parallel work would need a deterministic
+  collect-then-apply boundary.
+- System name, order, and non-annual cadence contribute to `SystemOrderHash`.
+- Every simulation-affecting `WorldConfig` field contributes to `ConfigHash`. The seed is
+  exported beside it and map-raster resolution is presentation-only.
+
+`DeterminismGuardTests` scans engine source for prohibited constructs. The narrow escape is
+a trailing `// det:ok` comment on a reviewed use that cannot affect a decision.
+
+## Independent streams
+
+A system normally forks by its stable name and year. Entity- or episode-specific work adds a
+stable discriminator. Naming, galaxy generation, local cosmology, and celestial orientation
+also use independent streams.
+
+This limits unrelated churn: adding a draw to a battle should not rename a settlement or
+change the host star. It does not mean an implementation change inside one stream preserves
+that subsystem's later choices.
+
+## Split-run contract
+
+`Simulator.Advance` exists so tests can compare a run completed in pieces with one completed
+continuously. Any mutable state needed for continuation must live on `WorldState`; hidden
+static or caller-owned state will make the comparison diverge.
+
+The viewer's **Continue** action does not deserialize and resume `WorldState`. It reruns from
+year 1 with a later end year. Determinism makes the shorter history a prefix when all
+simulation inputs and the implementation match.
 
 ## Golden fingerprint
 
-When the golden for seed 42 fails, the history changed. That is expected if you
-intentionally changed growth rates, system order, or scoring. Regenerate:
+The standard seed-42 fingerprint pins the canonical export. When it changes unexpectedly,
+find the first behavioral or exported-data difference before updating it.
 
 ```bash
 make fingerprint
 ```
 
-If it changes when you did *not* intend to change simulation behaviour, that is the
-bug the test exists to find.
+`WorldExporter.Fingerprint` clears three file-contract values before hashing:
 
-The digest deliberately excludes the three numbers that version the *file* rather than
-the world — the engine release, `schemaVersion`, and the narration syntax version. Bumping
-any of them is a statement to consumers, not a change of history, and leaving one in the
-digest turns a routine bump into a golden failure answered by regenerating it. All three
-still travel in the export, where the viewer reads them.
+- engine release version;
+- `schemaVersion`;
+- narration syntax version.
 
-Adding a field to the export does still move the digest, and should: a world that carries
-new facts is a new export even when the simulation behind it is unchanged.
+Changing those numbers alone does not change the simulated history. Adding an export field
+does change the digest because the world now carries different facts, even if system decisions
+are unchanged.
 
-See [Testing](testing.md).
+Canonical JSON is compact. `--pretty` writes the same data with different bytes and should not
+be used as a byte-for-byte comparison target.
+
+See [Testing](testing.md) for commands and [Configuration](../reference/configuration.md) for
+the identity fields.

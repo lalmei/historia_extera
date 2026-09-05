@@ -8,10 +8,9 @@ namespace HistoryEngine.World;
 /// </summary>
 /// <remarks>
 /// <para>There is no reason for a planet's pole to line up with its galaxy, so the pole is drawn
-/// uniformly over the sphere. The consequence is visible from the ground, and so from a
-/// chronicle: the angle between the celestial pole and the galactic plane decides whether this
-/// world's band of light wheels overhead each night or sits nearly fixed near the horizon —
-/// which is the difference between a people who navigate by it and a people who do not.</para>
+/// uniformly over the sphere. The angle would determine how the galactic plane crosses a local
+/// sky. The engine exports the orientation and exposes coordinate transforms. The viewer
+/// does not yet render a local horizon or feed this value into historical decisions.</para>
 ///
 /// <para>Rolled on its own stream, the way the galaxy is, so adding an orientation cannot
 /// reshuffle the star or the habitable body.</para>

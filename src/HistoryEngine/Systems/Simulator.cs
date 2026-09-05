@@ -228,11 +228,9 @@ public sealed class Simulator
     /// engine as one rolling once, whatever the list order says.</para>
     ///
     /// <para>Folded in only when a system is not <see cref="Cadence.Annual"/>, following
-    /// <see cref="World.WorldConfig.ConfigHash"/>'s precedent and for its reason. Every system was
-    /// annual before cadences were declarable and every system is annual now, so hashing the
-    /// default unconditionally would restamp the identity of runs whose histories are byte for byte
-    /// what they always were — and this hash travels in the export, where a moved value is supposed
-    /// to mean something moved.</para>
+    /// <see cref="World.WorldConfig.ConfigHash"/>'s precedent. Annual was the original implicit
+    /// cadence, so omitting that default preserves earlier identities while every seasonal or
+    /// episodic cadence remains explicit in the hash.</para>
     /// </remarks>
     public string SystemOrderHash
     {
@@ -388,7 +386,7 @@ public sealed class Simulator
     /// Samples the measures that move, once a year, after every system has run.
     /// </summary>
     /// <remarks>
-    /// <para><b>Deliberately not a seventeenth system.</b> <see cref="SystemOrder"/> is folded
+    /// <para><b>Deliberately not another system.</b> <see cref="SystemOrder"/> is folded
     /// into the run's identity because every entry in it changes the history that comes out. An
     /// observer that reads state, draws no random numbers and writes nothing back changes none of
     /// it, and declaring it there would make two runs with identical histories claim different

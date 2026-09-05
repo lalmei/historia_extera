@@ -146,7 +146,7 @@ public sealed record SystemComet(
 public sealed record CosmologyCheck(string Label, bool Passed, string Detail);
 
 /// <summary>
-/// Physically derived star-system parameters for a habitable planet or exomoon.
+/// Procedurally derived star-system parameters for a habitable planet or exomoon.
 /// </summary>
 /// <remarks>
 /// <para>Built once from the seed before any civilization is founded. The same seed always

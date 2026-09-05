@@ -10,7 +10,7 @@ namespace HistoryEngine.Core;
 /// Serialises as <c>"civ:3"</c> rather than an opaque integer or a GUID. That costs a
 /// few bytes per reference and buys three things that matter more: the exported JSON
 /// stays greppable when a history looks wrong, the viewer's URLs are readable
-/// (<c>#/fig/1204</c>), and a mistyped cross-reference fails loudly as a bad kind
+/// (<c>#/fig:1204</c>), and a mistyped cross-reference fails loudly as a bad kind
 /// instead of silently resolving to some unrelated entity.
 /// </remarks>
 [DebuggerDisplay("{ToString(),nq}")]

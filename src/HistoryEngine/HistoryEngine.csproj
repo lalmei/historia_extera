@@ -1,10 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <!-- net7.0 is the Vintage Story mod target (Phase 3); net10.0 is what the CLI
-         and tests run on locally. Multi-targeting means the net7 build breaks
-         immediately if a net10-only API creeps into the engine, instead of years
-         from now when the mod is assembled. -->
+    <!-- net7.0 preserves the planned Vintage Story boundary recorded when it was chosen;
+         revalidate it against the actual game version before Phase 3. net10.0 is what the
+         CLI and tests run on locally. Multi-targeting catches a net10-only API in the engine. -->
     <TargetFrameworks>net7.0;net10.0</TargetFrameworks>
 
     <!-- Pinned to net7.0's default language version so both TFM builds compile

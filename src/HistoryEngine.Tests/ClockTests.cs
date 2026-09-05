@@ -372,9 +372,8 @@ public sealed class CadenceTests
 /// The rule that keeps the log readable once system order and the calendar disagree.
 /// </summary>
 /// <remarks>
-/// Every system in the engine is annual and stamps day zero, so nothing in a real world exercises
-/// this yet — which is exactly why it is worth asserting directly rather than waiting for the first
-/// seasonal system to be both the thing under test and the thing that proves the test works.
+/// Seasonal systems and scheduled episodes now exercise dated events in full worlds. This test
+/// isolates the chronicle's ordering rule from every domain system that relies on it.
 /// </remarks>
 public sealed class ChronicleOrderTests
 {

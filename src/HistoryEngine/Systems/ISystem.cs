@@ -14,10 +14,8 @@ namespace HistoryEngine.Systems;
 /// currently has one. So a uniform finer tick is rejected outright and each system declares what it
 /// actually needs.</para>
 ///
-/// <para><b>Seasonal and Episodic are declared before anything uses them.</b> Every system in the
-/// engine is <see cref="Annual"/> today, which is the first stage of this clock working as intended
-/// rather than a shortcut: the mechanical change lands under a fingerprint proving it moved no
-/// history, and the re-phasing lands afterwards where it can be read on its own.</para>
+/// <para>Annual and seasonal systems share the clock. Episodic work is reached through the docket;
+/// a system may keep an annual or seasonal cadence and also implement <see cref="IEpisodic"/>.</para>
 /// </remarks>
 public enum Cadence
 {
