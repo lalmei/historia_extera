@@ -1558,7 +1558,10 @@ function sentenceCase(text: string): string {
   return text.length === 0 ? text : text[0].toUpperCase() + text.slice(1);
 }
 
+// Reuse the locale formatter: discovery composes these reasons for thousands of lives.
+const countFormat = new Intl.NumberFormat();
+
 /** "3 children", "1 child" — the plural is irregular often enough to be worth passing in. */
 function counted(count: number, singular: string, plural = `${singular}s`): string {
-  return `${count.toLocaleString()} ${count === 1 ? singular : plural}`;
+  return `${countFormat.format(count)} ${count === 1 ? singular : plural}`;
 }

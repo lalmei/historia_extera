@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { discoverFigures, SIGNIFICANCE_BANDS } from '../discovery';
 import { EventList, humanise } from '../components/EventList';
 import {
   Badge,
@@ -883,12 +884,22 @@ export function DynastyList({ world }: { world: World }) {
 }
 
 export function FigureList({ world }: { world: World }) {
+  const discovery = discoverFigures(world);
   const columns: Column<Figure>[] = [
     {
       key: 'name',
       header: 'Figure',
       cell: (figure) => <EntityLink world={world} id={figure.id} />,
       sort: (figure) => figure.name,
+    },
+    {
+      key: 'significance',
+      header: 'Significance',
+      cell: (figure) => {
+        const reading = discovery.byId.get(figure.id)!;
+        return <span title={reading.reasons.join(' · ')}>{reading.band}</span>;
+      },
+      sort: (figure) => discovery.byId.get(figure.id)!.score,
     },
     {
       key: 'title',
@@ -963,6 +974,15 @@ export function FigureList({ world }: { world: World }) {
   ];
 
   const facets: Facet<Figure>[] = [
+    {
+      key: 'significance',
+      label: 'Significance',
+      options: SIGNIFICANCE_BANDS.map((band) => ({
+        value: band,
+        label: band,
+        match: (figure: Figure) => discovery.byId.get(figure.id)?.band === band,
+      })),
+    },
     {
       key: 'fate',
       label: 'Fate',
@@ -1039,6 +1059,10 @@ export function FigureList({ world }: { world: World }) {
   return (
     <div>
       <PageTitle eyebrow="Index" title="Figures" />
+      <p className="mb-4 text-sm text-[var(--ink-faint)]">
+        Significance measures how much of the recorded history runs through a life, through its
+        last living year. Hover a band to see what contributed to it.
+      </p>
       <Panel>
         <DataTable
           rows={world.export.figures}
@@ -1052,7 +1076,7 @@ export function FigureList({ world }: { world: World }) {
             `${figure.religionId ? world.nameOf(figure.religionId) : ''}`
           }
           placeholder="Search figures…"
-          initialSort={{ key: 'lived' }}
+          initialSort={{ key: 'significance', descending: true }}
         />
       </Panel>
     </div>
@@ -1351,6 +1375,10 @@ export function Timeline({ world }: { world: World }) {
 }
 
 export function Overview({ world }: { world: World }) {
+  const discovery = discoverFigures(world);
+  const centralFigures = discovery.ranked.filter((figure) =>
+    ['Consequential', 'Influential'].includes(discovery.byId.get(figure.id)!.band),
+  ).slice(0, 5);
   const {
     meta,
     civilizations,
@@ -1476,6 +1504,26 @@ export function Overview({ world }: { world: World }) {
         </Panel>
 
       </div>
+
+      {centralFigures.length > 0 && (
+        <Panel title="People the history runs through">
+          <ol className="space-y-3 text-sm">
+            {centralFigures.map((figure) => {
+              const reading = discovery.byId.get(figure.id)!;
+              return (
+                <li key={figure.id}>
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <span><EntityLink world={world} id={figure.id} /> · {yearRange(figure.birthYear, figure.deathYear)}</span>
+                    <Badge>{reading.band}</Badge>
+                  </div>
+                  <p className="mt-1 text-xs text-[var(--ink-faint)]">{reading.reasons.join(' · ')}</p>
+                </li>
+              );
+            })}
+          </ol>
+          <a href="#/fig" className="mt-3 inline-block text-sm text-[var(--accent)]">Explore all figures →</a>
+        </Panel>
+      )}
 
       <Panel title="What happened">
         {/* Two columns: dynasties roughly tripled the number of distinct event kinds. */}
