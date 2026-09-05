@@ -44,7 +44,7 @@ public sealed record WorldExport(
     IReadOnlyDictionary<string, string> Narration)
 {
     /// <summary>
-    /// Bumped on any breaking change to this shape. The viewer checks it and refuses politely
+    /// Bumped when this shape changes. The viewer checks its declared range and refuses politely
     /// rather than misrendering a file it does not understand.
     /// </summary>
     /// <remarks>
@@ -138,8 +138,14 @@ public sealed record WorldExport(
     /// distinguishable from a short trip made in the same year.
     /// Version 45 links a real holy-site dedicatee to the exact chronicle event whose deed the
     /// dedication quotes; a missing link now means the dedicatee is explicitly legendary.
+    /// Version 46 added the giant planets' appearances and moons, the inhabited body's iron and
+    /// core fractions, its own moon family, and its orientation relative to the host galaxy.
     /// Version 47 added a figure's military service: the rungs of their realm's army they were
     /// raised to, each with the year, the realm and the name that realm gives the rung.
+    /// Version 48 added persistent friendships and their dated development and endings.
+    /// Version 49 added quarrels caused by an appointment given to a comparable peer.
+    /// Version 50 records who betrayed whom on a durable bond, including betrayal within a
+    /// marriage, so that fact can outlive a bounded memory list.
     /// Version 51 added the betrayal itself as an episode both parties hold — the year, the place,
     /// the tie it happened inside and the recorded wrong it came from — so a marital betrayal is
     /// something a page can show and a consumer can ask a question of, rather than a chronicle line
