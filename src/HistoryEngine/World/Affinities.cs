@@ -322,15 +322,9 @@ public static class Affinities
         second.Affinities.Add(affinity);
 
         LifeStories.AddAcquaintance(first, second, year, EventKind.AcquaintanceFormed, home);
-
-        world.Chronicle.Record(
-            year,
-            EventKind.AcquaintanceFormed,
-            first.Id,
-            obj: second.Id,
-            location: home,
-            data: Chronicle.Data(("cause", OriginDetail(origin))),
-            significance: Significance.Routine);
+        // The first act above keeps when and why they met on both life pages. Like
+        // End below, keep a tie that never rose above acquaintance out of the chronicle.
+        // Kindness and later rungs still write their events in the year they happen.
     }
 
     // -----------------------------------------------------------------------
