@@ -167,7 +167,7 @@ public sealed class SettlementHierarchyTests
     /// </summary>
     /// <remarks>
     /// <para>Asserted at the end of a full run rather than against a constructed settlement,
-    /// because the way this broke needs a whole history to reach: refugees from an abandoned
+    /// because the way this broke needs the lifecycle pass to reach: refugees from an abandoned
     /// neighbour are settled by <see cref="Systems.SettlementLifecycleSystem"/>, which runs after
     /// the growth tick in the same year, so a receiver that crossed its own peak on arrivals stayed
     /// wrong until the next year's growth noticed. In the run's final year there is no next year,
@@ -181,7 +181,7 @@ public sealed class SettlementHierarchyTests
     {
         foreach (ulong seed in Seeds)
         {
-            WorldState world = HistoryRun.Execute(TestWorlds.Long(seed)).World;
+            WorldState world = HistoryRun.Execute(TestWorlds.Standard(seed)).World;
 
             foreach (Settlement settlement in world.Settlements)
             {
