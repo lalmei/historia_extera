@@ -24,11 +24,12 @@ Remote export URLs are ordinary browser fetches and need appropriate CORS header
 
 ## Compatibility
 
-`viewer/src/app/types.ts` mirrors the current C# export by hand. `SCHEMA_VERSION` is 51.
-`compat.ts` accepts schema 21 through 51 and normalizes additive missing containers for older
+`viewer/src/app/types.ts` mirrors the current C# export by hand. `SCHEMA_VERSION` is 53.
+`compat.ts` accepts schema 28 through 53 and normalizes additive missing containers for older
 files. It never fabricates missing scalar facts.
 
-`compat.test.ts` loads retained sample exports through the real loader and derivations. Raising
+`compat.test.ts` loads checksum-pinned historical exports from `viewer/test-fixtures/compat/`
+through the real loader, narration, replay, and biography derivations. Raising
 the minimum readable schema is a test-coverage decision, not an inference that every
 intermediate shape probably works.
 

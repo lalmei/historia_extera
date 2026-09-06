@@ -22,15 +22,14 @@
  *     in it. The Worlds Library shows that per row and the reading view banners it, so nobody
  *     mistakes an empty panel for a quiet century.
  *
- * `MIN_SCHEMA_VERSION` is the oldest export this has actually been run against — see
- * `compat.test.ts`, which loads one file of every schema kept in `public/worlds/`. Raising the
- * floor is a decision about what we are willing to test, not a guess about what might work.
+ * The supported floor is pinned to the oldest retained historical engine export in
+ * `test-fixtures/compat`. See its README for provenance and the boundaries exercised.
  */
 
 import { SCHEMA_VERSION, type WorldExport } from './types.ts';
 
 /** Oldest export the viewer will open. Below this it refuses and says to regenerate. */
-export const MIN_SCHEMA_VERSION = 21;
+export const MIN_SCHEMA_VERSION = 28;
 
 export type SchemaState = 'current' | 'older' | 'too-old' | 'too-new' | 'unreadable';
 

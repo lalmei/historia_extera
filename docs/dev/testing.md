@@ -48,9 +48,18 @@ generation, maps, or timeline replay. `astro check` catches type and component e
 the Node tests do not compile. `astro build` verifies the
 static production bundle and confirms that development-only generation code stays outside it.
 
-Retained exports under `viewer/public/worlds/` are compatibility fixtures. Both current
-fixtures use schema 50; accepting schemas 21–51 is not evidence that every version has been
-tested. Add representative older exports before claiming backward-compatibility coverage.
+Historical exports are retained in `viewer/test-fixtures/compat/`, outside the mutable world
+library. The mandatory suite checks schemas 28, 34, 42, 48 and 52, including the supported floor,
+and fails if a fixture is missing or its checksum changes. It exercises fetch/parse/loading,
+normalization, narration, political replay (including final ownership), maps and biography
+derivations. These are representative boundaries, not one fixture for every schema or full
+component rendering. The fixture README records source revisions and generation arguments.
+
+The supported minimum is now 28: no schema-21 export was retained, and the inspected published
+source history jumps from 18 to 28. The earlier 21–27 claim had no reproducible fixture evidence.
+Fixtures are compressed original exports, never current output relabelled as an old schema.
+Normal tests need neither the engine nor local saved worlds. For additional local-library smoke
+coverage, run `HISTORIA_TEST_SAVED_WORLDS=1 npm test` from `viewer/`.
 
 ## Documentation
 
