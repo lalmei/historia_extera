@@ -1,6 +1,6 @@
 [project]
 name = "historia-extera"
-version = "0.10.0"
+version = "0.12.0"
 description = "Historia Extera — procedural world history generator and viewer."
 license = "AGPL-3.0-only"
 license-files = ["LICENSE"]
@@ -21,7 +21,7 @@ package = false
 # mirrors in step: `make bump-patch` / `bump-minor` / `bump-major`, or `make bump PART=...`.
 # Committing and tagging stay manual — this repository is worked through GitButler.
 [tool.bumpversion]
-current_version = "0.10.0"
+current_version = "0.12.0"
 parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)"
 serialize = ["{major}.{minor}.{patch}"]
 search = "{current_version}"
