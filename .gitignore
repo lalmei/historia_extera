@@ -33,3 +33,6 @@ TestResults/
 viewer/public/worlds/
 .claude/
 .claude/launch.json
+# Python bytecode from the release tooling in tools/.
+__pycache__/
+*.py[cod]
