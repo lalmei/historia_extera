@@ -181,7 +181,12 @@ public static class ClaimTransmission
         // Arrived: a realm with a carrier and no record of having had one.
         foreach (KeyValuePair<EntityId, ClaimHolding> pair in holders)
         {
-            if (Held(world, subject, pair.Key)) continue;
+            int existing = IndexOfHolding(world, subject, pair.Key);
+            if (existing >= 0)
+            {
+                Reseat(world, existing, pair.Value);
+                continue;
+            }
 
             world.ClaimHoldings.Add(pair.Value);
             world.ClaimTransitions.Add(new ClaimTransition(
@@ -229,14 +234,45 @@ public static class ClaimTransmission
             subject, place.CivilizationId, year, ClaimCarrierKind.Text, workId, settlementId);
     }
 
-    private static bool Held(WorldState world, ClaimRef subject, EntityId realmId)
+    /// <summary>
+    /// Moves a holding onto what is carrying it now, keeping the year the realm came by it.
+    /// </summary>
+    /// <remarks>
+    /// A realm can keep a reading while the thing holding it up changes underneath: the author
+    /// dies and the books they left behind take over, or the town with the first copy is
+    /// abandoned and a second copy elsewhere becomes the reason the realm still has it. That is
+    /// not an arrival — the realm never stopped holding it — so nothing is written to the
+    /// chronicle here. What it does buy is a loss that names the carrier that actually went,
+    /// rather than blaming an author a century in the ground for a book that burned.
+    /// </remarks>
+    private static void Reseat(WorldState world, int index, ClaimHolding carried)
     {
-        foreach (ClaimHolding holding in world.ClaimHoldings)
+        ClaimHolding held = world.ClaimHoldings[index];
+        if (held.Carrier == carried.Carrier
+            && held.CarrierId == carried.CarrierId
+            && held.SettlementId == carried.SettlementId)
         {
-            if (holding.Claim == subject && holding.RealmId == realmId) return true;
+            return;
         }
 
-        return false;
+        world.ClaimHoldings[index] = held with
+        {
+            Carrier = carried.Carrier,
+            CarrierId = carried.CarrierId,
+            SettlementId = carried.SettlementId,
+        };
+    }
+
+    /// <summary>Where this realm's holding of a claim sits, or -1 if it has none.</summary>
+    private static int IndexOfHolding(WorldState world, ClaimRef subject, EntityId realmId)
+    {
+        for (int i = 0; i < world.ClaimHoldings.Count; i++)
+        {
+            ClaimHolding holding = world.ClaimHoldings[i];
+            if (holding.Claim == subject && holding.RealmId == realmId) return i;
+        }
+
+        return -1;
     }
 
     /// <summary>Every written work in the world that carries a claim at all.</summary>

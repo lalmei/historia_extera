@@ -174,6 +174,54 @@ public sealed class ClaimTransmissionTests
     }
 
     /// <summary>
+    /// A loss names the carrier that actually went, and the town it went from.
+    /// </summary>
+    /// <remarks>
+    /// The export promises that on a loss the carrier is the last one there was. A realm can keep
+    /// a reading while the thing carrying it changes underneath — the author dies and the books
+    /// they left take over, or the author simply moves house — so a holding has to be moved onto
+    /// what is holding it up now. Without that, a realm loses a reading "with its author" in a
+    /// year they had been dead for a century, from a town they left long before, and the chronicle
+    /// puts the loss in the wrong place. Only the loss is checked: an acquisition says how the
+    /// realm came by it, which is a fact about that year and is not rewritten afterwards.
+    /// </remarks>
+    [Fact]
+    public void ALossNamesTheCarrierThatWentAndTheTownItWentFrom()
+    {
+        foreach (ulong seed in Seeds)
+        {
+            WorldExport export = HistoryRun.Execute(TestWorlds.Standard(seed)).ToExport();
+
+            foreach (ExportClaimTransition change in export.ClaimTransitions)
+            {
+                if (change.Kind != ClaimTransitionKind.Lost) continue;
+                if (change.Carrier != ClaimCarrierKind.Claimant) continue;
+
+                ExportFigure author = export.Figures.Single(figure => figure.Id == change.ClaimantId);
+
+                // The pass compares against the previous year, so a death is seen the year after
+                // it happens; anything beyond that is a carrier the record failed to move.
+                Assert.True(
+                    author.DeathYear is not int died || change.Year <= died + 1,
+                    $"{change.ClaimantId} lost a reading from its author in {change.Year}, "
+                        + $"who died in {author.DeathYear}.");
+
+                // And it went from wherever they were living by then, not wherever they were
+                // standing when the realm first came by it. Read at the year before the loss,
+                // because that is the state the pass compared against to notice it.
+                ExportResidence? seat = null;
+                foreach (ExportResidence residence in author.Residences)
+                {
+                    if (residence.FromYear < change.Year) seat = residence;
+                }
+
+                if (seat is null) continue;
+                Assert.Equal(seat.SettlementId, change.SettlementId);
+            }
+        }
+    }
+
+    /// <summary>
     /// Nothing about transmission is rolled.
     /// </summary>
     /// <remarks>
