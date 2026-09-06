@@ -85,56 +85,64 @@ categories:
 autolabeler:
   - label: enhancement
     title:
-      - '/^\s*✨/'
-      - '/^\s*🔭/'
-      - '/^\s*🎉/'
-      - '/^\s*🗺️/'
-      - '/^\s*🦠/'
-      - '/^\s*⚖️/'
-      - '/^\s*feat(\(|:)/i'
+      # A feature title leads with the gitmoji for its domain, not with ✨,
+      # so the domains this project writes about are listed out. Anything
+      # missing still matches on the conventional `feat:` prefix below.
+      - '/^\s*(✨|🔭|🎉|🌌|🪐|🌙|🌑|🌟)/'
+      - '/^\s*(🌠|☀️|☄️|⭐|🌍|🗺️|🌊|⛰️)/'
+      - '/^\s*(⛏️|🛣️|🧳|⚠️|🚶|🏔️|⚔️|🗡️)/'
+      - '/^\s*(🏰|🎖️|🔥|🎭|😠|🤝|💔|👶)/'
+      - '/^\s*(🧑|👤|👪|🏠|🏘️|🌱|🌾|📰)/'
+      - '/^\s*(🏺|🏷️|🕰️|🧠|✏️|🌳|🏛️|⛪)/'
+      - '/^\s*(🙏|🍎|♿|🎲|🔄|🦠)/'
+      - '/^[^\w]*\s*feat\s*(\(|:)/i'
   - label: bug
     title:
       - '/^\s*🐛/'
       - '/^\s*🚑/'
       - '/^\s*🏚️/'
       - '/^\s*🛡️\s*(fix|bug|determinism)/i'
-      - '/^\s*(fix|bug)(\(|:)/i'
+      - '/^[^\w]*\s*(fix|bug)\s*(\(|:)/i'
   - label: style
     title:
       - '/^\s*💄/'
-      - '/^\s*style(\(|:)/i'
+      - '/^[^\w]*\s*style\s*(\(|:)/i'
   - label: performance
     title:
       - '/^\s*⚡️/'
-      - '/^\s*perf(\(|:)/i'
+      - '/^[^\w]*\s*perf\s*(\(|:)/i'
   - label: refactor
     title:
       - '/^\s*♻️/'
-      - '/^\s*refactor(\(|:)/i'
+      - '/^[^\w]*\s*refactor\s*(\(|:)/i'
   - label: documentation
     title:
       - '/^\s*📝/'
       - '/^\s*📖/'
       - '/^\s*📚/'
-      - '/^\s*docs(\(|:)/i'
+      - '/^[^\w]*\s*docs\s*(\(|:)/i'
   - label: test
     title:
       - '/^\s*✅/'
+      - '/^\s*🧪/'
       - '/^\s*🛡️\s*test/i'
-      - '/^\s*test(\(|:)/i'
+      - '/^[^\w]*\s*test\s*(\(|:)/i'
   - label: ci
     title:
       - '/^\s*👷/'
       - '/^\s*💚/'
-      - '/^\s*ci(\(|:)/i'
+      - '/^[^\w]*\s*ci\s*(\(|:)/i'
   - label: chore
     title:
       - '/^\s*🔧/'
       - '/^\s*🧹/'
       - '/^\s*🚀/'
       - '/^\s*⬆️/'
-      - '/^\s*chore(\(|:)/i'
+      - '/^\s*📦/'
+      - '/^\s*🚧/'
+      - '/^\s*⚖️/'
+      - '/^[^\w]*\s*(chore|build)\s*(\(|:)/i'
   - label: skip-changelog
     title:
       - '/^\s*🔖/'
-      - '/^\s*release(\(|:)/i'
+      - '/^[^\w]*\s*release\s*(\(|:)/i'
