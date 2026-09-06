@@ -323,6 +323,8 @@ export function LifeArcStrip({
   const span = Math.max(1, arc.lastYear - arc.firstYear);
   const at = (year: number) => ((year - arc.firstYear) / span) * 100;
 
+  const clamp = (year: number) => Math.min(Math.max(year, arc.firstYear), arc.lastYear);
+
   // Clicking the track itself, not only a dot: the strip is the year control, and a reader who
   // wants "somewhere in his forties" has no dot to aim at.
   const pickYear = (clientX: number) => {
@@ -332,38 +334,78 @@ export function LifeArcStrip({
     onSelectYear(Math.round(arc.firstYear + fraction * span));
   };
 
+  // The track is a slider over the years of a life, so it says so and answers the keys a slider
+  // answers. Without this the most direct way through a life is mouse-only, and the turns and the
+  // year field below it quietly become the only control anyone else has.
+  const step = (delta: number) => onSelectYear(clamp(clamp(selectedYear) + delta));
+  const onKeyDown = (event: KeyboardEvent) => {
+    const page = Math.max(1, Math.round(span / 10));
+    const move: Record<string, () => void> = {
+      ArrowLeft: () => step(-1),
+      ArrowDown: () => step(-1),
+      ArrowRight: () => step(1),
+      ArrowUp: () => step(1),
+      PageDown: () => step(-page),
+      PageUp: () => step(page),
+      Home: () => onSelectYear(arc.firstYear),
+      End: () => onSelectYear(arc.lastYear),
+    };
+    const handler = move[event.key];
+    if (!handler) return;
+    event.preventDefault();
+    handler();
+  };
+
   return (
     <div>
-      <div
-        ref={trackRef}
-        onClick={(event) => pickYear(event.clientX)}
-        className="relative h-20 cursor-pointer select-none"
-      >
-        <div className="absolute inset-x-0 bottom-6 h-14">
-          {arc.density.map(({ year, weight }) => (
-            <span
-              key={year}
-              title={`${reading(year)}`}
-              className="absolute bottom-0 bg-[var(--accent-soft)]"
-              style={{
-                left: `${at(year)}%`,
-                // Capped: a two-year life would otherwise draw one year as half the strip.
-                width: `max(2px, ${Math.min(6, 100 / span)}%)`,
-                height: `${8 + weight * 92}%`,
-              }}
-            />
-          ))}
-        </div>
-
-        <div className="absolute inset-x-0 bottom-6 h-px bg-[var(--rule)]" />
-
+      <div className="relative h-20 select-none">
+        {/*
+          The dots sit outside this box rather than inside it: a slider with focusable children is
+          a slider a screen reader cannot describe, and the turns are buttons in their own right.
+        */}
         <div
-          className="absolute bottom-4 w-px bg-[var(--primary)]"
-          style={{ left: `${at(Math.min(Math.max(selectedYear, arc.firstYear), arc.lastYear))}%`, height: '3.75rem' }}
+          ref={trackRef}
+          role="slider"
+          tabIndex={0}
+          aria-label="Year of this life"
+          aria-valuemin={reading(arc.firstYear)}
+          aria-valuemax={reading(arc.lastYear)}
+          aria-valuenow={reading(clamp(selectedYear))}
+          aria-valuetext={
+            scale === 'age' ? `aged ${reading(clamp(selectedYear))}` : `year ${clamp(selectedYear)}`
+          }
+          onClick={(event) => pickYear(event.clientX)}
+          onKeyDown={onKeyDown}
+          className="absolute inset-0 cursor-pointer rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
         >
-          <span className="absolute -bottom-5 -translate-x-1/2 whitespace-nowrap text-[0.7rem] text-[var(--primary)]">
-            {reading(selectedYear)}
-          </span>
+          <div className="absolute inset-x-0 bottom-6 h-14">
+            {arc.density.map(({ year, weight, count, notable }) => (
+              <span
+                key={year}
+                title={`${scale === 'age' ? `Aged ${reading(year)}` : `${year}`} — ${count} recorded event${count === 1 ? '' : 's'}${
+                  notable > 0 ? `, ${notable} notable` : ''
+                }`}
+                className="absolute bottom-0 bg-[var(--accent-soft)]"
+                style={{
+                  left: `${at(year)}%`,
+                  // Capped: a two-year life would otherwise draw one year as half the strip.
+                  width: `max(2px, ${Math.min(6, 100 / span)}%)`,
+                  height: `${8 + weight * 92}%`,
+                }}
+              />
+            ))}
+          </div>
+
+          <div className="absolute inset-x-0 bottom-6 h-px bg-[var(--rule)]" />
+
+          <div
+            className="absolute bottom-4 w-px bg-[var(--primary)]"
+            style={{ left: `${at(clamp(selectedYear))}%`, height: '3.75rem' }}
+          >
+            <span className="absolute -bottom-5 -translate-x-1/2 whitespace-nowrap text-[0.7rem] text-[var(--primary)]">
+              {reading(selectedYear)}
+            </span>
+          </div>
         </div>
 
         {arc.moments.map((moment) => (

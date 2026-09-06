@@ -378,8 +378,8 @@ test('the arc weighs a busy year above a quiet one, and a notable year above a b
   const arc = buildLifeArc(figure, events, context([figure]));
   assert.equal(arc.busiestYear, 12);
   assert.deepEqual(arc.density, [
-    { year: 12, weight: 1 },
-    { year: 20, weight: 1 / 3 },
+    { year: 12, weight: 1, count: 3, notable: 0 },
+    { year: 20, weight: 1 / 3, count: 1, notable: 0 },
   ]);
 
   // One siege outweighs three journeys: the chronicle's own significance is what makes a year
