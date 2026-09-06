@@ -833,6 +833,60 @@ public sealed class FlavourTests
     }
 
     /// <summary>
+    /// A library is not a treasury, and a court is not the only place that keeps one.
+    /// </summary>
+    /// <remarks>
+    /// Two caps used to hold a world at about fifty books. A book counted against the same
+    /// three-object treasury limit as a crown and a relic, so a town famous for objects could
+    /// never write anything again; and only a capital could commission a work at all, which made
+    /// a realm's entire literary output three volumes from its seat, for ever. Both are gone, and
+    /// what replaces them is asserted here: books cap separately and much higher, a full treasury
+    /// no longer closes a library, and towns that are not seats write.
+    /// </remarks>
+    [Fact]
+    public void BooksDoNotCompeteWithTreasuriesAndAreNotOnlyWrittenAtCourt()
+    {
+        int libraries = 0;
+        int awayFromCourt = 0;
+        int alongsideAFullTreasury = 0;
+
+        foreach (ulong seed in Seeds)
+        {
+            WorldState world = HistoryRun.Execute(TestWorlds.Standard(seed)).World;
+
+            foreach (Settlement settlement in world.Settlements)
+            {
+                (int books, int objects) = Treasures.HoldingsOf(world, settlement.Id);
+
+                // Only the books are capped by what a town holds. The treasury limit governs
+                // making, not keeping — plunder and gifts carry objects into a town that never
+                // made them — so a holding above it is ordinary and always was.
+                Assert.True(
+                    books <= Tomes.LibraryLimit,
+                    $"{settlement.Name} held {books} books, past the library limit.");
+
+                if (books > 3) libraries++;
+                if (books > 0 && objects >= 3) alongsideAFullTreasury++;
+            }
+
+            foreach (Artifact artifact in world.Artifacts)
+            {
+                if (artifact.Kind != ArtifactKind.Tome) continue;
+                if (!world.Settlements.Contains(artifact.OriginSettlementId)) continue;
+                if (world.Settlements[artifact.OriginSettlementId].IsCapital) continue;
+
+                awayFromCourt++;
+            }
+        }
+
+        Assert.True(libraries > 0, "No town in the sample held more books than the old cap allowed.");
+        Assert.True(
+            alongsideAFullTreasury > 0,
+            "No town in the sample kept books beside a treasury the old cap would have closed.");
+        Assert.True(awayFromCourt > 0, "Every book in the sample was written at a capital.");
+    }
+
+    /// <summary>
     /// Copying is common enough to form a network, but bounded enough that manuscripts stay scarce.
     /// </summary>
     [Fact]

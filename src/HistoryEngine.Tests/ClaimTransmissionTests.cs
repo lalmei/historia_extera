@@ -293,6 +293,8 @@ public sealed class ClaimTransmissionTests
     [Fact]
     public void ADestroyedCopyStopsCarryingAndStaysInTheRecord()
     {
+        int burnt = 0;
+
         foreach (ulong seed in Seeds)
         {
             WorldExport export = HistoryRun.Execute(TestWorlds.Standard(seed)).ToExport();
@@ -318,14 +320,25 @@ public sealed class ClaimTransmissionTests
                     continue;
                 }
 
-                // A loss seated on a copy that is still standing is a loss for some other reason
-                // — the town left the realm, or was given up — and is not this rule's business.
-                if (copy.LostYear is not int gone) continue;
+                // A loss seated on a copy that was still standing that year is a loss for some
+                // other reason — the town left the realm, or was given up — and is not this
+                // rule's business. That stays true when the copy burns later: a fire in 225 did
+                // not take a reading away in 185, and reading the copy's fate rather than its
+                // fate *by then* made this rule fail on the first world that produced the pair.
+                if (copy.LostYear is int gone && gone <= change.Year) burnt++;
+
+                // What every loss can be held to, whatever caused it: it is seated on a copy
+                // that had already been made. A realm cannot lose a reading on a book that does
+                // not exist yet.
                 Assert.True(
-                    gone <= change.Year,
-                    $"A reading was lost in {change.Year} on a copy that survived to {gone}.");
+                    copy.Year <= change.Year,
+                    $"A reading was lost in {change.Year} on a copy made in {copy.Year}.");
             }
         }
+
+        // And the burning does take readings away, or the narrowing above would have quietly
+        // turned this half of the rule into a rule about nothing.
+        Assert.True(burnt > 0, "No reading in the panel was lost on a copy that had burned.");
     }
 
     /// <summary>

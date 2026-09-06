@@ -5123,6 +5123,91 @@ the standing beside the years.
 
 ---
 
+### A library is not a treasury, and a court is not the only place with one
+
+A world of two hundred towns and six thousand people wrote about fifty books in six centuries, and
+the cause was not a rate anybody had calibrated. It was two caps, both answering a question that
+was not being asked.
+
+**A book was competing with a crown.** `ArtifactSystem` counted books against `TreasuryLimit`,
+alongside regalia, weapons, relics, idols, jewels, clothing and armour. The cap's own comment — "a
+treasury of twenty is a warehouse, not a legend" — is exactly right about famous objects and a
+category error about books: a town holding a crown, a sword and a relic would never write anything
+again, for ever. The two are now counted apart, because they are two scarcities wearing one number.
+Fame is scarce, and three objects per town is the cap that keeps a world's legends legendary; a
+library is scarce because writing is expensive, which is a different constraint with different
+inputs, and a library of twenty is a library. `LibraryLimit` is 12. The treasury limit is untouched
+at 3.
+
+**The cap now has to be asked after the choice, not before it.** Which limit applies is not known
+until the place has said what it would make, so `Choose` runs first and the roll is spent whether
+or not the result clears. Every world's fingerprint moves for that alone; the golden was
+regenerated in the same change.
+
+**And only a capital could commission.** `Tomes.Commission` walked realms, not towns, took the seat,
+and stopped at three held objects — so a realm's entire literary output was three volumes from its
+capital. Every town of the tier is now asked, and `WritingAppetite` decides how often it says yes
+on grounds the export can name: a seat pays a scribe out of a treasury (1.0), a monastery comes
+closest because copying is already the ordinary work of the house (0.5), and a trade or craft town,
+or any town with somebody in letters living in it, comes next (0.2).
+
+**The scribe clause is not decoration — it is most of the effect.** A first cut read only
+`IsBookHub`, which wants a Trade, Crafts or Shrine specialization. In seed 99 that is 10 of 123
+settlements at town tier or above: 113 of them farm. The franchise had been widened on paper and
+left a capital's privilege in fact, and books rose 45 → 70 almost entirely because the freed
+capitals could write again. Reading `Occupation.Scribe` off the residents took it to 80, with the
+share coming from towns that are not seats.
+
+**Somebody there has to pay for it, and that is the throttle.** Away from the seat the patron must
+be a resident — a scribe, a merchant, a house, a clergyman of that town — which is both the honest
+answer and the reason a wider franchise does not turn every town into a scriptorium. The court's
+own patrons stay realm-wide, since the court sits at the seat by definition, and the throne is not
+on the list anywhere else: a ruler commissioning from a town he does not sit in is the capital's
+decision wearing another town's name. The residents are indexed once a year in one pass over the
+living, because the old patron lookup was a scan of every figure per realm and asking it per
+settlement instead would have multiplied that by the number of towns in the world.
+
+**Measured at 600 years, eight civilizations, across the six seeds the flavour panel uses:**
+
+| Seed | Settlements | Books | Towns with a book | Copies | Non-book artifacts |
+|---|---|---|---|---|---|
+| 2 | 19 | 10 → **23** | 4 → **6** | 17 → **42** | 8 → 11 |
+| 3 | 166 | 33 → **71** | 21 → **35** | 51 → **114** | 36 → 36 |
+| 7 | 163 | 37 → **59** | 19 → **29** | 65 → **96** | 38 → 37 |
+| 11 | 56 | 12 → **30** | 9 → **13** | 18 → **48** | 17 → 19 |
+| 42 | 106 | 47 → **75** | 28 → **34** | 79 → **117** | 30 → 35 |
+| 99 | 187 | 45 → **80** | 26 → **40** | 73 → **141** | 40 → 39 |
+| **Total** | | 184 → **338** | 107 → **157** | 303 → **558** | 169 → **177** |
+
+Books and the copies that carry them both up 84%; non-book artifacts up 4.7%, which is the noise a
+changed random stream makes and not a change of behaviour. The per-town distribution is the number
+that matters and it moved the right way: the ceiling rose from 5 books in a town to 12, but the
+median town that holds any still holds one, so this is more towns with a library rather than a few
+towns with a warehouse.
+
+**The mix stays legible.** No `TomeContentKind` takes a larger share than it did: the largest single
+kind was 32–58% of a world's output before and is 30–50% after, and biography and itinerary trade
+the lead between seeds as they did.
+
+**And it does what it was filed to unblock.** Claim-carrying works across the panel went from 0 to
+7. Transmission has been reading thin not because the model was wrong but because there were
+almost no books for a reading to travel in, which is what #148, #206 and #212 were all sitting
+behind.
+
+**One test was wrong and the extra books found it.** `ADestroyedCopyStopsCarryingAndStaysInTheRecord`
+asserted that a reading lost on a copy must be dated at or after that copy burned, guarding only
+the case where the copy never burned at all. Seed 11 now produces the pair it could not distinguish:
+`civ:4` loses a reading in 185 because Seirkieramna revolted into `civ:3`, and the copy sitting
+there burns forty years later for reasons of its own. The guard now reads the copy's fate *by that
+year* rather than its fate, and the half keeps its teeth by counting the losses that really were
+caused by a burning and failing if there are none.
+
+**Out of scope, deliberately.** Copying and how far a work travels are untouched, so this is
+measurable on its own. Literacy as a quantity is what should eventually decide these numbers; here
+the point was to remove a cap answering the wrong question.
+
+---
+
 ---
 
 ## Notes for Phase 2
