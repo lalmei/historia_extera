@@ -23,6 +23,8 @@ import { artifactOf, figureOf, type World } from './store.ts';
 import type {
   Artifact,
   Claim,
+  ClaimStanding,
+  ClaimStandingChange,
   ClaimTransition,
   EntityId,
   Figure,
@@ -103,6 +105,15 @@ export interface Holding {
   acquired: ClaimTransition;
   /** The transition that ended it, where it ended. */
   lost?: ClaimTransition;
+  /**
+   * What the realm made of it, where the span ended.
+   *
+   * `Received` on an export older than schema 55, which is what every holding began as and the
+   * only thing such a file can honestly be read as saying.
+   */
+  standing: ClaimStanding;
+  /** How that changed while the span lasted, earliest first. Empty before schema 55. */
+  standings: ClaimStandingChange[];
 }
 
 /** One claim, with everything the record says about where it went. */
@@ -152,6 +163,8 @@ export interface KnowledgeIndex {
   observations: number;
   /** Whether this export carries the dated holdings at all — schema 53 and later. */
   hasTransitions: boolean;
+  /** Whether it says what realms made of them — schema 55 and later. */
+  hasStandings: boolean;
   /** Realms that ever held any reading. */
   realmsHolding: EntityId[];
   /** Written works carrying at least one reading. */
@@ -215,6 +228,14 @@ export function readKnowledge(world: World): KnowledgeIndex {
     byKey.get(claimKey(transition.claimantId, transition.claimId))?.transitions.push(transition);
   }
 
+  const standingsByKey = new Map<string, ClaimStandingChange[]>();
+  for (const change of world.export.claimStandings ?? []) {
+    const key = claimKey(change.claimantId, change.claimId);
+    const kept = standingsByKey.get(key);
+    if (kept) kept.push(change);
+    else standingsByKey.set(key, [change]);
+  }
+
   for (const artifact of world.export.artifacts) {
     for (const ref of artifact.tomeContents?.carries ?? []) {
       byKey.get(claimKey(ref.claimantId, ref.claimId))?.texts.push(artifact);
@@ -230,7 +251,7 @@ export function readKnowledge(world: World): KnowledgeIndex {
     // Sorting per claim rather than sorting the whole export: the transitions of one claim are a
     // handful, and the export's order is already the order they happened in for all but ties.
     record.transitions.sort((a, b) => a.year - b.year || a.kind.localeCompare(b.kind));
-    foldHoldings(record);
+    foldHoldings(record, standingsByKey.get(record.key) ?? []);
 
     for (const realmId of record.everHeld) {
       if (seenRealm.has(realmId)) continue;
@@ -279,6 +300,7 @@ export function readKnowledge(world: World): KnowledgeIndex {
       cells.find((cell) => cell.domain === domain && cell.column === column),
     observations,
     hasTransitions: (world.export.claimTransitions ?? []).length > 0,
+    hasStandings: (world.export.claimStandings ?? []).length > 0,
     realmsHolding,
     texts,
   };
@@ -295,7 +317,7 @@ export function readKnowledge(world: World): KnowledgeIndex {
  * same reading — the last is rediscovery, and it must read as a second span rather than as an
  * amendment to the first.
  */
-function foldHoldings(record: ClaimRecord): void {
+function foldHoldings(record: ClaimRecord, standings: ClaimStandingChange[]): void {
   const open = new Map<string, Holding>();
   const everHeld: EntityId[] = [];
   const seen = new Set<EntityId>();
@@ -309,6 +331,10 @@ function foldHoldings(record: ClaimRecord): void {
         realmId: transition.realmId,
         fromYear: transition.year,
         acquired: transition,
+        // Arrival is not adoption: a span begins as a thing the realm has, and becomes whatever
+        // the standing changes inside it say it became.
+        standing: 'Received',
+        standings: [],
       };
       open.set(key, holding);
       record.holdings.push(holding);
@@ -330,6 +356,8 @@ function foldHoldings(record: ClaimRecord): void {
         toYear: transition.year,
         acquired: transition,
         lost: transition,
+        standing: 'Received',
+        standings: [],
       };
       record.holdings.push(orphan);
       record.wasLost = true;
@@ -346,6 +374,32 @@ function foldHoldings(record: ClaimRecord): void {
     .filter((holding) => holding.toYear === undefined && holding.realmId !== undefined)
     .map((holding) => holding.realmId!);
   record.everHeld = everHeld;
+
+  placeStandings(record, standings);
+}
+
+/**
+ * Files each standing change under the span of possession it happened inside.
+ *
+ * A realm can lose a reading and come by it again centuries later, and the second span starts at
+ * `Received` like any other arrival — so a change is placed by year rather than by realm alone,
+ * and one that falls in no span is dropped rather than attached to the nearest. That case is a
+ * standing for a reading the realm was not holding, which the engine does not write.
+ */
+function placeStandings(record: ClaimRecord, standings: ClaimStandingChange[]): void {
+  if (standings.length === 0) return;
+
+  for (const change of [...standings].sort((a, b) => a.year - b.year)) {
+    for (const holding of record.holdings) {
+      if (holding.realmId !== change.realmId) continue;
+      if (change.year < holding.fromYear) continue;
+      if (holding.toYear !== undefined && change.year > holding.toYear) continue;
+
+      holding.standings.push(change);
+      holding.standing = change.to;
+      break;
+    }
+  }
 }
 
 function distinctInOrder<T>(values: T[]): T[] {

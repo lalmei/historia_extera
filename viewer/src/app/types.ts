@@ -11,7 +11,7 @@
  */
 
 /** The schema the current engine writes. `compat.ts` has the oldest one the viewer reads. */
-export const SCHEMA_VERSION = 54;
+export const SCHEMA_VERSION = 55;
 
 /**
  * Whether an event carries the history or merely records a life.
@@ -58,6 +58,7 @@ export interface WorldExport {
   events: HistoryEvent[];
   /** Dated changes in what each realm held. Absent before schema 53. */
   claimTransitions?: ClaimTransition[];
+  claimStandings?: ClaimStandingChange[];
   series: Series[];
   indices: ExportIndices;
   narration: Record<string, string>;
@@ -1755,6 +1756,46 @@ export interface ClaimTransition {
   carrier: ClaimCarrierKind;
   carrierId?: EntityId;
   settlementId?: EntityId;
+}
+
+/**
+ * How a realm stands to a reading it holds.
+ *
+ * Presence and standing are two facts. A realm that received a book and shelved it is not one
+ * that teaches out of it, and neither state is a statement about whether the reading is true.
+ */
+export type ClaimStanding = 'Received' | 'Taught' | 'Disputed' | 'SetAside';
+
+/**
+ * How a realm's standing reads in a line about it.
+ *
+ * Plainly descriptive on purpose: none of these is a compliment or a failing, and a realm that
+ * set a reading aside is not behind a realm that teaches it.
+ */
+export const CLAIM_STANDING_LABELS: Record<ClaimStanding, string> = {
+  Received: 'had it',
+  Taught: 'taught it',
+  Disputed: 'argued with it',
+  SetAside: 'set it aside',
+};
+
+/**
+ * One dated change in how a realm stood to a reading it held.
+ *
+ * A standing begins at `Received` with the acquisition that put the reading in the realm and ends
+ * with the loss that took it away, so a realm's disposition at a year folds out of the two streams
+ * together. Never derived from a verdict, and never to be rendered as if it were: a refuted
+ * reading may be taught for centuries, and a confirmed one set aside.
+ */
+export interface ClaimStandingChange {
+  claimantId: EntityId;
+  claimId: number;
+  realmId?: EntityId;
+  year: number;
+  from: ClaimStanding;
+  to: ClaimStanding;
+  /** Why it moved, in the terms the change is in. Never a threshold or a number. */
+  cause: string;
 }
 
 /**

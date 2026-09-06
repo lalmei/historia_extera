@@ -161,6 +161,13 @@ public sealed class WorldState
     /// <summary>Every dated change in what a realm held, earliest first.</summary>
     public List<ClaimTransition> ClaimTransitions { get; } = new();
 
+    /// <summary>Every dated change in how a realm stood to what it held, earliest first.</summary>
+    /// <remarks>
+    /// A separate stream from <see cref="ClaimTransitions"/> because it answers a separate
+    /// question: those say whether the realm has the reading, these say what it makes of it.
+    /// </remarks>
+    public List<ClaimStandingChange> ClaimStandingChanges { get; } = new();
+
     /// <summary>
     /// Epidemics currently running.
     /// </summary>

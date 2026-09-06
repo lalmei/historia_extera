@@ -40,6 +40,7 @@ public sealed record WorldExport(
     IReadOnlyList<ExportArtifact> Artifacts,
     IReadOnlyList<ExportEvent> Events,
     IReadOnlyList<ExportClaimTransition> ClaimTransitions,
+    IReadOnlyList<ExportClaimStanding> ClaimStandings,
     IReadOnlyList<ExportSeries> Series,
     ExportIndices Indices,
     IReadOnlyDictionary<string, string> Narration)
@@ -158,8 +159,12 @@ public sealed record WorldExport(
     /// acquisitions and losses, each naming the carrier that explains it — the claimant while they
     /// lived, or the written work whose copy reached a town. The state at a year folds out of the
     /// transitions, as territory does from transfers; there is no per-year picture of who knew what.
+    /// Version 55 separated having a reading from holding with it: a realm's standing toward each
+    /// reading it holds — received, taught, disputed, set aside — as dated changes naming a cause.
+    /// Standing is never derived from a verdict, so two realms can teach incompatible accounts of
+    /// one comet, and a refuted reading can keep its teachers for centuries.
     /// </remarks>
-    public const int CurrentSchemaVersion = 54;
+    public const int CurrentSchemaVersion = 55;
 }
 
 public sealed record ExportMeta(
@@ -1183,6 +1188,34 @@ public sealed record ExportClaimTransition(
     ClaimCarrierKind Carrier,
     EntityId? CarrierId,
     EntityId? SettlementId);
+
+/// <summary>
+/// One dated change in how a realm stood to a reading it held.
+/// </summary>
+/// <remarks>
+/// <para><b>Arrival is not adoption.</b> A realm holds a reading from the moment something carries
+/// it there, and what the realm makes of it is a second fact with its own history. A realm that
+/// received a book and shelved it is not the same as one that teaches out of it, and only this
+/// record can tell them apart.</para>
+///
+/// <para><b>No standing is derived from a verdict.</b> What the sky said and what a realm thinks
+/// are independent, and both directions of that independence occur: a refuted reading may be
+/// taught for centuries afterwards, and a confirmed one may be set aside by a faith that explains
+/// the lights its own way. A consumer that colours standing by verdict is reporting something the
+/// engine does not claim.</para>
+///
+/// <para>A standing begins at <c>Received</c> with the acquisition in <see cref="ExportClaimTransition" />
+/// and ends with the loss, so the disposition at any year folds out of the two streams together.</para>
+/// </remarks>
+/// <param name="Cause">Why it moved, in the terms the change is in. Never a threshold or a number.</param>
+public sealed record ExportClaimStanding(
+    EntityId ClaimantId,
+    int ClaimId,
+    EntityId? RealmId,
+    int Year,
+    ClaimStanding From,
+    ClaimStanding To,
+    string Cause);
 
 public sealed record ExportUndertakingStep(
     int Year,

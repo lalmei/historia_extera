@@ -31,7 +31,12 @@ import {
   type KnowledgeColumn,
 } from '../knowledge';
 import { figureOf, type World } from '../store';
-import { CLAIM_VERDICT_LABELS, type Claim, type ClaimTransition } from '../types';
+import {
+  CLAIM_STANDING_LABELS,
+  CLAIM_VERDICT_LABELS,
+  type Claim,
+  type ClaimTransition,
+} from '../types';
 import {
   Badge,
   DataTable,
@@ -705,27 +710,38 @@ export function ClaimPage({ world, claimKey }: { world: World; claimKey: string 
                 No realm is recorded as having held it.
               </p>
             ) : (
-              <ul className="space-y-1.5 text-sm">
-                {record.everHeld.map((realmId) => {
-                  const spans = record.holdings.filter((holding) => holding.realmId === realmId);
-                  const open = spans.some((holding) => holding.toYear === undefined);
-                  return (
-                    <li key={realmId} className="flex items-baseline justify-between gap-3">
-                      <EntityLink world={world} id={realmId} />
-                      <span className="he-data text-xs text-[var(--ink-faint)]">
-                        {spans
-                          .map((holding) =>
-                            holding.toYear === undefined
-                              ? `${holding.fromYear}–`
-                              : `${holding.fromYear}–${holding.toYear}`,
-                          )
-                          .join(', ')}
-                        {open ? '' : ' · let go'}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
+              <>
+                <ul className="space-y-1.5 text-sm">
+                  {record.everHeld.map((realmId) => {
+                    const spans = record.holdings.filter((holding) => holding.realmId === realmId);
+                    const open = spans.some((holding) => holding.toYear === undefined);
+                    const last = spans.at(-1);
+                    return (
+                      <li key={realmId} className="flex items-baseline justify-between gap-3">
+                        <EntityLink world={world} id={realmId} />
+                        <span className="he-data text-xs text-[var(--ink-faint)]">
+                          {spans
+                            .map((holding) =>
+                              holding.toYear === undefined
+                                ? `${holding.fromYear}–`
+                                : `${holding.fromYear}–${holding.toYear}`,
+                            )
+                            .join(', ')}
+                          {index.hasStandings && last
+                            ? ` · ${CLAIM_STANDING_LABELS[last.standing]}`
+                            : ''}
+                          {open ? '' : ' · let go'}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <p className="mt-3 border-t border-[var(--rule)] pt-3 text-xs text-[var(--ink-faint)]">
+                  {index.hasStandings
+                    ? 'Having a reading and holding with it are two facts. A realm can keep one it argues with, or shelve one the sky confirmed.'
+                    : 'This export predates the record of what a realm made of a reading; these are realms that had it.'}
+                </p>
+              </>
             )}
           </Panel>
 

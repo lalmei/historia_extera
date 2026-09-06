@@ -38,14 +38,27 @@ public sealed record ClaimTransition(
     EntityId CarrierId,
     EntityId SettlementId);
 
-/// <summary>What a realm currently holds, and on what.</summary>
+/// <summary>What a realm currently holds, on what, and what it makes of it.</summary>
+/// <remarks>
+/// <see cref="Standing"/> is not derived here and is deliberately not part of what this file
+/// recomputes: having a reading and holding with it are two facts, and <see cref="ClaimStandings"/>
+/// owns the second. A holding begins <see cref="ClaimStanding.Received"/> — arrival is not
+/// adoption — and keeps whatever standing it has reached while the realm goes on holding it.
+/// </remarks>
 public sealed record ClaimHolding(
     ClaimRef Claim,
     EntityId RealmId,
     int Since,
     ClaimCarrierKind Carrier,
     EntityId CarrierId,
-    EntityId SettlementId);
+    EntityId SettlementId)
+{
+    /// <summary>What the realm makes of it. Never derived from a verdict.</summary>
+    public ClaimStanding Standing { get; init; } = ClaimStanding.Received;
+
+    /// <summary>The year it came to stand that way. The year of arrival until it changes.</summary>
+    public int StandingSince { get; init; }
+}
 
 /// <summary>
 /// How a claim reaches a realm its author never saw, and how it stops being held there.

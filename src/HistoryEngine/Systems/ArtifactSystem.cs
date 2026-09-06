@@ -127,6 +127,10 @@ public sealed class ArtifactSystem : ISystem
         // Last, and after the copies: what a realm holds this year is read off the carriers that
         // exist once the year's writing, copying and dying have all happened.
         ClaimTransmission.Trace(world, year);
+
+        // And then what each realm makes of what it now has, which is a different question and
+        // is allowed a different answer: a realm can hold a reading it argues with for centuries.
+        ClaimStandings.Weigh(world, year);
     }
 
     private static EntityId LivingPatron(Civilization civilization, WorldState world)

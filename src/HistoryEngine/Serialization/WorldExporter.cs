@@ -70,6 +70,7 @@ public static class WorldExporter
             Artifacts: BuildArtifacts(world),
             Events: events,
             ClaimTransitions: BuildClaimTransitions(world),
+            ClaimStandings: BuildClaimStandings(world),
             Series: BuildSeries(world),
             Indices: BuildIndices(world, events),
             Narration: ToDictionary(Narration.Templates));
@@ -1198,6 +1199,24 @@ public static class WorldExporter
                 change.Carrier,
                 OrNull(change.CarrierId),
                 OrNull(change.SettlementId)));
+        }
+
+        return list;
+    }
+
+    private static List<ExportClaimStanding> BuildClaimStandings(WorldState world)
+    {
+        var list = new List<ExportClaimStanding>(world.ClaimStandingChanges.Count);
+        foreach (ClaimStandingChange change in world.ClaimStandingChanges)
+        {
+            list.Add(new ExportClaimStanding(
+                change.Claim.ClaimantId,
+                change.Claim.ClaimId,
+                OrNull(change.RealmId),
+                change.Year,
+                change.From,
+                change.To,
+                change.Cause));
         }
 
         return list;
