@@ -11,7 +11,7 @@
  */
 
 /** The schema the current engine writes. `compat.ts` has the oldest one the viewer reads. */
-export const SCHEMA_VERSION = 51;
+export const SCHEMA_VERSION = 52;
 
 /**
  * Whether an event carries the history or merely records a life.
@@ -1690,15 +1690,51 @@ export const CLAIM_VERDICT_LABELS: Record<ClaimVerdict, string> = {
   NotTestable: 'Not a thing the sky could answer',
 };
 
-/** What one person said a light in the sky was, and what became of the saying. */
-export interface SkyClaim {
+/**
+ * What a claim is about, addressably, so every claim made about one quantity can be gathered.
+ *
+ * One member, because there is one quantity the world holds that anybody in it has an
+ * observation path to. Practice and doctrine are separate records and will not appear here.
+ */
+export type ClaimSubjectKind = 'CometPeriod';
+
+/** The unit a measured claim is stated in. */
+export type ClaimUnit = 'None' | 'Years';
+
+/**
+ * A number somebody stated about the world.
+ *
+ * The true value is deliberately not here — it stays with the orbit in the exported cosmology,
+ * so a world carries one truth. Error is derived by whoever renders it, and is never stored,
+ * summed, or attached to a person or a people as a score.
+ */
+export interface ClaimQuantity {
+  unit: ClaimUnit;
+  value: number;
+}
+
+/**
+ * What one person said about the world, and what became of the saying.
+ *
+ * `verdict` is how the claim stands to measurable reality in the year the world answered it. It
+ * says nothing about whether anyone stopped holding it, and must never be rendered as if it did.
+ *
+ * `cometIndex` and `intervalYears` are the comet-shaped view of `subject` and `quantity`, kept
+ * because every export written against schema 51 or earlier addresses a claim that way.
+ */
+export interface Claim {
   id: number;
+  /** Absent on an export older than schema 52, where every claim is a comet period. */
+  subject?: ClaimSubjectKind;
+  subjectIndex?: number;
   cometIndex: number;
   year: number;
   realmId?: EntityId;
   register: ClaimRegister;
   reading: string;
   restsOnYears: number[];
+  /** Absent where the claimant stated no number. Every mythic reading is one of those. */
+  quantity?: ClaimQuantity;
   intervalYears: number;
   predictedYear?: number;
   verdict: ClaimVerdict;
@@ -2081,7 +2117,7 @@ export interface Figure {
   guardianships: Guardianship[];
   mentorships: Mentorship[];
   observations: SkyObservation[];
-  claims: SkyClaim[];
+  claims: Claim[];
   motherId?: EntityId;
   fatherId?: EntityId;
   childIds: EntityId[];

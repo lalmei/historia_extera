@@ -142,6 +142,11 @@ prediction with the fixed return schedule. The apparent observer, register conti
 claim are simulated history. There is no player observation action, telescope, journal UI,
 meteor-shower model, or constellation system.
 
+A claim names its subject and, where the claimant stated a number, the quantity they stated. The
+true value is not copied onto the claim: the comet's period and the world's year are already on
+this page, so the error in a stated period is a division a reader performs and the engine never
+does. Nothing derives a score from it. See `DESIGN.md` → Core contracts → Knowledge.
+
 ## Coupling to the history model
 
 Most cosmology is descriptive. Galaxy structure, star class, planet mass, and the all-sky

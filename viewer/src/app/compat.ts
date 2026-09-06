@@ -53,6 +53,7 @@ export interface SchemaVerdict {
  * which of the two an old world has.
  */
 const ADDED_IN: readonly { since: number; feature: string }[] = [
+  { since: 52, feature: 'what a claim is about and the number it stated, apart from the comet it began with' },
   { since: 51, feature: 'a betrayal as an episode both parties hold, with its year, place and cause' },
   { since: 50, feature: 'marriages turned on, and the mark a betrayal leaves on a bond' },
   { since: 49, feature: 'quarrels over a post given to somebody standing beside them' },
