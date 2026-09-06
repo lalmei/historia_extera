@@ -262,7 +262,7 @@ public sealed class Figure
         Betrayals = new List<FigureBetrayal>();
         Plots = new List<FigurePlot>();
         Observations = new List<SkyObservation>();
-        Claims = new List<SkyClaim>();
+        Claims = new List<Claim>();
         Guardianships = new List<FigureGuardianship>();
         Mentorships = new List<FigureMentorship>();
         ChildIds = new List<EntityId>();
@@ -495,7 +495,7 @@ public sealed class Figure
     public List<SkyObservation> Observations { get; }
 
     /// <summary>What they said those sightings meant, and what the sky made of it.</summary>
-    public List<SkyClaim> Claims { get; }
+    public List<Claim> Claims { get; }
 
     public EntityId MotherId { get; set; } = EntityId.None;
 

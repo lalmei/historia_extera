@@ -151,7 +151,7 @@ public sealed record WorldExport(
     /// something a page can show and a consumer can ask a question of, rather than a chronicle line
     /// and one bit on a bond.
     /// </remarks>
-    public const int CurrentSchemaVersion = 51;
+    public const int CurrentSchemaVersion = 52;
 }
 
 public sealed record ExportMeta(
@@ -891,7 +891,7 @@ public sealed record ExportFigure(
     IReadOnlyList<ExportGuardianship> Guardianships,
     IReadOnlyList<ExportMentorship> Mentorships,
     IReadOnlyList<ExportObservation> Observations,
-    IReadOnlyList<ExportSkyClaim> Claims,
+    IReadOnlyList<ExportClaim> Claims,
     EntityId? MotherId,
     EntityId? FatherId,
     IReadOnlyList<EntityId> ChildIds,
@@ -1096,7 +1096,7 @@ public sealed record ExportObservation(
     ApparitionGrade Grade);
 
 /// <summary>
-/// What one person said a light in the sky was, and what became of the saying.
+/// What one person said about the world, and what became of the saying.
 /// </summary>
 /// <param name="RestsOnYears">
 /// The sightings the claimant had to work from. A reader can see what they were reasoning over
@@ -1106,14 +1106,33 @@ public sealed record ExportObservation(
 /// Whether they were alive when the sky settled it. False is the more interesting case and not a
 /// rare one: a period long enough to be worth deriving is usually longer than the rest of a life.
 /// </param>
-public sealed record ExportSkyClaim(
+/// <param name="Subject">
+/// What the claim is about, addressably, so every claim ever made about one quantity can be
+/// gathered and set beside the world's own answer.
+/// </param>
+/// <param name="Quantity">
+/// The number the claimant stated, where they stated one. The world's true value is deliberately
+/// not here: it stays in the fact that already holds it — the comet's orbit in the exported
+/// cosmology — so an export carries one truth and this cannot drift from it. Error is derived by
+/// whoever wants it, and is nowhere summed into a score.
+/// </param>
+/// <param name="CometIndex">
+/// The comet-shaped view of <paramref name="Subject" />, and <paramref name="IntervalYears" /> of
+/// <paramref name="Quantity" />. Both are kept because every reader written against schema 51 or
+/// earlier addresses a claim this way, and because a schema change here adds fields rather than
+/// reinterpreting the ones already in the file.
+/// </param>
+public sealed record ExportClaim(
     int Id,
+    ClaimSubjectKind Subject,
+    int SubjectIndex,
     int CometIndex,
     int Year,
     EntityId? RealmId,
     ClaimRegister Register,
     string Reading,
     IReadOnlyList<int> RestsOnYears,
+    ClaimQuantity? Quantity,
     int IntervalYears,
     int? PredictedYear,
     ClaimVerdict Verdict,

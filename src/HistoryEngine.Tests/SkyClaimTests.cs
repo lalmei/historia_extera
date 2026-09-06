@@ -42,7 +42,7 @@ public sealed class SkyClaimTests
 
             foreach (Figure figure in world.Figures)
             {
-                foreach (SkyClaim claim in figure.Claims)
+                foreach (Claim claim in figure.Claims)
                 {
                     Assert.Equal(figure.Id, claim.ClaimantId);
                     Assert.NotEmpty(claim.RestsOnYears);
@@ -88,7 +88,7 @@ public sealed class SkyClaimTests
 
             foreach (Figure figure in world.Figures)
             {
-                foreach (SkyClaim claim in figure.Claims)
+                foreach (Claim claim in figure.Claims)
                 {
                     if (claim.Verdict is ClaimVerdict.NotTestable or ClaimVerdict.Untested) continue;
 
@@ -147,10 +147,10 @@ public sealed class SkyClaimTests
         WorldState world = HistoryRun.Execute(TestWorlds.Standard(17)).World;
         WorldCosmology sky = world.Flavour.Cosmology;
 
-        var early = new List<SkyClaim>();
+        var early = new List<Claim>();
         foreach (Figure figure in world.Figures)
         {
-            foreach (SkyClaim claim in figure.Claims)
+            foreach (Claim claim in figure.Claims)
             {
                 if (claim.Verdict != ClaimVerdict.Refuted) continue;
                 if (claim.SettledYear >= claim.PredictedYear) continue;
@@ -161,7 +161,7 @@ public sealed class SkyClaimTests
 
         Assert.NotEmpty(early);
 
-        foreach (SkyClaim claim in early)
+        foreach (Claim claim in early)
         {
             SystemComet comet = sky.Comets.Single(item => item.Index == claim.CometIndex);
             double truth = Skywatch.PeriodYears(sky, comet);
@@ -203,7 +203,7 @@ public sealed class SkyClaimTests
             WorldState world = HistoryRun.Execute(TestWorlds.Standard(seed)).World;
             var claims = world.Figures.SelectMany(figure => figure.Claims).ToList();
 
-            foreach (SkyClaim claim in claims)
+            foreach (Claim claim in claims)
             {
                 registers[claim.Register] = registers.GetValueOrDefault(claim.Register) + 1;
                 verdicts[claim.Verdict] = verdicts.GetValueOrDefault(claim.Verdict) + 1;
@@ -260,8 +260,8 @@ public sealed class SkyClaimTests
 
         for (int year = first.Year; year <= world.EndYear; year++) SkyClaims.Settle(world, year);
 
-        SkyClaim doubled = Assert.Single(wrong.Claims);
-        SkyClaim exact = Assert.Single(right.Claims);
+        Claim doubled = Assert.Single(wrong.Claims);
+        Claim exact = Assert.Single(right.Claims);
 
         Assert.Equal(ClaimVerdict.Refuted, doubled.Verdict);
         Assert.Equal(ClaimVerdict.Confirmed, exact.Verdict);
@@ -278,16 +278,16 @@ public sealed class SkyClaimTests
 
         void Claim(Figure figure, int id, int year, int interval)
         {
-            var claim = new SkyClaim(
+            var claim = new Claim(
                 id,
                 figure.Id,
                 civilization.Id,
-                comet.Index,
+                ClaimSubject.Comet(comet.Index),
                 year,
                 ClaimRegister.Measured,
                 $"that it returns every {interval} years")
             {
-                IntervalYears = interval,
+                Quantity = new ClaimQuantity(ClaimUnit.Years, interval),
                 PredictedYear = year + interval,
                 Verdict = ClaimVerdict.Standing,
             };
@@ -305,7 +305,7 @@ public sealed class SkyClaimTests
 
         foreach (ExportFigure figure in export.Figures)
         {
-            foreach (ExportSkyClaim claim in figure.Claims)
+            foreach (ExportClaim claim in figure.Claims)
             {
                 Assert.NotEmpty(claim.RestsOnYears);
                 Assert.False(string.IsNullOrWhiteSpace(claim.Reading));
@@ -325,6 +325,170 @@ public sealed class SkyClaimTests
         }
 
         Assert.True(seen > 0, "Seed 11 exported no claim.");
+    }
+
+    /// <summary>
+    /// The widened record says the same thing the comet-shaped one did.
+    /// </summary>
+    /// <remarks>
+    /// A claim now carries an addressable subject and a stated quantity, and the comet index and
+    /// derived interval are the same facts read the way a schema-51 reader addresses them. If the
+    /// two views ever disagree, one of them is lying to somebody.
+    /// </remarks>
+    [Fact]
+    public void TheSubjectAndTheQuantitySayWhatTheCometViewSays()
+    {
+        int measured = 0;
+
+        foreach (ulong seed in Seeds)
+        {
+            WorldExport export = HistoryRun.Execute(TestWorlds.Standard(seed)).ToExport();
+
+            foreach (ExportFigure figure in export.Figures)
+            {
+                foreach (ExportClaim claim in figure.Claims)
+                {
+                    Assert.Equal(ClaimSubjectKind.CometPeriod, claim.Subject);
+                    Assert.Equal(claim.CometIndex, claim.SubjectIndex);
+
+                    if (claim.Register == ClaimRegister.Measured)
+                    {
+                        ClaimQuantity stated = Assert.NotNull(claim.Quantity);
+                        Assert.Equal(ClaimUnit.Years, stated.Unit);
+                        Assert.Equal(claim.IntervalYears, (int)stated.Value);
+                        Assert.True(stated.Value > 0.0);
+                        measured++;
+                    }
+                    else
+                    {
+                        // A mythic reading states no number, and must not be given one.
+                        Assert.Null(claim.Quantity);
+                        Assert.Equal(0, claim.IntervalYears);
+                    }
+                }
+            }
+        }
+
+        Assert.True(measured > 0, "The panel produced no measured claim to check.");
+    }
+
+    /// <summary>
+    /// The world's answer is in the world, and appears once.
+    /// </summary>
+    /// <remarks>
+    /// The point of a stated quantity is that a reader can put it beside the truth and see the
+    /// error. That requires the truth to be somewhere findable and to be there exactly once: the
+    /// comet's own orbit, in the exported cosmology. A claim that carried its own copy of the
+    /// answer would be a claim that could disagree with the world about what the world is.
+    /// </remarks>
+    [Fact]
+    public void TheTrueValueLivesWithTheOrbitAndNotWithTheClaim()
+    {
+        WorldExport export = HistoryRun.Execute(TestWorlds.Standard(11)).ToExport();
+        double yearDays = export.World.Cosmology.OrbitalPeriodDays;
+        Assert.True(yearDays > 0.0);
+
+        int checkedClaims = 0;
+
+        foreach (ExportFigure figure in export.Figures)
+        {
+            foreach (ExportClaim claim in figure.Claims)
+            {
+                if (claim.Quantity is not ClaimQuantity stated) continue;
+
+                ExportComet comet = export.World.Cosmology.Comets
+                    .Single(item => item.Index == claim.SubjectIndex);
+
+                // Derivable by anybody holding the export, and stored by nobody.
+                double truth = comet.OrbitalPeriodDays / yearDays;
+                double error = Math.Abs(stated.Value - truth) / truth;
+
+                Assert.True(truth > 0.0);
+                Assert.True(error >= 0.0);
+                checkedClaims++;
+            }
+        }
+
+        Assert.True(checkedClaims > 0, "Seed 11 exported no measured claim.");
+    }
+
+    /// <summary>
+    /// Nothing anywhere in the export turns knowledge into a score.
+    /// </summary>
+    /// <remarks>
+    /// <para>The whole design rests on the engine not holding a hidden right answer and grading
+    /// people against their distance from it. That is easy to state and easy to lose one field at a
+    /// time, so it is asserted on the shape of the contract rather than left to review.</para>
+    ///
+    /// <para>Error is derived and never stored; no civilization, culture or figure carries a level,
+    /// a rank or a total of what it knows.</para>
+    /// </remarks>
+    [Fact]
+    public void NoExportedFieldScoresWhatAnybodyKnows()
+    {
+        string[] forbidden =
+        {
+            "Score", "Level", "Progress", "Accuracy", "Error", "Correct", "Advancement",
+        };
+
+        var offenders = new List<string>();
+
+        foreach (Type type in typeof(WorldExport).Assembly.GetTypes())
+        {
+            if (type.Namespace != "HistoryEngine.Serialization") continue;
+            if (!type.Name.StartsWith("Export", StringComparison.Ordinal)) continue;
+
+            foreach (System.Reflection.PropertyInfo property in type.GetProperties())
+            {
+                if (property.Name.Contains("Knowledge", StringComparison.Ordinal))
+                {
+                    offenders.Add($"{type.Name}.{property.Name}");
+                    continue;
+                }
+
+                bool aboutAClaim = type.Name.Contains("Claim", StringComparison.Ordinal)
+                    || type.Name.Contains("Observation", StringComparison.Ordinal);
+                if (!aboutAClaim) continue;
+
+                foreach (string word in forbidden)
+                {
+                    if (property.Name.Contains(word, StringComparison.Ordinal))
+                    {
+                        offenders.Add($"{type.Name}.{property.Name}");
+                    }
+                }
+            }
+        }
+
+        Assert.Empty(offenders);
+    }
+
+    /// <summary>
+    /// A claim stays a claim, and does not quietly become a capability or a doctrine.
+    /// </summary>
+    /// <remarks>
+    /// Practice and doctrine will share this record's provenance and its carriers, and neither
+    /// wants its evidence list, its register or its verdict. The cheap way to give them a home is to
+    /// widen this class one nullable field at a time until it means nothing in particular, so the
+    /// surface is pinned and a new field has to be argued for here first.
+    /// </remarks>
+    [Fact]
+    public void TheClaimRecordHoldsOnlyWhatAClaimNeeds()
+    {
+        string[] expected =
+        {
+            "ClaimantId", "ClaimantSawTheAnswer", "CometIndex", "Id", "IntervalYears",
+            "PredictedYear", "Quantity", "Reading", "RealmId", "Register", "RestsOnYears",
+            "SettledYear", "Subject", "Verdict", "Year",
+        };
+
+        string[] actual = typeof(Claim)
+            .GetProperties()
+            .Select(property => property.Name)
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.Equal(expected, actual);
     }
 
     private static Figure Scholar(

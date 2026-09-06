@@ -397,6 +397,53 @@ public sealed record SkyObservation(
     public int? Interval => PriorYear is int prior ? Year - prior : null;
 }
 
+/// <summary>The kind of thing a claim can be about. Explicit values — part of the export format.</summary>
+/// <remarks>
+/// A subject is addressable rather than free text so that every claim ever made about the same
+/// quantity can be gathered and put beside the others, and beside the world's own answer. There is
+/// one member because there is one quantity the world holds that anybody in it has an observation
+/// path to. A second arrives when a second observation path does, and not before.
+/// </remarks>
+public enum ClaimSubjectKind
+{
+    /// <summary>How long one comet of the system takes to come back, addressed by its index.</summary>
+    CometPeriod = 0,
+}
+
+/// <summary>What a claim is about, and which one of them.</summary>
+/// <param name="Index">
+/// Identifies the member within the kind — the comet's index for <see cref="ClaimSubjectKind.CometPeriod"/>.
+/// A kind with only one member in a world uses zero.
+/// </param>
+public readonly record struct ClaimSubject(ClaimSubjectKind Kind, int Index)
+{
+    public static ClaimSubject Comet(int index) => new(ClaimSubjectKind.CometPeriod, index);
+}
+
+/// <summary>The unit a measured claim is stated in. Explicit values — part of the export format.</summary>
+public enum ClaimUnit
+{
+    /// <summary>The claim states no number. Every mythic reading is here.</summary>
+    None = 0,
+
+    Years = 1,
+}
+
+/// <summary>
+/// A number somebody stated about the world.
+/// </summary>
+/// <remarks>
+/// <para><b>The true value is not here.</b> It stays in the fact that already holds it — the orbit
+/// in <c>WorldCosmology</c>, the calendar, the terrain — so an export carries one truth and a claim
+/// cannot drift away from it. Error is derived by whoever wants it, and is never stored, summed, or
+/// attached to a person or a people as a score.</para>
+///
+/// <para>There is no stated precision, because nobody in the model states one yet. A claimant who
+/// counts years between two sightings gives a whole number and no error bars, and a field only a
+/// future subject would fill is a field that lies about what this one knows.</para>
+/// </remarks>
+public readonly record struct ClaimQuantity(ClaimUnit Unit, double Value);
+
 /// <summary>The two ways a person can answer the question of what a light in the sky was.</summary>
 /// <remarks>
 /// Neither is a strawman. The mythic register explains and does not predict, which is not a
@@ -430,24 +477,35 @@ public enum ClaimVerdict
 }
 
 /// <summary>
-/// What one person said a light in the sky was, and what became of the saying.
+/// What one person said about the world, and what became of the saying.
 /// </summary>
 /// <remarks>
 /// <para>A claim rests on observations its claimant could actually have read — their own realm's
 /// register and nothing else. <see cref="RestsOnYears"/> is that evidence, kept so a reader can see
 /// what the person was working from rather than taking the conclusion on trust.</para>
 ///
-/// <para>A measured claim names <see cref="PredictedYear"/>, and the sky settles it. Nothing else
+/// <para>A measured claim names <see cref="PredictedYear"/>, and the world settles it. Nothing else
 /// does: not the claimant's rank, not their realm's learning, not how pious they were. If a roll
 /// could make a prediction come true then this is flavour with extra steps.</para>
+///
+/// <para><b>A verdict is not a belief.</b> <see cref="ClaimVerdict.Refuted"/> states how a claim
+/// stands to measurable reality in the year the world answered it, and says nothing whatever about
+/// whether anybody stopped holding it. A reading the sky refuted can keep its copies, its teachers
+/// and its patrons for two centuries afterwards, and this record must never be read as saying
+/// otherwise.</para>
+///
+/// <para><b>It is a claim and not a capability or a doctrine.</b> Both of those want provenance and
+/// carriers, which they will share; neither wants <see cref="RestsOnYears"/>, a
+/// <see cref="Register"/> or a verdict. Widening this record to hold them would buy one abstraction
+/// and cost all three meanings.</para>
 /// </remarks>
-public sealed class SkyClaim
+public sealed class Claim
 {
-    public SkyClaim(
+    public Claim(
         int id,
         EntityId claimantId,
         EntityId realmId,
-        int cometIndex,
+        ClaimSubject subject,
         int year,
         ClaimRegister register,
         string reading)
@@ -455,7 +513,7 @@ public sealed class SkyClaim
         Id = id;
         ClaimantId = claimantId;
         RealmId = realmId;
-        CometIndex = cometIndex;
+        Subject = subject;
         Year = year;
         Register = register;
         Reading = reading;
@@ -470,7 +528,12 @@ public sealed class SkyClaim
     /// <summary>The realm whose register it was made from, and whose argument it becomes.</summary>
     public EntityId RealmId { get; }
 
-    public int CometIndex { get; }
+    /// <summary>What it is about, addressably, so claims about one quantity can be gathered.</summary>
+    public ClaimSubject Subject { get; }
+
+    /// <summary>The comet this is about. Zero on a claim about anything else.</summary>
+    public int CometIndex =>
+        Subject.Kind == ClaimSubjectKind.CometPeriod ? Subject.Index : 0;
 
     public int Year { get; }
 
@@ -482,8 +545,17 @@ public sealed class SkyClaim
     /// <summary>The sightings they had to work from, earliest first.</summary>
     public List<int> RestsOnYears { get; }
 
-    /// <summary>The period they derived. Zero on a mythic claim.</summary>
-    public int IntervalYears { get; set; }
+    /// <summary>The number they stated, where they stated one. Absent on a mythic claim.</summary>
+    public ClaimQuantity? Quantity { get; set; }
+
+    /// <summary>The period they derived, in years. Zero where they named no number.</summary>
+    /// <remarks>
+    /// Derived rather than stored, so <see cref="Quantity"/> is the only place a stated number
+    /// lives. The cast is exact: an interval is counted between two years and is therefore always a
+    /// whole number, which is also what keeps it safe to compare in a decision path.
+    /// </remarks>
+    public int IntervalYears =>
+        Quantity is { Unit: ClaimUnit.Years } stated ? (int)stated.Value : 0;
 
     /// <summary>The year they said it would come back. Absent on a mythic claim.</summary>
     public int? PredictedYear { get; set; }

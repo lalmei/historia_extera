@@ -4846,7 +4846,7 @@ appearing in a realm that nothing carried it to, which is exactly the untrustwor
 `copies` record was built to prevent. The same rule inverted gives loss: a claim ends when its last
 surviving copy does, a practice when its last holding town or lineage does, and neither needs a roll.
 
-**Not one record.** The tempting move, given that `SkyClaim` already exists, is to widen it until
+**Not one record.** The tempting move, given that a sky-shaped claim record already exists, is to widen it until
 everything fits: a capability becomes a claim with no verdict, a doctrine becomes a claim that is
 permanently `NotTestable`. #149 argued for exactly this on good grounds — no domain should get a
 bespoke mechanism of its own. The refinement is that the thing worth sharing is the *historical*
@@ -4874,6 +4874,55 @@ categories, which is also why the overview shows only the rows and columns the e
 transitions, following the rule territory already follows — per-realm, per-claim, per-year snapshots
 multiply out to nothing anyone can ship. And this is new exported fact, so it moves the fingerprint
 and the schema, currently 51.
+
+### Claims widened: a subject, a stated number, and the error nobody stores
+
+**What Phase A actually changed.** `SkyClaim` became `Claim` and gained two things: a `ClaimSubject`
+— a kind and an index, addressable so every claim ever made about one quantity can be gathered — and
+a `ClaimQuantity`, the number the claimant stated. Nothing else. No new system, no new domain, no
+viewer surface, and no behaviour: the whole of seed 42's export is identical to the one before the
+change except for `schemaVersion`, and seed 11's 35 claims are byte-identical once the three new
+fields are stripped out.
+
+**`IntervalYears` is derived now, not stored.** It was the one place a stated number lived; it is now
+a read of `Quantity`, so there is exactly one storage location and the comet view cannot drift from
+the general one. The cast to `int` is exact by construction — an interval is counted between two
+years — which is what keeps it safe in `Fall`'s comparison, the one decision path that reads it.
+
+**The true value stays with the orbit.** A claim does not carry the answer it is wrong about. The
+comet's period is already in the exported cosmology and the world's year is already beside it, so
+error is a division a reader can do and nothing in the engine performs, stores or sums. This is the
+whole reason the record can hold a measurement without becoming a scoreboard, and it is asserted:
+`NoExportedFieldScoresWhatAnybodyKnows` reflects over every export record and fails on a knowledge
+field or on a claim-shaped type that acquires a score, a level or an accuracy.
+
+**`TheClaimRecordHoldsOnlyWhatAClaimNeeds`** pins the public surface of `Claim` to an explicit list.
+The cheap way to house practice and doctrine is to widen this class one nullable field at a time
+until it means nothing in particular; the test makes that cost a conversation instead of a commit.
+
+**What the numbers say, now that they can be asked.** Over the claim panel's five seeds (6, 17, 29,
+46, 47) there are 58 measured claims. 36 are within 5% of the true period and 16 are out by more than
+50% — the doubled and tripled intervals a realm derives in perfectly good faith after missing a
+return, at 100.6% and 301.2%. The measured/mythic split is unchanged because nothing about claiming
+changed.
+
+**The finding worth keeping** is the cross-tabulation, which is the first evidence that verdict and
+accuracy are genuinely different axes rather than the same one twice: 40 claims are confirmed and
+within 5%, but **six are confirmed and out by 5–50%**, and every claim out by more than 50% is
+refuted or still untested. No badly wrong claim is ever confirmed, and that is `Settle` working as
+documented — a doubled period is caught by the return in between, before the year it named arrives.
+So the sky filters the worst of them, and accuracy still says something the verdict does not.
+
+**Seeds 2, 7, 11, 42 and 99 were measured as the issue asked** and are a thin panel for this: 9, 2,
+35, 0 and 2 claims, only seed 11 with any measured ones. Seed 42 records no apparition at all in
+three centuries, which is why the golden fingerprint did not move and why the claim tests keep their
+own panel.
+
+**Schema 52**, and the fingerprint deliberately unmoved: the digest clears `schemaVersion`, seed 42
+carries no claim, and so a world that gained three fields nobody in it filled hashes exactly as
+before. `CometIndex` and `IntervalYears` stay in the export beside `Subject` and `Quantity` because
+the compat layer's rule is that a schema change adds fields rather than reinterpreting the ones
+already in the file.
 
 ---
 

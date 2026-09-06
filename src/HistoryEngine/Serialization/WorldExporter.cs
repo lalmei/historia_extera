@@ -1174,19 +1174,22 @@ public static class WorldExporter
         return list;
     }
 
-    private static List<ExportSkyClaim> BuildClaims(Figure figure)
+    private static List<ExportClaim> BuildClaims(Figure figure)
     {
-        var list = new List<ExportSkyClaim>(figure.Claims.Count);
-        foreach (SkyClaim claim in figure.Claims)
+        var list = new List<ExportClaim>(figure.Claims.Count);
+        foreach (Claim claim in figure.Claims)
         {
-            list.Add(new ExportSkyClaim(
+            list.Add(new ExportClaim(
                 claim.Id,
+                claim.Subject.Kind,
+                claim.Subject.Index,
                 claim.CometIndex,
                 claim.Year,
                 OrNull(claim.RealmId),
                 claim.Register,
                 claim.Reading,
                 claim.RestsOnYears.ToArray(),
+                claim.Quantity,
                 claim.IntervalYears,
                 claim.PredictedYear,
                 claim.Verdict,

@@ -77,11 +77,11 @@ public static class SkyClaims
 
         bool takesTheInterval = canMeasure && fate.Fork("register").Chance(DetMath.Clamp01(measured));
 
-        var claim = new SkyClaim(
+        var claim = new Claim(
             claimant.Claims.Count,
             claimant.Id,
             seen.RealmId,
-            seen.CometIndex,
+            ClaimSubject.Comet(seen.CometIndex),
             year,
             takesTheInterval ? ClaimRegister.Measured : ClaimRegister.Mythic,
             takesTheInterval ? IntervalReading(seen.Interval!.Value) : MythicReading(faith, fate));
@@ -98,7 +98,7 @@ public static class SkyClaims
 
         if (takesTheInterval)
         {
-            claim.IntervalYears = seen.Interval!.Value;
+            claim.Quantity = new ClaimQuantity(ClaimUnit.Years, seen.Interval!.Value);
             claim.PredictedYear = year + claim.IntervalYears;
             claim.Verdict = claim.PredictedYear > world.EndYear
                 ? ClaimVerdict.Untested
@@ -158,10 +158,10 @@ public static class SkyClaims
     {
         WorldCosmology sky = world.Flavour.Cosmology;
 
-        var due = new List<(Figure Claimant, SkyClaim Claim, bool Right)>();
+        var due = new List<(Figure Claimant, Claim Claim, bool Right)>();
         foreach (Figure figure in world.Figures)
         {
-            foreach (SkyClaim claim in figure.Claims)
+            foreach (Claim claim in figure.Claims)
             {
                 if (claim.Verdict != ClaimVerdict.Standing) continue;
                 if (claim.PredictedYear is not int predicted) continue;
@@ -187,7 +187,7 @@ public static class SkyClaims
             }
         }
 
-        foreach ((Figure claimant, SkyClaim claim, bool right) in due)
+        foreach ((Figure claimant, Claim claim, bool right) in due)
         {
             claim.Verdict = right ? ClaimVerdict.Confirmed : ClaimVerdict.Refuted;
             claim.SettledYear = year;
@@ -254,7 +254,7 @@ public static class SkyClaims
     /// What they are shown up in front of is the person who disagreed with them, which is who they
     /// have to look at afterwards. A confirmed rival is preferred where one exists.</para>
     /// </remarks>
-    private static void Fall(WorldState world, Figure claimant, SkyClaim claim, int year)
+    private static void Fall(WorldState world, Figure claimant, Claim claim, int year)
     {
         Figure? vindicated = null;
         bool vindicatedIsProven = false;
@@ -264,7 +264,7 @@ public static class SkyClaims
             if (!other.IsAlive || other.Id == claimant.Id) continue;
             if (other.CivilizationId != claimant.CivilizationId) continue;
 
-            foreach (SkyClaim theirs in other.Claims)
+            foreach (Claim theirs in other.Claims)
             {
                 if (theirs.RealmId != claim.RealmId) continue;
                 if (theirs.CometIndex != claim.CometIndex) continue;
@@ -314,7 +314,7 @@ public static class SkyClaims
 
     private static bool Held(Figure claimant, int cometIndex)
     {
-        foreach (SkyClaim claim in claimant.Claims)
+        foreach (Claim claim in claimant.Claims)
         {
             if (claim.CometIndex == cometIndex) return true;
         }
