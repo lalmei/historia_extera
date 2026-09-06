@@ -125,9 +125,10 @@ public sealed class TomeContents
     /// </summary>
     /// <remarks>
     /// A book is the only thing that takes a reading of the sky further than the life of whoever
-    /// held it. What is written here is what the composing realm held in the year of composition;
-    /// a later continuation does not enlarge it, for the same reason the sections do not get
-    /// rewritten.
+    /// held it. What is written here is what the composing realm held in the year the passage was
+    /// entered — so a continuation may add readings the realm has come by since, which is a later
+    /// scribe writing down more, not an earlier one being rewritten. The sections already set down
+    /// are untouched either way.
     /// </remarks>
     public List<ClaimRef> Carries { get; } = new();
 

@@ -151,14 +151,6 @@ public sealed class WorldState
     /// <summary>Every house of worship and independent sacred place ever established.</summary>
     public EntityTable<HolySite> HolySites { get; }
 
-    /// <summary>
-    /// Epidemics currently running.
-    /// </summary>
-    /// <remarks>
-    /// A plain list rather than an entity table, because an outbreak is not something history
-    /// refers to by name after the fact the way a war or a house is — it is a state the plague
-    /// system carries between years. What survives it is the events it wrote.
-    /// </remarks>
     /// <summary>What each realm currently holds of the claims made in this world.</summary>
     /// <remarks>
     /// Derived state, rebuilt each year from carriers that exist. The exported record is
@@ -169,6 +161,14 @@ public sealed class WorldState
     /// <summary>Every dated change in what a realm held, earliest first.</summary>
     public List<ClaimTransition> ClaimTransitions { get; } = new();
 
+    /// <summary>
+    /// Epidemics currently running.
+    /// </summary>
+    /// <remarks>
+    /// A plain list rather than an entity table, because an outbreak is not something history
+    /// refers to by name after the fact the way a war or a house is — it is a state the plague
+    /// system carries between years. What survives it is the events it wrote.
+    /// </remarks>
     public List<Outbreak> Outbreaks { get; }
 
     /// <summary>
