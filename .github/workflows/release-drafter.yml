@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   update_release_draft:
-    name: Update release draft
+    name: Add merged pull requests to the draft
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
 
@@ -33,13 +33,15 @@ jobs:
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
-      - name: Update release draft
-        uses: release-drafter/release-drafter@v7
-        with:
-          version: ${{ steps.project_version.outputs.version }}
-          disable-autolabeler: true
+      # release-drafter/release-drafter regenerates the entire body on every
+      # run, which throws away any hand-editing of the draft. This appends the
+      # pull requests the draft does not mention yet and touches nothing else.
+      - name: Add newly merged pull requests to the draft
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          VERSION: ${{ steps.project_version.outputs.version }}
+        run: python3 tools/append_release_notes.py
 
   autolabel:
     name: Autolabel pull request
