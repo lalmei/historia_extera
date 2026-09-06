@@ -123,6 +123,10 @@ public sealed class ArtifactSystem : ISystem
         // a pass that writes at most a handful of lines a century.
         Skywatch.Record(world, year);
         Skywatch.Answer(world, year);
+
+        // Last, and after the copies: what a realm holds this year is read off the carriers that
+        // exist once the year's writing, copying and dying have all happened.
+        ClaimTransmission.Trace(world, year);
     }
 
     private static EntityId LivingPatron(Civilization civilization, WorldState world)

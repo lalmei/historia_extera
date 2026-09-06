@@ -200,6 +200,7 @@ bundle.
 | person-level history | figure entities, bonds/memories, relevant systems | year cutoff and source-event links |
 | cosmology | `Cosmology.cs`, `Galaxy.cs`, `CelestialOrientation.cs` | approximation labels and deterministic math |
 | comet records | `Skywatch.cs`, `SkyClaims.cs`, `ArtifactSystem.cs` | simulated observer eligibility and return schedule |
+| claim transmission | `ClaimTransmission.cs`, `Tomes.cs` | derived from surviving carriers; draws no randomness |
 | export field | `WorldExport.cs`, `WorldExporter.cs`, `viewer/src/app/types.ts` | schema bump, compatibility, fingerprint |
 | historical rendering | `viewer/src/app/timeline.ts`, relevant view | event replay and final-state distinction |
 | native lifecycle | `ViewerServer.swift`, build script | writable paths, cache identity, packaged tools |

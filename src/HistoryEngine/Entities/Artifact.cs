@@ -120,6 +120,17 @@ public sealed class TomeContents
         Sections.Add(section);
     }
 
+    /// <summary>
+    /// The claims this work carries, fixed when it was written.
+    /// </summary>
+    /// <remarks>
+    /// A book is the only thing that takes a reading of the sky further than the life of whoever
+    /// held it. What is written here is what the composing realm held in the year of composition;
+    /// a later continuation does not enlarge it, for the same reason the sections do not get
+    /// rewritten.
+    /// </remarks>
+    public List<ClaimRef> Carries { get; } = new();
+
     /// <summary>Maximum number of additional settlement copies this work may produce.</summary>
     public int CopyLimit { get; internal set; }
 

@@ -77,6 +77,15 @@ public static class Tomes
                 artifacts, religion, dedications);
 
         contents.CopyLimit = CopyLimit(world, settlement, civilization, artifactId, contents.Kind, patron);
+
+        // The kinds of work a reading of the sky is actually entered in, and the only way one
+        // outlives the person who made it. A biography of a general is not how a realm comes by a
+        // comet's period.
+        if (Registers(contents.Kind))
+        {
+            ClaimTransmission.Compose(world, contents, civilization.Id, year);
+        }
+
         return contents;
     }
 
@@ -126,6 +135,11 @@ public static class Tomes
             if (continuation is null) continue;
 
             contents.Continue(continuation);
+
+            // A later scribe enters what the realm holds now. This is how a claim outlives its
+            // author: the annals a court keeps are the register, and a continuation is a court
+            // writing down a reading whose claimant may already be dead.
+            ClaimTransmission.Compose(world, contents, civilization.Id, year);
 
             world.Chronicle.Record(
                 year,
@@ -495,6 +509,19 @@ public static class Tomes
 
         return false;
     }
+
+    /// <summary>
+    /// Whether a work of this kind is the sort of book a realm's readings get entered in.
+    /// </summary>
+    /// <remarks>
+    /// An account of the heavens, plainly. Annals and a realm chronicle for the same reason a
+    /// comet is in the annals of every world that kept any: the register a claim rests on is the
+    /// register a claim is written into. Nothing else carries one.
+    /// </remarks>
+    private static bool Registers(TomeContentKind kind) =>
+        kind is TomeContentKind.Cosmology
+            or TomeContentKind.Annals
+            or TomeContentKind.RealmChronicle;
 
     private static bool IsReligious(TomeContentKind kind) =>
         kind is TomeContentKind.ReligiousRite

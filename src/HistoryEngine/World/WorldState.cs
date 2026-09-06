@@ -159,6 +159,16 @@ public sealed class WorldState
     /// refers to by name after the fact the way a war or a house is — it is a state the plague
     /// system carries between years. What survives it is the events it wrote.
     /// </remarks>
+    /// <summary>What each realm currently holds of the claims made in this world.</summary>
+    /// <remarks>
+    /// Derived state, rebuilt each year from carriers that exist. The exported record is
+    /// <see cref="ClaimTransitions"/>; this is only what the next year compares against.
+    /// </remarks>
+    public List<ClaimHolding> ClaimHoldings { get; } = new();
+
+    /// <summary>Every dated change in what a realm held, earliest first.</summary>
+    public List<ClaimTransition> ClaimTransitions { get; } = new();
+
     public List<Outbreak> Outbreaks { get; }
 
     /// <summary>

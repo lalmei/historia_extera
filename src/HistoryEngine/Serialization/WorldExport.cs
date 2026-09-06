@@ -39,6 +39,7 @@ public sealed record WorldExport(
     IReadOnlyList<ExportHolySite> HolySites,
     IReadOnlyList<ExportArtifact> Artifacts,
     IReadOnlyList<ExportEvent> Events,
+    IReadOnlyList<ExportClaimTransition> ClaimTransitions,
     IReadOnlyList<ExportSeries> Series,
     ExportIndices Indices,
     IReadOnlyDictionary<string, string> Narration)
@@ -150,8 +151,15 @@ public sealed record WorldExport(
     /// the tie it happened inside and the recorded wrong it came from — so a marital betrayal is
     /// something a page can show and a consumer can ask a question of, rather than a chronicle line
     /// and one bit on a bond.
+    /// Version 52 gave a claim an addressable subject and the quantity its claimant stated, so a
+    /// claim can be about something other than a comet and a reader can put a stated number beside
+    /// the world's own. The true value stays with the orbit; nothing here scores anybody.
+    /// Version 53 added what each realm held of those claims and when that changed: dated
+    /// acquisitions and losses, each naming the carrier that explains it — the claimant while they
+    /// lived, or the written work whose copy reached a town. The state at a year folds out of the
+    /// transitions, as territory does from transfers; there is no per-year picture of who knew what.
     /// </remarks>
-    public const int CurrentSchemaVersion = 52;
+    public const int CurrentSchemaVersion = 53;
 }
 
 public sealed record ExportMeta(
@@ -823,13 +831,21 @@ public sealed record ExportArtifact(
     IReadOnlyList<ExportProvenance> Provenance);
 
 /// <summary>The subject and passages fixed inside a written artifact when it was made.</summary>
+/// <param name="Carries">
+/// The claims this work set down when it was written, so a reader following a realm's holding
+/// back to where it came from arrives at the text and then at the person.
+/// </param>
 public sealed record ExportTomeContents(
     TomeContentKind Kind,
     EntityId SubjectId,
     EntityId? ContextId,
     int CopyLimit,
+    IReadOnlyList<ExportCarriedClaim> Carries,
     IReadOnlyList<ExportTomeCopy> Copies,
     IReadOnlyList<ExportTomeSection> Sections);
+
+/// <summary>A claim a written work carries, named the way a transition names one.</summary>
+public sealed record ExportCarriedClaim(EntityId ClaimantId, int ClaimId);
 
 /// <summary>One settlement copy made from a work already available elsewhere.</summary>
 public sealed record ExportTomeCopy(
@@ -1138,6 +1154,29 @@ public sealed record ExportClaim(
     ClaimVerdict Verdict,
     int? SettledYear,
     bool ClaimantSawTheAnswer);
+
+/// <summary>
+/// One dated change in what a realm held, and what carried it.
+/// </summary>
+/// <remarks>
+/// <para>Transitions rather than a snapshot per year, for the reason territory is replayed from
+/// transfers rather than stored as a map per year: the state at any year folds out of these, and
+/// they carry the one thing a snapshot cannot, which is why it changed.</para>
+///
+/// <para><b>Every transition names a carrier.</b> A claim in a realm nothing carried it to would
+/// be a claim the chronicle cannot account for, which is the failure this record exists to make
+/// impossible. On a loss the carrier is the last one there was.</para>
+/// </remarks>
+/// <param name="ClaimantId">With <paramref name="ClaimId" />, names the claim across the world.</param>
+public sealed record ExportClaimTransition(
+    EntityId ClaimantId,
+    int ClaimId,
+    EntityId? RealmId,
+    int Year,
+    ClaimTransitionKind Kind,
+    ClaimCarrierKind Carrier,
+    EntityId? CarrierId,
+    EntityId? SettlementId);
 
 public sealed record ExportUndertakingStep(
     int Year,
