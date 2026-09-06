@@ -11,7 +11,7 @@
  */
 
 /** The schema the current engine writes. `compat.ts` has the oldest one the viewer reads. */
-export const SCHEMA_VERSION = 53;
+export const SCHEMA_VERSION = 54;
 
 /**
  * Whether an event carries the history or merely records a life.
@@ -1001,6 +1001,13 @@ export interface TomeCopy {
   year: number;
   settlementId: EntityId;
   sourceSettlementId: EntityId;
+  /**
+   * When the town holding it stopped having it. Absent while it survives, and always absent
+   * before schema 54, where a copy once made was kept for ever.
+   */
+  lostYear?: number;
+  /** What ended it — a sack, an abandonment, a fire. Absent while it survives. */
+  lostCause?: string;
 }
 
 /** Contents fixed when the tome was made; later history never rewrites them. */

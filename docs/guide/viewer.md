@@ -101,7 +101,8 @@ A claim page gives one reading with its claimant, realm, year, register, the sig
 rests on, the year it predicted if it named one, and the verdict with the year the sky settled
 it — including whether the claimant lived to hear the answer. Where the export records them,
 it also shows where the reading travelled: each acquisition and loss with the realm and the
-carrier that explains it, the works that set it down, and where those were copied.
+carrier that explains it, the works that set it down, and where those were copied — with the
+year and the cause where a copy did not survive the town that kept it.
 
 A verdict is not a belief. `Refuted` states how a claim stands to measurable reality in a named
 year and says nothing about whether anyone stopped holding it, so a refuted reading with two
@@ -110,7 +111,9 @@ value of anything stays on the Cosmology page — no error is derived, scored, o
 person or a people.
 
 Exports written before schema 53 carry the claims but not their travels. The section says so
-rather than showing an empty column, which would read as a world where nothing spread.
+rather than showing an empty column, which would read as a world where nothing spread. In one
+written before schema 54, every copy ever made is still standing: nothing destroyed a library,
+so the only recorded way to lose a reading was for its author to die.
 
 ## Cosmology and the night sky
 

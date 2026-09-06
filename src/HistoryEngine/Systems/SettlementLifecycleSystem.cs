@@ -305,6 +305,10 @@ public sealed class SettlementLifecycleSystem : ISystem
         // family to leave — that is precisely what makes a ruin worth digging up later.
         Treasures.LoseAll(world, settlement, year, "abandoned with the town");
 
+        // And what it was reading. A copy does not walk out with the last family either, and a
+        // town nobody lives in keeps no library: no draw here, and none of the sack's odds.
+        Tomes.LoseCopies(world, settlement, year, "abandoned with the town");
+
         // A faith loses a congregation. Left to the religion system to pronounce dead, which it
         // does when the last one goes.
         if (!settlement.ReligionId.IsNone && world.Religions.Contains(settlement.ReligionId))

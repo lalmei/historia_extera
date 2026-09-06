@@ -83,6 +83,15 @@ public static class Warfare
     /// </remarks>
     private const int WorthSacking = 250;
 
+    /// <summary>
+    /// How often a copy kept in a sacked town comes through it.
+    /// </summary>
+    /// <remarks>
+    /// Worse odds than the treasury's, which are the odds of being carried off rather than of
+    /// surviving: regalia is what an army came for and a scriptorium is what it burns.
+    /// </remarks>
+    private const double LibrarySurvivesSack = 0.55;
+
     /// <summary>Odds a standing marshal takes a given field, rather than some other dynast.</summary>
     /// <remarks>
     /// Not one. A realm fights on more than one frontier and a marshal cannot be at both, and a
@@ -963,6 +972,11 @@ public static class Warfare
         // What the place was keeping goes home with the army, or does not survive the night.
         // Recorded after the sack so the chronicle reads in the order it happened.
         Treasures.Loot(world, target, sacker, year, rng);
+
+        // Copies are not plunder. Nobody carries a town's working library home, so what the fire
+        // and the night take is simply gone — which is the only way a reading somebody wrote
+        // down can be lost while its town goes on standing.
+        Tomes.LoseCopies(world, target, year, "in the sack", LibrarySurvivesSack, rng);
     }
 
     /// <summary>

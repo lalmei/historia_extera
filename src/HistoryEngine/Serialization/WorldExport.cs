@@ -159,7 +159,7 @@ public sealed record WorldExport(
     /// lived, or the written work whose copy reached a town. The state at a year folds out of the
     /// transitions, as territory does from transfers; there is no per-year picture of who knew what.
     /// </remarks>
-    public const int CurrentSchemaVersion = 53;
+    public const int CurrentSchemaVersion = 54;
 }
 
 public sealed record ExportMeta(
@@ -848,10 +848,16 @@ public sealed record ExportTomeContents(
 public sealed record ExportCarriedClaim(EntityId ClaimantId, int ClaimId);
 
 /// <summary>One settlement copy made from a work already available elsewhere.</summary>
+/// <param name="LostYear">
+/// When the town holding it stopped having it, or null while it survives. A lost copy is kept in
+/// the list rather than removed from it, so a reader at an earlier year still finds it there.
+/// </param>
 public sealed record ExportTomeCopy(
     int Year,
     EntityId SettlementId,
-    EntityId SourceSettlementId);
+    EntityId SourceSettlementId,
+    int? LostYear = null,
+    string? LostCause = null);
 
 /// <summary>One passage and the entity links it makes available to a reader.</summary>
 public sealed record ExportTomeSection(

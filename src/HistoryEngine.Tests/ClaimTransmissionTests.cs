@@ -1,4 +1,5 @@
 using HistoryEngine.Entities;
+using HistoryEngine.Events;
 using HistoryEngine.Serialization;
 using HistoryEngine.World;
 using Xunit;
@@ -217,6 +218,112 @@ public sealed class ClaimTransmissionTests
 
                 if (seat is null) continue;
                 Assert.Equal(seat.SettlementId, change.SettlementId);
+            }
+        }
+    }
+
+    /// <summary>
+    /// A copy does not come through what happens to the town that kept it.
+    /// </summary>
+    /// <remarks>
+    /// Before this, a library was the one thing in a settlement that survived everything: a town
+    /// could be sacked, burned and given up and its books came through intact, so the only
+    /// recorded way to lose a reading was for its author to die. Every destroyed copy here names
+    /// the event that destroyed it, and the year is the year that event happened.
+    /// </remarks>
+    [Fact]
+    public void ACopyDoesNotOutliveWhatHappenedToItsTown()
+    {
+        int destroyed = 0;
+        var causes = new SortedDictionary<string, int>(StringComparer.Ordinal);
+
+        foreach (ulong seed in Seeds)
+        {
+            WorldExport export = HistoryRun.Execute(TestWorlds.Standard(seed)).ToExport();
+
+            foreach (ExportArtifact work in export.Artifacts)
+            {
+                if (work.TomeContents is not ExportTomeContents contents) continue;
+
+                foreach (ExportTomeCopy copy in contents.Copies)
+                {
+                    if (copy.LostYear is not int lost) continue;
+
+                    Assert.True(lost >= copy.Year, "A copy was lost before it was made.");
+                    Assert.False(string.IsNullOrEmpty(copy.LostCause));
+
+                    causes.TryGetValue(copy.LostCause!, out int seen);
+                    causes[copy.LostCause!] = seen + 1;
+                    destroyed++;
+
+                    // Nothing here is a hazard of its own: a sack or an abandonment is the town's
+                    // event, in the town's year, and the copy is among what the town lost.
+                    if (copy.LostCause is not ("in the sack" or "abandoned with the town")) continue;
+
+                    EventKind kind = copy.LostCause == "in the sack"
+                        ? EventKind.SettlementSacked
+                        : EventKind.SettlementAbandoned;
+
+                    Assert.Contains(
+                        export.Events,
+                        entry => entry.Kind == kind
+                            && entry.Year == lost
+                            && entry.Subject == copy.SettlementId);
+                }
+            }
+        }
+
+        _output.WriteLine($"Copies destroyed with their towns: {destroyed}.");
+        foreach (KeyValuePair<string, int> cause in causes)
+        {
+            _output.WriteLine($"  {cause.Key}: {cause.Value}.");
+        }
+
+        Assert.True(destroyed > 0, "No copy in the panel was destroyed by anything.");
+    }
+
+    /// <summary>
+    /// A copy that is gone stops carrying, and stays in the record that says it once did not.
+    /// </summary>
+    /// <remarks>
+    /// The two halves of the same promise. A realm cannot go on holding a reading on a copy that
+    /// burned twenty years ago, and a reader replaying the world to a year before the fire has to
+    /// find the copy still there — which is why a destroyed copy is dated rather than removed.
+    /// </remarks>
+    [Fact]
+    public void ADestroyedCopyStopsCarryingAndStaysInTheRecord()
+    {
+        foreach (ulong seed in Seeds)
+        {
+            WorldExport export = HistoryRun.Execute(TestWorlds.Standard(seed)).ToExport();
+
+            foreach (ExportClaimTransition change in export.ClaimTransitions)
+            {
+                if (change.Carrier != ClaimCarrierKind.Text) continue;
+
+                ExportArtifact work = export.Artifacts.Single(item => item.Id == change.CarrierId);
+                ExportTomeCopy? copy = null;
+                foreach (ExportTomeCopy candidate in work.TomeContents!.Copies)
+                {
+                    if (candidate.SettlementId == change.SettlementId) copy = candidate;
+                }
+
+                if (copy is null) continue;
+
+                if (change.Kind == ClaimTransitionKind.Acquired)
+                {
+                    Assert.True(
+                        copy.LostYear is not int burned || burned > change.Year,
+                        $"A reading arrived on a copy lost in {copy.LostYear}.");
+                    continue;
+                }
+
+                // A loss seated on a copy that is still standing is a loss for some other reason
+                // — the town left the realm, or was given up — and is not this rule's business.
+                if (copy.LostYear is not int gone) continue;
+                Assert.True(
+                    gone <= change.Year,
+                    $"A reading was lost in {change.Year} on a copy that survived to {gone}.");
             }
         }
     }

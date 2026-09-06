@@ -69,9 +69,10 @@ public sealed record ClaimHolding(
 /// the reason the realm has it.</para>
 ///
 /// <para><b>Loss is the same rule read backwards.</b> Nothing destroys knowledge here. Towns are
-/// abandoned and sacked by the systems that own those decisions, books go with the towns that
-/// kept them, and people die; when the last of those is gone from a realm, the realm no longer
-/// holds the claim and the chronicle says which carrier was the last one.</para>
+/// abandoned and sacked by the systems that own those decisions, books and the copies of them
+/// go with the towns that kept them, and people die; when the last of those is gone from a
+/// realm, the realm no longer holds the claim and the chronicle says which carrier was the last
+/// one.</para>
 /// </remarks>
 public static class ClaimTransmission
 {
@@ -145,7 +146,9 @@ public static class ClaimTransmission
 
             foreach (TomeCopy copy in contents.Copies)
             {
-                if (copy.Year > year) continue;
+                // Made by now and not yet burned. A copy destroyed in a sack stops carrying the
+                // reading the year it went, and the record of it having existed stays put.
+                if (!copy.SurvivedTo(year)) continue;
                 Note(world, holders, subject, work.Id, copy.SettlementId, year);
             }
         }
@@ -166,15 +169,21 @@ public static class ClaimTransmission
                 held.CarrierId,
                 held.SettlementId));
 
+            DetMap<string, string> lost = Chronicle.Data(
+                ("reading", claim.Reading),
+                ("carrier", held.Carrier == ClaimCarrierKind.Claimant ? "its author" : "the last copy"));
+
+            // Only where something recorded one. A key with nothing behind it reads as a cause
+            // the chronicle knows and declines to give.
+            if (WhatEndedIt(world, held) is { Length: > 0 } cause) lost["cause"] = cause;
+
             world.Chronicle.Record(
                 year,
                 EventKind.ClaimLost,
                 claimant.Id,
                 obj: held.RealmId,
                 location: held.SettlementId,
-                data: Chronicle.Data(
-                    ("reading", claim.Reading),
-                    ("carrier", held.Carrier == ClaimCarrierKind.Claimant ? "its author" : "the last copy")),
+                data: lost,
                 significance: Significance.Notable);
         }
 
@@ -210,6 +219,39 @@ public static class ClaimTransmission
                 data: Chronicle.Data(("reading", claim.Reading)),
                 significance: Significance.Routine);
         }
+    }
+
+    /// <summary>
+    /// What took the last carrier, in the words the event that took it used.
+    /// </summary>
+    /// <remarks>
+    /// Read back off the thing that went rather than decided here: the copy says it burned in a
+    /// sack, the work's provenance says it was lost in a fire, and an author's death is already
+    /// named by the carrier. Empty when nothing recorded a cause, which the narration drops.
+    /// </remarks>
+    private static string WhatEndedIt(WorldState world, ClaimHolding held)
+    {
+        if (held.Carrier != ClaimCarrierKind.Text || !world.Artifacts.Contains(held.CarrierId))
+        {
+            return string.Empty;
+        }
+
+        Artifact work = world.Artifacts[held.CarrierId];
+
+        if (work.TomeContents is TomeContents contents)
+        {
+            foreach (TomeCopy copy in contents.Copies)
+            {
+                if (copy.SettlementId == held.SettlementId && copy.LostHow is string how) return how;
+            }
+        }
+
+        if (!work.IsExtant && work.Provenance.Count > 0)
+        {
+            return work.Provenance[^1].How;
+        }
+
+        return string.Empty;
     }
 
     /// <summary>Records a text-carried holding, if that settlement is somewhere a realm still has.</summary>

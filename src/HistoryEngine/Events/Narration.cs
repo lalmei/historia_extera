@@ -193,7 +193,7 @@ public static class Narration
             "{object} came by what {subject} held[, {data:reading}][, at {location}].");
         Set(EventKind.ClaimLost,
             "{object} no longer held what {subject} said[, {data:reading}]"
-            + "[, having lost {data:carrier}].");
+            + "[, having lost {data:carrier}][ {data:cause}].");
 
         Set(EventKind.DynastyFounded, "The {subject} rose[ under {object}][ in {location}].");
         Set(EventKind.DynastyEnded, "The {subject} died out[ after {data:years}].");
@@ -262,6 +262,8 @@ public static class Narration
             "{subject} was recovered[ at {location}][ by {object}].");
         Set(EventKind.ArtifactRevised,
             "{subject} was continued[ at {location}][ under {object}].");
+        Set(EventKind.ArtifactCopyLost,
+            "The copy of {subject}[ kept at {location}] did not survive[, {data:cause}].");
 
         Set(EventKind.PlagueBegan,
             "The {data:name} broke out in {subject}[, carrying off {data:lost} people].");
@@ -455,7 +457,8 @@ public static class Narration
         SetSelf(EventKind.ClaimCarried,
             "[{self:subject}What they held was copied into {object}][{self:subject} at {location}].");
         SetSelf(EventKind.ClaimLost,
-            "[{self:subject}{object} no longer held what they said][{self:subject}, having lost {data:carrier}].");
+            "[{self:subject}{object} no longer held what they said]"
+            + "[{self:subject}, having lost {data:carrier}][{self:subject} {data:cause}].");
         SetSelf(EventKind.DynastyFounded,
             "[{self:object}Raised the {subject}][{self:object} in {location}].");
         SetSelf(EventKind.DynastyAscended,
