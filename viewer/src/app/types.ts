@@ -542,6 +542,63 @@ export type Occupation =
   | 'Official'
   | 'Scribe';
 
+/**
+ * The trade a guildsman practises.
+ *
+ * Beside the occupation rather than inside it: the offices read the occupation, and a mason
+ * and a smith are the same answer to a guild-master's seat. Decided by the place somebody
+ * lived in when they came of age, and kept for life — a mason who later sat as governor is
+ * still a mason.
+ */
+export type Craft =
+  | 'None'
+  | 'Smith'
+  | 'Armourer'
+  | 'Goldsmith'
+  | 'Mason'
+  | 'Carpenter'
+  | 'Shipwright'
+  | 'Sailor'
+  | 'Weaver'
+  | 'Dyer'
+  | 'Tanner'
+  | 'Potter'
+  | 'CharcoalBurner'
+  | 'Glassblower'
+  | 'Cooper'
+  | 'Wheelwright'
+  | 'Miller'
+  | 'Baker'
+  | 'Brewer'
+  | 'Salter'
+  | 'Bookbinder'
+  | 'Apothecary';
+
+export const CRAFT_LABELS: Record<Craft, string> = {
+  None: 'Guild',
+  Smith: 'Smith',
+  Armourer: 'Armourer',
+  Goldsmith: 'Goldsmith',
+  Mason: 'Mason',
+  Carpenter: 'Carpenter',
+  Shipwright: 'Shipwright',
+  Sailor: 'Sailor',
+  Weaver: 'Weaver',
+  Dyer: 'Dyer',
+  Tanner: 'Tanner',
+  Potter: 'Potter',
+  CharcoalBurner: 'Charcoal burner',
+  Glassblower: 'Glassblower',
+  Cooper: 'Cooper',
+  Wheelwright: 'Wheelwright',
+  Miller: 'Miller',
+  Baker: 'Baker',
+  Brewer: 'Brewer',
+  Salter: 'Salter',
+  Bookbinder: 'Bookbinder',
+  Apothecary: 'Apothecary',
+};
+
 export const OCCUPATION_LABELS: Record<Occupation, string> = {
   None: 'Not yet of age',
   Soldiery: 'Soldiery',
@@ -2167,6 +2224,13 @@ export interface Figure {
    * default would claim a trade the record never assigned. See `compat.ts`.
    */
   occupation?: Occupation;
+  /**
+   * The trade, for a guildsman. See CRAFT_LABELS.
+   *
+   * Optional because exports written before crafts existed carry none, and absent — never
+   * 'None' — for everyone who was never in a guild. See `compat.ts`.
+   */
+  craft?: Craft;
   /** Absent in exports written before figures had one. Never defaulted — see `compat.ts`. */
   disposition?: Disposition;
   titles: Title[];

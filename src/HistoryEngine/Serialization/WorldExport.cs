@@ -901,6 +901,7 @@ public sealed record ExportFigure(
     FigureOrigin Origin,
     ExportBackground? Background,
     Occupation Occupation,
+    Craft Craft,
     ExportDisposition Disposition,
     IReadOnlyList<ExportTitle> Titles,
     IReadOnlyList<ExportRankStep> Service,

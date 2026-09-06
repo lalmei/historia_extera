@@ -275,6 +275,11 @@ public static class Occupations
             location: world.ResidenceOf(figure),
             data: Chronicle.Data(("occupation", Phrase(occupation))),
             significance: Significance.Routine);
+
+        // Which guild, once we know they are in one. Asked here rather than in Ensure so that a
+        // guild master raised into the record, and a figure who came back to the guild after an
+        // office, both arrive with a trade — everyone who takes the career passes through here.
+        Crafts.Ensure(world, figure, year);
     }
 
     private static void RememberPrior(Figure figure)

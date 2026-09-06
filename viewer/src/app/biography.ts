@@ -1,4 +1,4 @@
-import { OCCUPATION_LABELS } from './types.ts';
+import { CRAFT_LABELS, OCCUPATION_LABELS } from './types.ts';
 import type {
   Affinity,
   Campaign,
@@ -1527,6 +1527,12 @@ function tradeAt(figure: Figure, events: HistoryEvent[], year: number): string |
   const current = taken.filter((event) => event.year <= year).at(-1);
   if (!current) return undefined;
   if (current === taken.at(-1) && figure.occupation && figure.occupation !== 'None') {
+    // A craft is the more particular fact and outlives the guild membership, so a guildsman
+    // reads as a smith rather than as a guild wherever the export carries one.
+    if (figure.craft && figure.craft !== 'None') {
+      return CRAFT_LABELS[figure.craft] ?? figure.craft;
+    }
+
     return OCCUPATION_LABELS[figure.occupation];
   }
   return current.data?.occupation ? sentenceCase(current.data.occupation) : undefined;

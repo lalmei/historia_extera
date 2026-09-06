@@ -379,6 +379,20 @@ public sealed class Figure
     public Occupation Occupation { get; set; } = Occupation.None;
 
     /// <summary>
+    /// The trade they practise, for a guildsman.
+    /// </summary>
+    /// <remarks>
+    /// <para>Beside the occupation rather than inside it, because the offices read the occupation
+    /// and a mason and a smith are the same answer to a guild-master's seat. See
+    /// <see cref="World.Crafts"/> for what decides which one somebody takes.</para>
+    ///
+    /// <para>Empty for everyone who is not in a guild, and kept for life once taken — a man who
+    /// was a mason and then sat as guild master is still a mason, and the record should say so.
+    /// </para>
+    /// </remarks>
+    public Craft Craft { get; set; } = Craft.None;
+
+    /// <summary>
     /// The career they return to when an office ends, if they live. Empty until a posting
     /// actually changed what they did, and cleared when they have gone back.
     /// </summary>

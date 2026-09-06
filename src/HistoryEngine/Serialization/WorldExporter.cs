@@ -911,6 +911,7 @@ public static class WorldExporter
                 Origin: figure.Origin,
                 Background: BuildBackground(figure.Background),
                 Occupation: figure.Occupation,
+                Craft: figure.Craft,
                 Disposition: new ExportDisposition(
                     figure.Disposition.Values.Aggression,
                     figure.Disposition.Values.Expansionism,
