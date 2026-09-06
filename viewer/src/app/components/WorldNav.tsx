@@ -14,6 +14,7 @@ import {
   IconGem,
   IconGlobe,
   IconHex,
+  IconIdea,
   IconLandmark,
   IconMap,
   IconPeople,
@@ -79,6 +80,10 @@ const NAV_GROUPS = [
       { path: '/plague', label: 'Plagues', Icon: IconDrop },
       { path: '/disaster', label: 'Disasters', Icon: IconBolt },
     ],
+  },
+  {
+    label: 'Knowledge',
+    items: [{ path: '/knowledge', label: 'Claims', Icon: IconIdea }],
   },
   {
     label: 'Faith',

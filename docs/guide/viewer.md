@@ -80,6 +80,38 @@ The page also reports:
 The portrait mark is a sigil. The simulation exports no physical appearance, so the viewer
 does not fabricate one.
 
+## Knowledge
+
+The **Knowledge** section reads the claim record: what people in the world said about it, on
+what evidence, and what became of the saying. It is separate from Cosmology on purpose.
+Cosmology is the objective description of the generated system — the numbers the world was
+built from, which nobody in the world knows. Knowledge is the opposite register.
+
+Its overview is a matrix, not a tech tree and not a set of levels. Rows are the fields the
+export has claims in; columns say what could settle a claim:
+
+- **Observation** — what was written down, and what was derived from it. The sky can answer it.
+- **Practice** — what could actually be done. Answered by the object or the harvest, never by a
+  proposition. The engine does not record this yet, so the column does not appear.
+- **Doctrine** — what was believed about why. Nothing settles it, and nothing here grades it.
+
+Only rows and columns the export actually populates are shown.
+
+A claim page gives one reading with its claimant, realm, year, register, the sightings it
+rests on, the year it predicted if it named one, and the verdict with the year the sky settled
+it — including whether the claimant lived to hear the answer. Where the export records them,
+it also shows where the reading travelled: each acquisition and loss with the realm and the
+carrier that explains it, the works that set it down, and where those were copied.
+
+A verdict is not a belief. `Refuted` states how a claim stands to measurable reality in a named
+year and says nothing about whether anyone stopped holding it, so a refuted reading with two
+centuries of copies and patrons reads as exactly that. Doctrine is never graded, and the true
+value of anything stays on the Cosmology page — no error is derived, scored, or attached to a
+person or a people.
+
+Exports written before schema 53 carry the claims but not their travels. The section says so
+rather than showing an empty column, which would read as a world where nothing spread.
+
 ## Cosmology and the night sky
 
 The **Cosmology** page shows a deterministic host galaxy, star, habitable planet or moon,

@@ -43,6 +43,7 @@ import {
   yearRange,
 } from '../components/common';
 import { IconCity, IconClock, IconPeople, IconSwords } from '../components/icons';
+import { href } from '../router';
 import {
   battlesOf,
   cultureOf,
@@ -1591,7 +1592,13 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
                       <li key={`${claim.id}:${claim.year}`} className="border-l border-[var(--line)] pl-3">
                         <p className="flex flex-wrap items-baseline gap-2">
                           <span>
-                            {claim.year} · {claim.reading}
+                            {claim.year} ·{' '}
+                            <a
+                              href={href(`/knowledge/${figure.id}/${claim.id}`)}
+                              className="underline decoration-[var(--rule)] decoration-1 underline-offset-2 transition-colors hover:text-[var(--accent)]"
+                            >
+                              {claim.reading}
+                            </a>
                           </span>
                           <Badge
                             tone={
