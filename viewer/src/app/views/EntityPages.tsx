@@ -3056,6 +3056,7 @@ function FollowingChart({ world, religion }: { world: World; religion: Religion 
  */
 export function ArtifactPage({ world, artifact }: { world: World; artifact: Artifact }) {
   const copies = artifact.tomeContents?.copies ?? [];
+  const surviving = copies.filter((copy) => copy.lostYear === undefined).length;
   const sections = artifact.tomeContents?.sections ?? [];
   const subjectMarker = artifact.name.indexOf(' of ');
   const briefSubject =
@@ -3136,7 +3137,12 @@ export function ArtifactPage({ world, artifact }: { world: World; artifact: Arti
                     ? 'Unique manuscript'
                     : copies.length === 0
                       ? 'Not yet copied'
-                      : `${copies.length} additional settlement ${copies.length === 1 ? 'copy' : 'copies'}`}
+                      : `${copies.length} additional settlement ${copies.length === 1 ? 'copy' : 'copies'}` +
+                        (surviving === copies.length
+                          ? ''
+                          : surviving === 0
+                            ? ', none surviving'
+                            : `, ${surviving} surviving`)}
                 </Field>
               </>
             )}
@@ -3206,6 +3212,13 @@ export function ArtifactPage({ world, artifact }: { world: World; artifact: Arti
                   <span>
                     Copied at <EntityLink world={world} id={copy.settlementId} /> from the exemplar at{' '}
                     <EntityLink world={world} id={copy.sourceSettlementId} />
+                    {copy.lostYear !== undefined && (
+                      <span className="text-[var(--ink-faint)]">
+                        {' '}
+                        — lost in {copy.lostYear}
+                        {copy.lostCause ? `, ${copy.lostCause}` : ''}
+                      </span>
+                    )}
                   </span>
                 </li>
               ))}

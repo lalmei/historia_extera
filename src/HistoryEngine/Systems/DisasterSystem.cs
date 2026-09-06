@@ -45,6 +45,9 @@ public sealed class DisasterSystem : ISystem
     /// <summary>Loss below which nothing is recorded — a bad storm is not a disaster.</summary>
     private const int NotableLoss = 8;
 
+    /// <summary>How often a copy kept where a fire reached comes through it.</summary>
+    private const double LibrarySurvivesFire = 0.60;
+
     /// <summary>
     /// Share of a disaster's population severity inherited as risk by each member of the court.
     /// </summary>
@@ -199,6 +202,10 @@ public sealed class DisasterSystem : ISystem
         if (Burns(kind) && rng.Chance(0.35))
         {
             Treasures.LoseOne(world, settlement, year, Label(kind), rng);
+
+            // The same fire reaches the shelves. Most of a library survives a fire that took one
+            // thing out of a treasury; the point is that some of it does not.
+            Tomes.LoseCopies(world, settlement, year, Label(kind), LibrarySurvivesFire, rng);
         }
 
         List<Figure> courtDead = CourtCasualties(world, settlement, severity, year, rng);

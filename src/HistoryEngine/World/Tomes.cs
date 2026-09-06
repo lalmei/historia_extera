@@ -341,6 +341,52 @@ public static class Tomes
         }
     }
 
+    /// <summary>
+    /// Destroys the settlement copies a town was keeping, at the odds of whatever happened to it.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Nothing here is a hazard for books.</b> This is called by the sack, the fire and
+    /// the abandonment that were already going to happen, in the same year and for the same
+    /// reason a treasury loses what it was holding. A book is simply among what a town loses,
+    /// and no copy is ever rolled against on its own account.</para>
+    ///
+    /// <para><b>The odds belong to the event.</b> A sacked town does not certainly lose its
+    /// library and a town nobody lives in any more does not keep one, so the caller says what
+    /// surviving is worth; at <paramref name="survival"/> of zero nothing is drawn at all, which
+    /// keeps an abandonment out of the sack's random stream.</para>
+    ///
+    /// <para>Without this a claim could only be lost by its author dying. Every copy ever made
+    /// survived every war, which made writing a reading down the end of its story rather than the
+    /// middle of it.</para>
+    /// </remarks>
+    public static void LoseCopies(
+        WorldState world, Settlement place, int year, string cause, double survival, IRng rng) =>
+        Destroy(world, place, year, cause, survival, rng);
+
+    /// <summary>Destroys every copy a town was keeping, for an event nothing survives.</summary>
+    public static void LoseCopies(WorldState world, Settlement place, int year, string cause) =>
+        Destroy(world, place, year, cause, 0.0, null);
+
+    private static void Destroy(
+        WorldState world, Settlement place, int year, string cause, double survival, IRng? rng)
+    {
+        foreach (Artifact artifact in world.Artifacts)
+        {
+            if (artifact.TomeContents is not TomeContents contents) continue;
+            if (!HasSurvivingCopyAt(contents, place.Id)) continue;
+            if (survival > 0.0 && rng is not null && rng.Chance(survival)) continue;
+
+            contents.LoseCopyAt(place.Id, year, cause);
+
+            world.Chronicle.Record(
+                year,
+                EventKind.ArtifactCopyLost,
+                artifact.Id,
+                location: place.Id,
+                data: Chronicle.Data(("cause", cause)));
+        }
+    }
+
     /// <summary>How far this particular work can spread, separate from how quickly it does so.</summary>
     private static int CopyLimit(
         WorldState world,
@@ -397,7 +443,7 @@ public static class Tomes
 
         foreach (TomeCopy copy in contents.Copies)
         {
-            if (!world.Settlements.Contains(copy.SettlementId)) continue;
+            if (!copy.IsExtant || !world.Settlements.Contains(copy.SettlementId)) continue;
 
             Settlement settlement = world.Settlements[copy.SettlementId];
             if (settlement.IsActive && !ContainsSettlement(sources, settlement.Id))
@@ -495,6 +541,17 @@ public static class Tomes
         foreach (TomeCopy copy in contents.Copies)
         {
             if (copy.SettlementId == settlementId) return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>Whether this town is still keeping a copy of this work that could be destroyed.</summary>
+    private static bool HasSurvivingCopyAt(TomeContents contents, EntityId settlementId)
+    {
+        foreach (TomeCopy copy in contents.Copies)
+        {
+            if (copy.SettlementId == settlementId && copy.IsExtant) return true;
         }
 
         return false;

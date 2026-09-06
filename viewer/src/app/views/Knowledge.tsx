@@ -667,6 +667,8 @@ export function ClaimPage({ world, claimKey }: { world: World; claimKey: string 
                             {copy.year} · copied to{' '}
                             <EntityLink world={world} id={copy.settlementId} /> from{' '}
                             <EntityLink world={world} id={copy.sourceSettlementId} />
+                            {copy.lostYear !== undefined &&
+                              ` · lost in ${copy.lostYear}${copy.lostCause ? `, ${copy.lostCause}` : ''}`}
                           </li>
                         ))}
                       </ul>

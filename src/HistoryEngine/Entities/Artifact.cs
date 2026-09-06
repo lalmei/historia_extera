@@ -48,13 +48,30 @@ public sealed record TomeSection(
 
 /// <summary>A copy made in another settlement from an exemplar already available there.</summary>
 /// <remarks>
-/// This is a distribution record, not another famous artifact. It says that a copy was made;
-/// later abandonment may mean that copy no longer survives.
+/// <para>This is a distribution record, not another famous artifact. It says that a copy was
+/// made, and — once the town holding it has been sacked, burned or given up — the year it
+/// stopped being somewhere a reader could go.</para>
+///
+/// <para>The loss is written down rather than inferred from whether the settlement is still
+/// standing, because the two are not the same fact: a sacked town survives its own sack, and a
+/// library that burned in it does not. Inferring it also left nothing to name the cause with.</para>
 /// </remarks>
 public sealed record TomeCopy(
     int Year,
     EntityId SettlementId,
-    EntityId SourceSettlementId);
+    EntityId SourceSettlementId)
+{
+    /// <summary>When this copy stopped surviving, or null while it is still somewhere.</summary>
+    public int? LostYear { get; internal set; }
+
+    /// <summary>What ended it — "in the sack", "abandoned with the town" — or null.</summary>
+    public string? LostHow { get; internal set; }
+
+    public bool IsExtant => LostYear is null;
+
+    /// <summary>Whether a reader could have consulted this copy in the given year.</summary>
+    public bool SurvivedTo(int year) => Year <= year && (LostYear is not int lost || lost > year);
+}
 
 /// <summary>
 /// The contents fixed inside a tome when it was made.
@@ -154,6 +171,28 @@ public sealed class TomeContents
         }
 
         Copies.Add(new TomeCopy(year, settlementId, sourceSettlementId));
+    }
+
+    /// <summary>
+    /// Destroys the copy a settlement was keeping, if it still had one.
+    /// </summary>
+    /// <remarks>
+    /// The record stays in <see cref="Copies"/>. A copy that was made and later burned is a
+    /// different history from one that was never made, and both the chronicle and a reader
+    /// replaying an earlier year need the first one to still be there.
+    /// </remarks>
+    internal bool LoseCopyAt(EntityId settlementId, int year, string how)
+    {
+        foreach (TomeCopy copy in Copies)
+        {
+            if (copy.SettlementId != settlementId || !copy.IsExtant) continue;
+
+            copy.LostYear = year;
+            copy.LostHow = how;
+            return true;
+        }
+
+        return false;
     }
 }
 

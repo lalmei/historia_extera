@@ -840,7 +840,9 @@ public static class WorldExporter
             copies.Add(new ExportTomeCopy(
                 Year: copy.Year,
                 SettlementId: copy.SettlementId,
-                SourceSettlementId: copy.SourceSettlementId));
+                SourceSettlementId: copy.SourceSettlementId,
+                LostYear: copy.LostYear,
+                LostCause: copy.LostHow));
         }
 
         var sections = new List<ExportTomeSection>(contents.Sections.Count);

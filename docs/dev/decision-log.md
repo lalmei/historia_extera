@@ -5002,6 +5002,62 @@ arrival, and the transition stream still alternates and still folds. Acquisition
 as they were recorded, because an acquisition says how a realm came by something in the year it did,
 and that is not a fact later years get to rewrite. Seed 42 is untouched and the golden did not move.
 
+### A library is among what a town loses
+
+Transmission landed and loss worked, but only one of its two paths was ever taken. Across the claim
+panel (seeds 6, 11, 17, 29, 46, 47) **every recorded loss was an author dying** — not one loss of a
+holding a book was carrying, in six worlds and eighteen centuries. `ClaimTransmission` was not the
+problem; it derives loss correctly from carriers that stop surviving. The problem was that nothing
+in the engine ever destroyed a library. A town could be stormed, burned, halved by plague and given
+up, and its books came through all of it. Writing a reading down was therefore the end of its
+story rather than the middle of it, and the lost-knowledge panel had exactly one story to tell.
+
+**Nothing new destroys anything.** A copy is destroyed by the sack, the fire and the abandonment
+that were already happening, in the same year and for the same reason a treasury loses what it was
+holding. `Tomes.LoseCopies` is called from `Warfare.MaybeSack` beside `Treasures.Loot`, from
+`SettlementLifecycleSystem` beside `Treasures.LoseAll`, and from the burning half of a disaster
+beside `Treasures.LoseOne`. No copy is ever rolled against on its own account, and
+`ClaimTransmission` still contains no `IRng` — the guard test still reads the file for one.
+
+**The odds belong to the event, not to the book.** A sacked town keeps a given copy 55% of the
+time, worse than the treasury's 65%, which are the odds of being *carried off* rather than of
+surviving: regalia is what an army came for and a scriptorium is what it burns. A fire that reached
+a treasury keeps 60%. An abandonment keeps none and draws nothing at all, which keeps it out of the
+sack's random stream.
+
+**A lost copy is dated, not deleted.** The record stays in `Copies` with a year and a cause. A copy
+made in 180 and burned in 240 is a different history from one never made, the chronicle needs the
+cause to say what ended a reading, and a reader replaying the world to 200 has to find the copy
+still standing. `TomeCopy.SurvivedTo` is the one question transmission asks of it.
+
+**An abandonment was already silently doing this, and could not say so.** `Note` skipped copies in
+inactive settlements, so a given-up town's library stopped carrying with no record that it had ever
+stopped. That is why the abandonment path shows up as a large number below without changing much:
+what it buys is a cause, not a behaviour. The sack is the new behaviour.
+
+**What the numbers say.** Over eight seeds (2, 3, 5, 7, 8, 11, 42, 99) at 600 years and ten
+civilizations, copies destroyed went from **0 to 252** — 207 abandonments the record previously
+could not name, and 45 sacks that previously could not happen. Two claim losses in that set are now
+attributed to a sack: a realm that had a reading in writing and lost it when the town holding the
+last copy was stormed, which is the case the milestone asked for and the engine could not produce.
+Text-carried losses overall are unchanged at this scale (20 before, 18 after — divergent worlds,
+not a signal), because the binding constraint is upstream: across the claim panel only **six
+written works in six worlds carry a reading at all**, with eight copies between them. That scarcity
+is circulation's, deliberately left where it was, and it is why the panel at 300 years still shows
+no text-carried loss while the same seeds destroy eleven copies (six abandonments, four sacks, one
+wildfire). Making a reading lose its last copy needs more books carrying readings, not more fires.
+
+**`ClaimLost` now names what ended it**, read back off the thing that went rather than decided at
+the point of loss: the copy says it burned in a sack, the work's provenance says how it was lost,
+and an author's death is already named by the carrier. The key is omitted where nothing recorded a
+cause, because a key with nothing behind it reads as a cause the chronicle knows and declines to
+give.
+
+Schema 54 adds `lostYear` and `lostCause` to a tome copy. Seed 42's fingerprint moved, as any
+change to what a sack does must.
+
+---
+
 ---
 
 ## Notes for Phase 2
