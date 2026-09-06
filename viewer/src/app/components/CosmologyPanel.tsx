@@ -229,7 +229,7 @@ export function CosmologyPanel({ world, seed }: { world: ExportWorld; seed?: num
 
       <SizeStrip cosmology={c} kind={world.kind} name={world.name} />
       <MapKey cosmology={c} kind={world.kind} name={world.name} />
-      <GiantFaces companions={c.companions ?? []} />
+      <PlanetFaces cosmology={c} kind={world.kind} name={world.name} />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <div>
@@ -385,79 +385,175 @@ export function CosmologyPanel({ world, seed }: { world: ExportWorld; seed?: num
 }
 
 /**
- * The giants of the system, one card each. None of this is settled by habitability the way the
- * star and the zone are — a giant's banding, its spot and whether it kept its rings are accidents
- * of that system's history — but it is what anyone standing on the world actually sees.
+ * Every planet of the system, one card each, ordered outward from the star. The giants carry a
+ * face — banding, a spot, whatever rings they kept — because a giant is the one companion anyone
+ * on the ground will actually look at; the inner rocky worlds carry only their orbit and their
+ * bulk, which is all the system's history settles about them.
  */
-function GiantFaces({ companions }: { companions: ExportCompanionPlanet[] }) {
-  const giants = companions.filter((body) => body.appearance);
-  if (giants.length === 0) return null;
+function PlanetFaces({
+  cosmology: c,
+  kind,
+  name,
+}: {
+  cosmology: ExportCosmology;
+  kind: WorldKind;
+  name: string;
+}) {
+  const cards: PlanetCard[] = (c.companions ?? []).map((body) => ({
+    key: `${body.role}-${body.semiMajorAxisAu}`,
+    label: body.roleLabel ?? COMPANION_ROLE_LABELS[body.role] ?? body.role,
+    semiMajorAxisAu: body.semiMajorAxisAu,
+    massEarth: body.massEarth,
+    radiusEarth: body.radiusEarth,
+    orbitalPeriodDays: body.orbitalPeriodDays,
+    appearance: body.appearance,
+    tint: companionColor(body.role),
+    moons: (body.moons ?? []).map((moon) =>
+      moon.habitable && kind === 'Moon' ? `${moon.name ?? String(moon.index)} (${name})` : moon.name ?? String(moon.index),
+    ),
+  }));
+
+  if (kind === 'Planet') {
+    cards.push({
+      key: 'home',
+      label: name,
+      home: true,
+      semiMajorAxisAu: c.orbitalDistanceAu,
+      massEarth: c.worldMassEarth,
+      radiusEarth: c.worldRadiusEarth,
+      orbitalPeriodDays: c.orbitalPeriodDays,
+      tint: '#4ade80',
+      moons: (c.homeMoons ?? []).map((moon) => moon.name ?? String(moon.index)),
+    });
+  }
+
+  if (cards.length === 0) return null;
+  cards.sort((a, b) => a.semiMajorAxisAu - b.semiMajorAxisAu);
 
   return (
-    <Panel title="The giants">
+    <Panel title="The planets">
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {giants.map((body) => (
-          <GiantFace key={`${body.role}-${body.semiMajorAxisAu}`} body={body} />
+        {cards.map((card) => (
+          <PlanetFace key={card.key} card={card} />
         ))}
       </div>
     </Panel>
   );
 }
 
-function GiantFace({ body }: { body: ExportCompanionPlanet }) {
-  const face = body.appearance;
-  if (!face) return null;
+interface PlanetCard {
+  key: string;
+  label: string;
+  semiMajorAxisAu: number;
+  massEarth: number;
+  radiusEarth: number;
+  orbitalPeriodDays: number;
+  appearance?: ExportGiantAppearance;
+  tint: string;
+  moons: string[];
+  home?: boolean;
+}
 
-  const moons = body.moons ?? [];
+function PlanetFace({ card }: { card: PlanetCard }) {
+  const face = card.appearance;
   return (
-    <div className="rounded-md border border-[var(--rule)] bg-[var(--input)] p-3">
+    <div
+      className={`rounded-md border p-3 ${
+        card.home
+          ? 'border-[var(--tertiary)] bg-[var(--input)]'
+          : 'border-[var(--rule)] bg-[var(--input)]'
+      }`}
+    >
       <div className="flex items-baseline justify-between gap-2">
         <span className="text-sm font-semibold">
-          {body.roleLabel ?? COMPANION_ROLE_LABELS[body.role] ?? body.role}
+          {card.label}
+          {card.home && (
+            <span className="ml-2 text-xs font-normal text-[var(--ink-faint)]">this world</span>
+          )}
         </span>
         <span className="text-xs text-[var(--ink-faint)]">
-          {body.semiMajorAxisAu.toFixed(2)} AU · {body.massEarth.toFixed(0)} M⊕
+          {card.semiMajorAxisAu.toFixed(2)} AU · {formatMassEarth(card.massEarth)}
         </span>
       </div>
       <div className="mt-2 flex items-center gap-3">
-        <BandedDisc appearance={face} />
+        {face ? <BandedDisc appearance={face} /> : <RockyDisc card={card} />}
         <dl className="flex-1 space-y-1 text-xs text-[var(--ink-soft)]">
           <FaceRow
-            label="Spin"
-            value={`${face.rotationPeriodHours.toFixed(1)} h${face.retrograde ? ', retrograde' : ''} · ${face.bandCount} bands`}
+            label="Orbit"
+            value={`${card.semiMajorAxisAu.toFixed(3)} AU · ${formatCometPeriod(card.orbitalPeriodDays)}`}
           />
-          <FaceRow label="Tilt" value={`${face.obliquityDeg.toFixed(0)}° obliquity`} />
-          {face.ring ? (
-            <FaceRow
-              label="Rings"
-              value={`${face.ring.compositionLabel}, ${face.ring.innerRadiusPlanetRadii.toFixed(2)}–${face.ring.outerRadiusPlanetRadii.toFixed(2)} R${face.ring.divisionRadiusPlanetRadii > face.ring.innerRadiusPlanetRadii ? ', divided' : ''} · ${(face.ringOpenness * 100).toFixed(0)}% open`}
-            />
-          ) : (
-            <FaceRow label="Rings" value="none held" />
-          )}
-          {face.ringBrightnessBoostMagnitudes < -0.01 && (
-            <FaceRow
-              label="Ring light"
-              value={`${face.ringBrightnessBoostMagnitudes.toFixed(2)} mag brighter`}
-            />
-          )}
-          {face.storm && (
-            <FaceRow
-              label="Storm"
-              value={`${face.storm.name}, ${Math.abs(face.storm.latitudeDeg).toFixed(0)}°${face.storm.latitudeDeg >= 0 ? 'N' : 'S'}, standing ${Math.round(face.storm.ageYears)} years`}
-            />
+          <FaceRow
+            label="Bulk"
+            value={`${card.radiusEarth.toFixed(2)} R⊕ · ${formatMassEarth(card.massEarth)}`}
+          />
+          {face && (
+            <>
+              <FaceRow
+                label="Spin"
+                value={`${face.rotationPeriodHours.toFixed(1)} h${face.retrograde ? ', retrograde' : ''} · ${face.bandCount} bands`}
+              />
+              <FaceRow label="Tilt" value={`${face.obliquityDeg.toFixed(0)}° obliquity`} />
+              {face.ring ? (
+                <FaceRow
+                  label="Rings"
+                  value={`${face.ring.compositionLabel}, ${face.ring.innerRadiusPlanetRadii.toFixed(2)}–${face.ring.outerRadiusPlanetRadii.toFixed(2)} R${face.ring.divisionRadiusPlanetRadii > face.ring.innerRadiusPlanetRadii ? ', divided' : ''} · ${(face.ringOpenness * 100).toFixed(0)}% open`}
+                />
+              ) : (
+                <FaceRow label="Rings" value="none held" />
+              )}
+              {face.ringBrightnessBoostMagnitudes < -0.01 && (
+                <FaceRow
+                  label="Ring light"
+                  value={`${face.ringBrightnessBoostMagnitudes.toFixed(2)} mag brighter`}
+                />
+              )}
+              {face.storm && (
+                <FaceRow
+                  label="Storm"
+                  value={`${face.storm.name}, ${Math.abs(face.storm.latitudeDeg).toFixed(0)}°${face.storm.latitudeDeg >= 0 ? 'N' : 'S'}, standing ${Math.round(face.storm.ageYears)} years`}
+                />
+              )}
+            </>
           )}
           <FaceRow
             label="Moons"
-            value={
-              moons.length === 0
-                ? 'none'
-                : moons.map((moon) => moon.name ?? String(moon.index)).join(', ')
-            }
+            value={card.moons.length === 0 ? 'none' : card.moons.join(', ')}
           />
         </dl>
       </div>
     </div>
+  );
+}
+
+/** A world with no face of its own: a lit disc in its own tint, scaled against Earth. */
+function RockyDisc({ card }: { card: PlanetCard }) {
+  const size = 72;
+  const centre = size / 2;
+  const radius = size * 0.28 * Math.min(1, Math.max(0.35, Math.cbrt(card.radiusEarth)));
+  const uid = `rocky-${card.key.replace(/[^a-zA-Z0-9]/g, '')}`;
+
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="presentation">
+      <defs>
+        <radialGradient id={uid} cx="32%" cy="30%" r="70%">
+          <stop offset="0%" stopColor={card.tint} stopOpacity="1" />
+          <stop offset="100%" stopColor={card.tint} stopOpacity="0.45" />
+        </radialGradient>
+        <clipPath id={`${uid}-clip`}>
+          <circle cx={centre} cy={centre} r={radius} />
+        </clipPath>
+      </defs>
+      <circle cx={centre} cy={centre} r={radius} fill={`url(#${uid})`} />
+      <ellipse
+        cx={centre + radius * 0.45}
+        cy={centre}
+        rx={radius * 0.5}
+        ry={radius}
+        fill="#020617"
+        opacity="0.35"
+        clipPath={`url(#${uid}-clip)`}
+      />
+    </svg>
   );
 }
 
