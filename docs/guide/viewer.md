@@ -10,7 +10,7 @@ simulated years, size, engine, and schema. Expand a row for a low-resolution bio
 a summary of the final year.
 
 A row is disabled when its export is outside the schema range the viewer can read. The
-current viewer accepts schema 21 through 53. Older readable schemas can lack panels added in
+current viewer accepts schema 28 through 53. Older readable schemas can lack panels added in
 later versions; the viewer leaves those facts absent and labels the export rather than
 inventing defaults.
 

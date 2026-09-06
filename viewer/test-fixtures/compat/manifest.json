@@ -1,0 +1,102 @@
+[
+  {
+    "file": "v28.json.gz",
+    "schemaVersion": 28,
+    "sourceCommit": "a75d2be5b91c2c86ad300dbd9fdf6bf06a184cdb",
+    "arguments": [
+      "--seed",
+      "11",
+      "--years",
+      "150",
+      "--civs",
+      "8",
+      "--raster",
+      "16",
+      "--out",
+      "export.json"
+    ],
+    "sha256": "d3eaed72f451e8d0be41f5047bfa1faaf7a29cdefec52ed9b014f786b1091372",
+    "figures": 783,
+    "events": 3229
+  },
+  {
+    "file": "v34.json.gz",
+    "schemaVersion": 34,
+    "sourceCommit": "034330ede7a31800bc4c93a23623dad9a2cc3d73",
+    "arguments": [
+      "--seed",
+      "11",
+      "--years",
+      "150",
+      "--civs",
+      "8",
+      "--raster",
+      "16",
+      "--out",
+      "export.json"
+    ],
+    "sha256": "90dc4b863e5ea78b7a84e633635a66426701937170912022f3380b9e320c6320",
+    "figures": 743,
+    "events": 4435
+  },
+  {
+    "file": "v42.json.gz",
+    "schemaVersion": 42,
+    "sourceCommit": "c4b72889fa1b1fc1af392daf52b7c2254b70b330",
+    "arguments": [
+      "--seed",
+      "11",
+      "--years",
+      "150",
+      "--civs",
+      "8",
+      "--raster",
+      "16",
+      "--out",
+      "export.json"
+    ],
+    "sha256": "5f68cfa5db861418e4dc4c85445e968aceae3cc588f6f026edb3b18d186c477c",
+    "figures": 767,
+    "events": 4984
+  },
+  {
+    "file": "v48.json.gz",
+    "schemaVersion": 48,
+    "sourceCommit": "8bcff31a4977c3531474907bbe99e342ed02c258",
+    "arguments": [
+      "--seed",
+      "11",
+      "--years",
+      "150",
+      "--civs",
+      "8",
+      "--raster",
+      "16",
+      "--out",
+      "export.json"
+    ],
+    "sha256": "62dbaa7ebb7fe1c9b6ac9ed043aeb9c6bf12b68a0c4561f7e492d772a1fe8db4",
+    "figures": 772,
+    "events": 7178
+  },
+  {
+    "file": "v52.json.gz",
+    "schemaVersion": 52,
+    "sourceCommit": "5af43aa817354cce400c361a202fbeb3b3707bb6",
+    "arguments": [
+      "--seed",
+      "11",
+      "--years",
+      "150",
+      "--civs",
+      "8",
+      "--raster",
+      "16",
+      "--out",
+      "export.json"
+    ],
+    "sha256": "99deb2e762cd9a5b5ffa76981d4f277ebbb4743d196a42dbf687ab22b0928f24",
+    "figures": 772,
+    "events": 6215
+  }
+]
