@@ -231,6 +231,17 @@ public enum EventKind
     /// </remarks>
     SpouseBetrayed = 349,
 
+    /// <summary>
+    /// A guildsman took up a particular trade.
+    /// </summary>
+    /// <remarks>
+    /// Routine, and beside <see cref="OccupationTaken"/> rather than replacing it: the occupation
+    /// says they entered a guild, and this says which craft the guild was of. Written only where a
+    /// craft was actually decided, so a guildsman in a town that can support no trade leaves the
+    /// first record and not this one.
+    /// </remarks>
+    CraftTaken = 350,
+
     // ---- Territory (400) ----
     // Claims are written so ownership can be replayed year by year; they are marked Routine
     // so the timeline is not a run of "extended its reach". Cessions and releases stay on

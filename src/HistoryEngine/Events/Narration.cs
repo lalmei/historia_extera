@@ -117,6 +117,14 @@ public static class Narration
             "{subject} was stripped of the office of {data:office}[ of {object}][, {data:cause}].");
         Set(EventKind.OccupationTaken,
             "{subject} took to {data:occupation}[ at {location}].");
+        // Beside the line above it, not instead of it: OccupationTaken fires the same year and
+        // says they took to a craft, so this one has to say which without saying "craft" again.
+        // The label rather than Crafts.Phrase, because the phrases were written for a person's own
+        // prose and one of them refuses this sentence outright — "went to the sea" is a sailor and
+        // "went to the forge" is a walk. "Set to the trade of" is the idiom for entering a craft
+        // and it takes every one of the twenty-one labels unaltered.
+        Set(EventKind.CraftTaken,
+            "{subject} was set to the trade of {data:craft}[ in {location}].");
         Set(EventKind.RankGranted,
             "{subject} was raised to {data:rank}[ in the army of {object}][, {data:claim}].");
         // One template, four errands. The reason a journey was made is a holy site for a pilgrim,
@@ -348,6 +356,8 @@ public static class Narration
             "Was stripped of the office of {data:office}[ of {object}][, {data:cause}].");
         SetSelf(EventKind.OccupationTaken,
             "Took to {data:occupation}[ at {location}].");
+        SetSelf(EventKind.CraftTaken,
+            "Was set to the trade of {data:craft}[ in {location}].");
         SetSelf(EventKind.RankGranted,
             "Was raised to {data:rank}[ in the army of {object}][, {data:claim}].");
         SetSelf(EventKind.JourneyMade,

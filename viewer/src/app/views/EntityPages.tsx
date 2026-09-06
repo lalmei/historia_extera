@@ -90,6 +90,7 @@ import {
   KIND_LABELS,
   MEMORY_LABELS,
   OCCUPATION_LABELS,
+  CRAFT_LABELS,
   ORIGIN_LABELS,
   OUTCOME_LABELS,
   PRAYER_LABELS,
@@ -782,10 +783,17 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
   const occupationEvent = [...visibleEvents]
     .reverse()
     .find((event) => event.kind === 'OccupationTaken');
+  // A guildsman is named by their craft where the export carries one: "Smith" says what
+  // "Guild" cannot, and the craft outlives the guild membership that gave it.
+  const craftLabel =
+    figure.craft && figure.craft !== 'None'
+      ? (CRAFT_LABELS[figure.craft] ?? figure.craft)
+      : undefined;
   const trade = atLatest
-    ? figure.occupation && figure.occupation !== 'None'
-      ? (OCCUPATION_LABELS[figure.occupation] ?? figure.occupation)
-      : undefined
+    ? craftLabel ??
+      (figure.occupation && figure.occupation !== 'None'
+        ? (OCCUPATION_LABELS[figure.occupation] ?? figure.occupation)
+        : undefined)
     : occupationEvent?.data?.occupation;
   const role = activeTitle?.title ?? trade;
   const hasFamily =
