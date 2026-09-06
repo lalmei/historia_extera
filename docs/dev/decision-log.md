@@ -4985,6 +4985,23 @@ event, figure or value changed. The digest still moves, and should — a world c
 new export — but the regeneration is auditable rather than a reflex, which is the standard this
 file's own fingerprint entry asks for.
 
+**A holding has to be moved onto whatever is carrying it now.** The first cut recomputed who holds
+what each year and then wrote down only arrivals and departures — which is right — but left the
+stored holding exactly as it was recorded on arrival. So a realm went on being held by the carrier
+it *first* had, and the loss, when it came, named that one. The visible half was the town: a loss
+was placed where the claimant had been standing when the realm came by the reading, not where they
+were living when it went. Seeds 11 and 29 put four losses in the wrong settlement between them,
+each naming a town the claimant had already left — two of them because the claimant had moved to
+another realm entirely, which is what took the reading away from the first one. The latent half is the carrier itself — an author dies, the books they left
+take over, and the eventual loss blames a person a century in the ground for a copy that burned —
+and it stays latent only because nothing yet sacks a library, per the entry above.
+
+`Reseat` now moves a holding onto the current carrier while keeping the year the realm came by it.
+It writes nothing to the chronicle: the realm never stopped holding the reading, so this is not an
+arrival, and the transition stream still alternates and still folds. Acquisitions are left exactly
+as they were recorded, because an acquisition says how a realm came by something in the year it did,
+and that is not a fact later years get to rewrite. Seed 42 is untouched and the golden did not move.
+
 ---
 
 ## Notes for Phase 2
