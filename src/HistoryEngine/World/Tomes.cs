@@ -28,6 +28,16 @@ public static class Tomes
     /// <summary>Additional settlements that can receive one work before it ceases to be scarce.</summary>
     private const int MaximumCopies = 5;
 
+    /// <summary>How many books one settlement can hold before it stops adding to them.</summary>
+    /// <remarks>
+    /// Deliberately not <c>ArtifactSystem</c>'s treasury limit, and deliberately much larger. The
+    /// treasury cap answers "how many objects can a town be famous for", which is a real question
+    /// about fame; a library answers a different one, about how much writing a place can afford
+    /// to keep. Sharing the first number capped a realm's entire literary output at three works
+    /// from its capital, for ever.
+    /// </remarks>
+    public const int LibraryLimit = 12;
+
     /// <summary>How far a later scribe may misremember an event, in years, at no learning.</summary>
     private const int MemoryDriftYears = 12;
 
@@ -151,36 +161,125 @@ public static class Tomes
     }
 
     /// <summary>
-    /// A ruler, high priest or house may pay for a particular work this year.
+    /// A ruler, high priest, house, scribe or merchant may pay for a particular work this year.
     /// </summary>
+    /// <remarks>
+    /// <para><b>Not only a capital.</b> A court is the best-funded place to have something
+    /// written, not the only one: a monastery keeps a scriptorium, a market town keeps accounts
+    /// and itineraries, and both existed in this model already — they were consulted about how
+    /// far a finished work travels and never about whether one could be written. Every town of
+    /// the tier is now asked, and what it can bring to the question decides how often it says
+    /// yes: <see cref="WritingAppetite"/> reads the scriptorium and the trade the place lives by,
+    /// which is a ground the export can name.</para>
+    ///
+    /// <para><b>And somebody there has to pay for it.</b> Away from the seat the patron must be a
+    /// person of that town, which is the throttle that keeps the ceiling honest — a farming town
+    /// with no scribe, no merchant and no house does not write a book merely because it was
+    /// asked. The court's own patrons stay realm-wide, since the court sits at the seat by
+    /// definition.</para>
+    /// </remarks>
     public static void Commission(WorldState world, int year)
     {
+        // One pass over the living, rather than one per town: the patron lookup used to be a
+        // scan of every figure per realm, and asking it per settlement instead would multiply
+        // that by the number of towns in the world for every year of it.
+        Dictionary<(EntityId Town, Occupation Trade), Figure> residents = Townsfolk(world, year);
+
         foreach (Civilization civilization in world.ActiveCivilizations())
         {
-            if (civilization.CapitalId.IsNone
-                || !world.Settlements.Contains(civilization.CapitalId))
+            foreach (Settlement town in world.ActiveSettlementsOf(civilization))
+            {
+                if (town.Tier < SettlementTier.Town) continue;
+
+                double appetite = WritingAppetite(world, town, residents);
+                if (appetite <= 0.0) continue;
+
+                // A library, not a treasury. What a town already holds in objects is no longer
+                // any of this decision's business.
+                if (Treasures.HoldingsOf(world, town.Id).Books >= LibraryLimit) continue;
+
+                IRng rng = world.Root.Fork("tome.commission", town.Id.ToDiscriminator())
+                    .Fork("year", year);
+
+                // A throne is a patron only where the throne is. Everywhere else the same four
+                // remain, so a town's writing is still explained by who lived in it.
+                PatronKind who = town.IsCapital
+                    ? rng.NextInt(5) switch
+                    {
+                        0 => PatronKind.Priest,
+                        1 => PatronKind.House,
+                        2 => PatronKind.Scribe,
+                        3 => PatronKind.Merchant,
+                        _ => PatronKind.Ruler,
+                    }
+                    : rng.NextInt(4) switch
+                    {
+                        0 => PatronKind.Priest,
+                        1 => PatronKind.House,
+                        2 => PatronKind.Scribe,
+                        _ => PatronKind.Merchant,
+                    };
+
+                TryCommission(world, civilization, town, year, rng.Fork("patron"), who, appetite, residents);
+            }
+        }
+    }
+
+    /// <summary>
+    /// How much of a court's appetite for having something written a town can muster.
+    /// </summary>
+    /// <remarks>
+    /// A seat pays a scribe for years out of a treasury; nowhere else can. A monastery comes
+    /// closest, because copying is already the ordinary work of the house; a trade or craft town
+    /// comes next, because it keeps writing for its own reasons and a patron there has somewhere
+    /// to have the work done. So does a town that simply has somebody in letters living in it,
+    /// which is the case nearly every town in a world falls under — almost everything above a
+    /// village farms, so a rule reading only the specialization would have widened the franchise
+    /// on paper and left it a capital's privilege in fact.
+    ///
+    /// A town with none of these is not refused a book — it can still make one through
+    /// <c>ArtifactSystem</c>, which is a place making what a place makes — it is merely not
+    /// somewhere a work gets commissioned on a subject.
+    /// </remarks>
+    private static double WritingAppetite(
+        WorldState world,
+        Settlement town,
+        Dictionary<(EntityId Town, Occupation Trade), Figure> residents)
+    {
+        if (town.IsCapital) return 1.0;
+        if (HasScriptorium(world, town)) return 0.5;
+        if (IsBookHub(world, town)) return 0.2;
+        return residents.ContainsKey((town.Id, Occupation.Scribe)) ? 0.2 : 0.0;
+    }
+
+    /// <summary>
+    /// The person of each trade a town could look to this year, keyed by town and trade.
+    /// </summary>
+    /// <remarks>
+    /// Lowest id wins, matching what the realm-wide lookup did before there was more than one
+    /// place to ask. Built once a year and read by every town in it.
+    /// </remarks>
+    private static Dictionary<(EntityId Town, Occupation Trade), Figure> Townsfolk(
+        WorldState world, int year)
+    {
+        var found = new Dictionary<(EntityId, Occupation), Figure>();
+
+        foreach (Figure figure in world.Figures)
+        {
+            if (!figure.IsAlive || figure.ResidenceSettlementId.IsNone) continue;
+            if (figure.AgeIn(year) < Succession.MajorityAge) continue;
+
+            var key = (figure.ResidenceSettlementId, figure.Occupation);
+            if (found.TryGetValue(key, out Figure? standing)
+                && standing.Id.CompareTo(figure.Id) <= 0)
             {
                 continue;
             }
 
-            Settlement seat = world.Settlements[civilization.CapitalId];
-            if (!seat.IsActive || seat.Tier < SettlementTier.Town) continue;
-            if (HeldByTown(world, seat.Id) >= 3) continue;
-
-            IRng rng = world.Root.Fork("tome.commission", civilization.Id.ToDiscriminator())
-                .Fork("year", year);
-
-            PatronKind who = rng.NextInt(5) switch
-            {
-                0 => PatronKind.Priest,
-                1 => PatronKind.House,
-                2 => PatronKind.Scribe,
-                3 => PatronKind.Merchant,
-                _ => PatronKind.Ruler,
-            };
-
-            TryCommission(world, civilization, seat, year, rng.Fork("patron"), who);
+            found[key] = figure;
         }
+
+        return found;
     }
 
     private static TomeContents Choose(
@@ -640,22 +739,63 @@ public static class Tomes
         Merchant = 4,
     }
 
+    /// <summary>
+    /// Who in this town would pay for a work of this sort, if anybody would.
+    /// </summary>
+    /// <remarks>
+    /// At a seat these are the realm's people — the court, the high priest and the ruling house
+    /// all sit there, and asking the town for them would only find them again by a longer road.
+    /// Anywhere else the patron is a resident, which is both the honest answer and the reason the
+    /// wider franchise does not turn every town of the tier into a scriptorium.
+    /// </remarks>
+    private static Figure? Patron(
+        WorldState world,
+        Civilization civilization,
+        Settlement town,
+        int year,
+        PatronKind who,
+        Dictionary<(EntityId Town, Occupation Trade), Figure> residents)
+    {
+        if (town.IsCapital)
+        {
+            return who switch
+            {
+                PatronKind.Priest => Offices.HolderOf(world, civilization, OfficeKind.HighPriest),
+                PatronKind.House => HouseHead(world, civilization, year),
+                PatronKind.Scribe => LivingOf(world, civilization, year, Occupation.Scribe),
+                PatronKind.Merchant => LivingOf(world, civilization, year, Occupation.Merchant),
+                _ => LivingRuler(world, civilization),
+            };
+        }
+
+        // A house away from the seat is whoever of the court lives there; the throne is not on
+        // this list at all, because a ruler commissioning from a town he does not sit in is the
+        // capital's decision wearing another town's name.
+        Occupation trade = who switch
+        {
+            PatronKind.Priest => Occupation.Clergy,
+            PatronKind.House => Occupation.Court,
+            PatronKind.Scribe => Occupation.Scribe,
+            PatronKind.Merchant => Occupation.Merchant,
+            _ => Occupation.None,
+        };
+
+        return trade != Occupation.None && residents.TryGetValue((town.Id, trade), out Figure? found)
+            ? found
+            : null;
+    }
+
     private static void TryCommission(
         WorldState world,
         Civilization civilization,
         Settlement seat,
         int year,
         IRng rng,
-        PatronKind who)
+        PatronKind who,
+        double appetite,
+        Dictionary<(EntityId Town, Occupation Trade), Figure> residents)
     {
-        Figure? patron = who switch
-        {
-            PatronKind.Priest => Offices.HolderOf(world, civilization, OfficeKind.HighPriest),
-            PatronKind.House => HouseHead(world, civilization, year),
-            PatronKind.Scribe => LivingOf(world, civilization, year, Occupation.Scribe),
-            PatronKind.Merchant => LivingOf(world, civilization, year, Occupation.Merchant),
-            _ => LivingRuler(world, civilization),
-        };
+        Figure? patron = Patron(world, civilization, seat, year, who, residents);
 
         if (patron is null) return;
 
@@ -670,7 +810,7 @@ public static class Tomes
             _ => 0.005 + (learning * 0.014),
         };
 
-        if (!rng.Chance(chance)) return;
+        if (!rng.Chance(chance * appetite)) return;
 
         TomeContentKind kind;
         EntityId subject = EntityId.None;
@@ -782,9 +922,6 @@ public static class Tomes
             patron.Id,
             contents);
     }
-
-    private static int HeldByTown(WorldState world, EntityId settlementId) =>
-        Treasures.HeldBy(world, settlementId).Count;
 
     private static Figure? LivingRuler(WorldState world, Civilization civilization)
     {

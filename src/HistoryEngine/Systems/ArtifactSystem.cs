@@ -91,10 +91,23 @@ public sealed class ArtifactSystem : ISystem
                 if (chance <= 0.0 || !rng.Chance(chance)) continue;
 
                 // A treasury of twenty is a warehouse, not a legend. The cap is what keeps the
-                // handful of famous objects in a world actually famous.
-                if (Treasures.HeldBy(world, settlement.Id).Count >= TreasuryLimit) continue;
+                // handful of famous objects in a world actually famous — and it is the wrong
+                // question to ask of a book. A library of twenty is a library, so the two are
+                // counted apart: sharing one budget meant a town holding a crown, a sword and a
+                // relic could never write anything again, for ever.
+                (int books, int objects) = Treasures.HoldingsOf(world, settlement.Id);
+                if (objects >= TreasuryLimit && books >= Tomes.LibraryLimit) continue;
 
                 ArtifactKind kind = Choose(world, settlement, civilization, values, rng);
+
+                // Asked after the choice rather than before it, because which cap applies is not
+                // known until the place has said what it would make.
+                if (kind == ArtifactKind.Tome
+                    ? books >= Tomes.LibraryLimit
+                    : objects >= TreasuryLimit)
+                {
+                    continue;
+                }
 
                 EntityId creator = kind == ArtifactKind.Regalia
                     ? civilization.CurrentRulerId

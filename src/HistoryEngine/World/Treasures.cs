@@ -96,6 +96,29 @@ public static class Treasures
         return held;
     }
 
+    /// <summary>
+    /// A settlement's extant holdings, counted as the two scarcities they actually are.
+    /// </summary>
+    /// <remarks>
+    /// A famous object is scarce because fame is scarce; a book is scarce because writing is
+    /// expensive. They are capped separately and for different reasons, so the one pass that
+    /// walks the holdings returns both numbers rather than a list every caller re-sorts.
+    /// </remarks>
+    public static (int Books, int Objects) HoldingsOf(WorldState world, EntityId settlementId)
+    {
+        int books = 0;
+        int objects = 0;
+
+        foreach (Artifact artifact in world.Artifacts)
+        {
+            if (!artifact.IsExtant || artifact.HolderId != settlementId) continue;
+            if (artifact.Kind == ArtifactKind.Tome) books++;
+            else objects++;
+        }
+
+        return (books, objects);
+    }
+
     /// <summary>Every extant artifact claimed by one person, in the order they were made.</summary>
     public static List<Artifact> OwnedBy(WorldState world, EntityId figureId)
     {
