@@ -167,12 +167,13 @@ macos-run: macos-app
 macos-release:
 	sh tools/build_macos_release.sh
 
-# Explicit publication step: build first, then attach both the archive and its digest to the
-# matching GitHub draft release. `--clobber` makes a corrected draft build repeatable.
+# Explicit publication step: build first, then attach the archive, the disk image, and both
+# digests to the matching GitHub draft release. The upload script resolves the draft by name,
+# because a draft whose tag has not been pushed cannot be addressed as "v$(VERSION)".
 macos-release-upload: macos-release
-	gh release upload "v$(VERSION)" \
+	sh tools/upload_release_assets.sh \
 		"$(MAC_RELEASE)" "$(MAC_RELEASE).sha256" \
-		"$(MAC_DMG)" "$(MAC_DMG).sha256" --clobber
+		"$(MAC_DMG)" "$(MAC_DMG).sha256"
 
 docs-build docs-serve: SHELL := /bin/sh
 
