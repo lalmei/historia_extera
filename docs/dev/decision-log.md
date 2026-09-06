@@ -5058,6 +5058,71 @@ change to what a sack does must.
 
 ---
 
+### Arrival is not adoption
+
+Transmission answered whether a realm has a reading, and that single fact was quietly doing the
+work of two: the reading is present, and the reading is believed. A realm that received a book and
+put it in a cupboard was indistinguishable from one that taught out of it, so two realms could not
+hold incompatible accounts of one comet, a doctrine had no patrons to have, and "a refuted claim
+can stay influential for centuries" was an invariant the design recorded and nothing exercised.
+
+**Standing is the second fact, and it belongs to the realm.** `ClaimStandings` weighs each holding
+once a year into received, taught, disputed or set aside, and writes down only the changes — the
+same shape the transitions have, for the same reason: the disposition at a year folds out of the
+two streams together, and a change says the thing a snapshot cannot, which is why it moved.
+Presence is untouched; `ClaimTransmission` still derives holding from carriers alone and never
+reads a standing.
+
+**The inputs are the ones that already decide these things.** A realm's inclination is its
+effective learning against its piety, tempered by its state faith's zealotry — `SkyClaims`'
+weighing of a person, read off the realm — plus the friction a faith puts in the way of an account
+of the lights that came out of another faith. Nothing rolls, and the same guard test the
+transmission file has asserts there is no `IRng` in this one either.
+
+**Never from the verdict, asserted the way the randomness rule is.** `NoStandingIsDerivedFromAVerdict`
+reads the source and fails on the words `Verdict`, `Refuted`, `Confirmed` and `SettledYear`
+appearing in it at all. Sampling outcomes would pass by luck; a single `if (verdict == Refuted)`
+would turn the model into one where being wrong makes people stop believing you, which is not what
+happens and not what the section is for.
+
+**Two bands, not one threshold.** A realm's effective values drift a little every year, and a
+standing that flipped whenever they crossed a line would be noise wearing the costume of a change
+of mind. A realm takes a reading up at 0.50 and stops teaching it below 0.40; it shelves one at
+0.15 and takes it back up above 0.22. Across the claim panel (seeds 6, 11, 17, 29, 46, 47) that is
+96 standing changes in eighteen centuries — taught 74, disputed 10, set aside 8, back to merely
+held 4 — which is a record of realms making up their minds rather than a per-year weather report.
+
+**A dispute is about the other reading.** Two accounts of one comet cannot both be the account a
+realm teaches, so a reading is disputed where the realm teaches another that contradicts it: same
+subject, different register or different number. The floor goes to the reading the realm is most
+inclined toward, ties to the older claim, and the whole pass is weighed against a snapshot of what
+was taught before any of the year's disputes were settled, so no reading is spared by another
+having been demoted first. Readings that agree are one account held twice and dispute nothing.
+
+**Contradiction is now reachable, which was the point.** Seed 6 has `civ:5` teaching that the light
+burns for something no one alive knows, in the same year `civ:0` teaches that it returns every
+forty-seven years; the panel produces 92 such years, and neither reading is marked correct
+anywhere.
+
+**What a verdict costs a reading: nothing, and the numbers say how much of nothing.** Seed 29 holds
+a refuted reading for 429 years after the sky answered it and teaches one for 37 — decades, not the
+century the issue sketched, and that is the honest shape rather than a shortfall. Teaching is a
+realm's continuing disposition and it lapses for the reasons dispositions lapse: the values drift,
+another reading is taught against it, the town that taught it goes. None of those is the sky's
+doing, which is the whole claim. The test asserts both halves — still held two centuries on, still
+taught a generation on — because they fail differently: a reading that stopped being *held* would
+mean the answer was taking carriers away, and one that stopped being *taught* would mean a realm
+was reading the verdict over the register.
+
+Schema 55 adds `claimStandings`. Seed 42's export differs from the previous one by that empty array
+and the version number and nothing else — it has no claims to have standings about — so the golden
+was regenerated with a diff that justifies itself. The viewer folds each change into the span of possession it
+happened inside — a realm that loses a reading and comes by it again centuries later starts at
+received again, because arrival is not adoption the second time either — and the claim page names
+the standing beside the years.
+
+---
+
 ---
 
 ## Notes for Phase 2

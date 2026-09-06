@@ -52,6 +52,7 @@ export interface SchemaVerdict {
  * which of the two an old world has.
  */
 const ADDED_IN: readonly { since: number; feature: string }[] = [
+  { since: 55, feature: 'what each realm made of a reading it held — taught, disputed, or set aside — apart from having it' },
   { since: 54, feature: 'the copies a sack, a fire or an abandonment destroyed, and what a reading was lost to' },
   { since: 53, feature: 'what each realm held of those claims, and the carrier that explains every change' },
   { since: 52, feature: 'what a claim is about and the number it stated, apart from the comet it began with' },
@@ -161,6 +162,7 @@ const LIST_FIELDS = {
     'artifacts',
     'events',
     'claimTransitions',
+    'claimStandings',
     'series',
   ],
   regions: ['adjacent'],

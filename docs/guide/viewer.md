@@ -10,7 +10,7 @@ simulated years, size, engine, and schema. Expand a row for a low-resolution bio
 a summary of the final year.
 
 A row is disabled when its export is outside the schema range the viewer can read. The
-current viewer accepts schema 28 through 53. Older readable schemas can lack panels added in
+current viewer accepts schema 28 through 55. Older readable schemas can lack panels added in
 later versions; the viewer leaves those facts absent and labels the export rather than
 inventing defaults.
 
@@ -104,6 +104,11 @@ it also shows where the reading travelled: each acquisition and loss with the re
 carrier that explains it, the works that set it down, and where those were copied — with the
 year and the cause where a copy did not survive the town that kept it.
 
+Where the export records it, each realm that held a reading is also shown at the standing it
+held it: had it, taught it, argued with it, or set it aside. Having a reading and holding with it
+are two facts — a realm can keep a book it shelved for centuries — and neither standing is a mark
+for or against the realm or the reading.
+
 A verdict is not a belief. `Refuted` states how a claim stands to measurable reality in a named
 year and says nothing about whether anyone stopped holding it, so a refuted reading with two
 centuries of copies and patrons reads as exactly that. Doctrine is never graded, and the true
@@ -113,7 +118,9 @@ person or a people.
 Exports written before schema 53 carry the claims but not their travels. The section says so
 rather than showing an empty column, which would read as a world where nothing spread. In one
 written before schema 54, every copy ever made is still standing: nothing destroyed a library,
-so the only recorded way to lose a reading was for its author to die.
+so the only recorded way to lose a reading was for its author to die. Before schema 55 there is no
+standing at all: such a file says which realms had a reading and nothing about what they made of
+it, and the page says so rather than reading arrival as adoption.
 
 ## Cosmology and the night sky
 

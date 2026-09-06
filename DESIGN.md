@@ -218,6 +218,15 @@ and stops being held when the carriers holding it up — a living claimant, a su
 gone from that realm. A test asserts the absence of randomness in that file, because a diffusion
 rate is the cheap thing to reach for and would put a claim in a realm nothing carried it to.
 
+Arrival is not adoption, and the two are separate facts. Holding says a realm has a reading;
+standing says what the realm makes of it — received, taught, disputed, set aside — and a realm may
+hold for centuries a reading it argues with or shelves. `ClaimStandings` decides it from what
+already decides these things, the realm's effective learning against its piety and its state
+faith's zealotry, with the friction a faith that already explains the lights puts in the way of a
+foreign account of them. It never reads a verdict, and a test asserts the word does not occur in
+that file: a refuted reading that keeps its teachers is the case this record exists for, and two
+realms teaching incompatible accounts of one comet is a state the model must be able to reach.
+
 Holding is recomputed each year from carriers that exist rather than accumulated, so no realm can
 hold a reading after the last thing carrying it is gone. The works that carry one are the kinds a
 realm's register is kept in — an account of the heavens, annals, a realm chronicle — and a

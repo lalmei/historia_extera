@@ -118,6 +118,47 @@ test('holdings fold out of transitions, and a re-acquisition is a second span', 
   assert.equal(record.wasLost, true);
 });
 
+test('a standing belongs to the span it happened inside, and a later span starts received', () => {
+  const world = worldWith({
+    schemaVersion: 55,
+    figures: [
+      {
+        id: 'fig:1',
+        name: 'Brania',
+        birthYear: 1,
+        deathYear: 60,
+        claims: [claim({ id: 0, year: 10, realmId: 'civ:0', verdict: 'Refuted', settledYear: 45 })],
+      },
+    ],
+    civilizations: [{ id: 'civ:0', name: 'Aral' }],
+    claimTransitions: [
+      { claimantId: 'fig:1', claimId: 0, realmId: 'civ:0', year: 10, kind: 'Acquired', carrier: 'Claimant', carrierId: 'fig:1' },
+      { claimantId: 'fig:1', claimId: 0, realmId: 'civ:0', year: 60, kind: 'Lost', carrier: 'Claimant', carrierId: 'fig:1' },
+      { claimantId: 'fig:1', claimId: 0, realmId: 'civ:0', year: 90, kind: 'Acquired', carrier: 'Text', carrierId: 'art:1' },
+    ],
+    claimStandings: [
+      { claimantId: 'fig:1', claimId: 0, realmId: 'civ:0', year: 20, from: 'Received', to: 'Taught', cause: 'taken up by the realm\u2019s learned' },
+      { claimantId: 'fig:1', claimId: 0, realmId: 'civ:0', year: 55, from: 'Taught', to: 'SetAside', cause: 'set aside where the faith already explains it' },
+    ],
+  });
+
+  const index = readKnowledge(world);
+  const record = index.byKey.get('fig:1/0') as ClaimRecord;
+
+  assert.equal(index.hasStandings, true);
+  assert.deepEqual(
+    record.holdings.map((holding) => [holding.fromYear, holding.standing, holding.standings.length]),
+    [
+      [10, 'SetAside', 2],
+      // Coming by it again is a fresh arrival, and arrival is not adoption.
+      [90, 'Received', 0],
+    ],
+  );
+
+  // The sky had already answered by 55, and nothing about that decided either standing.
+  assert.equal(record.claim.verdict, 'Refuted');
+});
+
 test('a loss with no open span is kept as an anomaly rather than dropped', () => {
   const world = worldWith({
     figures: [{ id: 'fig:1', name: 'Sergin', birthYear: 1, claims: [claim({ id: 0 })] }],
