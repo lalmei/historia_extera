@@ -51,6 +51,7 @@ import {
   Timeline,
   WarList,
 } from './views/Lists';
+import { ClaimPage, KnowledgePage } from './views/Knowledge';
 import { WorldMap } from './views/WorldMap';
 import { WorldsLibrary } from './views/WorldsLibrary';
 
@@ -208,6 +209,8 @@ function renderRoute(world: World, path: string) {
       return <Timeline world={world} />;
     case 'cosmology':
       return <CosmologyPage world={world} />;
+    case 'knowledge':
+      return <KnowledgePage world={world} />;
     case 'civ':
       return <CivilizationList world={world} />;
     case 'war':
@@ -236,6 +239,13 @@ function renderRoute(world: World, path: string) {
       return <RegionList world={world} />;
     default:
       break;
+  }
+
+  // A claim has no entity id of its own — it is numbered within the life that made it — so the
+  // section addresses one as `knowledge/<claimant>/<n>`, which is the same pair a transition and
+  // a tome use to name it.
+  if (target.startsWith('knowledge/')) {
+    return <ClaimPage world={world} claimKey={target.slice('knowledge/'.length)} />;
   }
 
   // Anything else is an entity id, which is also its route — the readable id format

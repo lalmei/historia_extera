@@ -312,6 +312,16 @@ export function IconStar(props: IconProps) {
   );
 }
 
+export function IconIdea(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M9.5 18h5" />
+      <path d="M10 21h4" />
+      <path d="M12 3a6 6 0 0 0-3.5 10.9c.5.4.8 1 .8 1.6V18h5.4v-2.5c0-.6.3-1.2.8-1.6A6 6 0 0 0 12 3z" />
+    </Icon>
+  );
+}
+
 export function IconHex(props: IconProps) {
   return (
     <Icon {...props}>

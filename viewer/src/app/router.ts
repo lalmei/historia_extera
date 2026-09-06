@@ -14,6 +14,8 @@ import { useEffect, useState } from 'react';
  *   #/map               map
  *   #/timeline          timeline
  *   #/cosmology         host galaxy, star and system physics
+ *   #/knowledge         what people claimed about the world, and what became of it
+ *   #/knowledge/fig:203/0                one claim, its evidence and its travels
  *   #/plague  #/disaster                   event-derived histories
  *   #/civ  #/set  #/rte  #/fig  #/reg     entity lists
  *   #/civ:3  #/rte:12  #/fig:1204         entity pages (the export's own ids)
