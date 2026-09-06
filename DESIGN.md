@@ -169,6 +169,48 @@ Territory is replayed from events instead of storing one map per year. The same 
 applies wherever a past answer can be derived cheaply from the chronicle: preserve the
 transition, not hundreds of redundant snapshots.
 
+### Knowledge
+
+Knowledge is what people in the world said, what they could do, and what they believed. It is
+kept apart from what the world *is*: cosmology, terrain and the event record are the truth, and
+knowledge is the claim about it, owned by the people who held it. `SkyClaims` was built against
+these rules before there was a section to put them in, and generalising it must not soften them.
+
+- **The world settles it, and nothing else does.** A claim is adjudicated only where the world
+  already contains the answer — an orbit, a length of year, a distance, a harvest. No roll decides
+  it, no heuristic grades it, and the claimant's rank, learning and piety buy them nothing. Where
+  the world holds no answer, the engine records that the claim is not settleable and stops. It does
+  not encode a modern answer as hidden truth and score civilizations against it.
+- **A verdict is not a belief.** `Refuted` states a claim's relationship to measurable reality at a
+  named year. It says nothing about whether anyone stopped holding it. A refuted claim may keep its
+  copies, its teachers and its patrons for centuries. Adoption, patronage and opposition are
+  separate exported facts and are never derived from a verdict.
+- **Knowledge moves only where the chronicle can say how it moved.** A copy travelled, a scholar
+  travelled, a teacher had a student, a town changed hands, craftspeople migrated, a faith
+  established itself. There is no diffusion rate and no abstract contact term: two realms trading is
+  not by itself a reason for either to know anything.
+- **Knowledge disappears only where the chronicle can say what happened to its carriers.** The last
+  copy burned, the workshop's town was abandoned, the lineage ended. Loss is derived from the
+  survival of carriers rather than rolled.
+
+Three records share that machinery without being flattened into one:
+
+| Record | What it is | What settles it |
+|---|---|---|
+| Claim | what somebody said about the world, with the evidence they held | a fact the world already contains |
+| Practice | a capability held by settlements and lineages | whether the thing can be made — state, not a proposition |
+| Doctrine | a held position about why | nothing; it is never graded |
+
+They share provenance, carriers, and transitions, and nothing else. A bronze-working capability is
+not a malformed claim, and a doctrine has no use for a verdict.
+
+Historiography is knowledge on the same terms and needs no second truth model. `TomeContents`
+freezes its sections at the year they were written and a continuation adds rather than rewrites, so
+what a surviving text says happened is already a separate record from what happened.
+
+Export follows the territory rule: acquisition and loss are preserved as transitions, not as a
+snapshot of who knew what per year.
+
 ## Simulation pipeline
 
 The current system order is part of the run identity:
@@ -539,6 +581,7 @@ remains available beside the biography on wide layouts and below it on narrow la
 | M25 | The affiliative half of the social graph: friendships that begin in a shared town, and the betrayals they make possible | Done |
 | M26 | A wrong between equals: the post that went to somebody standing beside them | Done |
 | M27 | A marriage can be turned on too, by the gate a friendship goes through | Done |
+| M28 | Knowledge: what people said, what they could do, and how it travelled | Planned |
 
 M13 landed in independently reviewable stages: the clock and dated record first, seasonal
 war and expansion next, then plague travel and outbreak clocks, and finally sieges as
