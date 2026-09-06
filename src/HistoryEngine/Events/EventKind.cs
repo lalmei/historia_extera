@@ -130,6 +130,24 @@ public enum EventKind
     SkyClaimRefuted = 338,
 
     /// <summary>
+    /// A reading reached a realm that did not have it, in a book somebody copied there.
+    /// </summary>
+    /// <remarks>
+    /// Routine on purpose. A copy arriving is ordinary work and there are more of these than of
+    /// anything else knowledge does; what a reader wants at Notable is the argument and its end.
+    /// </remarks>
+    ClaimCarried = 706,
+
+    /// <summary>
+    /// A realm stopped holding a reading, because the last thing carrying it there is gone.
+    /// </summary>
+    /// <remarks>
+    /// Notable. A world that knew something and does not any more is one of the few things a
+    /// chronicle can say that a tech tree cannot.
+    /// </remarks>
+    ClaimLost = 707,
+
+    /// <summary>
     /// A conspiracy moved against the person it named, and missed.
     /// </summary>
     /// <remarks>

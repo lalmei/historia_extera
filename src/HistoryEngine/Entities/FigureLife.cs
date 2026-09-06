@@ -397,6 +397,16 @@ public sealed record SkyObservation(
     public int? Interval => PriorYear is int prior ? Year - prior : null;
 }
 
+/// <summary>
+/// Names one claim in the world: whose it is, and which of theirs.
+/// </summary>
+/// <remarks>
+/// A claim's own id is stable only within its claimant, which is all a life page ever needed. Once
+/// a claim can be carried into realms its author never saw, it needs a name that means the same
+/// thing everywhere, and this is it.
+/// </remarks>
+public readonly record struct ClaimRef(EntityId ClaimantId, int ClaimId);
+
 /// <summary>The kind of thing a claim can be about. Explicit values — part of the export format.</summary>
 /// <remarks>
 /// A subject is addressable rather than free text so that every claim ever made about the same

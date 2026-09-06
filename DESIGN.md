@@ -209,7 +209,20 @@ freezes its sections at the year they were written and a continuation adds rathe
 what a surviving text says happened is already a separate record from what happened.
 
 Export follows the territory rule: acquisition and loss are preserved as transitions, not as a
-snapshot of who knew what per year.
+snapshot of who knew what per year. Every transition names the carrier that explains it, so a
+reader can walk a holding backwards to the text that carried it and the person who first said it.
+
+`ClaimTransmission` is where the movement rules are enforced, and it draws on no random stream at
+all: a claim travels because a copy the circulation model already decided to make arrived somewhere,
+and stops being held when the carriers holding it up — a living claimant, a surviving book — are
+gone from that realm. A test asserts the absence of randomness in that file, because a diffusion
+rate is the cheap thing to reach for and would put a claim in a realm nothing carried it to.
+
+Holding is recomputed each year from carriers that exist rather than accumulated, so no realm can
+hold a reading after the last thing carrying it is gone. The works that carry one are the kinds a
+realm's register is kept in — an account of the heavens, annals, a realm chronicle — and a
+continuation of one enters what the realm holds at the year it is added, which is how a reading
+outlives the person who made it.
 
 ## Simulation pipeline
 
@@ -581,7 +594,7 @@ remains available beside the biography on wide layouts and below it on narrow la
 | M25 | The affiliative half of the social graph: friendships that begin in a shared town, and the betrayals they make possible | Done |
 | M26 | A wrong between equals: the post that went to somebody standing beside them | Done |
 | M27 | A marriage can be turned on too, by the gate a friendship goes through | Done |
-| M28 | Knowledge: what people said, what they could do, and how it travelled | Planned |
+| M28 | Knowledge: what people said, what they could do, and how it travelled | In progress |
 
 M13 landed in independently reviewable stages: the clock and dated record first, seasonal
 war and expansion next, then plague travel and outbreak clocks, and finally sieges as

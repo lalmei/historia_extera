@@ -11,7 +11,7 @@
  */
 
 /** The schema the current engine writes. `compat.ts` has the oldest one the viewer reads. */
-export const SCHEMA_VERSION = 52;
+export const SCHEMA_VERSION = 53;
 
 /**
  * Whether an event carries the history or merely records a life.
@@ -56,6 +56,8 @@ export interface WorldExport {
   holySites: HolySite[];
   artifacts: Artifact[];
   events: HistoryEvent[];
+  /** Dated changes in what each realm held. Absent before schema 53. */
+  claimTransitions?: ClaimTransition[];
   series: Series[];
   indices: ExportIndices;
   narration: Record<string, string>;
@@ -1009,6 +1011,11 @@ export interface TomeContents {
   contextId?: EntityId;
   /** Maximum additional settlement copies chosen when the work was written. */
   copyLimit?: number;
+  /**
+   * The claims this work set down. Absent before schema 53, and empty on the kinds of work a
+   * reading is never entered in.
+   */
+  carries?: ClaimRef[];
   /** Historical copying records; absent in exports made before circulation was modelled. */
   copies?: TomeCopy[];
   sections: TomeSection[];
@@ -1711,6 +1718,36 @@ export type ClaimUnit = 'None' | 'Years';
 export interface ClaimQuantity {
   unit: ClaimUnit;
   value: number;
+}
+
+/** Names one claim across the world: whose it is, and which of theirs. */
+export interface ClaimRef {
+  claimantId: EntityId;
+  claimId: number;
+}
+
+/** What became of a claim in one realm. */
+export type ClaimTransitionKind = 'Acquired' | 'Lost';
+
+/** What was holding a claim up when it arrived, or when it stopped. */
+export type ClaimCarrierKind = 'Claimant' | 'Text';
+
+/**
+ * One dated change in what a realm held, and what carried it.
+ *
+ * Transitions rather than a snapshot per year: the state at a year folds out of these, the way
+ * territory folds out of transfers. Every one names a carrier, because a claim in a realm nothing
+ * carried it to is the failure this record exists to make impossible.
+ */
+export interface ClaimTransition {
+  claimantId: EntityId;
+  claimId: number;
+  realmId?: EntityId;
+  year: number;
+  kind: ClaimTransitionKind;
+  carrier: ClaimCarrierKind;
+  carrierId?: EntityId;
+  settlementId?: EntityId;
 }
 
 /**

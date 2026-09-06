@@ -69,6 +69,7 @@ public static class WorldExporter
             HolySites: BuildHolySites(world),
             Artifacts: BuildArtifacts(world),
             Events: events,
+            ClaimTransitions: BuildClaimTransitions(world),
             Series: BuildSeries(world),
             Indices: BuildIndices(world, events),
             Narration: ToDictionary(Narration.Templates));
@@ -852,11 +853,18 @@ public static class WorldExporter
                 Year: section.Year));
         }
 
+        var carries = new List<ExportCarriedClaim>(contents.Carries.Count);
+        foreach (ClaimRef carried in contents.Carries)
+        {
+            carries.Add(new ExportCarriedClaim(carried.ClaimantId, carried.ClaimId));
+        }
+
         return new ExportTomeContents(
             Kind: contents.Kind,
             SubjectId: contents.SubjectId,
             ContextId: OrNull(contents.ContextId),
             CopyLimit: contents.CopyLimit,
+            Carries: carries,
             Copies: copies,
             Sections: sections);
     }
@@ -1169,6 +1177,25 @@ public static class WorldExporter
                 seen.PriorYear,
                 seen.Interval,
                 seen.Grade));
+        }
+
+        return list;
+    }
+
+    private static List<ExportClaimTransition> BuildClaimTransitions(WorldState world)
+    {
+        var list = new List<ExportClaimTransition>(world.ClaimTransitions.Count);
+        foreach (ClaimTransition change in world.ClaimTransitions)
+        {
+            list.Add(new ExportClaimTransition(
+                change.Claim.ClaimantId,
+                change.Claim.ClaimId,
+                OrNull(change.RealmId),
+                change.Year,
+                change.Kind,
+                change.Carrier,
+                OrNull(change.CarrierId),
+                OrNull(change.SettlementId)));
         }
 
         return list;

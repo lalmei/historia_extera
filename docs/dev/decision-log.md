@@ -4924,6 +4924,67 @@ before. `CometIndex` and `IntervalYears` stay in the export beside `Subject` and
 the compat layer's rule is that a schema change adds fields rather than reinterpreting the ones
 already in the file.
 
+### Transmission: a reading travels in a book, and nothing rolls
+
+**The rule, enforced by an absence.** `ClaimTransmission` contains no `IRng`, no `Chance`, no
+`Fork`, and a test reads the file to say so. A claim reaches a realm because a copy the circulation
+model had already decided to make arrived in a town that model had already chosen, and it stops
+being held when the things holding it up stop surviving. The tempting alternative — a spread rate
+over trading pairs — is four lines and produces a claim in a realm nothing carried it to, which is
+the one outcome the whole design is shaped to prevent.
+
+**Holding is recomputed, not accumulated.** Each year the pass derives who holds what from carriers
+that exist, and writes down only the differences. Nothing can drift: a realm cannot hold a reading
+after the last thing carrying it is gone, because the holding was never stored in the first place.
+Loss falls out of the same rule read backwards and needs no destruction mechanic of its own.
+
+**Two carriers.** A living claimant carries their own reading; a written work carries it afterwards,
+wherever a surviving exemplar sits. That is why a claim can be lost the year somebody dies, and why
+writing it down is the only thing that ever saves one.
+
+**Which books carry a reading, and the measurement that decided it.** The first cut was
+`Cosmology` alone, on the reasoning that an account of the heavens is where a reading belongs. It
+produced **zero** transmission across the claim panel, and the reason is more interesting than the
+rule: five of the six seeds do write cosmologies, but they are written in the realm and the year
+they are written in, and that realm frequently holds no reading at the time. Seeds 11, 17 and 46
+each have one or two cosmologies and put no claim in any of them. Meanwhile seed 29, which writes no
+cosmology at all in three centuries, is the seed that carries the most — through its annals and its
+realm chronicle. So the kinds that carry are `Cosmology`, `Annals` and `RealmChronicle`, on the
+better reasoning that the register a claim rests on is the register a claim is written into.
+
+**Continuation is how a reading outlives its author**, exactly as #148 proposed. A later scribe
+adding a dated section enters what the realm holds now, so a court can write down a reading whose
+claimant is already dead. Seed 29 produces the case the issue asked for: Praxithene made a claim in
+`civ:3` in 128 and died in 173; `civ:2` came by it in 186, thirteen years after their death, in a
+book. Every text-carried acquisition in the panel is cross-realm.
+
+**Transmission is scarce, and that is the design.** Six seeds produce between zero and six claims
+written into books. A copy is expensive, the works that carry a reading are a minority of a small
+library, and a panel that demanded transmission in every world would be measuring the wrong thing —
+so the tests count the cases and require the panel as a whole to produce a crossing and a
+posthumous arrival, rather than requiring either of any single seed.
+
+**Not yet reachable: losing a reading that was written down.** Across the panel there are no losses
+of a text-carried holding, because a copy is only lost when the town holding it is abandoned, and
+nothing sacks a library. Every loss so far is an author dying. That is the fuel the lost-knowledge
+panel wants and it is filed rather than faked.
+
+**The collision, and the guard that now exists.** The two new event kinds were numbered by taking
+the next values after the block they were added to — 339 and 340 — which were already
+`ConspiracyAttempted` and `GuardianAssigned`. C# accepts a duplicate enum value silently as an
+alias, so nothing failed to compile, the narration table's later entry overwrote the earlier one,
+and a hundred and two events in seed 42 quietly changed what they said. The golden fingerprint
+caught it, which is the entire reason that test is written the way it is. `NoTwoEventKindsShareANumber`
+now asserts uniqueness against the file itself, since `Enum.GetValues` collapses aliases and cannot
+see the fault.
+
+**Schema 53, and the golden regenerated with the diff to justify it.** With the collision fixed,
+seed 42's export differs from the previous one by additions and nothing else: eighteen empty
+`carries` arrays, one empty `claimTransitions`, four narration keys, and the version number. No
+event, figure or value changed. The digest still moves, and should — a world carrying new facts is a
+new export — but the regeneration is auditable rather than a reflex, which is the standard this
+file's own fingerprint entry asks for.
+
 ---
 
 ## Notes for Phase 2

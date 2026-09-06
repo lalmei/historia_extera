@@ -189,6 +189,11 @@ public static class Narration
             "The sky bore out {subject}, who held {data:reading}[, in {data:made}].");
         Set(EventKind.SkyClaimRefuted,
             "The sky did not bear out {subject}, who held {data:reading}[, in {data:made}].");
+        Set(EventKind.ClaimCarried,
+            "{object} came by what {subject} held[, {data:reading}][, at {location}].");
+        Set(EventKind.ClaimLost,
+            "{object} no longer held what {subject} said[, {data:reading}]"
+            + "[, having lost {data:carrier}].");
 
         Set(EventKind.DynastyFounded, "The {subject} rose[ under {object}][ in {location}].");
         Set(EventKind.DynastyEnded, "The {subject} died out[ after {data:years}].");
@@ -447,6 +452,10 @@ public static class Narration
             "The sky bore out what they held[, {data:reading}][ — said in {data:made}].");
         SetSelf(EventKind.SkyClaimRefuted,
             "The sky did not bear out what they held[, {data:reading}][ — said in {data:made}].");
+        SetSelf(EventKind.ClaimCarried,
+            "[{self:subject}What they held was copied into {object}][{self:subject} at {location}].");
+        SetSelf(EventKind.ClaimLost,
+            "[{self:subject}{object} no longer held what they said][{self:subject}, having lost {data:carrier}].");
         SetSelf(EventKind.DynastyFounded,
             "[{self:object}Raised the {subject}][{self:object} in {location}].");
         SetSelf(EventKind.DynastyAscended,
