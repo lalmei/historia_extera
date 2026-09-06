@@ -4810,6 +4810,73 @@ either ladder produces, and the one a chronicle would still be repeating a centu
 
 ---
 
+### Knowledge: three records, one history
+
+**Where it started.** The first sketch of a knowledge section was a taxonomy — Nature, Making,
+Society, Ideas — scored in three columns: *observed*, *understood*, *practiced*. The taxonomy is a
+reading aid and survives as one. The columns did not. "Understood" is a progress model wearing a
+different word: to score it the engine has to hold a correct answer about disease, or matter, or the
+heavens, and grade a civilization's distance from it. That is a hidden modern worldview with a
+number attached, and it is the one thing `SkyClaims` was written to avoid.
+
+**What replaced it** is a classification by *what can settle the thing*: Claim, Practice, Doctrine.
+It reads almost the same on the page and means something entirely different underneath. A claim is
+adjudicated by a fact the world already contains. A practice is adjudicated by whether the thing can
+be made, which is state and not a proposition. A doctrine is adjudicated by nothing at all, and the
+engine says so rather than quietly grading it. The columns now describe the epistemics of the model
+instead of the rank of a civilization.
+
+**A verdict is not a belief, and the two must not be one field.** A measured claim can be objectively
+wrong and culturally successful — those are independent facts and the export carries both. If a
+figure derives a year of 312 days where the world holds 299, the engine knows the error exactly and
+that error does not become anyone's score; and a refuted reading of a comet can keep its copies, its
+teachers and its patrons for two centuries afterwards. `ClaimVerdict.Refuted` therefore describes a
+claim's relationship to measurable reality at a named year, and never its standing among people.
+Adoption and opposition are separate exported facts, never derived from the verdict.
+
+**Two hard rules on movement**, both chosen because they buy provenance for free:
+
+> Knowledge moves only when the chronicle can explain how it moved.
+> Knowledge disappears only when the chronicle can explain why its carriers disappeared.
+
+A copy travelled, a scholar travelled, a teacher had a student, a town changed hands, craftspeople
+migrated, a faith established itself. There is no diffusion coefficient and no abstract contact term.
+The alternative — a spread rate over trading pairs — is cheaper to write and produces a claim
+appearing in a realm that nothing carried it to, which is exactly the untrustworthy export the
+`copies` record was built to prevent. The same rule inverted gives loss: a claim ends when its last
+surviving copy does, a practice when its last holding town or lineage does, and neither needs a roll.
+
+**Not one record.** The tempting move, given that `SkyClaim` already exists, is to widen it until
+everything fits: a capability becomes a claim with no verdict, a doctrine becomes a claim that is
+permanently `NotTestable`. #149 argued for exactly this on good grounds — no domain should get a
+bespoke mechanism of its own. The refinement is that the thing worth sharing is the *historical*
+machinery, not the record: provenance, carriers, and transitions are common, and the three records
+are not. A bronze-working capability held by four towns is not a malformed proposition, and forcing
+it to carry `RestsOnYears` and a verdict it can never have teaches a reader the wrong thing about
+what it is. Shared infrastructure, separate concepts.
+
+**Historiography moved up the list.** The most striking thing available is not a second scientific
+domain — it is that the engine already keeps two records of the same past. `TomeContents` fixes its
+sections at the year of writing, deliberately, so a campaign still under way when a codex was written
+cannot acquire its peace settlement thirty years later; and a continuation adds sections rather than
+rewriting earlier ones. That means *what happened* and *what surviving texts said had happened* are
+already distinct, and the difference between them is exportable without inventing a second truth
+model. A copied account can perpetuate an incomplete war long after a better one exists. This is
+disagreement, staleness and perspective out of machinery that shipped in M17.
+
+**Order.** Generalise the claim record with astronomy as its only measurable domain and `SkyClaims`
+behaviour unchanged; then provenance, transmission and loss over existing carriers; then
+historiography, moved earlier if it proves as cheap as it looks; then practice; then doctrine. The
+knowledge section is built around content that exists rather than around an ontology of empty
+categories, which is also why the overview shows only the rows and columns the export populates.
+
+**Two constraints recorded before any of it starts.** Acquisition and loss are exported as
+transitions, following the rule territory already follows — per-realm, per-claim, per-year snapshots
+multiply out to nothing anyone can ship. And this is new exported fact, so it moves the fingerprint
+and the schema, currently 51.
+
+---
+
 ## Notes for Phase 2
 
 Three routes were listed here, in rough order of expected fit. **The first is built** —
