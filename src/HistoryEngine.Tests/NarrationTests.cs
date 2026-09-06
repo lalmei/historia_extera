@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text.RegularExpressions;
 using HistoryEngine.Core;
 using HistoryEngine.Events;
 using Xunit;
@@ -18,6 +20,65 @@ public sealed class NarrationTests
     /// template does not crash — the event renders as "Something happened" in the viewer, which is
     /// the kind of defect that survives a demo and ships.
     /// </remarks>
+    /// <summary>
+    /// No two event kinds share a number.
+    /// </summary>
+    /// <remarks>
+    /// <para>C# accepts a duplicate enum value silently, as an alias, and the cost of one is
+    /// severe and invisible: two kinds become the same kind, the narration table's second entry
+    /// overwrites the first, and every event of the older kind starts rendering as the newer one.
+    /// Nothing fails to compile and nothing throws.</para>
+    ///
+    /// <para>Written after exactly that happened. Two new kinds were given the next numbers after
+    /// the block they were added to rather than the next free numbers in the file, landing on
+    /// <c>ConspiracyAttempted</c> and <c>GuardianAssigned</c>; the golden fingerprint caught it
+    /// and a hundred and two events in one seed had quietly changed what they said.</para>
+    ///
+    /// <para>The values cross the export boundary, so this also guards the contract: a consumer
+    /// reading a number out of a file must get back the one kind that number has always meant.</para>
+    /// </remarks>
+    [Fact]
+    public void NoTwoEventKindsShareANumber()
+    {
+        var seen = new Dictionary<int, string>();
+        var collisions = new List<string>();
+
+        foreach (EventKind kind in Enum.GetValues<EventKind>())
+        {
+            string name = Enum.GetName(kind) ?? kind.ToString();
+            int value = (int)kind;
+
+            if (seen.TryGetValue(value, out string? held) && held != name)
+            {
+                collisions.Add($"{held} and {name} are both {value}");
+                continue;
+            }
+
+            seen[value] = name;
+        }
+
+        // Enum.GetValues collapses aliases, so the names are compared against the file itself.
+        string source = File.ReadAllText(
+            Path.Combine(EngineSource.Root, "Events", "EventKind.cs"));
+        var declared = new Dictionary<int, string>();
+
+        foreach (Match match in Regex.Matches(source, @"^\s{4}(\w+) = (\d+),", RegexOptions.Multiline))
+        {
+            string name = match.Groups[1].Value;
+            int value = int.Parse(match.Groups[2].Value, CultureInfo.InvariantCulture);
+
+            if (declared.TryGetValue(value, out string? held))
+            {
+                collisions.Add($"{held} and {name} are both {value}");
+                continue;
+            }
+
+            declared[value] = name;
+        }
+
+        Assert.Empty(collisions);
+    }
+
     [Fact]
     public void EveryEventKindHasATemplate()
     {
