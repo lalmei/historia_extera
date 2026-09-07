@@ -5208,6 +5208,61 @@ the point was to remove a cap answering the wrong question.
 
 ---
 
+### The giant overhead was not one of the planets
+
+Forty-two per cent of seeds put the history world in orbit around a gas giant, and in every one of
+them that giant existed only as three loose numbers on the cosmology — `ParentGiantMassEarth`, the
+moon's orbital distance, and a Roche limit. `PlaceCompanions` rolled inner rocky worlds, a shepherd
+past the snow line and whatever ice giants the disk had left, and the largest, nearest, most
+conspicuous body in the sky was in none of it. The dynamics already knew about it: the whole
+companion pass is handed `habitableMass = giantMass`, so every Hill separation was measured against
+a body that had no entry anywhere.
+
+**It is a `CompanionPlanet` now, with a role of its own.** `CompanionRole.HostGiant` sits at the
+habitable orbit, carries the mass the moon family was rolled against, and holds that family — the
+history world among its moons, which is the one place in the engine where a companion's moon is
+habitable. A separate role rather than a second `ShepherdGiant` because two things read the role
+and would have been wrong: `PlaceComets` takes the shepherd's orbit as the scattering source, and
+the shepherd is the body past the snow line, not the one the world stands on. The scalar fields
+stay exactly as they were, so nothing that read them has to change.
+
+**It is placed before the rest of the system, and everything after has to clear it.** The host is
+built outside `PlaceCompanions` — it is not rolled, it is already fixed by the habitable orbit —
+and handed in as the first entry of the placed list. That makes the second gas giant and the ice
+giants Hill-separate from it, which they were not checked against before. Only moon seeds move;
+a planet world rolls exactly what it rolled yesterday.
+
+**The ring is the thing that gives way.** Everywhere else a giant's moons are pushed outside its
+ring, because the ring is what never became a moon. Here the family exists first — the habitable
+moon is what the entire climate balance was solved for — so the order inverts and the ring is cut
+back to the innermost moon's orbit, or dropped when what is left is narrower than 0.15 planet
+radii. `PlaceMoonFamily` starts its innermost moon at 1.12 × the Roche limit, which is 1.37 giant
+radii, so almost nothing fits: 8 of 430 moon worlds in the first 1024 seeds keep a ring, and each
+is a narrow band at the giant's shoulder, 1.11–1.27 radii. That is the honest answer for a giant
+whose moons reach its Roche limit, and it comes out of the geometry rather than a rule, so a
+family that ever starts further out will get its rings back. What the host giant does keep is the
+rest of the face — tilt, banding, and a storm in 353 of those 430.
+
+**Ice does not survive in the liquid-water belt.** A host giant stands where the world does, inside
+the snow line, so `SampleRing` gives it a lower ring chance than its cold cousins (0.50 against the
+shepherd's 0.72) and `SampleComposition` weights what is left toward rock and dust rather than the
+bright ice a cold ring keeps.
+
+**And the body a moon world orbits does not wander.** `Tomes.Wanderers` scans the companions for a
+ringed body, so a moon world could previously only ever find the distant shepherd. It finds the
+host first now — it is the innermost giant — which made the existing sentence wrong in a way worth
+catching: a tidally locked moon sees its primary standing unmoving overhead, not wandering. The
+ringed-body line is written both ways, and the roll that decides whether the copies disagree is
+made in the same place either way.
+
+**Downstream.** The viewer counts planets as `companions.length + (kind === 'Planet' ? 1 : 0)`,
+which is now right for both kinds without touching it: a moon world's host is in the list, and the
+world itself is a moon. The orbit map keeps the host out of the companion glyphs, since it is
+already drawn as the parent of the moon system, and passes its appearance down so the rare ring is
+drawn where the giant actually is. Seed 42's fingerprint moves, and the golden is regenerated here.
+
+---
+
 ---
 
 ## Notes for Phase 2

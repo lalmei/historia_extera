@@ -301,6 +301,10 @@ public static class GiantAppearances
             CompanionRole.ShepherdGiant => 0.72,
             CompanionRole.OuterGasGiant => 0.68,
             CompanionRole.OuterIceGiant => 0.45,
+
+            // A host giant stands in the liquid-water belt, where ring ice sublimates rather than
+            // settling, so it keeps a ring less often than its cold cousins do.
+            CompanionRole.HostGiant => 0.50,
             _ => 0.0,
         };
 
@@ -351,6 +355,15 @@ public static class GiantAppearances
             // Far from the star, ring ice darkens under irradiation rather than staying bright.
             return roll < 0.30 ? RingComposition.Ice
                 : roll < 0.70 ? RingComposition.RockAndDust
+                : RingComposition.Soot;
+        }
+
+        if (role == CompanionRole.HostGiant)
+        {
+            // Inside the snow line the bright ice is the first thing to go, so what is left is
+            // mostly the rock and dust it was mixed with.
+            return roll < 0.18 ? RingComposition.Ice
+                : roll < 0.78 ? RingComposition.RockAndDust
                 : RingComposition.Soot;
         }
 

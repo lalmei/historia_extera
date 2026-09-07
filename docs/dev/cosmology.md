@@ -45,9 +45,11 @@ They omit atmospheric chemistry and loss, radiation, oceans, clouds, carbon cycl
 geological history, obliquity cycles, eccentricity-driven seasons, and biological evolution.
 
 Companion placement uses snow-line and mutual-Hill-separation rules. It does not integrate
-orbits to establish long-term stability. Comet paths are stored as orbital elements and
-periods, but the engine does not perform an n-body integration or calculate an ephemeris from
-a local observer.
+orbits to establish long-term stability. On a moon world the giant the world orbits is placed
+as a companion in its own right, at the habitable orbit and carrying the moon family the world
+belongs to; it is exempt from the separation rules against the world, which is inside its Hill
+sphere by construction. Comet paths are stored as orbital elements and periods, but the engine
+does not perform an n-body integration or calculate an ephemeris from a local observer.
 
 ## Galaxy and night-sky rendering
 

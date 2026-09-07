@@ -128,13 +128,15 @@ export type CompanionRole =
   | 'InnerRocky'
   | 'ShepherdGiant'
   | 'OuterIceGiant'
-  | 'OuterGasGiant';
+  | 'OuterGasGiant'
+  | 'HostGiant';
 
 export const COMPANION_ROLE_LABELS: Record<CompanionRole, string> = {
   InnerRocky: 'Inner rocky',
   ShepherdGiant: 'Shepherd giant',
   OuterIceGiant: 'Outer ice giant',
   OuterGasGiant: 'Outer gas giant',
+  HostGiant: 'Host giant',
 };
 
 export type RingComposition = 'Ice' | 'RockAndDust' | 'Soot';
