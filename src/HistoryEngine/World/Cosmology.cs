@@ -435,7 +435,7 @@ public sealed record WorldCosmology(
             orbitalAu,
             habitableMass,
             host);
-        IReadOnlyList<SystemComet> comets = PlaceComets(seed, starMass, companions);
+        IReadOnlyList<SystemComet> comets = PlaceComets(seed, starMass, orbitalAu, companions);
         CosmicChronology chronology = CosmicChronology.From(seed, galaxy, starMass, lifespan);
 
         return new WorldCosmology(
@@ -1259,13 +1259,29 @@ public sealed record WorldCosmology(
     /// Notable comets on their own stream, so adding a tail cannot reshuffle the planets.
     /// A few Jupiter-family paths hug the shepherd; the rest are Halley-type or long-period.
     /// </summary>
+    /// <remarks>
+    /// <para><b>Every distance here is in home orbits, not in AU.</b> The ranges are Sol's, and
+    /// Sol's numbers are only meaningful because Earth sits at 1 AU: a Halley-type aphelion of 35
+    /// means "thirty-five times as far out as the people watching it". Written as raw AU they quietly
+    /// assume a Sun, and the assumption fails hardest exactly where this model is most interesting.
+    /// An M dwarf puts its habitable world at a fifteenth of an AU, so a comet drawn at a literal 35
+    /// AU is five hundred home orbits out, and its period — which goes as the ratio to the power of
+    /// three halves — lands in the tens of thousands of local years. Nobody sees such a comet twice,
+    /// no interval is ever derived, and every claim in the world is stuck in the mythic register
+    /// because the measured branch is unreachable. Seed 3621031620 is the case: four comets, shortest
+    /// period 1,913 local years, two apparitions in two millennia.</para>
+    ///
+    /// <para>The shepherd branch was always right, because the shepherd's own distance already scales
+    /// with the star. These two make the other branches agree with it.</para>
+    /// </remarks>
     private static IReadOnlyList<SystemComet> PlaceComets(
         ulong seed,
         double starMassSolar,
+        double orbitalAu,
         IReadOnlyList<CompanionPlanet> companions)
     {
         IRng rng = new Pcg32(Hash.Combine(seed, Hash.OfString("world.cosmology.comets")));
-        double shepherdAu = 5.2;
+        double shepherdAu = 5.2 * orbitalAu;
         foreach (CompanionPlanet body in companions)
         {
             if (body.Role == CompanionRole.ShepherdGiant)
@@ -1284,23 +1300,23 @@ public sealed record WorldCosmology(
             double roll = rng.NextDouble();
             if (roll < 0.50)
             {
-                perihelionAu = rng.NextDouble(0.40, 1.80);
+                perihelionAu = orbitalAu * rng.NextDouble(0.40, 1.80);
                 aphelionAu = shepherdAu * rng.NextDouble(0.85, 1.45);
             }
             else if (roll < 0.80)
             {
-                perihelionAu = rng.NextDouble(0.30, 1.20);
-                aphelionAu = rng.NextDouble(12.0, 38.0);
+                perihelionAu = orbitalAu * rng.NextDouble(0.30, 1.20);
+                aphelionAu = orbitalAu * rng.NextDouble(12.0, 38.0);
             }
             else
             {
-                perihelionAu = rng.NextDouble(0.25, 2.40);
-                aphelionAu = rng.NextDouble(45.0, 180.0);
+                perihelionAu = orbitalAu * rng.NextDouble(0.25, 2.40);
+                aphelionAu = orbitalAu * rng.NextDouble(45.0, 180.0);
             }
 
-            if (aphelionAu < perihelionAu + 0.4)
+            if (aphelionAu < perihelionAu + (0.4 * orbitalAu))
             {
-                aphelionAu = perihelionAu + 0.4;
+                aphelionAu = perihelionAu + (0.4 * orbitalAu);
             }
 
             double semiMajor = 0.5 * (perihelionAu + aphelionAu);

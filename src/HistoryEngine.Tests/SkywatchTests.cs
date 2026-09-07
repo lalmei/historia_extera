@@ -356,9 +356,17 @@ public sealed class SkywatchTests
                     double turns = interval / period;
                     double nearest = Math.Round(turns);
 
+                    // The tolerance is a year, not a fraction of a turn, for the reason
+                    // AnIntervalTooLongIsRefutedByTheReturnItDeniedWasComing sets out: both
+                    // apparitions an interval is measured between are rounded to whole years, so
+                    // the arithmetic can land a full year off the multiple it honestly came from,
+                    // whatever the period. Stated in turns that same year is 0.01 of a turn for an
+                    // eighty-year comet and a quarter of one for a four-year comet — a tolerance
+                    // that quietly demands more precision of short-period comets than the register
+                    // is capable of recording.
                     Assert.True(nearest >= 1.0);
                     Assert.True(
-                        Math.Abs(turns - nearest) < 0.05,
+                        Math.Abs(interval - (nearest * period)) <= 1.0,
                         $"Seed {seed}: {figure.FullName} derived {interval} years for a comet on "
                         + $"{period:F1}, which is {turns:F2} returns and therefore neither the "
                         + "period nor a count of missed ones.");

@@ -95,13 +95,28 @@ public static class Skywatch
         {
             if (!Chronicled(sky, comet, out ApparitionGrade grade, out double period)) continue;
 
+            // Counted as first + n*period rather than accumulated with +=, because the accumulation
+            // drifts and ReturnsThisYear does not: it asks the same question closed-form, and the
+            // two must never round to different years or a claim can be settled against a return
+            // that is not in the schedule the reader is shown. The drift only bites once a period is
+            // short enough to come round hundreds of times inside a run, which is why nothing caught
+            // it while every comet was being drawn on Sol's distances.
             double first = startYear + (Phase(comet) * period);
-            for (double at = first; at <= endYear; at += period)
+            int last = int.MinValue;
+            for (int n = 0; ; n++)
             {
+                double at = first + (n * period);
+                if (at > endYear + 0.5) break;
+
                 int year = (int)Math.Round(at);
                 if (year < startYear || year > endYear) continue;
 
+                // A comet on a sub-annual period is back before the year is out. It is one line in
+                // the register that year, not two.
+                if (year == last) continue;
+
                 found.Add(new Apparition(comet.Index, year, grade));
+                last = year;
             }
         }
 
@@ -129,7 +144,7 @@ public static class Skywatch
 
         if (sky.OrbitalPeriodDays <= 0.0) return false;
 
-        double brightness = Brightness(comet);
+        double brightness = Brightness(sky, comet);
         if (brightness < VisibleBrightness) return false;
 
         periodYears = PeriodYears(sky, comet);
@@ -159,17 +174,30 @@ public static class Skywatch
         sky.OrbitalPeriodDays <= 0.0 ? 0.0 : comet.OrbitalPeriodDays / sky.OrbitalPeriodDays;
 
     /// <summary>
-    /// A stand-in for apparent magnitude, in the only two terms the roll gives us.
+    /// A stand-in for apparent magnitude, in the only terms the roll gives us.
     /// </summary>
     /// <remarks>
-    /// Brightness falls with the square of the distance at closest approach and rises with the size
-    /// of the thing catching the light. That is not photometry, but it separates a great comet from
-    /// a faint one on the numbers already rolled, which is all this needs to do.
+    /// <para>Brightness falls with the square of the distance at closest approach and rises with the
+    /// size of the thing catching the light. That is not photometry, but it separates a great comet
+    /// from a faint one on the numbers already rolled, which is all this needs to do.</para>
+    ///
+    /// <para><b>The distance is measured in home orbits, not in AU.</b> Both halves of the falloff
+    /// are relative to the people looking: the starlight the comet catches goes as the star's
+    /// luminosity over its distance squared, and the habitable orbit is placed at the distance where
+    /// that flux is right — so a comet one home orbit out is lit like a comet at 1 AU from the Sun,
+    /// whatever the star is. Dividing by raw AU instead assumes a Sun, and on an M dwarf whose world
+    /// sits at a fifteenth of an AU it declares perfectly ordinary comets to be spectacles by a
+    /// factor of two hundred. The thresholds below are calibrated against Sol and stay where they
+    /// are; what changes is that the number handed to them now means the same thing on every star.
+    /// </para>
     /// </remarks>
-    public static double Brightness(SystemComet comet) =>
-        comet.PerihelionAu <= 0.0
-            ? 0.0
-            : comet.NucleusRadiusKm / (comet.PerihelionAu * comet.PerihelionAu);
+    public static double Brightness(WorldCosmology sky, SystemComet comet)
+    {
+        if (comet.PerihelionAu <= 0.0 || sky.OrbitalDistanceAu <= 0.0) return 0.0;
+
+        double homeOrbits = comet.PerihelionAu / sky.OrbitalDistanceAu;
+        return comet.NucleusRadiusKm / (homeOrbits * homeOrbits);
+    }
 
     private static ApparitionGrade Grade(double brightness) => brightness switch
     {
