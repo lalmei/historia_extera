@@ -1,8 +1,13 @@
 import { CRAFT_LABELS, OCCUPATION_LABELS } from './types.ts';
+import {
+  interpretationSentenceParts,
+  primaryInterpretationTheme,
+  THEME_LABELS,
+  type BiographyTheme,
+} from './biographyInterpret.ts';
 import type {
   Affinity,
   Campaign,
-  Disposition,
   Dispute,
   EntityId,
   Figure,
@@ -765,7 +770,8 @@ export interface LifeStanding {
   household: string;
   childCount: number;
   closest?: { id: EntityId; reading: string };
-  dominantDisposition?: string;
+  /** Top biography interpretation theme, when evidence and dials support one. */
+  interpretationTheme?: BiographyTheme;
   activeMemories: number;
 }
 
@@ -812,7 +818,7 @@ export function standingAt(figure: Figure, requestedYear: number, ctx: LifeConte
     household,
     childCount,
     closest: closest ? { id: closest.otherId, reading: relationshipReading(closest) } : undefined,
-    dominantDisposition: dominantDisposition(figure),
+    interpretationTheme: primaryInterpretationTheme(figure, year),
     activeMemories: figure.memories.filter((memory) => visibleMemoryAt(memory, year)).length,
   };
 }
@@ -874,11 +880,10 @@ export function standingSentence(
     text('. ');
   }
 
-  if (standing.dominantDisposition) {
-    text(
-      `Of the inclinations the record dials, ${lower(standing.dominantDisposition)} ran strongest`,
-    );
-    text(standing.activeMemories > 0 ? ', and ' : '. ');
+  const interpretationParts = interpretationSentenceParts(figure, standing.year, ctx, 2);
+  if (interpretationParts.length > 0) {
+    parts.push(...interpretationParts);
+    parts.push({ type: 'text', text: ' ' });
   } else if (standing.activeMemories > 0) {
     text(`${pronoun.subject} `);
   }
@@ -887,7 +892,7 @@ export function standingSentence(
     const carried = `${standing.activeMemories === 1 ? 'one' : count(standing.activeMemories)} formative ${
       standing.activeMemories === 1 ? 'memory' : 'memories'
     }`;
-    const verb = standing.dominantDisposition
+    const verb = interpretationParts.length > 0
       ? `${pronoun.subject.toLowerCase()} ${plural ? 'were' : 'was'} still carrying`
       : `${plural ? 'were' : 'was'} still carrying`;
     text(`${verb} ${carried}. `);
@@ -1492,26 +1497,6 @@ export function relationshipReading(bond: FigureBond): string {
   if (bond.affection >= 0.45) return 'held dear';
   if (bond.affection <= -0.35) return 'disliked';
   return bond.lastCause.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
-}
-
-const DISPOSITION_LABELS: [key: keyof Disposition, label: string][] = [
-  ['aggression', 'Aggression'],
-  ['expansionism', 'Expansionism'],
-  ['piety', 'Piety'],
-  ['tradition', 'Tradition'],
-  ['mercantile', 'Mercantile'],
-  ['learning', 'Learning'],
-  ['centralism', 'Centralism'],
-];
-
-function dominantDisposition(figure: Figure): string | undefined {
-  const disposition = figure.disposition;
-  if (!disposition) return undefined;
-  const strongest = DISPOSITION_LABELS.map(([key, label]) => ({
-    label,
-    value: disposition[key] ?? 0,
-  })).sort((a, b) => b.value - a.value)[0];
-  return strongest && strongest.value >= 0.5 ? strongest.label : undefined;
 }
 
 /**

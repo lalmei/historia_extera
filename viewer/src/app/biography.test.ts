@@ -448,7 +448,7 @@ test('the standing sentence reports the fields and invents nothing to fill a gap
   assert.match(held, /At age 54, Kullerwa was a consul in Orvinowotsi\./);
   assert.match(held, /She was married with one child/);
   assert.match(held, /the person closest to her was Ainikka \(deeply trusted\)/);
-  assert.match(held, /tradition ran strongest/);
+  assert.doesNotMatch(held, /tradition ran strongest/);
 
   const before = said(20);
   assert.match(before, /held no position the record names/, 'no office is a shorter sentence');
