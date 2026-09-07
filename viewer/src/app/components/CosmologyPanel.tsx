@@ -1695,7 +1695,12 @@ function SystemView({
   const orbitR = r(c.orbitalDistanceAu);
   const worldX = cx + Math.cos(angle) * orbitR;
   const worldY = cy + Math.sin(angle) * orbitR;
-  const visibleCompanions = companions.filter((body) => body.semiMajorAxisAu <= maxAu * 0.98);
+  // The host giant sits at the habitable orbit and is drawn as the moon system below, so it is
+  // kept out of the companion glyphs rather than doubled on its own orbit.
+  const host = companions.find((body) => body.role === 'HostGiant');
+  const visibleCompanions = companions.filter(
+    (body) => body.role !== 'HostGiant' && body.semiMajorAxisAu <= maxAu * 0.98,
+  );
 
   return (
     <svg
@@ -1784,6 +1789,7 @@ function SystemView({
           moonR={worldR}
           name={name}
           moons={moons}
+          appearance={host?.appearance}
           labeled
         />
       ) : (
@@ -1833,7 +1839,7 @@ function MapKey({
     ...(c.snowLineAu != null
       ? [{ color: '#94a3b8', label: `Snow line ${c.snowLineAu.toFixed(2)} AU` }]
       : []),
-    ...(c.companions ?? []).map((body) => ({
+    ...(c.companions ?? []).filter((body) => body.role !== 'HostGiant').map((body) => ({
       color: companionColor(body.role),
       label: `${COMPANION_ROLE_LABELS[body.role] ?? body.role} · ${body.semiMajorAxisAu.toFixed(2)} AU from star`,
     })),
@@ -2077,6 +2083,7 @@ function MoonSystem({
   moonR,
   name,
   moons,
+  appearance,
   labeled,
 }: {
   uid: string;
@@ -2086,6 +2093,7 @@ function MoonSystem({
   moonR: number;
   name: string;
   moons: ExportSystemMoon[];
+  appearance?: ExportGiantAppearance;
   labeled: boolean;
 }) {
   const family = moons.length > 0 ? moons : [{
@@ -2123,6 +2131,9 @@ function MoonSystem({
           />
         );
       })}
+      {appearance?.ring && (
+        <PlanetRingGlyph x={gx} y={gy} size={giantR} appearance={appearance} />
+      )}
       <circle cx={gx} cy={gy} r={giantR} fill={`url(#${uid}-giant)`} />
       <g clipPath={`url(#${clipId})`}>
         <ellipse cx={gx} cy={gy - giantR * 0.2} rx={giantR} ry={giantR * 0.16} fill="#e8c078" opacity="0.45" />
@@ -2294,6 +2305,8 @@ function shortCompanionLabel(role: CompanionRole): string {
       return 'Ice giant';
     case 'OuterGasGiant':
       return 'Gas giant';
+    case 'HostGiant':
+      return 'Host giant';
     default:
       return role;
   }
@@ -2309,6 +2322,8 @@ function companionColor(role: CompanionRole): string {
       return '#38bdf8';
     case 'OuterGasGiant':
       return '#d8a45c';
+    case 'HostGiant':
+      return '#d4b483';
     default:
       return '#94a3b8';
   }

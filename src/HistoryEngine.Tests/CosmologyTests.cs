@@ -184,7 +184,10 @@ public sealed class CosmologyTests
                     Assert.True(
                         moon.DayLengthDays <= WorldCosmology.MaxGiantMoonMonthDays * 1.2,
                         $"Seed {seed}: a moon of the {body.RoleLabel} takes {moon.DayLengthDays:F0} days to come round.");
-                    Assert.False(moon.Habitable);
+                    Assert.Equal(
+                        body.Role == CompanionRole.HostGiant
+                        && moon.Index == cosmology.HabitableMoonIndex,
+                        moon.Habitable);
                     Assert.Equal(moon.DisplayName, moon.DisplayName);
                 }
 
@@ -200,6 +203,66 @@ public sealed class CosmologyTests
         Assert.True(withRings > 0, "No giant in 256 seeds kept a ring.");
         Assert.True(withStorms > 0, "No giant in 256 seeds held a storm.");
         Assert.True(withMoons > 0, "No giant in 256 seeds kept a moon.");
+    }
+
+    /// <summary>
+    /// The giant a moon world orbits is the largest thing in its sky, so it has to be in the list
+    /// of planets like any other body — carrying the moon family the world belongs to, and a face
+    /// to look up at.
+    /// </summary>
+    [Fact]
+    public void AMoonWorldsParentGiantIsAPlanetInTheSystem()
+    {
+        var moonWorlds = 0;
+
+        for (ulong seed = 1; seed <= 256; seed++)
+        {
+            WorldCosmology cosmology = WorldCosmology.From(seed);
+            CompanionPlanet[] hosts = cosmology.Companions
+                .Where(body => body.Role == CompanionRole.HostGiant)
+                .ToArray();
+
+            if (cosmology.Kind != WorldKind.Moon)
+            {
+                Assert.Empty(hosts);
+                continue;
+            }
+
+            moonWorlds++;
+            CompanionPlanet host = Assert.Single(hosts);
+            Assert.Equal(cosmology.OrbitalDistanceAu, host.SemiMajorAxisAu);
+            Assert.Equal(cosmology.ParentGiantMassEarth, host.MassEarth);
+            Assert.Equal(cosmology.OrbitalPeriodDays, host.OrbitalPeriodDays);
+            Assert.True(host.IsGiant);
+            Assert.NotNull(host.Appearance);
+            Assert.Equal(cosmology.Moons, host.Moons);
+            Assert.Contains(host.Moons, moon => moon.Habitable);
+
+            // The world itself is one of them, so a ring cannot reach the innermost orbit.
+            if (host.Ring is { } ring)
+            {
+                double inner = host.Moons.Min(moon => moon.OrbitalDistanceEarthRadii);
+                Assert.True(
+                    ring.OuterRadiusPlanetRadii * host.RadiusEarth < inner,
+                    $"Seed {seed}: the host giant's ring reaches its innermost moon.");
+            }
+
+            // The shepherd is still a separate body, further out, and still clears the host.
+            CompanionPlanet shepherd = Assert.Single(
+                cosmology.Companions,
+                body => body.Role == CompanionRole.ShepherdGiant);
+            Assert.True(shepherd.SemiMajorAxisAu > host.SemiMajorAxisAu);
+            Assert.True(
+                WorldCosmology.HillSeparated(
+                    host.SemiMajorAxisAu,
+                    host.MassEarth,
+                    shepherd.SemiMajorAxisAu,
+                    shepherd.MassEarth,
+                    cosmology.StarMassSolar),
+                $"Seed {seed}: the shepherd does not clear the host giant.");
+        }
+
+        Assert.True(moonWorlds > 0, "No moon world in 256 seeds.");
     }
 
     [Fact]

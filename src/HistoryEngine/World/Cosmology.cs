@@ -29,6 +29,13 @@ public enum CompanionRole
 
     /// <summary>A second gas giant outside the shepherd, the way Saturn trails Jupiter.</summary>
     OuterGasGiant = 3,
+
+    /// <summary>
+    /// The giant the history world orbits, when the world is a moon. It sits at the habitable
+    /// orbit rather than past the snow line, and the world is inside its Hill sphere by
+    /// construction rather than separated from it.
+    /// </summary>
+    HostGiant = 4,
 }
 
 /// <summary>
@@ -50,7 +57,8 @@ public sealed record CompanionPlanet(
 
     public bool IsGiant => Role is CompanionRole.ShepherdGiant
         or CompanionRole.OuterGasGiant
-        or CompanionRole.OuterIceGiant;
+        or CompanionRole.OuterIceGiant
+        or CompanionRole.HostGiant;
 
     public PlanetRing? Ring => Appearance?.Ring;
 
@@ -61,6 +69,7 @@ public sealed record CompanionPlanet(
         CompanionRole.ShepherdGiant => "shepherd giant",
         CompanionRole.OuterGasGiant => "outer gas giant",
         CompanionRole.OuterIceGiant => "outer ice giant",
+        CompanionRole.HostGiant => "host giant",
         _ => Role.ToString(),
     };
 
@@ -240,6 +249,12 @@ public sealed record WorldCosmology(
     public const double HomeMoonHillFraction = 0.45;
 
     /// <summary>
+    /// Narrowest band, in planet radii, still worth calling a ring once a host giant's moons have
+    /// taken back everything outside their own orbit.
+    /// </summary>
+    public const double MinHostRingWidthPlanetRadii = 0.15;
+
+    /// <summary>
     /// Lightest and heaviest a planet world's moon is allowed to be, in Earth masses. Earth's is
     /// 0.0123, and it is the outlier of the solar system: nothing else that large circles anything
     /// so small. Masses are drawn across this range in the logarithm, so most worlds get something
@@ -368,6 +383,9 @@ public sealed record WorldCosmology(
 
         double habitableMass = kind == WorldKind.Moon ? giantMass ?? worldMass : worldMass;
         double snowLine = SnowLine(luminosity);
+        CompanionPlanet? host = kind == WorldKind.Moon && giantMass.HasValue
+            ? PlaceHostGiant(rng, starMass, orbitalAu, giantMass.Value, moons)
+            : null;
         IReadOnlyList<CompanionPlanet> companions = PlaceCompanions(
             rng,
             starMass,
@@ -375,7 +393,8 @@ public sealed record WorldCosmology(
             innerHz,
             outerHz,
             orbitalAu,
-            habitableMass);
+            habitableMass,
+            host);
         IReadOnlyList<SystemComet> comets = PlaceComets(seed, starMass, companions);
         CosmicChronology chronology = CosmicChronology.From(seed, galaxy, starMass, lifespan);
 
@@ -765,7 +784,8 @@ public sealed record WorldCosmology(
     /// <summary>
     /// Fills out the rest of the system: a few rocky worlds inside the liquid-water belt, the
     /// shepherd giant past the snow line, and whatever else the disk had material left for — a
-    /// second gas giant trailing the shepherd, and one or two ice giants beyond both.
+    /// second gas giant trailing the shepherd, and one or two ice giants beyond both. On a moon
+    /// world the host giant is handed in already built and stands at the head of the list.
     /// </summary>
     /// <remarks>
     /// Every body is checked for mutual Hill separation against the ones already placed, so the
@@ -780,9 +800,14 @@ public sealed record WorldCosmology(
         double innerHz,
         double outerHz,
         double habitableAu,
-        double habitableMassEarth)
+        double habitableMassEarth,
+        CompanionPlanet? host)
     {
         var placed = new List<CompanionPlanet>(7);
+
+        // The host giant is not rolled here — it is the world's own primary, already fixed by the
+        // habitable orbit — but it is placed first so everything after it has to clear it.
+        if (host is not null) placed.Add(host);
 
         int innerCount = rng.NextDouble() switch
         {
@@ -888,6 +913,69 @@ public sealed record WorldCosmology(
         GiantAppearance appearance = GiantAppearances.Sample(rng, giant.Role, giant.MassEarth);
         IReadOnlyList<SystemMoon> moons = PlaceGiantMoons(rng, starMassSolar, giant, appearance);
         return giant with { Appearance = appearance, Moons = moons };
+    }
+
+    /// <summary>
+    /// The giant a moon world orbits, as a body rather than as a mass. It stands at the habitable
+    /// orbit, carries the moon family that was already rolled — the history world among them — and
+    /// gets the same face every other giant gets, because it is the one body its people cannot
+    /// help looking at.
+    /// </summary>
+    /// <remarks>
+    /// Its family is not re-rolled here: the moons exist first, since the habitable one is what
+    /// the whole climate balance was solved for. That inverts the usual order — everywhere else
+    /// the moons are pushed outside the ring — so here the ring is the thing that gives way. It is
+    /// cut back to the innermost moon's orbit, which is what that moon would have done to it, and
+    /// dropped outright when nothing wide enough is left. A family that starts at the Roche limit,
+    /// as most do, leaves no room at all, and those giants go ringless.
+    /// </remarks>
+    private static CompanionPlanet PlaceHostGiant(
+        IRng rng,
+        double starMassSolar,
+        double habitableAu,
+        double giantMassEarth,
+        IReadOnlyList<SystemMoon> family)
+    {
+        double radius = GiantRadiusEarthRadii(giantMassEarth);
+        GiantAppearance appearance = GiantAppearances.Sample(
+            rng, CompanionRole.HostGiant, giantMassEarth);
+
+        if (appearance.Ring is { } ring && family.Count > 0)
+        {
+            double innermost = family[0].OrbitalDistanceEarthRadii;
+            foreach (SystemMoon moon in family)
+            {
+                if (moon.OrbitalDistanceEarthRadii < innermost)
+                {
+                    innermost = moon.OrbitalDistanceEarthRadii;
+                }
+            }
+
+            double edge = innermost / radius / 1.08;
+            if (ring.OuterRadiusPlanetRadii > edge)
+            {
+                appearance = appearance with
+                {
+                    Ring = edge - ring.InnerRadiusPlanetRadii >= MinHostRingWidthPlanetRadii
+                        ? ring with
+                        {
+                            OuterRadiusPlanetRadii = edge,
+                            DivisionRadiusPlanetRadii =
+                                ring.DivisionRadiusPlanetRadii < edge ? ring.DivisionRadiusPlanetRadii : 0.0,
+                        }
+                        : null,
+                };
+            }
+        }
+
+        return new CompanionPlanet(
+            CompanionRole.HostGiant,
+            habitableAu,
+            giantMassEarth,
+            radius,
+            ComputeOrbitalPeriodDays(habitableAu, starMassSolar),
+            appearance,
+            family);
     }
 
     /// <summary>

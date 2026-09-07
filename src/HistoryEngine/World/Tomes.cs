@@ -2177,15 +2177,27 @@ public static class Tomes
             return moons;
         }
 
+        // The body a moon world orbits does not wander: it stands where it stands, because the
+        // world turns once for every time round it. A faith writes down what it sees.
+        bool overhead = ringed.Role == CompanionRole.HostGiant;
+
         if (Misremembers(rng, learning, Math.Max(8, year - religion.FoundedYear)))
         {
-            return moons + " Of the great wanderer the copies disagree: some draw a girdle about it, "
-                   + "and later hands take the girdle for an error of the pen and strike it out.";
+            return overhead
+                ? moons + " Of the great body overhead the copies disagree: some draw a girdle "
+                  + "about it, and later hands take the girdle for an error of the pen and strike "
+                  + "it out."
+                : moons + " Of the great wanderer the copies disagree: some draw a girdle about it, "
+                  + "and later hands take the girdle for an error of the pen and strike it out.";
         }
 
-        return moons + " The greatest wanderer is drawn girdled — a band of "
-               + ringed.Ring!.CompositionLabel
-               + " standing off the body itself, which the scribes hold to be no part of it.";
+        return overhead
+            ? moons + " The great body that stands unmoving overhead is drawn girdled — a band of "
+              + ringed.Ring!.CompositionLabel
+              + " standing off the body itself, which the scribes hold to be no part of it."
+            : moons + " The greatest wanderer is drawn girdled — a band of "
+              + ringed.Ring!.CompositionLabel
+              + " standing off the body itself, which the scribes hold to be no part of it.";
     }
 
     private static TomeContents Cosmology(
