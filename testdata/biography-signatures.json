@@ -1,0 +1,114 @@
+{
+  "cases": [
+    {
+      "name": "rooted-tradition",
+      "year": 60,
+      "figure": {
+        "id": 100,
+        "name": "Kullerwa",
+        "sex": "Female",
+        "birthYear": 10,
+        "occupation": "None",
+        "disposition": {
+          "aggression": 0.5,
+          "expansionism": 0.5,
+          "piety": 0.5,
+          "tradition": 0.82,
+          "mercantile": 0.5,
+          "learning": 0.5,
+          "centralism": 0.5,
+          "independence": 0.5
+        },
+        "residences": [
+          { "settlementId": 1, "fromYear": 10, "reason": "Birth" }
+        ]
+      },
+      "expected": ["Rootedness|Tradition:0.6|Neutral|LongResidence|0.820"]
+    },
+    {
+      "name": "loyal-friendship",
+      "year": 60,
+      "figure": {
+        "id": 101,
+        "name": "Kullerwa",
+        "sex": "Female",
+        "birthYear": 10,
+        "occupation": "None",
+        "disposition": {
+          "aggression": 0.5,
+          "expansionism": 0.5,
+          "piety": 0.5,
+          "tradition": 0.7,
+          "mercantile": 0.5,
+          "learning": 0.5,
+          "centralism": 0.5,
+          "independence": 0.5
+        },
+        "affinities": [
+          {
+            "id": 1,
+            "otherId": 102,
+            "startYear": 17,
+            "stage": "Friendship",
+            "origin": "SharedResidence",
+            "placeId": 1
+          }
+        ]
+      },
+      "expected": ["EnduringLoyalty|Tradition:0.65|Neutral|Friendship|0.560"]
+    },
+    {
+      "name": "rooted-independence",
+      "year": 60,
+      "figure": {
+        "id": 110,
+        "name": "Eira",
+        "sex": "Female",
+        "birthYear": 10,
+        "occupation": "None",
+        "disposition": {
+          "aggression": 0.5,
+          "expansionism": 0.5,
+          "piety": 0.5,
+          "tradition": 0.4,
+          "mercantile": 0.5,
+          "learning": 0.5,
+          "centralism": 0.5,
+          "independence": 0.72
+        },
+        "residences": [
+          { "settlementId": 3, "fromYear": 20, "reason": "Settled" }
+        ]
+      },
+      "expected": [
+        "Rootedness|Independence:0.55|Neutral|LongResidence+Migration|0.684",
+        "FrontierLife|Independence:0.55|Neutral|LongResidence+Migration|0.648"
+      ]
+    },
+    {
+      "name": "discovery-scholar",
+      "year": 50,
+      "figure": {
+        "id": 120,
+        "name": "Alda",
+        "sex": "Female",
+        "birthYear": 10,
+        "occupation": "None",
+        "disposition": {
+          "aggression": 0.5,
+          "expansionism": 0.5,
+          "piety": 0.5,
+          "tradition": 0.5,
+          "mercantile": 0.5,
+          "learning": 0.75,
+          "centralism": 0.5,
+          "independence": 0.5
+        },
+        "observations": [
+          { "cometIndex": 0, "year": 30, "grade": "Notable" }
+        ]
+      },
+      "expected": ["ScholarlyLife|Learning:0.6|Neutral|Discovery+Study|0.446"]
+    }
+  ]
+}

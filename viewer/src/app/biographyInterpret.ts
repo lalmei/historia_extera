@@ -508,6 +508,35 @@ export function extractEvidence(
     });
   }
 
+  const discoveryYears = new Set<number>();
+  for (const seen of figure.observations ?? []) {
+    if (seen.year > year) continue;
+    const first = seen.priorYear === undefined;
+    const great = seen.grade === 'Great';
+    if (!first && !great) continue;
+    evidence.push({
+      kind: 'Discovery',
+      strength: great ? 0.85 : 0.7,
+      startYear: seen.year,
+      endYear: seen.year,
+      placeId: seen.settlementId,
+      tag: great ? 'Great' : 'First',
+    });
+    discoveryYears.add(seen.year);
+  }
+  for (const memory of figure.memories ?? []) {
+    if (memory.kind !== 'Wonder' || memory.year > year) continue;
+    if (discoveryYears.has(memory.year)) continue;
+    evidence.push({
+      kind: 'Discovery',
+      strength: clamp01(memory.intensity),
+      startYear: memory.year,
+      endYear: memory.year,
+      placeId: memory.locationId,
+      tag: 'Wonder',
+    });
+  }
+
   return evidence;
 }
 
@@ -573,6 +602,13 @@ const RULES: BiographyRule[] = [
     baseWeight: 1,
   },
   {
+    dials: { Independence: 0.55 },
+    theme: 'Rootedness',
+    required: ['LongResidence', 'Migration'],
+    optional: [],
+    baseWeight: 0.95,
+  },
+  {
     dials: { Tradition: 0.65 },
     theme: 'EnduringLoyalty',
     required: ['Friendship'],
@@ -597,8 +633,15 @@ const RULES: BiographyRule[] = [
     dials: { Learning: 0.6 },
     theme: 'ScholarlyLife',
     required: ['Study'],
-    optional: ['LongOccupation'],
+    optional: ['LongOccupation', 'Discovery'],
     baseWeight: 0.95,
+  },
+  {
+    dials: { Learning: 0.55 },
+    theme: 'ScholarlyLife',
+    required: ['Discovery'],
+    optional: ['Study'],
+    baseWeight: 0.9,
   },
   {
     dials: { Piety: 0.6 },
@@ -862,6 +905,14 @@ export function renderInterpretationParts(
     case 'Rootedness': {
       const residence = firstEvidence(interpretation, 'LongResidence');
       const place = placeName(residence.placeId);
+      if (interpretation.dials.Independence !== undefined) {
+        const lines = [
+          `${name} made a home at ${place} after leaving the old seats behind.`,
+          `${place} became ${possessive} ground, chosen rather than inherited.`,
+          `Having gone out, ${name} put down roots at ${place} on ${possessive} own terms.`,
+        ];
+        return [text(lines[variant] ?? lines[0])];
+      }
       if (residence.strength > 0.8) {
         const lines = [
           `${name} spent most of ${possessive} life rooted in ${place}.`,
@@ -1000,6 +1051,16 @@ export function renderInterpretationParts(
       return [text(lines[variant] ?? lines[0])];
     }
     case 'ScholarlyLife': {
+      if (interpretation.evidence.some((e) => e.kind === 'Discovery')) {
+        const found = firstEvidence(interpretation, 'Discovery');
+        const place = placeName(found.placeId);
+        const lines = [
+          `${name} wrote down a sighting at ${place} the record had not held before.`,
+          `What ${name} saw in the sky stayed in the chronicle when others let it pass.`,
+          `The first record of that apparition is in ${possessive} hand.`,
+        ];
+        return [text(lines[variant] ?? lines[0])];
+      }
       const lines = [
         `${name} lived among books, observations, and the work of making sense of them.`,
         `Learning ran through ${name}'s life — not as ornament, but as habit.`,
@@ -1144,7 +1205,7 @@ export function interpretationSentenceParts(
   figure: Figure,
   year: number,
   ctx: LifeContext,
-  maxCount = 2,
+  maxCount = 3,
 ): StandingPart[] {
   const standing = standingYear(figure, year);
   const events = ctx.eventsFor(figure.id);

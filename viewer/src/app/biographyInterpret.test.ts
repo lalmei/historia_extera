@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 import {
   biographySignatures,
   buildInterpretations,
@@ -8,7 +11,7 @@ import {
   standingYear,
 } from './biographyInterpret.ts';
 import { standingAt, standingSentence, type LifeContext } from './biography.ts';
-import type { Affinity, Disposition, Figure, HistoryEvent } from './types.ts';
+import type { Affinity, Disposition, Figure, HistoryEvent, Occupation } from './types.ts';
 
 const DISPOSITION: Disposition = {
   aggression: 0.5,
@@ -71,6 +74,72 @@ function spoken(figure: Figure, year: number, ctx: LifeContext, place?: string):
   return standingSentence(figure, standingAt(figure, year, ctx), ctx, place)
     .map((part) => (part.type === 'text' ? part.text : ctx.nameOf(part.id)))
     .join('');
+}
+
+interface SharedFixtureFile {
+  cases: SharedFixtureCase[];
+}
+
+interface SharedFixtureCase {
+  name: string;
+  year: number;
+  expected: string[];
+  figure: {
+    id: number;
+    name: string;
+    sex: Figure['sex'];
+    birthYear: number;
+    occupation: Occupation;
+    disposition: Disposition;
+    residences?: { settlementId: number; fromYear: number; reason: Figure['residences'][number]['reason'] }[];
+    affinities?: { id: number; otherId: number; startYear: number; stage: Affinity['stage']; origin: Affinity['origin']; placeId: number }[];
+    observations?: { cometIndex: number; year: number; grade: 'Faint' | 'Notable' | 'Great'; priorYear?: number }[];
+  };
+}
+
+function hydrateFixture(spec: SharedFixtureCase['figure']): Figure {
+  return person({
+    id: `fig:${spec.id}`,
+    name: spec.name,
+    sex: spec.sex,
+    birthYear: spec.birthYear,
+    occupation: spec.occupation,
+    disposition: spec.disposition,
+    residences: (spec.residences ?? []).map((residence) => ({
+      settlementId: `set:${residence.settlementId}`,
+      fromYear: residence.fromYear,
+      reason: residence.reason,
+    })),
+    affinities: (spec.affinities ?? []).map((affinity) => ({
+      id: affinity.id,
+      otherId: `fig:${affinity.otherId}`,
+      sought: true,
+      startYear: affinity.startYear,
+      origin: affinity.origin,
+      sourceKind: 'FigureBorn',
+      sourceEntityId: `fig:${spec.id}`,
+      placeId: `set:${affinity.placeId}`,
+      stage: affinity.stage,
+      outcome: 'Open' as const,
+      lastActionYear: affinity.startYear,
+      acts: [
+        {
+          year: affinity.startYear,
+          sourceKind: 'FigureBorn',
+          stage: affinity.stage,
+          actorId: `fig:${spec.id}`,
+          detail: 'friendship',
+        },
+      ],
+    })),
+    observations: (spec.observations ?? []).map((seen) => ({
+      cometIndex: seen.cometIndex,
+      year: seen.year,
+      grade: seen.grade,
+      priorYear: seen.priorYear,
+      settlementId: 'set:1',
+    })),
+  });
 }
 
 test('long residence and tradition produce rootedness', () => {
@@ -163,39 +232,96 @@ test('standing sentence uses interpretation prose instead of raw dial labels', (
 });
 
 test('parity fixtures match expected semantic signatures', () => {
-  const rooted = person({
-    id: 'fig:100',
-    disposition: { ...DISPOSITION, tradition: 0.82 },
-    residences: [{ settlementId: 'set:1', fromYear: 10, reason: 'Birth' }],
-  });
-  assert.deepEqual(biographySignatures(rooted, 60), [
-    'Rootedness|Tradition:0.6|Neutral|LongResidence|0.820',
-  ]);
+  const file = JSON.parse(
+    readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), '../../../testdata/biography-signatures.json'),
+      'utf8',
+    ),
+  ) as SharedFixtureFile;
 
-  const loyal = person({
-    id: 'fig:101',
-    disposition: { ...DISPOSITION, tradition: 0.7 },
+  for (const fixture of file.cases) {
+    assert.deepEqual(
+      biographySignatures(hydrateFixture(fixture.figure), fixture.year),
+      fixture.expected,
+      fixture.name,
+    );
+  }
+});
+
+test('independence and a settled town use chosen-home rootedness prose', () => {
+  const figure = person({
+    name: 'Eira',
+    disposition: { ...DISPOSITION, tradition: 0.4, independence: 0.72 },
+    residences: [{ settlementId: 'set:3', fromYear: 20, reason: 'Settled' }],
+  });
+  const rooted = buildInterpretations(figure, 60).find((i) => i.theme === 'Rootedness');
+  assert.ok(rooted);
+  assert.equal(rooted.dials.Independence, 0.55);
+  const said = spoken(figure, 60, context([figure]));
+  assert.match(said, /made a home|chosen rather than inherited|own terms/);
+  assert.doesNotMatch(said, /established ways/);
+});
+
+test('a first apparition is discovery evidence and scholarly prose', () => {
+  const figure = person({
+    name: 'Alda',
+    disposition: { ...DISPOSITION, learning: 0.75 },
+    observations: [{ cometIndex: 0, year: 30, grade: 'Notable', settlementId: 'set:1' }],
+  });
+  assert.ok(extractEvidence(figure, 50).some((e) => e.kind === 'Discovery'));
+  assert.ok(
+    buildInterpretations(figure, 50).some(
+      (i) => i.theme === 'ScholarlyLife' && i.evidence.some((e) => e.kind === 'Discovery'),
+    ),
+  );
+  assert.match(spoken(figure, 50, context([figure])), /sighting|sky|apparition/);
+});
+
+test('standing sentence can carry three interpretations', () => {
+  const friend = person({ id: 'fig:2', name: 'Ragny', birthYear: 8 });
+  const rival = person({ id: 'fig:3', name: 'Bera', birthYear: 8 });
+  const figure = person({
+    disposition: { ...DISPOSITION, tradition: 0.9, aggression: 0.8 },
+    residences: [{ settlementId: 'set:1', fromYear: 10, reason: 'Birth' }],
     affinities: [
       {
         id: 1,
-        otherId: 'fig:102',
+        otherId: 'fig:2',
         sought: true,
         startYear: 17,
         origin: 'SharedResidence',
         sourceKind: 'FigureBorn',
-        sourceEntityId: 'fig:101',
+        sourceEntityId: 'fig:1',
         placeId: 'set:1',
         stage: 'Friendship',
         outcome: 'Open',
         lastActionYear: 17,
         acts: [
-          { year: 17, sourceKind: 'FigureBorn', stage: 'Friendship', actorId: 'fig:101', detail: 'friendship' },
+          { year: 17, sourceKind: 'FigureBorn', stage: 'Friendship', actorId: 'fig:1', detail: 'friendship' },
         ],
       },
     ],
+    disputes: [
+      {
+        id: 1,
+        otherId: 'fig:3',
+        opened: true,
+        cause: 'PassedOverForOffice',
+        sourceKind: 'OfficeRevoked',
+        stage: 'Grudge',
+        outcome: 'Open',
+        startYear: 30,
+        lastActionYear: 30,
+        acts: [],
+      },
+    ],
   });
-  const loyalLines = biographySignatures(loyal, 60);
-  assert.ok(loyalLines.some((line) => line.startsWith('EnduringLoyalty|Tradition:0.65|Neutral|Friendship|')));
+  const themes = buildInterpretations(figure, 60, 3).map((i) => i.theme);
+  assert.equal(themes.length, 3);
+  const said = spoken(figure, 60, context([figure, friend, rival]));
+  assert.match(said, /rooted in|closely tied|Familiar places|made a home/i);
+  assert.match(said, /Ragny|stood by|kept faith|centre of/);
+  assert.match(said, /Bera|quarrel|feud|dispute/);
 });
 
 test('pass 2 themes fire and render dedicated prose', () => {

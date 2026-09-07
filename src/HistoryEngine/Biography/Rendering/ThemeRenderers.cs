@@ -45,6 +45,16 @@ internal static class ThemeRenderers
         string name = context.Name;
         string possessive = context.Possessive;
 
+        if (interpretation.Dials.ContainsKey(BiographyDial.Independence))
+        {
+            return variant switch
+            {
+                0 => $"{name} made a home at {place} after leaving the old seats behind.",
+                1 => $"{place} became {possessive} ground, chosen rather than inherited.",
+                _ => $"Having gone out, {name} put down roots at {place} on {possessive} own terms.",
+            };
+        }
+
         if (residence.Strength > 0.8)
         {
             return variant switch
@@ -146,6 +156,19 @@ internal static class ThemeRenderers
     {
         string name = context.Name;
         string possessive = context.Possessive;
+        bool discovery = interpretation.Evidence.Any(e => e.Kind == EvidenceKind.Discovery);
+
+        if (discovery)
+        {
+            BiographyEvidence found = First(interpretation, EvidenceKind.Discovery);
+            string place = context.PlaceName(found.PlaceId);
+            return variant switch
+            {
+                0 => $"{name} wrote down a sighting at {place} the record had not held before.",
+                1 => $"What {name} saw in the sky stayed in the chronicle when others let it pass.",
+                _ => $"The first record of that apparition is in {possessive} hand.",
+            };
+        }
 
         return variant switch
         {

@@ -30,6 +30,7 @@ public static class EvidenceExtractor
         ExtractUndertakings(figure, year, evidence);
         ExtractPlots(figure, year, evidence);
         ExtractStudy(figure, year, evidence);
+        ExtractDiscovery(figure, year, evidence);
 
         return evidence;
     }
@@ -392,6 +393,42 @@ public static class EvidenceExtractor
             start,
             year,
             Tag: scribe ? "Scribe" : observations ? "Observation" : "Claim"));
+    }
+
+    private static void ExtractDiscovery(Figure figure, int year, List<BiographyEvidence> evidence)
+    {
+        var years = new HashSet<int>();
+        foreach (SkyObservation seen in figure.Observations)
+        {
+            if (seen.Year > year) continue;
+            bool first = seen.PriorYear is null;
+            bool great = seen.Grade == ApparitionGrade.Great;
+            if (!first && !great) continue;
+
+            evidence.Add(new BiographyEvidence(
+                EvidenceKind.Discovery,
+                great ? 0.85 : 0.70,
+                seen.Year,
+                seen.Year,
+                PlaceId: seen.SettlementId,
+                Tag: great ? "Great" : "First"));
+            years.Add(seen.Year);
+        }
+
+        foreach (SalientMemory memory in figure.Memories)
+        {
+            if (memory.Kind != MemoryKind.Wonder) continue;
+            if (memory.Year > year) continue;
+            if (years.Contains(memory.Year)) continue;
+
+            evidence.Add(new BiographyEvidence(
+                EvidenceKind.Discovery,
+                DetMath.Clamp01(memory.Intensity),
+                memory.Year,
+                memory.Year,
+                PlaceId: memory.LocationId,
+                Tag: "Wonder"));
+        }
     }
 
     private static int OccupationStartYear(BiographyContext context)

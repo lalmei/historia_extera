@@ -176,29 +176,82 @@ public sealed class BiographyTests
     [Fact]
     public void SharedFixturesMatchViewerSignatures()
     {
-        Figure rooted = Person(100, "Kullerwa", tradition: 0.82);
-        rooted.Residences.Add(new Residence(EntityId.Settlement(1), 10, ResidenceReason.Birth));
-        Assert.Equal(
-            new[] { "Rootedness|Tradition:0.6|Neutral|LongResidence|0.820" },
-            BiographySignatures.For(Context(rooted, 60)));
+        foreach (BiographyFixtureCase fixture in BiographyFixtures.Load())
+        {
+            Assert.Equal(fixture.Expected, BiographyFixtures.Signatures(fixture));
+        }
+    }
 
-        Figure loyal = Person(101, "Kullerwa", tradition: 0.7);
-        Figure friend = Person(102, "Ragny");
+    [Fact]
+    public void IndependenceAndFrontierResidenceRootednessUsesChosenHomeProse()
+    {
+        Figure figure = Person(0, "Eira", tradition: 0.4, independence: 0.72);
+        figure.Residences.Add(new Residence(EntityId.Settlement(3), 20, ResidenceReason.Settled));
+        BiographyInterpretation rooted = Selected(figure, 60)
+            .First(i => i.Theme == BiographyTheme.Rootedness);
+        Assert.True(rooted.Dials.ContainsKey(BiographyDial.Independence));
+        string prose = BiographyBuilder.Build(Named(figure, 60, ("set:3", "Ashfen"))).Prose;
+        Assert.Contains("Ashfen", prose, StringComparison.Ordinal);
+        Assert.Matches("made a home|chosen rather than inherited|on her own terms", prose);
+        Assert.DoesNotContain("established ways", prose, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void FirstApparitionProducesDiscoveryAndScholarlyProse()
+    {
+        Figure figure = Person(0, "Alda", learning: 0.75);
+        figure.Observations.Add(new SkyObservation(
+            0, 30, EntityId.Civilization(0), EntityId.Settlement(1), null, ApparitionGrade.Notable));
+        IReadOnlyList<BiographyEvidence> evidence = EvidenceExtractor.Extract(Context(figure, 50));
+        Assert.Contains(evidence, e => e.Kind == EvidenceKind.Discovery);
+        Assert.Contains(Selected(figure, 50), i => i.Theme == BiographyTheme.ScholarlyLife
+            && i.Evidence.Any(e => e.Kind == EvidenceKind.Discovery));
+        string prose = BiographyBuilder.Build(Named(figure, 50, ("set:1", "Ashfen"))).Prose;
+        Assert.Matches("sighting|sky|apparition", prose);
+    }
+
+    [Fact]
+    public void BiographyCanCarryThreeInterpretations()
+    {
+        Figure figure = Person(0, "Sveinus", tradition: 0.9, aggression: 0.8);
+        figure.Residences.Add(new Residence(EntityId.Settlement(1), 10, ResidenceReason.Birth));
+        Figure friend = Person(1, "Ragny");
+        Figure rival = Person(2, "Bera");
         var affinity = new FigureAffinity(
             1,
-            loyal.Id,
+            figure.Id,
             friend.Id,
             17,
             AffinityOrigin.SharedResidence,
             EventKind.FigureBorn,
-            loyal.Id,
+            figure.Id,
             EntityId.Settlement(1));
         affinity.Stage = AffinityStage.Friendship;
-        affinity.Acts.Add(new AffinityAct(17, EventKind.FigureBorn, AffinityStage.Friendship, loyal.Id, "friendship"));
-        loyal.Affinities.Add(affinity);
-        Assert.Contains(
-            BiographySignatures.For(Context(loyal, 60)),
-            line => line.StartsWith("EnduringLoyalty|Tradition:0.65|Neutral|Friendship|", StringComparison.Ordinal));
+        affinity.Acts.Add(new AffinityAct(17, EventKind.FigureBorn, AffinityStage.Friendship, figure.Id, "friendship"));
+        figure.Affinities.Add(affinity);
+        figure.Disputes.Add(new FigureDispute(
+            1,
+            figure.Id,
+            rival.Id,
+            30,
+            DisputeCause.PassedOverForOffice,
+            EventKind.OfficeRevoked,
+            rival.Id,
+            EntityId.Settlement(2)));
+
+        FigureBiography biography = BiographyBuilder.Build(Named(
+            figure,
+            60,
+            ("set:1", "Ashfen"),
+            ("fig:1", "Ragny"),
+            ("fig:2", "Bera")));
+        Assert.Equal(3, biography.Interpretations.Count);
+        Assert.Contains(biography.Interpretations, i => i.Theme == BiographyTheme.Rootedness);
+        Assert.Contains(biography.Interpretations, i => i.Theme == BiographyTheme.EnduringLoyalty);
+        Assert.Contains(biography.Interpretations, i => i.Theme == BiographyTheme.ViolentConflict);
+        Assert.Matches("rooted in|closely tied|Familiar places|made a home", biography.Prose);
+        Assert.Matches("Ragny|stood by|kept faith", biography.Prose);
+        Assert.Matches("Bera|quarrel|feud|dispute", biography.Prose);
     }
 
     [Fact]
