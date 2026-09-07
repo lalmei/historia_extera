@@ -172,9 +172,12 @@ public sealed class CosmologyTests
 
                 if (body.Moons.Count > 0) withMoons++;
 
-                double roche = WorldCosmology.ComputeRocheLimitEarthRadii(body.RadiusEarth, 0.3);
                 foreach (SystemMoon moon in body.Moons)
                 {
+                    // Asked of the moon that is there: a light moonlet is the least dense body a
+                    // giant makes and so has the widest limit of the family.
+                    double roche = WorldCosmology.ComputeRocheLimitEarthRadii(
+                        body.RadiusEarth, moon.MassEarth, moon.RadiusEarth);
                     Assert.True(
                         moon.OrbitalDistanceEarthRadii > roche,
                         $"Seed {seed}: a moon of the {body.RoleLabel} sits inside the Roche limit.");
@@ -501,5 +504,86 @@ public sealed class CosmologyTests
         Assert.Equal(first.OrbitalDistanceAu, again.OrbitalDistanceAu);
         Assert.Equal(first.Companions, again.Companions);
         Assert.Equal(first.Comets, again.Comets);
+    }
+
+    /// <summary>
+    /// Two moon worlds should not be the same picture at a different scale. The inner edge is
+    /// rolled and the ladder jittered, so where a family begins and how its months divide are
+    /// outcomes of the world rather than constants of the generator.
+    /// </summary>
+    [Fact]
+    public void MoonFamiliesDoNotAllBeginAtTheSamePlace()
+    {
+        var innerEdges = new HashSet<string>();
+        var monthRatios = new HashSet<string>();
+        var moonWorlds = 0;
+
+        for (ulong seed = 1; seed <= 256; seed++)
+        {
+            WorldCosmology cosmology = WorldCosmology.From(seed);
+            if (cosmology.Kind != WorldKind.Moon) continue;
+
+            moonWorlds++;
+            double giantRadius = WorldCosmology.GiantRadiusEarthRadii(
+                cosmology.ParentGiantMassEarth!.Value);
+            IReadOnlyList<SystemMoon> family = cosmology.Moons;
+
+            innerEdges.Add(
+                (family[0].OrbitalDistanceEarthRadii / giantRadius).ToString("F4"));
+
+            if (family.Count > 1)
+            {
+                monthRatios.Add(
+                    (family[1].DayLengthDays / family[0].DayLengthDays).ToString("F4"));
+            }
+        }
+
+        Assert.True(moonWorlds > 50, $"Only {moonWorlds} moon worlds in the panel to judge by.");
+        Assert.True(
+            innerEdges.Count > moonWorlds * 0.9,
+            $"{moonWorlds} moon families share only {innerEdges.Count} distinct inner edges.");
+        Assert.True(
+            monthRatios.Count > 50,
+            $"Only {monthRatios.Count} distinct first-to-second month ratios across the panel.");
+    }
+
+    /// <summary>
+    /// The margin between a moon and its own Roche limit has to be a measurement, not the number
+    /// the generator was handed: a spread of them means the check can fail, and a family placed
+    /// against a stand-in moon's limit would not produce one.
+    /// </summary>
+    [Fact]
+    public void EveryMoonClearsTheRocheLimitOfTheBodyActuallyThere()
+    {
+        var margins = new HashSet<string>();
+        var checkedMoons = 0;
+
+        for (ulong seed = 1; seed <= 256; seed++)
+        {
+            WorldCosmology cosmology = WorldCosmology.From(seed);
+            if (cosmology.Kind != WorldKind.Moon) continue;
+
+            double giantRadius = WorldCosmology.GiantRadiusEarthRadii(
+                cosmology.ParentGiantMassEarth!.Value);
+
+            foreach (SystemMoon moon in cosmology.Moons)
+            {
+                double roche = WorldCosmology.ComputeRocheLimitEarthRadii(
+                    giantRadius, moon.MassEarth, moon.RadiusEarth);
+                Assert.True(
+                    moon.OrbitalDistanceEarthRadii > roche,
+                    $"Seed {seed}: moon {moon.Index} of {moon.MassEarth:F4} M⊕ sits at "
+                    + $"{moon.OrbitalDistanceEarthRadii:F3} R⊕, inside its own Roche limit of {roche:F3}.");
+
+                checkedMoons++;
+                margins.Add((moon.OrbitalDistanceEarthRadii / roche).ToString("F3"));
+            }
+        }
+
+        Assert.True(checkedMoons > 200, $"Only {checkedMoons} moons in the panel to judge by.");
+        Assert.True(
+            margins.Count > 100,
+            $"{checkedMoons} moons clear the Roche limit by only {margins.Count} distinct margins, "
+            + "which is a constant the generator was handed rather than an outcome.");
     }
 }
