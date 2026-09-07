@@ -55,6 +55,7 @@ import {
   tradeRoutesOf,
   treasuresOf,
   treasuresOwnedBy,
+  worksMadeBy,
   warOf,
   type World,
 } from '../store';
@@ -802,6 +803,13 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
     figure.spouseIds.length > 0 ||
     figure.childIds.length > 0;
   const claimed = atLatest ? treasuresOwnedBy(world, figure.id) : [];
+  // Scoped by the year rather than by `atLatest`, because what somebody has made is a fact about
+  // a past year that stays true: a goldsmith dead three centuries still made the crown, and the
+  // page at 400 should show the work of a man who died in 380.
+  const works = useMemo(
+    () => worksMadeBy(world, figure.id).filter((work) => work.createdYear <= selectedYear),
+    [world, figure.id, selectedYear],
+  );
   const arc = useMemo(
     () => buildLifeArc(figure, allEvents, life),
     [figure, allEvents, life],
@@ -1688,6 +1696,12 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
         {claimed.length > 0 && (
           <Panel title="Treasures">
             <ArtifactTable world={world} artifacts={claimed} />
+          </Panel>
+        )}
+
+        {works.length > 0 && (
+          <Panel title="Their work">
+            <ArtifactTable world={world} artifacts={works} />
           </Panel>
         )}
 
@@ -3114,8 +3128,13 @@ export function ArtifactPage({ world, artifact }: { world: World; artifact: Arti
             <Field label="Made at">
               <EntityLink world={world} id={artifact.originSettlementId} />
             </Field>
+            {artifact.creatorId && artifact.creatorId !== artifact.patronId && (
+              <Field label="Made by">
+                <EntityLink world={world} id={artifact.creatorId} />
+              </Field>
+            )}
             <Field label="Made for">
-              <EntityLink world={world} id={artifact.creatorId} />
+              <EntityLink world={world} id={artifact.patronId} />
             </Field>
             {artifact.ownerId && (
               <Field label="Claimed by">

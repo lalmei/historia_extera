@@ -912,6 +912,9 @@ public static class Tomes
         TomeContents contents = Compose(
             world, seat, civilization, preview, year, patron, kind, subject, context);
 
+        // Patron and creator are the same person for a book and that is not the conflation this
+        // milestone came to undo: a work's creator is its author, which is exactly what the scribe
+        // who was asked for it is. Both are passed so the record says so in its own words.
         Treasures.Create(
             world,
             seat,
@@ -920,7 +923,8 @@ public static class Tomes
             IsReligious(kind) ? seat.ReligionId : EntityId.None,
             year,
             patron.Id,
-            contents);
+            contents,
+            patronId: patron.Id);
     }
 
     private static Figure? LivingRuler(WorldState world, Civilization civilization)
@@ -1780,8 +1784,8 @@ public static class Tomes
 
         return artifact.Kind switch
         {
-            ArtifactKind.Regalia when !artifact.CreatorId.IsNone
-                => "It was made for " + world.NameOf(artifact.CreatorId)
+            ArtifactKind.Regalia when !artifact.PatronId.IsNone
+                => "It was made for " + world.NameOf(artifact.PatronId)
                    + " as a visible sign of the right to rule.",
             ArtifactKind.Regalia
                 => "It was made as a visible sign of its ruler's authority.",

@@ -818,6 +818,7 @@ public static class WorldExporter
                 Name: artifact.Name,
                 Kind: artifact.Kind,
                 CreatorId: OrNull(artifact.CreatorId),
+                PatronId: OrNull(artifact.PatronId),
                 OriginSettlementId: artifact.OriginSettlementId,
                 ReligionId: OrNull(artifact.ReligionId),
                 TomeContents: BuildTomeContents(artifact.TomeContents),

@@ -294,8 +294,31 @@ public sealed class Artifact
 
     public ArtifactKind Kind { get; }
 
-    /// <summary>Whoever commissioned or made it, if the chronicle knows.</summary>
+    /// <summary>
+    /// The craftsman who made it, if the record plausibly holds one.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>The maker, never the patron.</b> These were one field once, and the field held the
+    /// patron: a crown recorded the king who paid for it and every jewel, sword and idol in every
+    /// world was made by nobody at all. <see cref="PatronId"/> now carries the person who
+    /// commissioned the work, which is what that id always actually was.</para>
+    ///
+    /// <para>Empty is a real answer. Most things were made by people nobody wrote down, and a
+    /// village that holds no goldsmith produced an anonymous jewel rather than a jewel by an
+    /// invented one. A book is the exception this does not touch: a tome's creator is its author,
+    /// and authorship is <see cref="World.Tomes"/>' own model.</para>
+    /// </remarks>
     public EntityId CreatorId { get; set; } = EntityId.None;
+
+    /// <summary>
+    /// Whoever commissioned it, if the chronicle knows. Distinct from <see cref="CreatorId"/>.
+    /// </summary>
+    /// <remarks>
+    /// Not the same question as <see cref="OwnerId"/>, which is who claims it now. A crown
+    /// commissioned by a king and inherited twice has one patron and three owners, and the first
+    /// of those facts is the one that stops being recoverable the moment the object changes hands.
+    /// </remarks>
+    public EntityId PatronId { get; set; } = EntityId.None;
 
     public EntityId OriginSettlementId { get; }
 

@@ -22,9 +22,15 @@ public static class Treasures
     /// Makes a thing, and records it.
     /// </summary>
     /// <remarks>
-    /// The name is composed here rather than generated, exactly as war names are: "the Crown of
-    /// Aigionanvos" is a description a chronicler writes, and composing it once at creation is
-    /// what keeps every later reference to the object worded identically.
+    /// <para>The name is composed here rather than generated, exactly as war names are: "the Crown
+    /// of Aigionanvos" is a description a chronicler writes, and composing it once at creation is
+    /// what keeps every later reference to the object worded identically.</para>
+    ///
+    /// <para><b><paramref name="creatorId"/> is the maker and <paramref name="patronId"/> is who
+    /// paid.</b> They were one argument once and it carried the patron, which is why the name, the
+    /// owner fallback and the chronicle line all read it — those three all want the patron, and go
+    /// on reading it under its own name now. Nothing here reads the maker except the field it is
+    /// stored in and the word the chronicle records it by.</para>
     /// </remarks>
     public static Artifact Create(
         WorldState world,
@@ -34,7 +40,8 @@ public static class Treasures
         EntityId religionId,
         int year,
         EntityId ownerId = default,
-        TomeContents? contents = null)
+        TomeContents? contents = null,
+        EntityId patronId = default)
     {
         EntityId id = world.Artifacts.NextId;
 
@@ -45,16 +52,20 @@ public static class Treasures
                 world, settlement, world.Civilizations[settlement.CivilizationId], id, year);
         }
 
-        // Named for its maker when it has one and for the place otherwise, which is how the two
-        // kinds of famous object actually get their names. A written work is named for its
-        // subject, so a Codex of a ruler is recognisable before its page is opened.
+        // Named for whoever it was made for when it was made for somebody, and for the place
+        // otherwise, which is how the two kinds of famous object actually get their names. A crown
+        // is the king's crown; a jewel out of a craft town is the town's. A written work is named
+        // for its subject, so a Codex of a ruler is recognisable before its page is opened.
+        //
+        // The patron rather than the maker, deliberately. "The Crown of Aigionanvos" is the name a
+        // chronicler gives a crown, and no chronicler ever named one after the goldsmith.
         string qualifier = written is not null
             ? world.NameOf(written.SubjectId)
-            : creatorId.IsNone || !world.Figures.Contains(creatorId)
+            : patronId.IsNone || !world.Figures.Contains(patronId)
                 ? settlement.Name
-                : world.Figures[creatorId].Name;
+                : world.Figures[patronId].Name;
 
-        EntityId owner = LivingOwner(world, ownerId.IsNone ? creatorId : ownerId);
+        EntityId owner = LivingOwner(world, ownerId.IsNone ? patronId : ownerId);
 
         var artifact = new Artifact(
             id,
@@ -65,20 +76,30 @@ public static class Treasures
             owner)
         {
             CreatorId = creatorId,
+            PatronId = patronId,
             ReligionId = religionId,
             TomeContents = written,
         };
 
         world.Artifacts.Add(artifact);
 
+        // The maker goes in as a word rather than as the event's object, because the object slot is
+        // already the person the line says a thing was made *for*, and both narration voices are
+        // written around that. A reader who wants to follow the craftsman follows the artifact.
+        string? maker = creatorId != patronId && !creatorId.IsNone && world.Figures.Contains(creatorId)
+            ? world.Figures[creatorId].Name
+            : null;
+
         world.Chronicle.Record(
             year,
             EventKind.ArtifactCreated,
             id,
-            obj: creatorId.IsNone ? owner : creatorId,
+            obj: patronId.IsNone ? owner : patronId,
             location: settlement.Id,
-            extra: owner.IsNone || owner == creatorId ? null : new[] { owner },
-            data: Chronicle.Data(("kind", ArtifactKinds.Label(kind))));
+            extra: owner.IsNone || owner == patronId ? null : new[] { owner },
+            data: maker is null
+                ? Chronicle.Data(("kind", ArtifactKinds.Label(kind)))
+                : Chronicle.Data(("kind", ArtifactKinds.Label(kind)), ("maker", maker)));
 
         return artifact;
     }
