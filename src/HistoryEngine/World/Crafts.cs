@@ -265,7 +265,6 @@ public static class Crafts
             // both and why an ore region with no wood is not an ironworking region.
             Metal: ore && timber,
             Stone: region.Ruggedness >= StoneRuggedness
-                   || trade == SettlementSpecialization.Quarry
                    || region.GeologicActivity >= 0.35
                    || region.MeanHeight > 500.0,
             Timber: timber,

@@ -119,6 +119,13 @@ public sealed class RankTests
     /// for: a marshal put on the top rung by his appointment, and an officer who took an office and
     /// came back to arms carrying the rung he had. Anything beyond those two is the promotion pass
     /// having raised somebody into a place that did not exist, which is the failure this guards.
+    ///
+    /// <para><b>Against the largest muster the realm has held, not the one it has left.</b> The
+    /// establishment is read at the moment of promotion and the muster shrinks afterwards — men die
+    /// and men age out. Read against the surviving muster, a realm of four that promoted a file
+    /// leader and then buried two soldiers is carrying two officers where two men now allow one, and
+    /// nobody was raised into anything. That is attrition, not a promotion past the establishment,
+    /// and it is what this test caught first on a realm of two.</para>
     /// </remarks>
     [Fact]
     public void NobodyIsRaisedIntoAPlaceTheRealmDoesNotHave()
@@ -130,20 +137,56 @@ public sealed class RankTests
             foreach (Civilization civilization in world.ActiveCivilizations())
             {
                 List<Figure> muster = Ranks.Muster(world, civilization, world.Year);
+                int peak = PeakMuster(world, civilization);
 
                 for (MilitaryRank rank = MilitaryRank.FileLeader; rank <= Ranks.Top; rank++)
                 {
                     int standing = Ranks.Standing(muster, rank);
                     int arrived = Arrivals(muster, rank);
-                    int allowed = Ranks.Establishment(rank, muster.Count) + arrived;
+                    int allowed = Ranks.Establishment(rank, peak) + arrived;
 
                     Assert.True(
                         standing <= allowed,
-                        $"{civilization.Name} keeps {standing} at {rank} or above, where "
-                        + $"{muster.Count} soldiers and {arrived} arrivals allow {allowed}.");
+                        $"{civilization.Name} keeps {standing} at {rank} or above, where a largest "
+                        + $"muster of {peak} and {arrived} arrivals allow {allowed}.");
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// The most soldiers this realm ever had at once.
+    /// </summary>
+    /// <remarks>
+    /// Counted here rather than through <see cref="Ranks.Muster"/>, which reads
+    /// <see cref="Figure.IsAlive"/> and so answers about today however early a year it is handed —
+    /// it is the engine's live muster, not a historical one. This walks the lifespans instead: a
+    /// soldier stands in the realm's strength from his majority to the year he died. It counts a
+    /// man by the occupation he ended with, which can only overstate the muster, and overstating is
+    /// the safe direction for a cap the test is trying not to trip on spuriously.
+    /// </remarks>
+    private static int PeakMuster(WorldState world, Civilization civilization)
+    {
+        var strength = new Dictionary<int, int>();
+
+        foreach (Figure figure in world.Figures)
+        {
+            if (figure.CivilizationId != civilization.Id) continue;
+            if (figure.Occupation != Occupation.Soldiery && !figure.Holds(OfficeKind.Marshal)) continue;
+
+            int from = Math.Max(world.StartYear, figure.BirthYear + Succession.MajorityAge);
+            int to = figure.DeathYear ?? world.Year;
+
+            for (int year = from; year <= to; year++)
+            {
+                strength[year] = strength.GetValueOrDefault(year) + 1;
+            }
+        }
+
+        int peak = 0;
+        foreach (int standing in strength.Values) peak = Math.Max(peak, standing);
+
+        return peak;
     }
 
     /// <summary>Officers at or above a rung who did not climb into their current one here.</summary>
