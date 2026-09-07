@@ -15,7 +15,16 @@ public enum SettlementSpecialization
     Crafts = 6,
     Shrine = 7,
     Military = 8,
-    Quarry = 9,
+
+    // Quarry was declared here with a full set of curves below and no way to be chosen: it was
+    // absent from SpecializationSystem.Candidates, and when M30 gated it on the ground it would
+    // need — broken country, low geology so it does not simply take mining's — the panel found
+    // sixteen settlements in 787 standing on it, every one of them on soil of fertility 0.63 to
+    // 0.87 where farming already scores 0.77 to 0.95. There is no quarry town to be had until
+    // siting can put a settlement on hard ground; it never puts one above 597m or past a regional
+    // ruggedness of 0.32 at the ninetieth percentile. Costed and unreachable is the worst of the
+    // three states, so the cost came out. SiteCharacter.Quarry stays: that is the ground, which is
+    // a different question and carries no numbers.
 }
 
 /// <summary>
@@ -61,7 +70,6 @@ public static class Specializations
         SettlementSpecialization.Crafts => 0.80,
         SettlementSpecialization.Shrine => 0.60,
         SettlementSpecialization.Military => 0.45,
-        SettlementSpecialization.Quarry => 0.35,
         _ => 1.0,
     };
 
@@ -98,7 +106,6 @@ public static class Specializations
         SettlementSpecialization.Crafts => 260.0,
         SettlementSpecialization.Shrine => 300.0,
         SettlementSpecialization.Military => 200.0,
-        SettlementSpecialization.Quarry => 300.0,
         _ => 110.0,
     };
 
@@ -132,7 +139,6 @@ public static class Specializations
         SettlementSpecialization.Crafts => 700.0,
         SettlementSpecialization.Shrine => 480.0,
         SettlementSpecialization.Military => 1000.0,
-        SettlementSpecialization.Quarry => 560.0,
         _ => 130.0,
     };
 
@@ -149,7 +155,6 @@ public static class Specializations
         SettlementSpecialization.Crafts => 0.55,
         SettlementSpecialization.Shrine => 0.40,
         SettlementSpecialization.Military => 0.85,
-        SettlementSpecialization.Quarry => 0.45,
         _ => 0.90,
     };
 
@@ -171,7 +176,6 @@ public static class Specializations
         SettlementSpecialization.Crafts => 0.60,
         SettlementSpecialization.Shrine => 0.45,
         SettlementSpecialization.Military => 0.85,
-        SettlementSpecialization.Quarry => 0.85,
         _ => 0.25,
     };
 
@@ -185,7 +189,6 @@ public static class Specializations
         SettlementSpecialization.Crafts => "craftwork",
         SettlementSpecialization.Shrine => "pilgrimage",
         SettlementSpecialization.Military => "military",
-        SettlementSpecialization.Quarry => "quarry",
         _ => "nothing in particular",
     };
 }

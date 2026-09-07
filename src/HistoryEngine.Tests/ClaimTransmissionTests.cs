@@ -289,13 +289,19 @@ public sealed class ClaimTransmissionTests
     /// The two halves of the same promise. A realm cannot go on holding a reading on a copy that
     /// burned twenty years ago, and a reader replaying the world to a year before the fire has to
     /// find the copy still there — which is why a destroyed copy is dated rather than removed.
+    ///
+    /// <para>Over sixteen worlds rather than the class's six, because the last assertion is a
+    /// reachability one: a reading has to be made, carried, and then lost in the year its copy
+    /// burned, and whether a six-seed panel contains that chain is luck. It stopped containing one
+    /// on a settlement-specialization change that had nothing to do with books, which is the
+    /// failure mode a wider sample is for. The invariants above get the wider sample too.</para>
     /// </remarks>
     [Fact]
     public void ADestroyedCopyStopsCarryingAndStaysInTheRecord()
     {
         int burnt = 0;
 
-        foreach (ulong seed in Seeds)
+        for (ulong seed = 1; seed <= 16; seed++)
         {
             WorldExport export = HistoryRun.Execute(TestWorlds.Standard(seed)).ToExport();
 
@@ -338,7 +344,7 @@ public sealed class ClaimTransmissionTests
 
         // And the burning does take readings away, or the narrowing above would have quietly
         // turned this half of the rule into a rule about nothing.
-        Assert.True(burnt > 0, "No reading in the panel was lost on a copy that had burned.");
+        Assert.True(burnt > 0, "No reading in sixteen worlds was lost on a copy that had burned.");
     }
 
     /// <summary>

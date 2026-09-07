@@ -848,7 +848,6 @@ public sealed class FlavourTests
     {
         int libraries = 0;
         int awayFromCourt = 0;
-        int alongsideAFullTreasury = 0;
 
         foreach (ulong seed in Seeds)
         {
@@ -866,7 +865,6 @@ public sealed class FlavourTests
                     $"{settlement.Name} held {books} books, past the library limit.");
 
                 if (books > 3) libraries++;
-                if (books > 0 && objects >= 3) alongsideAFullTreasury++;
             }
 
             foreach (Artifact artifact in world.Artifacts)
@@ -880,10 +878,37 @@ public sealed class FlavourTests
         }
 
         Assert.True(libraries > 0, "No town in the sample held more books than the old cap allowed.");
+        Assert.True(awayFromCourt > 0, "Every book in the sample was written at a capital.");
+    }
+
+    /// <summary>A full treasury does not close a library.</summary>
+    /// <remarks>
+    /// The third clause of the rule above, moved out because it is a reachability question rather
+    /// than a distributional one and wants a bigger sample than five worlds. A town holding books
+    /// beside three objects — the old shared cap — occurs in about three worlds in ten, measured at
+    /// 5 of the 16 seeds from 1. On a five-seed panel that is a coin toss, and it came up tails on
+    /// a change that had nothing to do with books.
+    /// </remarks>
+    [Fact]
+    public void AFullTreasuryDoesNotCloseALibrary()
+    {
+        int alongsideAFullTreasury = 0;
+
+        for (ulong seed = 1; seed <= 16; seed++)
+        {
+            WorldState world = HistoryRun.Execute(TestWorlds.Standard(seed)).World;
+
+            foreach (Settlement settlement in world.Settlements)
+            {
+                (int books, int objects) = Treasures.HoldingsOf(world, settlement.Id);
+
+                if (books > 0 && objects >= 3) alongsideAFullTreasury++;
+            }
+        }
+
         Assert.True(
             alongsideAFullTreasury > 0,
-            "No town in the sample kept books beside a treasury the old cap would have closed.");
-        Assert.True(awayFromCourt > 0, "Every book in the sample was written at a capital.");
+            "No town in sixteen worlds kept books beside a treasury the old cap would have closed.");
     }
 
     /// <summary>

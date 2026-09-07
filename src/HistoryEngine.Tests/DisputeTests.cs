@@ -38,6 +38,20 @@ public sealed class DisputeTests
     /// </remarks>
     private static readonly ulong[] Seeds = { 7, 26, 104, 134, 158 };
 
+    /// <summary>
+    /// Seeds 1 to 16, for the one assertion that is about reachability rather than about rates.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="DisputeCause.KinMurdered"/> needs a murder among the kin of somebody the court
+    /// already follows, and occurs in roughly three worlds in ten — measured at 7 of the 24 seeds
+    /// from 1. Five worlds carry it about four times in five, which is a coin the suite should not
+    /// be tossing: it passed for a milestone and then failed on a specialization change that had
+    /// nothing to do with quarrels. Rates settle in a handful of worlds and reachability does not,
+    /// so the two questions get different samples. The range is taken whole rather than picked.
+    /// </remarks>
+    private static readonly ulong[] WidePanel =
+        Enumerable.Range(1, 16).Select(seed => (ulong)seed).ToArray();
+
     private readonly ITestOutputHelper _output;
 
     public DisputeTests(ITestOutputHelper output) => _output = output;
@@ -318,7 +332,6 @@ public sealed class DisputeTests
         _output.WriteLine("outcomes " + string.Join(", ", outcomes.Select(p => $"{p.Key}={p.Value}")));
         _output.WriteLine("causes   " + string.Join(", ", causes.Select(p => $"{p.Key}={p.Value}")));
 
-        Assert.Equal(5, causes.Count);
         Assert.True(
             outcomes.GetValueOrDefault(DisputeOutcome.Reconciled)
             + outcomes.GetValueOrDefault(DisputeOutcome.Settled) > 0,
@@ -545,6 +558,37 @@ public sealed class DisputeTests
     // -----------------------------------------------------------------------
 
     /// <summary>Every quarrel in the world, once, in a stable order.</summary>
+    /// <summary>Every wrong the engine models is one somebody actually takes up.</summary>
+    /// <remarks>
+    /// Costed and unreachable is the worst state a modelled thing can be in: a cause nobody ever
+    /// quarrels over is five narration branches and an enum value carrying no history. Asked over
+    /// <see cref="WidePanel"/> because the rarest of them lands in about three worlds in ten.
+    /// </remarks>
+    [Fact]
+    public void EveryWrongTheEngineModelsIsOneSomebodyTakesUp()
+    {
+        var causes = new Dictionary<DisputeCause, int>();
+
+        foreach (ulong seed in WidePanel)
+        {
+            WorldState world = HistoryRun.Execute(TestWorlds.Standard(seed)).World;
+
+            foreach (FigureDispute dispute in All(world))
+            {
+                causes[dispute.Cause] = causes.GetValueOrDefault(dispute.Cause) + 1;
+            }
+        }
+
+        _output.WriteLine("causes " + string.Join(", ", causes.Select(pair => $"{pair.Key}={pair.Value}")));
+
+        foreach (DisputeCause cause in Enum.GetValues<DisputeCause>())
+        {
+            Assert.True(
+                causes.ContainsKey(cause),
+                $"Nobody in sixteen worlds ever quarrelled over {cause}.");
+        }
+    }
+
     private static List<FigureDispute> All(WorldState world)
     {
         var seen = new List<FigureDispute>();
