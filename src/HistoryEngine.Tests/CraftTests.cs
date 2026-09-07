@@ -158,7 +158,14 @@ public sealed class CraftTests
         Assert.True(share > 0.40, $"the family trade is followed only {share:P1} of the time");
     }
 
-    /// <summary>No craft may be more than a third of a world's guildsmen.</summary>
+    /// <summary>No craft may be a quarter of a world's guildsmen.</summary>
+    /// <remarks>
+    /// A third was the bound before <see cref="Crafts"/> had been measured. The commonest trade is
+    /// weaving, at 18.0% of the panel at three centuries and 15.5% at a thousand years, and textiles
+    /// being a world's largest single trade is both intended and what the guild rolls say. A quarter
+    /// leaves that where it is and still catches the failure this guards — one gate widening until
+    /// it swallows the others.
+    /// </remarks>
     [Fact]
     public void NoSingleCraftSwallowsTheGuilds()
     {
@@ -187,7 +194,7 @@ public sealed class CraftTests
 
         (Craft commonest, int most) = totals.OrderByDescending(entry => entry.Value).First();
         Assert.True(
-            (double)most / held <= 0.34,
+            (double)most / held <= 0.25,
             $"{Crafts.Label(commonest)} is {(double)most / held:P1} of every guildsman in the panel");
     }
 
