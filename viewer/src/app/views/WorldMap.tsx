@@ -353,11 +353,11 @@ export function WorldMap({ world }: { world: World }) {
   );
 
   const yearEvents = useMemo(() => {
-    const indices = data.indices.eventsByYear[String(year)] ?? [];
-    return indices
+    const found = world.indices.eventsByYear[String(year)] ?? [];
+    return found
       .map((index) => data.events[index])
       .filter((event) => event.significance !== 'Routine');
-  }, [data, year]);
+  }, [data, world, year]);
 
   // Playback stops itself at the end of the run rather than looping: a chronicle has an end,
   // and a map that silently restarts reads as one that never moved.

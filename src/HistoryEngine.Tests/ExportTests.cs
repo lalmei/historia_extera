@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using HistoryEngine.Core;
 using HistoryEngine.Events;
 using HistoryEngine.Serialization;
@@ -222,35 +224,122 @@ public sealed class ExportTests
                 .ToExport().World.EastWestPeriodic);
     }
 
+    /// <summary>
+    /// Every id an event reports as a reference must be an id the event actually mentions.
+    /// </summary>
+    /// <remarks>
+    /// <para>The export used to carry <c>indices.eventsByEntity</c> and this test checked the
+    /// index against the events. The index is gone — the reader rebuilds it in one pass, which
+    /// measured at 272 ms on a 310,746-event world against the 3.0 s that parsing the file costs —
+    /// but the property the index depended on is the same property the rebuild depends on, and it
+    /// belongs to <see cref="HistoryEvent.References"/> rather than to the section that used to be
+    /// written from it. So the assertion moves to the source instead of leaving with the index.</para>
+    ///
+    /// <para>If this ever fails, an entity page shows an event that says nothing about it.</para>
+    /// </remarks>
     [Fact]
-    public void IndicesAndReferencesResolve()
+    public void EveryReportedReferenceIsOneTheEventMentions()
     {
-        WorldExport export = HistoryRun.Execute(TestWorlds.Small()).ToExport();
+        WorldState world = HistoryRun.Execute(TestWorlds.Small()).World;
 
-        foreach (KeyValuePair<string, int[]> entry in export.Indices.EventsByEntity)
+        foreach (HistoryEvent entry in world.Chronicle.Events)
         {
-            Assert.True(EntityId.TryParse(entry.Key, out EntityId id), $"Bad index key '{entry.Key}'");
-
-            foreach (int eventIndex in entry.Value)
+            foreach (EntityId reference in entry.References())
             {
-                Assert.InRange(eventIndex, 0, export.Events.Count - 1);
-
-                ExportEvent referenced = export.Events[eventIndex];
                 bool mentions =
-                    referenced.Subject == id || referenced.Object == id || referenced.Location == id
-                    || (referenced.Extra?.Contains(id) ?? false);
+                    entry.Subject == reference || entry.Object == reference
+                    || entry.Location == reference || (entry.Extra?.Contains(reference) ?? false);
 
-                Assert.True(mentions, $"Index claims event {eventIndex} mentions {id}, but it does not.");
+                Assert.True(
+                    mentions,
+                    $"Event {entry.Id} reports {reference} as a reference, but does not mention it.");
             }
         }
+    }
 
-        int indexedCount = 0;
-        foreach (KeyValuePair<string, int[]> entry in export.Indices.EventsByYear)
+    /// <summary>
+    /// No number in the file is written at more precision than it is read at.
+    /// </summary>
+    /// <remarks>
+    /// Twenty-three thousand numbers on the standard world were written at seventeen digits
+    /// because that is what round-trips a double's bits. The rule is three decimals, extended
+    /// below 0.1 so a small astronomical ratio keeps three significant digits — see
+    /// <see cref="RoundedDoubleJsonConverter"/>. Asserted on the text rather than on the DTOs,
+    /// because it is a property of the file.
+    /// </remarks>
+    [Fact]
+    public void NumbersAreWrittenAtThePrecisionTheyAreReadAt()
+    {
+        string json = WorldExporter.ToJson(HistoryRun.Execute(TestWorlds.Small()).ToExport());
+
+        foreach (Match match in Regex.Matches(json, @"-?\d+\.\d+"))
         {
-            indexedCount += entry.Value.Length;
-        }
+            double value = double.Parse(match.Value, CultureInfo.InvariantCulture);
 
-        Assert.Equal(export.Events.Count, indexedCount);
+            Assert.True(
+                value == RoundedDoubleJsonConverter.Round(value),
+                $"{match.Value} is written at more precision than the export rounds to.");
+        }
+    }
+
+    /// <summary>Small magnitudes keep three significant digits rather than losing them.</summary>
+    /// <remarks>
+    /// A flat three decimals would write a 0.0123-Earth-mass moon as 0.012, a two-percent error in
+    /// a number the sky view draws. This is the guard on that.
+    /// </remarks>
+    [Theory]
+    [InlineData(0.7269980808848671, 0.727)]
+    [InlineData(0.46676677372268294, 0.467)]
+    [InlineData(0.1234567, 0.123)]
+    [InlineData(0.012345678, 0.0123)]
+    [InlineData(0.00012345678, 0.000123)]
+    [InlineData(-0.012345678, -0.0123)]
+    [InlineData(0, 0)]
+    [InlineData(6939827362.938271, 6939827362.938)]
+    [InlineData(9.662825689100475e-11, 9.66e-11)]
+    [InlineData(1.2345e-20, 1.2345e-20)]
+    public void RoundingKeepsThreeSignificantDigits(double value, double expected)
+    {
+        Assert.Equal(expected, RoundedDoubleJsonConverter.Round(value));
+
+        // Reading a rounded file and writing it again must produce the same bytes.
+        Assert.Equal(expected, RoundedDoubleJsonConverter.Round(expected));
+    }
+
+    /// <summary>
+    /// An empty list or dictionary is left out of the file rather than written.
+    /// </summary>
+    /// <remarks>
+    /// <para>Twenty-five thousand empty arrays on the standard world, across thirty-one keys, for
+    /// campaigns nobody marched on and plots nobody kept. A reader treats an absent container as
+    /// empty — the viewer's <c>normalizeExport</c> already did, for older exports — so this costs
+    /// nothing to read and a great deal to write.</para>
+    ///
+    /// <para>The world is small, so the assertion is on the text: no <c>[]</c> and no <c>{}</c>
+    /// anywhere in it.</para>
+    /// </remarks>
+    [Fact]
+    public void EmptyContainersAreNotWritten()
+    {
+        string json = WorldExporter.ToJson(HistoryRun.Execute(TestWorlds.Small()).ToExport());
+
+        Assert.DoesNotContain("[]", json);
+        Assert.DoesNotContain("{}", json);
+    }
+
+    /// <summary>The derived lookups are gone from the file the reader parses.</summary>
+    /// <remarks>
+    /// Not a shape detail: the section scaled with the chronicle, and everything in it is one
+    /// linear pass over events the reader has in memory already. If it comes back, it comes back
+    /// with a measurement.
+    /// </remarks>
+    [Fact]
+    public void TheExportCarriesNoDerivedIndices()
+    {
+        string json = WorldExporter.ToJson(HistoryRun.Execute(TestWorlds.Small()).ToExport());
+
+        Assert.DoesNotContain("\"indices\"", json);
+        Assert.DoesNotContain("eventsByEntity", json);
     }
 
     [Fact]

@@ -13,7 +13,7 @@ CLI or library caller
         │
         ├── WorldBuilder.Create: terrain atlas, regions, cosmology, founding peoples
         ├── Simulator.Run: ordered systems, seasons, scheduled episodes
-        └── WorldExporter.Build: map raster, entities, events, series, indices
+        └── WorldExporter.Build: map raster, entities, events, series
                                       │
                                       ▼
                                one JSON export

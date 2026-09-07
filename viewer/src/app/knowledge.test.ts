@@ -61,7 +61,6 @@ function worldWith(input: Record<string, unknown>) {
     civilizations: [],
     artifacts: [],
     events: [],
-    indices: { eventsByEntity: {} },
     ...input,
   } as unknown as WorldExport);
 }
@@ -237,7 +236,6 @@ test('a world written before the transitions still reads, with no holdings inven
     world: { raster: RASTER },
     figures: [{ id: 'fig:1', name: 'Sergin', birthYear: 1, claims: [claim({ id: 0 })] }],
     events: [],
-    indices: { eventsByEntity: {} },
   } as unknown as WorldExport);
 
   const index = readKnowledge(world);

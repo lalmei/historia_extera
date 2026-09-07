@@ -42,7 +42,6 @@ public sealed record WorldExport(
     IReadOnlyList<ExportClaimTransition> ClaimTransitions,
     IReadOnlyList<ExportClaimStanding> ClaimStandings,
     IReadOnlyList<ExportSeries> Series,
-    ExportIndices Indices,
     IReadOnlyDictionary<string, string> Narration)
 {
     /// <summary>
@@ -168,8 +167,15 @@ public sealed record WorldExport(
     /// origin settlement actually holds, and PatronId carries what CreatorId used to mean. A
     /// reader following a crown reaches both the king who commissioned it and the goldsmith of his
     /// capital, and most objects reach neither, which is the honest record for a made thing.
+    /// Version 57 removes three things a world file was paying for and no history was in. The
+    /// denormalised <c>indices</c> section is gone — every entry in it is one linear pass over
+    /// events the reader has already parsed, which measures at 272 ms on a 310,000-event world
+    /// against the 3.0 s that parsing the file costs, so the reader rebuilds them. Doubles are
+    /// written at the precision they are read at rather than at seventeen digits. Empty lists and
+    /// dictionaries are omitted, as an absent container and an empty one mean the same thing.
+    /// No fact left the export; the same history is written in fewer bytes.
     /// </remarks>
-    public const int CurrentSchemaVersion = 56;
+    public const int CurrentSchemaVersion = 57;
 }
 
 public sealed record ExportMeta(
@@ -1456,22 +1462,3 @@ public sealed record ExportSeries(
     int FromYear,
     IReadOnlyList<double> Values);
 
-/// <summary>
-/// Denormalised lookups, computed once by the engine.
-/// </summary>
-/// <remarks>
-/// <para>These exist so the viewer never scans the event list. Without
-/// <see cref="EventsByEntity"/>, opening a figure's page means a linear pass over every event in
-/// the world — fine at a thousand events, visibly slow at the fifty thousand this is designed
-/// for, and repeated on every navigation. With it, an entity page is an array lookup, which is
-/// what makes cross-link browsing feel instant.</para>
-///
-/// <para>Values are indices into <see cref="WorldExport.Events"/>, not event objects, so the
-/// cost is a few hundred kilobytes of integers rather than a duplicated event list. Event ids
-/// are assigned sequentially on append, so an id <em>is</em> its index — asserted by
-/// <c>ExportTests</c>.</para>
-/// </remarks>
-public sealed record ExportIndices(
-    IReadOnlyDictionary<string, int[]> EventsByEntity,
-    IReadOnlyDictionary<string, int[]> EventsByYear,
-    IReadOnlyDictionary<string, int> EventCountsByKind);

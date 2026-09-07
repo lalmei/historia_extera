@@ -7,7 +7,7 @@ it; the viewer never calls back into the simulation for missing state.
 mutable `WorldState` or resume the simulation. The export also does not contain a complete
 generation recipe: retain the original configuration and external terrain for reproduction.
 
-The current engine writes schema 54. The current viewer reads schemas 28 through 54. There is
+The current engine writes schema 57. The current viewer reads schemas 28 through 57. There is
 no checked-in JSON Schema file: the authoritative writer shape is
 `src/HistoryEngine/Serialization/WorldExport.cs`, and the matching consumer shape is
 `viewer/src/app/types.ts` plus `viewer/src/app/compat.ts`.
@@ -25,8 +25,14 @@ no checked-in JSON Schema file: the authoritative writer shape is
 | `religions`, `holySites`, `artifacts` | Religious and material records. |
 | `events` | Flat chronological facts carrying typed references and optional structured data. |
 | `series` | One value per year for changing metrics. |
-| `indices` | Denormalized event lookups by entity, year, and kind. |
 | `narration` | Event templates used to turn facts into linked prose. |
+
+Schema 57 removed the `indices` section, which held denormalized event lookups by entity,
+year, and kind. Every entry in it is reconstructible from `events` in one pass, and it grew
+with the chronicle. A consumer that wants those lookups builds them on load: bucket each
+event's index under its year, its kind, and each of `subject`, `object`, `location` and
+`extra`. Measured in the viewer on a 310,746-event world, that pass takes 272 ms against the
+3.0 s the file's own `JSON.parse` costs.
 
 Plagues and disasters do not have top-level entity arrays. The viewer reconstructs their
 list entries from events. Consumers must not invent durable ids for them.
@@ -65,8 +71,8 @@ form the default narrative spine; `Routine` events remain available on entity pa
 the full record.
 
 The event list is chronological. Event ids are assigned in append order and equal their
-array indices. `indices.eventsByEntity` and `indices.eventsByYear` contain indices into that
-same array, not copies of event objects.
+array indices, so an event's id is also its position — which is what makes an index of
+integers into `events` possible for a consumer to build.
 
 Most top-level entity records describe final state. The viewer replays ownership,
 settlement-tier, capital, reign, and faith-change events to answer earlier-year questions.
@@ -91,6 +97,22 @@ page's current subject. Square-bracketed segments are optional and disappear if 
 placeholder is absent. Consumers that do not implement this grammar should render structured
 event facts instead of partially substituting templates.
 
+## Numbers and empty containers
+
+Since schema 57, two things about how the document is written are part of the contract.
+
+**Numbers are written at the precision they are read at.** A double is rounded to three
+decimal places, extended below 0.1 until it carries three significant digits — so a
+disposition of `0.7269980808848671` is written `0.727`, and a comet mass of `9.66e-11` keeps
+its digits rather than becoming zero. No value moves by more than 0.0005, and below 0.1 by no
+more than half a percent of itself. Rounding happens in the writer only; the simulation's own
+state is untouched, and the values in the file are not what the engine computed with.
+
+**Empty lists and dictionaries are omitted.** A figure who never marched carries no
+`campaigns` key rather than an empty array. An absent container means none, exactly as an
+empty one did, and every consumer must read it that way — this is the same rule that already
+applied to a container an older export predates.
+
 ## Canonical JSON and fingerprints
 
 `WorldExporter.ToJson` writes compact JSON by default. `--pretty` changes whitespace, so it
@@ -106,16 +128,21 @@ byte-identical canonical output.
 
 ## Compatibility rules
 
-The viewer refuses exports below schema 21, above schema 54, or without a numeric schema
-version. For readable older versions, compatibility code fills missing containers with empty
+The viewer refuses exports below schema 28, above schema 57, or without a numeric schema
+version. For readable versions, compatibility code fills missing containers with empty
 containers but never invents missing facts. A banner lists the later additions the export
 predates.
+
+Filling containers is no longer only an older-file concern. From schema 57 any container can
+be absent from any object because it was empty, so a consumer must handle a missing list
+everywhere the schema allows one, not only where a later version introduced one.
 
 For another consumer:
 
 1. Check `schemaVersion` before reading the document.
 2. Preserve unknown event kinds, series, and fields when possible.
-3. Do not interpret an absent field as a default unless the schema contract says so.
+3. Do not interpret an absent field as a default unless the schema contract says so — an
+   absent *container* is the one case where it does, and means none.
 4. Use `meta.seed`, `configHash`, `systemOrderHash`, and `engineVersion` together when
    comparing provenance.
 5. Keep narration optional; structured event facts are the durable record.

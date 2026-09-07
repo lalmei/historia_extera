@@ -1300,11 +1300,11 @@ export function Timeline({ world }: { world: World }) {
 
     if (civ === 'all') return events.filter((event) => inRange(event.year));
 
-    // Reuse the engine's index instead of scanning: the civilization's own events
+    // Reuse the loaded world's index instead of scanning: the civilization's own events
     // plus those of everything it owns would otherwise be a full pass per filter.
     const relevant = new Set<number>();
     const collect = (id: string) => {
-      for (const index of world.export.indices.eventsByEntity[id] ?? []) relevant.add(index);
+      for (const index of world.indices.eventsByEntity[id] ?? []) relevant.add(index);
     };
 
     collect(civ);
@@ -1387,9 +1387,9 @@ export function Overview({ world }: { world: World }) {
     tradeRoutes,
     figures,
     events,
-    indices,
     wars,
   } = world.export;
+  const { indices } = world;
 
   const standing = civilizations.filter((civ) => civ.endedYear === undefined);
   const inhabited = settlements.filter((s) => s.abandonedYear === undefined);
