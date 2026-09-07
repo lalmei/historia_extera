@@ -1,7 +1,9 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
+using HistoryEngine;
 using HistoryEngine.Core;
 using HistoryEngine.Events;
+using HistoryEngine.World;
 using Xunit;
 
 namespace HistoryEngine.Tests;
@@ -265,6 +267,112 @@ public sealed class NarrationTests
         Assert.Equal(
             "Was at the bat:3, which civ:4 won, at a cost of 400 dead.",
             Narration.Render(battle, Name, other));
+    }
+
+    [Fact]
+    public void AJoiningRulerEntersTheWarInTheirOwnVoice()
+    {
+        EntityId ruler = EntityId.Figure(4);
+        var joined = new HistoryEvent(
+            0, 40, EventKind.WarJoined, EntityId.Civilization(1), EntityId.War(2),
+            EntityId.Civilization(3), Extra: new[] { ruler });
+
+        Assert.Equal(
+            "civ:1 entered the war:2 alongside civ:3.",
+            Narration.Render(joined, Name));
+        Assert.Equal(
+            "Entered the war:2 alongside civ:3.",
+            Narration.Render(joined, Name, ruler));
+    }
+
+    [Fact]
+    public void ARulerIndexedOnAPeaceStillReadsTheEnding()
+    {
+        EntityId ruler = EntityId.Figure(7);
+        var ended = new HistoryEvent(
+            0, 52, EventKind.WarEnded, EntityId.War(1), EntityId.Civilization(2), default,
+            Extra: new[] { EntityId.Civilization(3), EntityId.Civilization(2), ruler },
+            Data: Chronicle.Data(("years", "12 years"), ("outcome", "in victory")));
+
+        Assert.Equal(
+            "The war:1 ended after 12 years, in victory for civ:2.",
+            Narration.Render(ended, Name));
+        Assert.Equal(
+            "The war:1 ended after 12 years, in victory for civ:2.",
+            Narration.Render(ended, Name, ruler));
+    }
+
+    [Fact]
+    public void ARelicClaimedInPeaceIsReceivedByTheTakingRuler()
+    {
+        EntityId taker = EntityId.Figure(5);
+        var claimed = new HistoryEvent(
+            0, 52, EventKind.ArtifactClaimed, new EntityId(EntityKind.Artifact, 1), EntityId.Civilization(2),
+            EntityId.Settlement(3), Extra: new[] { EntityId.War(4), taker });
+
+        Assert.Equal(
+            "art:1 was yielded to civ:2 at set:3 as a term of peace.",
+            Narration.Render(claimed, Name));
+        Assert.Equal(
+            "Received art:1 at set:3 as a term of peace.",
+            Narration.Render(claimed, Name, taker));
+    }
+
+    [Fact]
+    public void ATomeContinuationIsThePatronsDoing()
+    {
+        EntityId patron = EntityId.Figure(2);
+        var revised = new HistoryEvent(
+            0, 80, EventKind.ArtifactRevised, new EntityId(EntityKind.Artifact, 1), patron, EntityId.Settlement(3));
+
+        Assert.Equal(
+            "art:1 was continued at set:3 under fig:2.",
+            Narration.Render(revised, Name));
+        Assert.Equal(
+            "Had art:1 continued at set:3.",
+            Narration.Render(revised, Name, patron));
+    }
+
+    /// <summary>
+    /// A figure's page must not fall back to the world line for a kind that actually indexes them.
+    /// </summary>
+    /// <remarks>
+    /// The world wording names realms; the figure line is the same fact as something they did.
+    /// Kinds that never mention a person keep the world wording on purpose. This walks a standard
+    /// history so a later recording site that puts a person on an event cannot ship without the
+    /// second voice.
+    /// </remarks>
+    [Fact]
+    public void EveryKindThatLandsOnAFigurePageHasASelfTemplate()
+    {
+        HistoryRun run = HistoryRun.Execute(TestWorlds.Standard());
+        var missing = new SortedSet<string>();
+
+        foreach (HistoryEvent entry in run.World.Chronicle.Events)
+        {
+            if (!IndexesAFigure(entry)) continue;
+            if (Narration.Templates.ContainsKey(entry.Kind.ToString() + Narration.SelfKeySuffix))
+            {
+                continue;
+            }
+
+            missing.Add(entry.Kind.ToString());
+        }
+
+        Assert.True(
+            missing.Count == 0,
+            "Event kinds that appear on a figure's page without a .self template: "
+            + string.Join(", ", missing));
+    }
+
+    private static bool IndexesAFigure(HistoryEvent entry)
+    {
+        foreach (EntityId id in entry.References())
+        {
+            if (id.Kind == EntityKind.Figure) return true;
+        }
+
+        return false;
     }
 
     /// <summary>Templates must not reference slots their emitting system never fills — spot-checked here.</summary>

@@ -252,7 +252,7 @@ public static class Narration
             "{subject} was established for the {object}[ at {location}].");
 
         Set(EventKind.ArtifactCreated,
-            "{subject}, {data:kind}, was made[ at {location}][ for {object}].");
+            "{subject}, {data:kind}, was made[ at {location}][ by {data:maker}][ for {object}].");
         Set(EventKind.ArtifactTaken,
             "{subject} was carried off[ to {location}][ by {object}].");
         Set(EventKind.ArtifactLost, "{subject} was lost[ at {location}][, {data:cause}].");
@@ -481,6 +481,10 @@ public static class Narration
         SetSelf(EventKind.WarDeclared,
             "[{as:ruler}Declared war on {object}][{as:ruler}, {data:cause}][{as:ruler}. So began the {location}.]"
             + "[{not:ruler}{subject} declared war][{not:ruler}, {data:cause}][{not:ruler}. So began the {location}.]");
+        // The joining ruler is extra, not a named data slot: the three named slots are already
+        // the joiner, the war and the ally who called them.
+        SetSelf(EventKind.WarJoined,
+            "[{self:extra}Entered the {object} alongside {location}.]");
         SetSelf(EventKind.BattleFought,
             "[{as:victor}Prevailed at the {subject}][{as:victor}, at a cost of {data:losses} dead]"
             + "[{not:victor}Was at the {subject}, which {object} won]"
@@ -495,6 +499,9 @@ public static class Narration
             + "[{not:captain}{self:extra}, losing {data:lost} people].");
         SetSelf(EventKind.SettlementOccupied,
             "[{as:captain}Took {subject} and held it under arms.]");
+        SetSelf(EventKind.WarEnded,
+            "[{self:extra}The {subject} ended][{self:extra} after {data:years}]"
+            + "[{self:extra}, {data:outcome}][{self:extra} for {object}].");
         SetSelf(EventKind.ReligionFounded,
             "[{self:object}First preached the {subject}][{self:object} at {location}].");
         SetSelf(EventKind.StateFaithChanged,
@@ -504,6 +511,9 @@ public static class Narration
             + "[{self:extra}Came into {subject}][{self:extra} at {location}].");
         SetSelf(EventKind.ArtifactTaken,
             "[{self:extra}Took {subject}][{self:extra} to {location}].");
+        SetSelf(EventKind.ArtifactClaimed,
+            "[{self:extra}Received {subject}][{self:extra} at {location}]"
+            + "[{self:extra} as a term of peace].");
         SetSelf(EventKind.ArtifactGiven,
             "[{self:object}Received {subject}][{self:object} at {location}][{self:object}, {data:manner}]"
             + "[{self:extra}{subject} passed from them][{self:extra} to {object}]"
@@ -513,6 +523,8 @@ public static class Narration
             "[{self:object}Found {subject}][{self:object} at {location}].");
         SetSelf(EventKind.ArtifactRecovered,
             "[{self:object}Recovered {subject}][{self:object} at {location}].");
+        SetSelf(EventKind.ArtifactRevised,
+            "[{self:object}Had {subject} continued][{self:object} at {location}].");
         SetSelf(EventKind.DisasterStruck,
             "[{self:extra}Was caught in the {data:kind} at {subject}]"
             + "[{self:extra}, which lost {data:lost} people].");
