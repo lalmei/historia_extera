@@ -141,6 +141,15 @@ public static class InclinationRules
                 new[] { EvidenceKind.ReligiousOffice, EvidenceKind.Study },
                 new[] { EvidenceKind.Mentorship },
                 1.25),
+
+            Rule(
+                BiographyTheme.Betrayal,
+                BiographyDial.Tradition,
+                0.55,
+                new[] { EvidenceKind.Betrayal },
+                new[] { EvidenceKind.Friendship },
+                1.0,
+                (_, _) => BiographyOutcome.Negative),
         };
 
         return rules;

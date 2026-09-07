@@ -4,6 +4,7 @@ using HistoryEngine.Biography.Rendering;
 using HistoryEngine.Biography.Selection;
 using HistoryEngine.Core;
 using HistoryEngine.Entities;
+using HistoryEngine.Events;
 using HistoryEngine.World;
 
 namespace HistoryEngine.Biography;
@@ -45,11 +46,19 @@ public static class BiographyBuilder
         int maxInterpretations = 3)
     {
         int standingYear = BiographyContext.StandingYear(figure, year);
+        var takenYears = new List<int>();
+        foreach (HistoryEvent ev in world.Chronicle.Events)
+        {
+            if (ev.Kind == EventKind.OccupationTaken && ev.Subject == figure.Id && ev.Year <= standingYear)
+                takenYears.Add(ev.Year);
+        }
+
         var context = new BiographyContext(
             figure,
             standingYear,
             world.NameOf,
-            id => world.Figures.Contains(id) ? world.Figures[id].Sex : null);
+            id => world.Figures.Contains(id) ? world.Figures[id].Sex : null,
+            takenYears);
         IRng rng = world.Root.Fork("biography", figure.Id.ToDiscriminator());
         return Build(context, rng, maxInterpretations);
     }

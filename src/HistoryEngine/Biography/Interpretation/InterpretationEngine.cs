@@ -135,6 +135,8 @@ public static class InterpretationEngine
             return BiographyOutcome.Negative;
         }
 
+        if (theme == BiographyTheme.Betrayal) return BiographyOutcome.Negative;
+
         return BiographyOutcome.Neutral;
     }
 }

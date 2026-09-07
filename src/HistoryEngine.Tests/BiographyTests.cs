@@ -173,6 +173,157 @@ public sealed class BiographyTests
         Assert.Equal(BiographyOutcome.Negative, loserOutcome);
     }
 
+    [Fact]
+    public void SharedFixturesMatchViewerSignatures()
+    {
+        Figure rooted = Person(100, "Kullerwa", tradition: 0.82);
+        rooted.Residences.Add(new Residence(EntityId.Settlement(1), 10, ResidenceReason.Birth));
+        Assert.Equal(
+            new[] { "Rootedness|Tradition:0.6|Neutral|LongResidence|0.820" },
+            BiographySignatures.For(Context(rooted, 60)));
+
+        Figure loyal = Person(101, "Kullerwa", tradition: 0.7);
+        Figure friend = Person(102, "Ragny");
+        var affinity = new FigureAffinity(
+            1,
+            loyal.Id,
+            friend.Id,
+            17,
+            AffinityOrigin.SharedResidence,
+            EventKind.FigureBorn,
+            loyal.Id,
+            EntityId.Settlement(1));
+        affinity.Stage = AffinityStage.Friendship;
+        affinity.Acts.Add(new AffinityAct(17, EventKind.FigureBorn, AffinityStage.Friendship, loyal.Id, "friendship"));
+        loyal.Affinities.Add(affinity);
+        Assert.Contains(
+            BiographySignatures.For(Context(loyal, 60)),
+            line => line.StartsWith("EnduringLoyalty|Tradition:0.65|Neutral|Friendship|", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ScholarlyLifeAndReligiousThemesFire()
+    {
+        Figure scholar = Person(0, "Alda", learning: 0.75);
+        scholar.Occupation = Occupation.Scribe;
+        Assert.Contains(Selected(scholar, 55), i => i.Theme == BiographyTheme.ScholarlyLife);
+
+        Figure devout = Person(1, "Bera", piety: 0.8);
+        devout.Occupation = Occupation.Clergy;
+        devout.Journeys.Add(new Journey(
+            JourneyKind.Pilgrimage,
+            new Stamp(30, 0),
+            EntityId.Settlement(1),
+            EntityId.Settlement(9),
+            EntityId.None,
+            20,
+            new Stamp(31, 0)));
+        IReadOnlyList<BiographyInterpretation> faith = Selected(devout, 50);
+        Assert.Contains(faith, i => i.Theme == BiographyTheme.ReligiousDevotion);
+        string prose = BiographyBuilder.Build(Named(devout, 50, ("set:9", "Ilen"))).Prose;
+        Assert.Contains("Ilen", prose, StringComparison.Ordinal);
+
+        Figure both = Person(2, "Cera", piety: 0.75, learning: 0.75);
+        both.Occupation = Occupation.Clergy;
+        both.Observations.Add(new SkyObservation(
+            0, 30, EntityId.Civilization(0), EntityId.Settlement(1), null, ApparitionGrade.Notable));
+        Assert.Contains(
+            Selected(both, 50, taken: new[] { 40 }),
+            i => i.Theme == BiographyTheme.ReligiousScholarship);
+    }
+
+    [Fact]
+    public void PowerMobilityAndBetrayalThemesFire()
+    {
+        Figure ruler = Person(0, "Alda", centralism: 0.75);
+        ruler.Offices.Add(new OfficeHolding(OfficeKind.Ruler, "Consul", EntityId.Civilization(0), 20, null));
+        Assert.Contains(Selected(ruler, 50), i => i.Theme == BiographyTheme.ConsolidationOfPower);
+
+        Figure servant = Person(1, "Bera", centralism: 0.58);
+        servant.Offices.Add(new OfficeHolding(OfficeKind.Governor, "Governor", EntityId.Civilization(0), 20, null));
+        Assert.Contains(Selected(servant, 50), i => i.Theme == BiographyTheme.InstitutionalService);
+
+        Figure passed = Person(2, "Cera", independence: 0.7);
+        Figure rival = Person(3, "Dera");
+        passed.Disputes.Add(new FigureDispute(
+            1,
+            passed.Id,
+            rival.Id,
+            30,
+            DisputeCause.PassedOverForOffice,
+            EventKind.OfficeRevoked,
+            rival.Id,
+            EntityId.Settlement(2)));
+        Assert.Contains(Selected(passed, 45), i => i.Theme == BiographyTheme.ResistanceToAuthority);
+
+        Figure migrant = Person(4, "Eira", independence: 0.72);
+        migrant.Residences.Add(new Residence(EntityId.Settlement(3), 35, ResidenceReason.Flight));
+        IReadOnlyList<BiographyInterpretation> moved = Selected(migrant, 50);
+        Assert.Contains(moved, i => i.Theme == BiographyTheme.FrontierLife);
+        Assert.Contains(moved, i => i.Theme == BiographyTheme.Isolation);
+
+        Figure captain = Person(5, "Fara", expansionism: 0.75);
+        captain.Campaigns.Add(new CampaignMemory(
+            EntityId.War(1), EntityId.Battle(1), EntityId.Civilization(0), 40, CampaignRole.Commanded));
+        Assert.Contains(Selected(captain, 50), i => i.Theme == BiographyTheme.TerritorialAmbition);
+
+        Figure betrayer = Person(6, "Gara", tradition: 0.7);
+        Figure betrayed = Person(7, "Hara");
+        betrayer.Betrayals.Add(new FigureBetrayal(
+            1,
+            betrayer.Id,
+            betrayed.Id,
+            40,
+            BetrayalTie.Friendship,
+            BetrayalCause.Grievance,
+            EventKind.OfficeRevoked,
+            EntityId.Settlement(1)));
+        IReadOnlyList<BiographyInterpretation> broken = Selected(betrayer, 50);
+        Assert.Contains(broken, i => i.Theme == BiographyTheme.Betrayal);
+        Assert.Equal(BiographyOutcome.Negative, broken.First(i => i.Theme == BiographyTheme.Betrayal).Outcome);
+        string turned = BiographyBuilder.Build(Named(betrayer, 50, ("fig:7", "Hara"))).Prose;
+        Assert.Contains("Hara", turned, StringComparison.Ordinal);
+        Assert.Contains("turned on", turned, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void MalePronounsAppearInRootednessProse()
+    {
+        Figure figure = Person(0, "Oswin", tradition: 0.82, sex: Sex.Male);
+        figure.Residences.Add(new Residence(EntityId.Settlement(1), 10, ResidenceReason.Birth));
+        string prose = BiographyBuilder.Build(Named(figure, 60, ("set:1", "Ashfen"))).Prose;
+        Assert.Contains("Ashfen", prose, StringComparison.Ordinal);
+        Assert.DoesNotContain("her", prose, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void RecentOccupationTakenDoesNotCountAsLongOccupation()
+    {
+        Figure figure = Person(0, "Alda", learning: 0.8);
+        figure.Occupation = Occupation.Scribe;
+        Assert.Contains(
+            EvidenceExtractor.Extract(Context(figure, 60)),
+            e => e.Kind == EvidenceKind.LongOccupation);
+
+        var recent = new BiographyContext(
+            figure, 60, id => id.ToString(), occupationTakenYears: new[] { 50 });
+        Assert.DoesNotContain(
+            EvidenceExtractor.Extract(recent),
+            e => e.Kind == EvidenceKind.LongOccupation);
+    }
+
+    private static IReadOnlyList<BiographyInterpretation> Selected(
+        Figure figure,
+        int year,
+        int max = 3,
+        IReadOnlyList<int>? taken = null)
+    {
+        var context = new BiographyContext(figure, year, id => id.ToString(), occupationTakenYears: taken);
+        return InterpretationSelector.Select(
+            InterpretationEngine.Evaluate(context, EvidenceExtractor.Extract(context), InclinationRules.All),
+            max);
+    }
+
     private static BiographyInterpretation Interpretation(BiographyTheme theme, double score) =>
         new(theme, new Dictionary<BiographyDial, double>(), score, Array.Empty<BiographyEvidence>(), BiographyOutcome.Neutral);
 
@@ -198,33 +349,46 @@ public sealed class BiographyTests
     private static BiographyContext Context(Figure figure, int year) =>
         new(figure, year, id => id.ToString());
 
+    private static BiographyContext Named(Figure figure, int year, params (string Id, string Name)[] names)
+    {
+        var map = names.ToDictionary(pair => pair.Id, pair => pair.Name);
+        return new BiographyContext(
+            figure,
+            year,
+            id => map.TryGetValue(id.ToString(), out string? name) ? name : figure.Name);
+    }
+
     private static Figure Person(
         int id,
         string name,
         double aggression = 0.5,
+        double expansionism = 0.5,
         double piety = 0.5,
         double tradition = 0.5,
         double mercantile = 0.5,
-        double learning = 0.5)
+        double learning = 0.5,
+        double centralism = 0.5,
+        double independence = 0.5,
+        Sex sex = Sex.Female)
     {
         return new Figure(
             EntityId.Figure(id),
             EntityId.Civilization(0),
             EntityId.Culture(0),
             name,
-            Sex.Female,
+            sex,
             0)
         {
             Disposition = new Disposition(
                 new CultureValues(
                     Aggression: aggression,
-                    Expansionism: 0.5,
+                    Expansionism: expansionism,
                     Piety: piety,
                     Tradition: tradition,
                     Mercantile: mercantile,
                     Learning: learning),
-                Centralism: 0.5,
-                Independence: 0.5),
+                Centralism: centralism,
+                Independence: independence),
         };
     }
 }

@@ -13,12 +13,14 @@ public sealed class BiographyContext
         Figure figure,
         int year,
         Func<EntityId, string> nameOf,
-        Func<EntityId, Sex?>? sexOf = null)
+        Func<EntityId, Sex?>? sexOf = null,
+        IReadOnlyList<int>? occupationTakenYears = null)
     {
         Figure = figure;
         Year = year;
         NameOf = nameOf;
         SexOf = sexOf ?? (_ => null);
+        OccupationTakenYears = occupationTakenYears ?? Array.Empty<int>();
     }
 
     public Figure Figure { get; }
@@ -29,6 +31,12 @@ public sealed class BiographyContext
     public Func<EntityId, string> NameOf { get; }
 
     public Func<EntityId, Sex?> SexOf { get; }
+
+    /// <summary>
+    /// Years this figure took an occupation, from the chronicle. Empty when the caller
+    /// has only figure state — extraction then falls back to birth year.
+    /// </summary>
+    public IReadOnlyList<int> OccupationTakenYears { get; }
 
     public string Name => Figure.Name;
 
