@@ -503,7 +503,7 @@ public static class Realms
         civilization.TerritoryRegionIds.Clear();
 
         var data = Chronicle.Data(
-            ("years", (year - civilization.FoundedYear).ToString(CultureInfo.InvariantCulture)),
+            ("years", Chronicle.Years(year - civilization.FoundedYear)),
             ("peakPopulation", civilization.PeakPopulation.ToString(CultureInfo.InvariantCulture)));
 
         if (cause is not null) data["cause"] = cause;

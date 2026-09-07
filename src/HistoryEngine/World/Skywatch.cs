@@ -318,7 +318,7 @@ public static class Skywatch
         };
         if (prior is int seen)
         {
-            data["since"] = (year - seen).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            data["since"] = Chronicle.Years(year - seen);
         }
 
         world.Chronicle.Record(

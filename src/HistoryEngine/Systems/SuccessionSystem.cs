@@ -1,4 +1,3 @@
-using System.Globalization;
 using HistoryEngine.Core;
 using HistoryEngine.Entities;
 using HistoryEngine.Events;
@@ -126,7 +125,7 @@ public sealed class SuccessionSystem : ISystem
             obj: civilization.Id,
             data: Chronicle.Data(
                 ("title", culture.RulerTitle),
-                ("years", (year - civilization.RulerSinceYear).ToString(CultureInfo.InvariantCulture))));
+                ("years", Chronicle.Years(year - civilization.RulerSinceYear))));
     }
 
     private static void Crown(

@@ -285,7 +285,7 @@ public sealed class TradeRouteSystem : ISystem
         // as the same decision twice, so it is always reported; the saving is reported only where
         // the engineered line actually found one.
         var record = Chronicle.Data(
-            ("stood", stood.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+            ("stood", Chronicle.Years(stood)));
 
         if (saved > 0.0 && before > 0.0) record["saved"] = Percent(saved / before);
 

@@ -1,4 +1,3 @@
-using System.Globalization;
 using HistoryEngine.Core;
 using HistoryEngine.Entities;
 using HistoryEngine.Events;
@@ -733,7 +732,7 @@ public static class Conspiracies
             data: Chronicle.Data(
                 ("manner", betrayed ? "given up by one of its own" : "found by the court"),
                 ("objective", ObjectiveDetail(plot.Objective)),
-                ("years", (year - plot.StartYear).ToString(CultureInfo.InvariantCulture))),
+                ("years", Chronicle.Years(year - plot.StartYear))),
             significance: Significance.Notable);
 
         Disputes.Consider(
@@ -925,7 +924,7 @@ public static class Conspiracies
             data: Chronicle.Data(
                 ("title", title),
                 ("cause", "by a conspiracy of " + leader.FullName),
-                ("years", (year - plot.StartYear).ToString(CultureInfo.InvariantCulture))),
+                ("years", Chronicle.Years(year - plot.StartYear))),
             significance: Significance.Notable);
 
         realm.Fortunes.MurderAtCourt();

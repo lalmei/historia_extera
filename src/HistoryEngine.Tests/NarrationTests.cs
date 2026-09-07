@@ -91,6 +91,35 @@ public sealed class NarrationTests
             "Event kinds without a narration template: " + string.Join(", ", missing));
     }
 
+    /// <summary>
+    /// A year-span payload is already a phrase. Repeating the word in the template is how
+    /// "after 12 years years" ships.
+    /// </summary>
+    [Fact]
+    public void YearSpanPlaceholdersDoNotRepeatTheWordYears()
+    {
+        foreach (KeyValuePair<string, string> pair in Narration.Templates)
+        {
+            Assert.DoesNotContain("{data:years} years", pair.Value);
+            Assert.DoesNotContain("{data:since} years", pair.Value);
+            Assert.DoesNotContain("{data:stood} years", pair.Value);
+        }
+    }
+
+    [Fact]
+    public void AYearSpanRendersAsAFinishedPhraseIncludingTheSingular()
+    {
+        var fallen = new HistoryEvent(
+            0, 40, EventKind.CivilizationFell, EntityId.Civilization(1), default, default,
+            Data: Chronicle.Data(("years", Chronicle.Years(1))));
+        var abandoned = new HistoryEvent(
+            1, 40, EventKind.SettlementAbandoned, EntityId.Settlement(2), default, default,
+            Data: Chronicle.Data(("years", Chronicle.Years(12))));
+
+        Assert.Equal("civ:1 came to an end after 1 year.", Narration.Render(fallen, Name));
+        Assert.Equal("set:2 was abandoned after 12 years.", Narration.Render(abandoned, Name));
+    }
+
     [Fact]
     public void AllSlotsResolveWhenPresent()
     {
@@ -201,7 +230,8 @@ public sealed class NarrationTests
     /// <remarks>
     /// The <c>.self</c> template used to be ungated, so the child's sentence was handed to the
     /// parents as well: a mother of six read "Was born to Jaroslav" six times on her own page,
-    /// once per child. Every viewpoint the event indexes needs its own clause.
+    /// once per child. Every viewpoint the event indexes needs its own clause. The father's line
+    /// names the mother and the child, and does not say "him" — the page is already his.
     /// </remarks>
     [Fact]
     public void ABirthReadsDifferentlyForTheChildAndForEachParent()
@@ -221,7 +251,7 @@ public sealed class NarrationTests
             "Was born to fig:7 and fig:4 in set:6.",
             Narration.Render(birth, Name, child));
         Assert.Equal(
-            "fig:7 bore him a daughter, fig:11, at set:6.",
+            "fig:7 bore a daughter, fig:11, at set:6.",
             Narration.Render(birth, Name, father));
         Assert.Equal(
             "Bore fig:4 a daughter, fig:11, at set:6.",
