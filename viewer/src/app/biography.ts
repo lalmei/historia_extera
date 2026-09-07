@@ -880,7 +880,7 @@ export function standingSentence(
     text('. ');
   }
 
-  const interpretationParts = interpretationSentenceParts(figure, standing.year, ctx, 2);
+  const interpretationParts = interpretationSentenceParts(figure, standing.year, ctx, 3);
   if (interpretationParts.length > 0) {
     parts.push(...interpretationParts);
     parts.push({ type: 'text', text: ' ' });

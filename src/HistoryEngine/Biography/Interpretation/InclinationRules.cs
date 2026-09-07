@@ -26,6 +26,14 @@ public static class InclinationRules
                 1.0),
 
             Rule(
+                BiographyTheme.Rootedness,
+                BiographyDial.Independence,
+                0.55,
+                new[] { EvidenceKind.LongResidence, EvidenceKind.Migration },
+                None,
+                0.95),
+
+            Rule(
                 BiographyTheme.EnduringLoyalty,
                 BiographyDial.Tradition,
                 0.65,
@@ -54,8 +62,16 @@ public static class InclinationRules
                 BiographyDial.Learning,
                 0.60,
                 new[] { EvidenceKind.Study },
-                new[] { EvidenceKind.LongOccupation },
+                new[] { EvidenceKind.LongOccupation, EvidenceKind.Discovery },
                 0.95),
+
+            Rule(
+                BiographyTheme.ScholarlyLife,
+                BiographyDial.Learning,
+                0.55,
+                new[] { EvidenceKind.Discovery },
+                new[] { EvidenceKind.Study },
+                0.90),
 
             Rule(
                 BiographyTheme.ReligiousDevotion,
