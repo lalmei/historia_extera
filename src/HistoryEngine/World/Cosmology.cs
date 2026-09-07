@@ -231,6 +231,14 @@ public sealed record WorldCosmology(
     public const double MaxGiantMoonMonthDays = 120.0;
 
     /// <summary>
+    /// Lightest and heaviest a giant's own moon is allowed to be, in Earth masses, and the tighter
+    /// ceiling on the innermost one — a body that close in never had much to accrete from.
+    /// </summary>
+    public const double MinGiantMoonMassEarth = 0.0004;
+    public const double MaxInnerGiantMoonMassEarth = 0.012;
+    public const double MaxGiantMoonMassEarth = 0.045;
+
+    /// <summary>
     /// Shortest and longest month a planet world's own moons are given, in Earth days. The floor
     /// keeps a moon from skimming the atmosphere on a few-hour orbit; the ceiling keeps it a moon
     /// rather than a captured rock that takes a season to come round. Earth's own is 27.3.
@@ -247,6 +255,34 @@ public sealed record WorldCosmology(
 
     /// <summary>Fraction of the world's Hill sphere its moons stay inside to survive the star.</summary>
     public const double HomeMoonHillFraction = 0.45;
+
+    /// <summary>
+    /// Lightest and heaviest a moon of a host giant's family is allowed to be, apart from the
+    /// habitable one, in Earth masses. The light end is a moonlet like Mimas; the heavy end is
+    /// still well short of anything that could hold air.
+    /// </summary>
+    public const double MinFamilyMoonMassEarth = 0.008;
+    public const double MaxFamilyMoonMassEarth = 0.06;
+
+    /// <summary>
+    /// How far outside its own Roche limit a moon family's innermost moon stands, at the tightest
+    /// and the widest. A family that formed right down against the limit is one picture; a family
+    /// that cleared its inner region and starts well out is another, and only the second leaves
+    /// its giant room for a ring. Rolled per world, so the margin is an outcome rather than the
+    /// number the generator was handed back as a check.
+    /// </summary>
+    public const double MinMoonFamilyClearance = 1.06;
+    public const double MaxMoonFamilyClearance = 1.85;
+
+    /// <summary>How much further out each rung of a host giant's moon family sits than the last.</summary>
+    public const double MinMoonFamilyOrbitRatio = 1.18;
+
+    /// <summary>
+    /// How far a family's moons wander off their geometric ladder. Without it two families of the
+    /// same span keep the same month ratios and so, from the ground, the same nights.
+    /// </summary>
+    public const double MinMoonFamilyJitter = 0.97;
+    public const double MaxMoonFamilyJitter = 1.05;
 
     /// <summary>
     /// Narrowest band, in planet radii, still worth calling a ring once a host giant's moons have
@@ -277,6 +313,9 @@ public sealed record WorldCosmology(
 
     /// <summary>Earth radii in one AU — converts a giant's Hill sphere into moon-orbit units.</summary>
     internal const double EarthRadiiPerAu = 23_455.0;
+
+    /// <summary>Earth's mean bulk density, the unit every body's density is expressed against.</summary>
+    internal const double EarthDensityKgM3 = 5514.0;
 
     public bool IsHabitable => EvaluateChecks().All(check => check.Passed);
 
@@ -370,6 +409,7 @@ public sealed record WorldCosmology(
             moonDay = home.DayLengthDays;
             rocheEarthRadii = ComputeRocheLimitEarthRadii(
                 GiantRadiusEarthRadii(giantMass.Value),
+                worldMass,
                 worldRadius);
         }
         else
@@ -606,20 +646,32 @@ public sealed record WorldCosmology(
     internal static double GiantRadiusEarthRadii(double massEarth) =>
         2.0 * DetMath.Sqrt(DetMath.Sqrt(massEarth));
 
-    internal static double ComputeRocheLimitEarthRadii(double giantRadiusEarth, double moonRadiusEarth)
+    /// <summary>
+    /// Roche limit for a moon of a gas giant, in Earth radii — inside it the giant's tide pulls
+    /// the moon apart faster than the moon's own gravity can hold it together.
+    /// </summary>
+    /// <remarks>
+    /// The moon enters through its bulk density, not its size: a loosely packed body comes apart
+    /// much further out than a dense one. Since <see cref="WorldRadiusFromMass"/> grows a body more
+    /// slowly than its mass, a moonlet is the least dense thing a giant makes and has the widest
+    /// limit of the family — which is why this has to be asked of the moon that is actually there
+    /// rather than of a stand-in for it.
+    /// </remarks>
+    internal static double ComputeRocheLimitEarthRadii(
+        double giantRadiusEarth,
+        double moonMassEarth,
+        double moonRadiusEarth)
     {
         const double giantDensity = 700.0;
-        const double moonDensity = 5514.0;
-        double ratio = NthRoot(giantDensity / moonDensity, 3);
-        return 2.44 * giantRadiusEarth * ratio;
+        double moonDensity = EarthDensityKgM3 * moonMassEarth / DetMath.IntPow(moonRadiusEarth, 3);
+        return 2.44 * giantRadiusEarth * NthRoot(giantDensity / moonDensity, 3);
     }
 
     /// <summary>Roche limit for a rocky moon of a rocky world, in radii of that world.</summary>
     public static double RockyRocheLimitEarthRadii(double worldRadiusEarth)
     {
-        const double worldDensity = 5514.0;
         const double moonDensity = 3340.0;
-        return 2.44 * worldRadiusEarth * NthRoot(worldDensity / moonDensity, 3);
+        return 2.44 * worldRadiusEarth * NthRoot(EarthDensityKgM3 / moonDensity, 3);
     }
 
     /// <summary>Which orbit about a primary of this mass takes <paramref name="periodDays"/>.</summary>
@@ -662,6 +714,24 @@ public sealed record WorldCosmology(
         return DetMath.Clamp(center, innerHz * 1.02, outerHz * 0.98);
     }
 
+    /// <summary>
+    /// The moons of the giant a moon world orbits, the habitable one among them.
+    /// </summary>
+    /// <remarks>
+    /// <para>The bodies are rolled before the ladder they sit on, because a moon's Roche limit is a
+    /// question about that moon's own density and cannot be answered by a stand-in. Only the count
+    /// is settled first, and against the widest limit any moon of this giant could have, so the
+    /// rungs are known to fit whatever is then placed on them.</para>
+    ///
+    /// <para>How far outside that limit the family begins is rolled rather than fixed. Most
+    /// families formed down against the limit, but some cleared their inner region and start well
+    /// out — and those are the giants that still have room for a ring, which is the one thing a
+    /// moon world's chroniclers would have had to explain.</para>
+    ///
+    /// <para>Each rung is then jittered off the geometric ladder the way a giant's own family is.
+    /// The month ratios between a family's moons are what its calendar is built from, and without
+    /// jitter two families of the same span keep the same ratios and so the same nights.</para>
+    /// </remarks>
     private static IReadOnlyList<SystemMoon> PlaceMoonFamily(
         IRng rng,
         double starMassSolar,
@@ -670,51 +740,80 @@ public sealed record WorldCosmology(
         BodyComposition composition)
     {
         double giantRadius = GiantRadiusEarthRadii(giantMassEarth);
-        double roche = ComputeRocheLimitEarthRadii(giantRadius, WorldRadiusFromMass(0.4));
         double hill = GiantHillSphereEarthRadii(giantAu, giantMassEarth, starMassSolar);
-        double inner = roche * 1.12;
         double dayLimit = MaxHabitableMoonOrbitEarthRadii(giantMassEarth);
         double outer = hill * 0.36;
         if (dayLimit < outer) outer = dayLimit;
-        if (outer < inner) outer = inner;
+
+        // The widest Roche limit this giant can hand out, which belongs to the lightest moonlet it
+        // can make. Every moon of the family clears it, so a ladder that fits above it fits.
+        double widestRoche = ComputeRocheLimitEarthRadii(
+            giantRadius, MinFamilyMoonMassEarth, WorldRadiusFromMass(MinFamilyMoonMassEarth));
+        double floor = widestRoche * MinMoonFamilyClearance;
+        if (outer < floor) outer = floor;
 
         int count = 1;
-        if (outer > inner * 1.18)
+        if (outer > floor * MinMoonFamilyOrbitRatio)
         {
-            double span = outer / inner;
+            double span = outer / floor;
             for (int n = 2; n <= 8; n++)
             {
-                if (NthRoot(span, n - 1) < 1.18) break;
+                if (NthRoot(span, n - 1) < MinMoonFamilyOrbitRatio) break;
                 count = n;
             }
 
             count = rng.NextInt(1, count + 1);
         }
 
-        double factor = count == 1 ? 1.0 : NthRoot(outer / inner, count - 1);
-        var orbits = new double[count];
-        for (int i = 0; i < count; i++)
-        {
-            orbits[i] = inner * DetMath.IntPow(factor, i);
-        }
-
         int home = rng.NextInt(count);
-        var moons = new List<SystemMoon>(count);
-
+        var masses = new double[count];
+        var radii = new double[count];
         for (int i = 0; i < count; i++)
         {
             bool habitable = i == home;
-            double mass = habitable
+            masses[i] = habitable
                 ? EnsureAtmosphereRetention(rng.NextDouble(0.12, 1.0), WorldKind.Moon, composition)
-                : rng.NextDouble(0.008, 0.06);
-            double radius = habitable ? BodyRadius(mass, composition) : WorldRadiusFromMass(mass);
+                : rng.NextDouble(MinFamilyMoonMassEarth, MaxFamilyMoonMassEarth);
+            radii[i] = habitable
+                ? BodyRadius(masses[i], composition)
+                : WorldRadiusFromMass(masses[i]);
+        }
+
+        // The top rung is set back far enough that its own jitter cannot carry it past the day
+        // limit, and the inner edge back far enough that the whole ladder still fits above it.
+        double top = outer / MaxMoonFamilyJitter;
+        if (top < floor) top = floor;
+        double widestInner = count == 1
+            ? top
+            : top / DetMath.IntPow(MinMoonFamilyOrbitRatio, count - 1);
+        if (widestInner < floor) widestInner = floor;
+
+        double clearance = rng.NextDouble(MinMoonFamilyClearance, MaxMoonFamilyClearance);
+        double innerRoche = ComputeRocheLimitEarthRadii(giantRadius, masses[0], radii[0]);
+        double inner = DetMath.Clamp(innerRoche * clearance, floor, widestInner);
+        double factor = count == 1 ? 1.0 : NthRoot(top / inner, count - 1);
+
+        var moons = new List<SystemMoon>(count);
+        for (int i = 0; i < count; i++)
+        {
+            double orbit = inner
+                           * DetMath.IntPow(factor, i)
+                           * rng.NextDouble(MinMoonFamilyJitter, MaxMoonFamilyJitter);
+
+            // The ladder is laid out above the family's shared floor, but the jitter is not, so the
+            // moon's own limit is asserted here rather than assumed.
+            double ownFloor = ComputeRocheLimitEarthRadii(giantRadius, masses[i], radii[i])
+                              * MinMoonFamilyClearance;
+            if (orbit < ownFloor) orbit = ownFloor;
+            if (orbit > outer) orbit = outer;
+
             moons.Add(new SystemMoon(
                 Index: i + 1,
-                OrbitalDistanceEarthRadii: orbits[i],
-                MassEarth: mass,
-                RadiusEarth: radius,
-                DayLengthDays: MoonOrbitalPeriodDays(giantMassEarth, orbits[i]),
-                Habitable: habitable));
+                OrbitalDistanceEarthRadii: orbit,
+                MassEarth: masses[i],
+                RadiusEarth: radii[i],
+                DayLengthDays: MoonOrbitalPeriodDays(giantMassEarth, orbit),
+                Habitable: i == home));
         }
 
         return moons;
@@ -999,7 +1098,12 @@ public sealed record WorldCosmology(
         if (count <= 0) return Array.Empty<SystemMoon>();
 
         double giantRadius = giant.RadiusEarth;
-        double roche = ComputeRocheLimitEarthRadii(giantRadius, 0.3);
+
+        // The widest Roche limit this giant can hand out, which belongs to the lightest moonlet it
+        // can make: a body that small is the least dense thing here, and so comes apart furthest
+        // out. Placing the family above it puts every moon outside its own limit.
+        double roche = ComputeRocheLimitEarthRadii(
+            giantRadius, MinGiantMoonMassEarth, WorldRadiusFromMass(MinGiantMoonMassEarth));
         double ringEdge = appearance.Ring is { } ring ? ring.OuterRadiusPlanetRadii * giantRadius : 0.0;
         double inner = Math.Max(roche * 1.15, ringEdge * 1.08);
         double hill = GiantHillSphereEarthRadii(giant.SemiMajorAxisAu, giant.MassEarth, starMassSolar);
@@ -1014,7 +1118,8 @@ public sealed record WorldCosmology(
         for (int i = 0; i < count; i++)
         {
             double orbit = inner * DetMath.IntPow(factor, i) * rng.NextDouble(0.96, 1.06);
-            double mass = rng.NextDouble(0.0004, i == 0 ? 0.012 : 0.045);
+            double mass = rng.NextDouble(
+                MinGiantMoonMassEarth, i == 0 ? MaxInnerGiantMoonMassEarth : MaxGiantMoonMassEarth);
             moons.Add(new SystemMoon(
                 Index: i + 1,
                 OrbitalDistanceEarthRadii: orbit,
