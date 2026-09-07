@@ -74,6 +74,11 @@ public sealed class ArtifactSystem : ISystem
 
         IRng rng = world.Root.Fork(Name, year);
 
+        // Built once for the whole world rather than per settlement: creation is rare and the
+        // figure list is not, so scanning it inside the settlement loop would cost a full pass
+        // over every person alive for each of a handful of objects a century.
+        Dictionary<(EntityId Town, Craft Trade), Figure> guildsmen = Makers.Guildsmen(world, year);
+
         foreach (Civilization civilization in world.ActiveCivilizations())
         {
             // Patronage is a decision of the court, so this is the realm's effective values: a
@@ -109,17 +114,23 @@ public sealed class ArtifactSystem : ISystem
                     continue;
                 }
 
-                EntityId creator = kind == ArtifactKind.Regalia
+                // Who paid. Regalia is commissioned by the crown and named for it; everything
+                // else a town makes it makes for itself, and the object is named for the place.
+                EntityId patron = kind == ArtifactKind.Regalia
                     ? civilization.CurrentRulerId
                     : EntityId.None;
 
                 EntityId owner = LivingPatron(civilization, world);
 
+                // And who made it. Empty wherever the town holds nobody of the trade, which is
+                // most towns and most objects: see Makers on why that is the honest answer.
+                EntityId maker = Makers.Find(settlement.Id, kind, guildsmen);
+
                 EntityId faith = kind is ArtifactKind.Relic or ArtifactKind.Idol
                     ? settlement.ReligionId
                     : EntityId.None;
 
-                Treasures.Create(world, settlement, kind, creator, faith, year, owner);
+                Treasures.Create(world, settlement, kind, maker, faith, year, owner, patronId: patron);
             }
         }
 

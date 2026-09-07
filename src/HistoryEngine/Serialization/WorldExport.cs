@@ -163,8 +163,13 @@ public sealed record WorldExport(
     /// reading it holds — received, taught, disputed, set aside — as dated changes naming a cause.
     /// Standing is never derived from a verdict, so two realms can teach incompatible accounts of
     /// one comet, and a refuted reading can keep its teachers for centuries.
+    /// Version 56 tells an object's maker from the person who paid for it. CreatorId held the
+    /// patron and named nobody who worked: it is the craftsman now, drawn from the trades the
+    /// origin settlement actually holds, and PatronId carries what CreatorId used to mean. A
+    /// reader following a crown reaches both the king who commissioned it and the goldsmith of his
+    /// capital, and most objects reach neither, which is the honest record for a made thing.
     /// </remarks>
-    public const int CurrentSchemaVersion = 55;
+    public const int CurrentSchemaVersion = 56;
 }
 
 public sealed record ExportMeta(
@@ -826,6 +831,7 @@ public sealed record ExportArtifact(
     string Name,
     ArtifactKind Kind,
     EntityId? CreatorId,
+    EntityId? PatronId,
     EntityId OriginSettlementId,
     EntityId? ReligionId,
     ExportTomeContents? TomeContents,

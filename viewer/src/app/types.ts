@@ -1109,7 +1109,14 @@ export interface Artifact {
   id: EntityId;
   name: string;
   kind: ArtifactKind;
+  /**
+   * The craftsman who made it, when the origin settlement held one of the trade. Absent for most
+   * objects, which is the honest record: most things were made by people nobody wrote down. For a
+   * book this is its author, which is a different model — see `tomeContents`.
+   */
   creatorId?: EntityId;
+  /** Whoever commissioned it. Distinct from `ownerId`, which is who claims it now. */
+  patronId?: EntityId;
   originSettlementId: EntityId;
   /** The faith it is sacred to, for relics and idols. */
   religionId?: EntityId;

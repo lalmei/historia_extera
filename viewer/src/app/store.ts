@@ -274,6 +274,19 @@ export function treasuresOwnedBy(world: World, figureId: EntityId): Artifact[] {
   return world.export.artifacts.filter((artifact) => artifact.ownerId === figureId);
 }
 
+/**
+ * Every surviving thing one craftsman made, oldest first.
+ *
+ * The other direction of `creatorId`: an object names its maker, and this is what lets the maker
+ * name their objects back. Books are left out because a tome's creator is its author, and a
+ * scholar's writing is already listed as writing rather than as work off a bench.
+ */
+export function worksMadeBy(world: World, figureId: EntityId): Artifact[] {
+  return world.export.artifacts.filter(
+    (artifact) => artifact.creatorId === figureId && artifact.kind !== 'Tome',
+  );
+}
+
 /** Resolves a list of figure ids, dropping any that do not. */
 export function figures(world: World, ids: EntityId[] | undefined): Figure[] {
   if (!ids) return [];
