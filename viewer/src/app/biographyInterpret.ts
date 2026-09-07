@@ -5,6 +5,7 @@ import type {
   Disposition,
   EntityId,
   Figure,
+  HistoryEvent,
   Sex,
 } from './types.ts';
 
@@ -54,7 +55,8 @@ export type BiographyTheme =
   | 'ResistanceToAuthority'
   | 'Isolation'
   | 'InstitutionalService'
-  | 'ReligiousScholarship';
+  | 'ReligiousScholarship'
+  | 'Betrayal';
 
 export type BiographyOutcome = 'Positive' | 'Negative' | 'Mixed' | 'Neutral';
 
@@ -102,6 +104,7 @@ export const THEME_LABELS: Record<BiographyTheme, string> = {
   Isolation: 'Apart',
   InstitutionalService: 'Office-bound',
   ReligiousScholarship: 'Religious scholar',
+  Betrayal: 'Broken trust',
 };
 
 const LONG_SPAN_YEARS = 20;
@@ -147,6 +150,7 @@ function themeGroup(theme: BiographyTheme): BiographyThemeGroup {
     case 'Isolation':
       return 'Identity';
     case 'EnduringLoyalty':
+    case 'Betrayal':
       return 'Relationships';
     case 'ConsolidationOfPower':
     case 'ResistanceToAuthority':
@@ -188,11 +192,15 @@ function affinityVisible(affinity: Affinity, year: number): Affinity | undefined
   };
 }
 
-function affinityOther(affinity: Affinity, figureId: EntityId): EntityId {
-  return affinity.openerId === figureId ? affinity.friendId : affinity.openerId;
+function affinityOther(affinity: Affinity, _figureId: EntityId): EntityId {
+  return affinity.otherId;
 }
 
-export function extractEvidence(figure: Figure, year: number): BiographyEvidence[] {
+export function extractEvidence(
+  figure: Figure,
+  year: number,
+  events: HistoryEvent[] = [],
+): BiographyEvidence[] {
   const evidence: BiographyEvidence[] = [];
 
   const residences = figure.residences ?? [];
@@ -230,18 +238,27 @@ export function extractEvidence(figure: Figure, year: number): BiographyEvidence
     }
 
     if (longest && longestSpan >= LONG_SPAN_YEARS) {
+      let end = year;
+      for (let i = 0; i < residences.length; i++) {
+        if (residences[i].settlementId !== longest.settlementId) continue;
+        if (residences[i].fromYear > year) break;
+        end =
+          i + 1 < residences.length
+            ? Math.min(residences[i + 1].fromYear, year)
+            : year;
+      }
       evidence.push({
         kind: 'LongResidence',
         strength: clamp01(longestSpan / 40),
         startYear: longest.fromYear,
-        endYear: year,
+        endYear: end,
         placeId: longest.settlementId,
       });
     }
   }
 
   if (figure.occupation && figure.occupation !== 'None') {
-    const startYear = figure.birthYear;
+    const startYear = occupationStartYear(figure, year, events);
     let span = year - startYear;
     if (span >= LONG_SPAN_YEARS) {
       evidence.push({
@@ -294,6 +311,7 @@ export function extractEvidence(figure: Figure, year: number): BiographyEvidence
         endYear: at.endYear,
         relatedFigureId: affinityOther(at, figure.id),
         placeId: at.placeId,
+        tag: at.betrayerId === figure.id ? 'Turned' : 'Suffered',
       });
     }
   }
@@ -309,6 +327,7 @@ export function extractEvidence(figure: Figure, year: number): BiographyEvidence
       endYear: betrayal.year,
       relatedFigureId: other,
       placeId: betrayal.placeId,
+      tag: betrayal.betrayerId === figure.id ? 'Turned' : 'Suffered',
     });
   }
 
@@ -492,6 +511,24 @@ export function extractEvidence(figure: Figure, year: number): BiographyEvidence
   return evidence;
 }
 
+function occupationStartYear(
+  figure: Figure,
+  year: number,
+  events: HistoryEvent[],
+): number {
+  const taken = events
+    .filter((event) => event.kind === 'OccupationTaken' && event.year <= year)
+    .sort((a, b) => a.year - b.year);
+  if (taken.length > 0) return taken[taken.length - 1]!.year;
+
+  const remembered = (figure.memories ?? [])
+    .filter((memory) => memory.sourceKind === 'OccupationTaken' && memory.year <= year)
+    .sort((a, b) => a.year - b.year);
+  if (remembered.length > 0) return remembered[remembered.length - 1]!.year;
+
+  return figure.birthYear;
+}
+
 function officeWeight(kind: string): number {
   switch (kind) {
     case 'Ruler':
@@ -635,6 +672,14 @@ const RULES: BiographyRule[] = [
     optional: ['Mentorship'],
     baseWeight: 1.25,
   },
+  {
+    dials: { Tradition: 0.55 },
+    theme: 'Betrayal',
+    required: ['Betrayal'],
+    optional: ['Friendship'],
+    baseWeight: 1,
+    outcome: () => 'Negative',
+  },
 ];
 
 function matchingEvidence(rule: BiographyRule, evidence: BiographyEvidence[]): BiographyEvidence[] {
@@ -686,8 +731,9 @@ function scoreRule(
 export function evaluateInterpretations(
   figure: Figure,
   year: number,
+  events: HistoryEvent[] = [],
 ): BiographyInterpretation[] {
-  const evidence = extractEvidence(figure, year);
+  const evidence = extractEvidence(figure, year, events);
   const candidates: BiographyInterpretation[] = [];
 
   for (const rule of RULES) {
@@ -751,15 +797,17 @@ export function buildInterpretations(
   figure: Figure,
   year: number,
   maxCount = 3,
+  events: HistoryEvent[] = [],
 ): BiographyInterpretation[] {
-  return selectInterpretations(evaluateInterpretations(figure, year), maxCount);
+  return selectInterpretations(evaluateInterpretations(figure, year, events), maxCount);
 }
 
 export function primaryInterpretationTheme(
   figure: Figure,
   year: number,
+  events: HistoryEvent[] = [],
 ): BiographyTheme | undefined {
-  return buildInterpretations(figure, year, 1)[0]?.theme;
+  return buildInterpretations(figure, year, 1, events)[0]?.theme;
 }
 
 function figureDiscriminator(id: EntityId): number {
@@ -788,11 +836,11 @@ function firstEvidence(
 function pronouns(sex: Sex | undefined) {
   switch (sex) {
     case 'Female':
-      return { subject: 'She', object: 'her', possessive: 'her', plural: false };
+      return { subject: 'She', object: 'her', possessive: 'her', reflexive: 'herself', plural: false };
     case 'Male':
-      return { subject: 'He', object: 'him', possessive: 'his', plural: false };
+      return { subject: 'He', object: 'him', possessive: 'his', reflexive: 'himself', plural: false };
     default:
-      return { subject: 'They', object: 'them', possessive: 'their', plural: true };
+      return { subject: 'They', object: 'them', possessive: 'their', reflexive: 'themself', plural: true };
   }
 }
 
@@ -803,7 +851,7 @@ export function renderInterpretationParts(
   variant: number,
 ): StandingPart[] {
   const name = figure.name;
-  const { possessive, object, subject } = pronouns(figure.sex);
+  const { possessive, object, subject, reflexive } = pronouns(figure.sex);
   const placeName = (id?: EntityId) =>
     id ? ctx.nameOf(id) : 'an unrecorded place';
 
@@ -951,6 +999,140 @@ export function renderInterpretationParts(
       ];
       return [text(lines[variant] ?? lines[0])];
     }
+    case 'ScholarlyLife': {
+      const lines = [
+        `${name} lived among books, observations, and the work of making sense of them.`,
+        `Learning ran through ${name}'s life — not as ornament, but as habit.`,
+        `The record remembers ${name} as one who studied, copied, and kept what others let pass.`,
+      ];
+      return [text(lines[variant] ?? lines[0])];
+    }
+    case 'ReligiousDevotion': {
+      if (interpretation.evidence.some((e) => e.kind === 'Pilgrimage')) {
+        const trip = firstEvidence(interpretation, 'Pilgrimage');
+        const place = placeName(trip.placeId);
+        const lines = [
+          `Faith led ${name} to ${place} on pilgrimage, and the journey stayed in the record.`,
+          `${name} sought the holy at ${place}, and the chronicle kept the road.`,
+          `Pilgrimage to ${place} marked ${name}'s devotion in a way office alone could not.`,
+        ];
+        return [text(lines[variant] ?? lines[0])];
+      }
+      const lines = [
+        `${name} served the faith in office, and the record treated that service as ${possessive} life's spine.`,
+        `Religious duty shaped ${name}'s public years more than trade or arms.`,
+        `${name} held the faith's work close through the offices ${possessive} life accumulated.`,
+      ];
+      return [text(lines[variant] ?? lines[0])];
+    }
+    case 'ReligiousScholarship': {
+      const lines = [
+        `${name} joined religious office to scholarly habit — doctrine learned and kept.`,
+        `The record shows ${name} as both servant of the faith and student of its teaching.`,
+        `${name} read, served, and copied within the same devout life.`,
+      ];
+      return [text(lines[variant] ?? lines[0])];
+    }
+    case 'ConsolidationOfPower': {
+      const lines = [
+        `${name} gathered power into ${possessive} own hands rather than leave it scattered.`,
+        `Office after office, ${name} made authority personal.`,
+        `The record shows ${name} bending institutions toward a single will.`,
+      ];
+      return [text(lines[variant] ?? lines[0])];
+    }
+    case 'InstitutionalService': {
+      const lines = [
+        `${name} served the institutions of the realm long and faithfully.`,
+        `Public office defined ${name}'s mature years more than private ambition.`,
+        `${name} held posts the chronicle could list and did not hurry to leave them.`,
+      ];
+      return [text(lines[variant] ?? lines[0])];
+    }
+    case 'ResistanceToAuthority': {
+      if (interpretation.evidence.some((e) => e.kind === 'Revolt')) {
+        const lines = [
+          `${name} plotted against authority the record later exposed.`,
+          `Conspiracy marked ${name}'s years when office alone could not satisfy ${object}.`,
+          `${name} turned from subject to conspirator when power closed its doors.`,
+        ];
+        return [text(lines[variant] ?? lines[0])];
+      }
+      const lines = [
+        `${name} resented the offices passed to others and did not hide it.`,
+        `Being passed over left a wound in ${name}'s public life the record followed.`,
+        `${name} chafed under authority that never quite admitted ${object}.`,
+      ];
+      return [text(lines[variant] ?? lines[0])];
+    }
+    case 'FrontierLife': {
+      const migration = firstEvidence(interpretation, 'Migration');
+      const place = placeName(migration.placeId);
+      const lines = [
+        `${name} made a life at the edge of the known world, settling at ${place}.`,
+        `Migration brought ${name} to ${place}, and there ${possessive} story stayed.`,
+        `${name} left the old seats behind and rooted ${reflexive} anew at ${place}.`,
+      ];
+      return [text(lines[variant] ?? lines[0])];
+    }
+    case 'TerritorialAmbition': {
+      const lines = [
+        `${name} pressed outward — in war, office, and the reach of ${possessive} ambitions.`,
+        `The record remembers ${name} on campaign and in command more than at rest.`,
+        `Territory and victory mattered to ${name} in a way peace alone never could.`,
+      ];
+      return [text(lines[variant] ?? lines[0])];
+    }
+    case 'Isolation': {
+      const lines = [
+        `${name} kept apart from the centres where others sought favour.`,
+        `Distance and independence marked ${name}'s path more than courtly tie.`,
+        `${name} lived at a remove from the seats that shaped most lives around ${object}.`,
+      ];
+      return [text(lines[variant] ?? lines[0])];
+    }
+    case 'Betrayal': {
+      const betrayal = firstEvidence(interpretation, 'Betrayal');
+      const otherId = betrayal.relatedFigureId!;
+      const turned = interpretation.evidence.some((e) => e.kind === 'Betrayal' && e.tag === 'Turned');
+      if (turned) {
+        const lines = [
+          () => [
+            text(`${name} turned on `),
+            entity(otherId),
+            text(', and the record did not forget who broke the tie.'),
+          ],
+          () => [
+            text('Faith with '),
+            entity(otherId),
+            text(` ended when ${name} broke it.`),
+          ],
+          () => [
+            text(`${name} betrayed `),
+            entity(otherId),
+            text(' — a wrong the chronicle kept.'),
+          ],
+        ];
+        return lines[variant]?.() ?? lines[0]();
+      }
+      const lines = [
+        () => [
+          entity(otherId),
+          text(` turned on ${name}, and the record named the broken faith.`),
+        ],
+        () => [
+          text(`${name} was betrayed by `),
+          entity(otherId),
+          text(', a wound the chronicle still carries.'),
+        ],
+        () => [
+          text('The tie with '),
+          entity(otherId),
+          text(` ended in betrayal that shadowed ${name}'s later years.`),
+        ],
+      ];
+      return lines[variant]?.() ?? lines[0]();
+    }
     default: {
       const fallback = `${subject} lived in a way the record can name through ${THEME_LABELS[interpretation.theme].toLowerCase()}.`;
       return [text(fallback)];
@@ -965,7 +1147,8 @@ export function interpretationSentenceParts(
   maxCount = 2,
 ): StandingPart[] {
   const standing = standingYear(figure, year);
-  const interpretations = buildInterpretations(figure, standing, maxCount);
+  const events = ctx.eventsFor(figure.id);
+  const interpretations = buildInterpretations(figure, standing, maxCount, events);
   if (interpretations.length === 0) return [];
 
   const parts: StandingPart[] = [];
@@ -997,6 +1180,10 @@ export function interpretationSignature(
   return `${interpretation.theme}|${dials}|${interpretation.outcome}|${evidence}|${interpretation.score.toFixed(3)}`;
 }
 
-export function biographySignatures(figure: Figure, year: number): string[] {
-  return buildInterpretations(figure, year, 3).map(interpretationSignature);
+export function biographySignatures(
+  figure: Figure,
+  year: number,
+  events: HistoryEvent[] = [],
+): string[] {
+  return buildInterpretations(figure, year, 3, events).map(interpretationSignature);
 }

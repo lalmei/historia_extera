@@ -18,6 +18,7 @@ public enum BiographyTheme
     Isolation = 12,
     InstitutionalService = 13,
     ReligiousScholarship = 14,
+    Betrayal = 15,
 }
 
 /// <summary>Broad domains used to suppress redundant interpretations.</summary>
@@ -38,7 +39,8 @@ public static class BiographyThemeGroups
     public static BiographyThemeGroup Of(BiographyTheme theme) => theme switch
     {
         BiographyTheme.Rootedness or BiographyTheme.Isolation => BiographyThemeGroup.Identity,
-        BiographyTheme.EnduringLoyalty => BiographyThemeGroup.Relationships,
+        BiographyTheme.EnduringLoyalty or BiographyTheme.Betrayal
+            => BiographyThemeGroup.Relationships,
         BiographyTheme.ConsolidationOfPower or BiographyTheme.ResistanceToAuthority
             or BiographyTheme.InstitutionalService or BiographyTheme.TerritorialAmbition
             => BiographyThemeGroup.Power,

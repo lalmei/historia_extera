@@ -2,6 +2,7 @@ using HistoryEngine.Biography.Evidence;
 using HistoryEngine.Biography.Interpretation;
 using HistoryEngine.Core;
 using HistoryEngine.Entities;
+using HistoryEngine.Events;
 
 namespace HistoryEngine.Biography.Evidence;
 
@@ -18,7 +19,7 @@ public static class EvidenceExtractor
         var evidence = new List<BiographyEvidence>();
 
         ExtractResidences(figure, year, evidence);
-        ExtractOccupation(figure, year, evidence);
+        ExtractOccupation(context, evidence);
         ExtractAffinities(figure, year, evidence);
         ExtractBetrayals(figure, year, evidence);
         ExtractMentorships(figure, year, evidence);
@@ -89,17 +90,13 @@ public static class EvidenceExtractor
         }
     }
 
-    private static void ExtractOccupation(Figure figure, int year, List<BiographyEvidence> evidence)
+    private static void ExtractOccupation(BiographyContext context, List<BiographyEvidence> evidence)
     {
+        Figure figure = context.Figure;
+        int year = context.Year;
         if (figure.Occupation == Occupation.None) return;
 
-        int startYear = figure.BirthYear;
-        foreach (OfficeHolding title in figure.Offices)
-        {
-            if (title.FromYear <= year && title.FromYear > startYear)
-                startYear = title.FromYear;
-        }
-
+        int startYear = OccupationStartYear(context);
         int span = year - startYear;
         if (span >= LongSpanYears)
         {
@@ -170,7 +167,8 @@ public static class EvidenceExtractor
                 betrayal.Year,
                 betrayal.Year,
                 RelatedFigureId: other,
-                PlaceId: betrayal.PlaceId));
+                PlaceId: betrayal.PlaceId,
+                Tag: betrayal.BetrayerId == figure.Id ? "Turned" : "Suffered"));
         }
 
         foreach (FigureAffinity affinity in figure.Affinities)
@@ -183,7 +181,8 @@ public static class EvidenceExtractor
                 end,
                 end,
                 RelatedFigureId: affinity.Other(figure.Id),
-                PlaceId: affinity.PlaceId));
+                PlaceId: affinity.PlaceId,
+                Tag: affinity.BetrayerId == figure.Id ? "Turned" : "Suffered"));
         }
     }
 
@@ -236,12 +235,10 @@ public static class EvidenceExtractor
 
     private static void ExtractOffices(Figure figure, int year, List<BiographyEvidence> evidence)
     {
-        bool held = false;
         foreach (OfficeHolding title in figure.Offices)
         {
             if (title.FromYear > year) continue;
             if (title.ToYear is int to && to < year) continue;
-            held = true;
             evidence.Add(new BiographyEvidence(
                 EvidenceKind.HeldOffice,
                 OfficeWeight(title.Kind),
@@ -249,22 +246,6 @@ public static class EvidenceExtractor
                 title.ToYear is int ended && ended <= year ? ended : year,
                 PlaceId: title.ScopeId,
                 Tag: title.Kind.ToString()));
-        }
-
-        if (held && figure.Offices.Any(o => o.Kind == OfficeKind.Ruler && o.FromYear <= year
-            && (o.ToYear is null || o.ToYear >= year)))
-        {
-            OfficeHolding? rule = figure.Offices
-                .LastOrDefault(o => o.Kind == OfficeKind.Ruler && o.FromYear <= year);
-            if (rule is not null)
-            {
-                evidence.Add(new BiographyEvidence(
-                    EvidenceKind.HeldOffice,
-                    1.0,
-                    rule.FromYear,
-                    rule.ToYear is int ended && ended <= year ? ended : year,
-                    Tag: "Ruler"));
-            }
         }
     }
 
@@ -411,6 +392,23 @@ public static class EvidenceExtractor
             start,
             year,
             Tag: scribe ? "Scribe" : observations ? "Observation" : "Claim"));
+    }
+
+    private static int OccupationStartYear(BiographyContext context)
+    {
+        int latest = -1;
+        foreach (int taken in context.OccupationTakenYears)
+        {
+            if (taken <= context.Year && taken > latest) latest = taken;
+        }
+
+        foreach (SalientMemory memory in context.Figure.Memories)
+        {
+            if (memory.SourceKind != EventKind.OccupationTaken) continue;
+            if (memory.Year <= context.Year && memory.Year > latest) latest = memory.Year;
+        }
+
+        return latest >= 0 ? latest : context.Figure.BirthYear;
     }
 
     private static double OfficeWeight(OfficeKind kind) => kind switch

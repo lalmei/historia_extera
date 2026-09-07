@@ -30,6 +30,7 @@ internal static class ThemeRenderers
             BiographyTheme.FrontierLife => RenderFrontier(context, interpretation, variant),
             BiographyTheme.TerritorialAmbition => RenderAmbition(context, interpretation, variant),
             BiographyTheme.Isolation => RenderIsolation(context, interpretation, variant),
+            BiographyTheme.Betrayal => RenderBetrayal(context, interpretation, variant),
             _ => string.Empty,
         };
     }
@@ -319,6 +320,35 @@ internal static class ThemeRenderers
             0 => $"{name} kept apart from the centres where others sought favour.",
             1 => $"Distance and independence marked {name}'s path more than courtly tie.",
             _ => $"{name} lived at a remove from the seats that shaped most lives around {context.Object}.",
+        };
+    }
+
+    private static string RenderBetrayal(
+        BiographyContext context,
+        BiographyInterpretation interpretation,
+        int variant)
+    {
+        BiographyEvidence betrayal = First(interpretation, EvidenceKind.Betrayal);
+        string other = context.FigureName(betrayal.RelatedFigureId);
+        string name = context.Name;
+        bool turned = interpretation.Evidence.Any(e =>
+            e.Kind == EvidenceKind.Betrayal && e.Tag == "Turned");
+
+        if (turned)
+        {
+            return variant switch
+            {
+                0 => $"{name} turned on {other}, and the record did not forget who broke the tie.",
+                1 => $"Faith with {other} ended when {name} broke it.",
+                _ => $"{name} betrayed {other} — a wrong the chronicle kept.",
+            };
+        }
+
+        return variant switch
+        {
+            0 => $"{other} turned on {name}, and the record named the broken faith.",
+            1 => $"{name} was betrayed by {other}, a wound the chronicle still carries.",
+            _ => $"The tie with {other} ended in betrayal that shadowed {name}'s later years.",
         };
     }
 
