@@ -51,7 +51,8 @@ export interface SchemaVerdict {
  * absent field and an empty list look identical in an export, and only the record knows
  * which of the two an old world has.
  */
-const ADDED_IN: readonly { since: number; feature: string }[] = [
+export const ADDED_IN: readonly { since: number; feature: string }[] = [
+  { since: 56, feature: 'the craftsman who made an object, told apart from the patron who paid for it' },
   { since: 55, feature: 'what each realm made of a reading it held — taught, disputed, or set aside — apart from having it' },
   { since: 54, feature: 'the copies a sack, a fire or an abandonment destroyed, and what a reading was lost to' },
   { since: 53, feature: 'what each realm held of those claims, and the carrier that explains every change' },
