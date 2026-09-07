@@ -77,7 +77,14 @@ public sealed class ArtifactSystem : ISystem
         // Built once for the whole world rather than per settlement: creation is rare and the
         // figure list is not, so scanning it inside the settlement loop would cost a full pass
         // over every person alive for each of a handful of objects a century.
-        Dictionary<(EntityId Town, Craft Trade), Figure> guildsmen = Makers.Guildsmen(world, year);
+        // A lookup table, never enumerated. The guard bans this type in a system because
+        // `foreach` over one drifts with insertion history; this map is only ever read by key,
+        // through Makers.Find, so no ordering of it reaches the simulation. DetMap would be the
+        // wrong instrument as well as an unnecessary one: a sorted array with O(n) insertion,
+        // documented for the small per-civilization maps, where this holds every craftsman
+        // alive — thousands by a thousand years — and is rebuilt every year.
+        Dictionary<(EntityId Town, Craft Trade), Figure> guildsmen // det:ok
+            = Makers.Guildsmen(world, year);
 
         foreach (Civilization civilization in world.ActiveCivilizations())
         {
