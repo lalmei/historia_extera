@@ -303,10 +303,41 @@ public static class Crafts
     /// What a craft is worth in a place that can support it, and zero in one that cannot.
     /// </summary>
     /// <remarks>
-    /// <para>The base numbers are a shape, not a measurement: the trades a town has many of are
-    /// worth more than the trades it has one of, so a world's guildsmen come out mostly smiths,
-    /// carpenters, weavers and millers, with goldsmiths and glassblowers rare enough to be worth
-    /// naming. They will want calibrating against measured counts once assignment is running.</para>
+    /// <para><b>These now have measurements behind them.</b> They were set as a shape — the trades
+    /// a town has many of are worth more than the trades it has one of — with a note that they
+    /// would want calibrating once assignment was running. This is that calibration, on the
+    /// five-seed panel at a thousand years: 3,634 guildsmen with a craft, in a world where
+    /// <see cref="SettlementSpecialization.Crafts"/> is reachable, which it was not when the shape
+    /// was drawn.</para>
+    ///
+    /// <para><b>A craft's share is its weight times its exposure, and the two must be read
+    /// together.</b> The gate decides how much of the world can practise a trade at all, and only
+    /// then does the weight decide how much of that world does. Measured across 472 living
+    /// settlements holding 848,566 people:</para>
+    ///
+    /// <list type="table">
+    /// <item><description>weaver 15.6% of guildsmen, on 99.8% of people — the broadest gate in the
+    /// table meeting the second-heaviest weight. Textiles being a world's largest single trade is
+    /// both what the guild rolls say and what <see cref="Supply.Wool"/> was widened to allow;</description></item>
+    /// <item><description>carpenter 9.9%, baker 9.1%, miller 7.8%, smith 7.5%, mason 7.2%, charcoal
+    /// burner 6.6%, potter 6.1%, tanner 6.0% — the ordinary trades of a town, all on gates that
+    /// reach two thirds of the world or better;</description></item>
+    /// <item><description>goldsmith 2.3% and glassblower 0.7%, both on gates that reach four fifths
+    /// of the world's people. They are rare because their weights are small, which is the intended
+    /// reason: wealth admits a goldsmith, it does not make one common;</description></item>
+    /// <item><description>salter 0.6% on 6.1% of people, and sailor 4.0% on 23.5% — rare because
+    /// the ground is rare, not because the number is small. Salt in particular is meant to
+    /// be a fact about geography rather than about guilds.</description></item>
+    /// </list>
+    ///
+    /// <para><b>The one number this pass moved is the shipwright's</b>, from 0.20 to 0.55. Sheltered
+    /// water and timber is the narrowest gate here — 13 settlements of 472 — and at 0.20 on top of
+    /// that the trade came out five men in five thousand years of history, which is a costed craft
+    /// that does not exist. A weight is what a trade is worth <em>in a place that has it</em>, and
+    /// in a town built around a harbour shipbuilding is a principal trade rather than a curiosity;
+    /// the old number said the opposite. It takes the trade from 5 men to 15, or 0.1% to 0.4%, and
+    /// moves nothing else by more than a tenth of a point. The world-level share stays small,
+    /// because it should: it is the gate that makes shipwrights rare, and the gate is right.</para>
     ///
     /// <para>Tier floors are part of the gate rather than a modifier. A village bakes at home and
     /// makes its own cloth; a baker or a dyer as a <em>recorded trade</em> needs a market to sell
@@ -320,7 +351,7 @@ public static class Crafts
         Craft.Goldsmith => s.Wealth && s.Tier >= SettlementTier.Town ? 0.14 : 0.0,
         Craft.Mason => s.Stone ? 0.62 : 0.0,
         Craft.Carpenter => s.Timber ? 0.95 : 0.0,
-        Craft.Shipwright => s.Shelter && s.Timber && s.Tier >= SettlementTier.Town ? 0.20 : 0.0,
+        Craft.Shipwright => s.Shelter && s.Timber && s.Tier >= SettlementTier.Town ? 0.55 : 0.0,
         Craft.Sailor => s.Seagoing ? 0.70 : 0.0,
         Craft.Weaver => s.Wool ? 0.90 : 0.0,
         Craft.Dyer => s.Wool && s.WaterPower && s.Tier >= SettlementTier.Town ? 0.24 : 0.0,
