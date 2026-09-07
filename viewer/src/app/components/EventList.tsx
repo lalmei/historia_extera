@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
-import { narrate, unnarrated } from '../narrate';
-import type { World } from '../store';
+import { Fragment, useMemo, useState } from 'react';
+import { narrate, stitchYears, unnarrated } from '../narrate';
+import { figureOf, type World } from '../store';
 import type { HistoryEvent } from '../types';
 import { EntityLink } from './common';
 
@@ -22,7 +22,14 @@ export function NarratedEvent({
   viewpoint?: string;
 }) {
   const parts = useMemo(
-    () => narrate(event, world.export.narration, world.nameOf, viewpoint),
+    () =>
+      narrate(
+        event,
+        world.export.narration,
+        world.nameOf,
+        viewpoint,
+        (id) => figureOf(world, id)?.sex,
+      ),
     [event, world, viewpoint],
   );
 
@@ -107,6 +114,7 @@ export function EventList({
   );
 
   const visible = filtered.slice(0, limit);
+  const groups = useMemo(() => stitchYears(visible), [visible]);
 
   if (events.length === 0) {
     return <p className="text-sm text-[var(--ink-faint)]">{emptyMessage}</p>;
@@ -184,9 +192,9 @@ export function EventList({
       )}
 
       <ol className={timeline ? 'he-event-timeline' : 'space-y-0'}>
-        {visible.map((event) => (
+        {groups.map((group) => (
           <li
-            key={event.id}
+            key={group[0].id}
             className={`flex gap-3 px-2 hover:bg-[var(--hover)] ${
               timeline
                 ? 'he-event-timeline-row py-3'
@@ -199,13 +207,18 @@ export function EventList({
                   ? 'w-11 text-left text-[var(--primary)]'
                   : 'w-14 text-right text-[var(--ink-faint)]'
               }`}
-              title={`Year ${event.year}`}
+              title={`Year ${group[0].year}`}
             >
-              {event.year}
+              {group[0].year}
             </span>
             <span className="min-w-0 text-sm leading-relaxed">
-              <NarratedEvent world={world} event={event} viewpoint={viewpoint} />
-              {showRecord && <EventRecord world={world} event={event} viewpoint={viewpoint} />}
+              {group.map((event, index) => (
+                <Fragment key={event.id}>
+                  {index > 0 ? ' ' : null}
+                  <NarratedEvent world={world} event={event} viewpoint={viewpoint} />
+                  {showRecord && <EventRecord world={world} event={event} viewpoint={viewpoint} />}
+                </Fragment>
+              ))}
             </span>
           </li>
         ))}
@@ -243,7 +256,14 @@ function EventRecord({
   viewpoint?: string;
 }) {
   const { data, extra } = useMemo(
-    () => unnarrated(event, world.export.narration, world.nameOf, viewpoint),
+    () =>
+      unnarrated(
+        event,
+        world.export.narration,
+        world.nameOf,
+        viewpoint,
+        (id) => figureOf(world, id)?.sex,
+      ),
     [event, world, viewpoint],
   );
 

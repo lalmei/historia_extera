@@ -90,8 +90,8 @@ public static class SiteCharacters
     /// the chronicle drops the clause for the rest rather than inventing a motive for ordinary
     /// colonisation.</para>
     ///
-    /// <para>A clause rather than a sentence, because it is substituted into the founding
-    /// template beside the settlers and where they came from.</para>
+    /// <para>Recorded on the founding event as data, not spoken in the founding line. A town
+    /// page can list why it was planted without the sentence doing three jobs.</para>
     /// </remarks>
     public static string? Purpose(SiteCharacter character) => character switch
     {

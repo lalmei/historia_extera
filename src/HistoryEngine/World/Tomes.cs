@@ -1042,17 +1042,25 @@ public static class Tomes
         var lines = new List<string>();
         var refs = new List<EntityId> { subject };
 
-        for (int i = first; i < entries.Count; i++)
+        int i = first;
+        while (i < entries.Count)
         {
-            HistoryEvent entry = entries[i];
-            string line = entry.Year.ToString(CultureInfo.InvariantCulture) + ": " + world.Narrate(entry);
-            if (Misremembers(rng, learning, year - entry.Year))
+            int at = entries[i].Year;
+            var clauses = new List<string>();
+            bool uncertain = false;
+
+            while (i < entries.Count && entries[i].Year == at)
             {
-                line += " The later hand is uncertain of the lesser names.";
+                HistoryEvent entry = entries[i];
+                clauses.Add(world.Narrate(entry));
+                refs.AddRange(entry.References());
+                if (Misremembers(rng, learning, year - entry.Year)) uncertain = true;
+                i++;
             }
 
+            string line = at.ToString(CultureInfo.InvariantCulture) + ": " + string.Join(" ", clauses);
+            if (uncertain) line += " The later hand is uncertain of the lesser names.";
             lines.Add(line);
-            refs.AddRange(entry.References());
         }
 
         return Section(
@@ -2327,22 +2335,34 @@ public static class Tomes
         var lines = new List<string>();
         var eventRefs = new List<EntityId> { civilization.Id };
 
-        for (int i = first; i < entries.Count; i++)
+        int i = first;
+        while (i < entries.Count)
         {
-            HistoryEvent entry = entries[i];
-            string line = entry.Year.ToString(CultureInfo.InvariantCulture) + ": " + world.Narrate(entry);
-            if (Misremembers(rng, learning, year - entry.Year))
+            int at = entries[i].Year;
+            var clauses = new List<string>();
+            bool drifted = false;
+
+            while (i < entries.Count && entries[i].Year == at)
             {
-                int drifted = entry.Year + rng.NextInt(-3, 4);
-                if (drifted < civilization.FoundedYear) drifted = civilization.FoundedYear;
-                if (drifted > year) drifted = year;
-                line = drifted.ToString(CultureInfo.InvariantCulture)
-                       + ": " + world.Narrate(entry)
-                       + " Later copies disagree about the year.";
+                HistoryEvent entry = entries[i];
+                clauses.Add(world.Narrate(entry));
+                eventRefs.AddRange(entry.References());
+                if (Misremembers(rng, learning, year - entry.Year)) drifted = true;
+                i++;
             }
 
-            lines.Add(line);
-            eventRefs.AddRange(entry.References());
+            int shown = at;
+            string note = string.Empty;
+            if (drifted)
+            {
+                shown = at + rng.NextInt(-3, 4);
+                if (shown < civilization.FoundedYear) shown = civilization.FoundedYear;
+                if (shown > year) shown = year;
+                note = " Later copies disagree about the year.";
+            }
+
+            lines.Add(
+                shown.ToString(CultureInfo.InvariantCulture) + ": " + string.Join(" ", clauses) + note);
         }
 
         if (lines.Count == 0) lines.Add("No event beyond the realm's founding was recorded.");
@@ -2393,11 +2413,21 @@ public static class Tomes
         var lines = new List<string>();
         var eventRefs = new List<EntityId> { settlement.Id };
 
-        for (int i = first; i < entries.Count; i++)
+        int i = first;
+        while (i < entries.Count)
         {
-            HistoryEvent entry = entries[i];
-            lines.Add(entry.Year.ToString(CultureInfo.InvariantCulture) + ": " + world.Narrate(entry));
-            eventRefs.AddRange(entry.References());
+            int at = entries[i].Year;
+            var clauses = new List<string>();
+
+            while (i < entries.Count && entries[i].Year == at)
+            {
+                HistoryEvent entry = entries[i];
+                clauses.Add(world.Narrate(entry));
+                eventRefs.AddRange(entry.References());
+                i++;
+            }
+
+            lines.Add(at.ToString(CultureInfo.InvariantCulture) + ": " + string.Join(" ", clauses));
         }
 
         if (lines.Count == 0) lines.Add("No event beyond the settlement's founding was recorded.");

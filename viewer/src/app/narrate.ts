@@ -1,4 +1,4 @@
-import { kindOf, type EntityId, type HistoryEvent } from './types.ts';
+import { kindOf, type EntityId, type HistoryEvent, type Sex } from './types.ts';
 
 /**
  * Renders an event using the template the engine shipped for its kind.
@@ -22,22 +22,41 @@ import { kindOf, type EntityId, type HistoryEvent } from './types.ts';
  *     figure among subject and object.
  *   - `{as:key}` `{not:key}` `{self:subject}` (also object, location, extra) —
  *     role tests that succeed as empty text.
+ *   - `{cap}` — capitalize the next letter. A leading `the`/`a`/`an` is also
+ *     capitalized, so a house line can start `{the}{subject}`. A dropped prefix
+ *     still needs `{cap}`.
+ *   - `{a}` `{an}` — the indefinite article matching the next word. `{the}` is `the`,
+ *     unless that word is already `the`.
+ *   - `{they:slot}` `{them:slot}` `{their:slot}` — a pronoun for the named figure
+ *     in that slot. Absent sex falls back to they/them/their.
  *   - `[ ... ]` — optional segment, dropped whole if any placeholder inside it is
- *     absent. This is what keeps prose grammatical: a figure born before any
- *     settlement exists renders "Aeda was born." and not "Aeda was born in ."
+ *     absent. Segments nest.
  *
  * A `Kind.self` template, when present, is the same fact told from that figure's
- * point of view. Kinds without one keep the world wording.
+ * point of view. Numbered keys (`Kind.1`) and a `voice` data field (`Kind.elective`)
+ * are other wordings of the same fact, selected by the engine. The viewer only looks
+ * them up.
  *
  * `meta.narrationSyntaxVersion` guards against the grammar changing under us.
  */
-export const NARRATION_SYNTAX_VERSION = 3;
+export const NARRATION_SYNTAX_VERSION = 4;
 
 export const SELF_KEY_SUFFIX = '.self';
+
+export const VOICE_DATA_KEY = 'voice';
+
+/** Must match `Narration.VariantMix` so numbered templates pick the same line. */
+export const VARIANT_MIX = 2654435761;
 
 export type NarrationPart =
   | { type: 'text'; text: string }
   | { type: 'entity'; id: EntityId };
+
+type Mark = 'cap' | 'a' | 'the';
+
+type RawPart =
+  | NarrationPart
+  | { type: 'mark'; mark: Mark };
 
 /**
  * Renders to parts rather than a string, so entity slots can become links.
@@ -48,13 +67,13 @@ export function narrate(
   templates: Record<string, string>,
   nameOf: (id: EntityId) => string,
   viewpoint?: EntityId,
+  sexOf?: (id: EntityId) => Sex | undefined,
 ): NarrationPart[] {
-  const world = templates[event.kind] ?? templates.Unknown ?? 'Something happened.';
-  const self = viewpoint ? templates[`${event.kind}${SELF_KEY_SUFFIX}`] : undefined;
-  const parts = renderTemplate(self ?? world, event, nameOf, viewpoint);
+  const template = templateFor(event, templates, viewpoint);
+  const parts = renderTemplate(template, event, nameOf, viewpoint, sexOf);
 
-  if (viewpoint && self && parts.length === 0) {
-    return renderTemplate(world, event, nameOf, viewpoint);
+  if (viewpoint && parts.length === 0) {
+    return renderTemplate(templateFor(event, templates), event, nameOf, viewpoint, sexOf);
   }
 
   return parts;
@@ -65,10 +84,60 @@ export function narrateText(
   templates: Record<string, string>,
   nameOf: (id: EntityId) => string,
   viewpoint?: EntityId,
+  sexOf?: (id: EntityId) => Sex | undefined,
 ): string {
-  return narrate(event, templates, nameOf, viewpoint)
+  return narrate(event, templates, nameOf, viewpoint, sexOf)
     .map((part) => (part.type === 'text' ? part.text : nameOf(part.id)))
     .join('');
+}
+
+/** Consecutive events of the same year, in the order they were given. */
+export function stitchYears(events: HistoryEvent[]): HistoryEvent[][] {
+  const groups: HistoryEvent[][] = [];
+
+  for (const event of events) {
+    const last = groups[groups.length - 1];
+    if (last && last[0].year === event.year) last.push(event);
+    else groups.push([event]);
+  }
+
+  return groups;
+}
+
+/**
+ * The template key the engine selected: a factual voice, a numbered variant mixed
+ * from the event id, a `.self` line, or the world wording.
+ */
+export function templateFor(
+  event: HistoryEvent,
+  templates: Record<string, string>,
+  viewpoint?: EntityId,
+): string {
+  const kind = event.kind;
+  const voice = event.data?.[VOICE_DATA_KEY];
+  const self = Boolean(viewpoint) && kindOf(viewpoint) === 'fig';
+
+  if (voice && self && templates[`${kind}.${voice}${SELF_KEY_SUFFIX}`]) {
+    return templates[`${kind}.${voice}${SELF_KEY_SUFFIX}`];
+  }
+
+  if (self && templates[`${kind}${SELF_KEY_SUFFIX}`]) {
+    const keys = numberedKeys(kind, SELF_KEY_SUFFIX, templates);
+    if (keys.length > 1) return templates[keys[variantIndex(event.id, keys.length)]];
+    return templates[`${kind}${SELF_KEY_SUFFIX}`];
+  }
+
+  if (voice && templates[`${kind}.${voice}`]) return templates[`${kind}.${voice}`];
+
+  const keys = numberedKeys(kind, '', templates);
+  if (keys.length > 1) return templates[keys[variantIndex(event.id, keys.length)]];
+
+  return templates[kind] ?? templates.Unknown ?? 'Something happened.';
+}
+
+export function variantIndex(eventId: number, count: number): number {
+  if (count <= 1) return 0;
+  return ((Math.imul(eventId, VARIANT_MIX) >>> 0) % count);
 }
 
 /**
@@ -87,21 +156,10 @@ export function unnarrated(
   templates: Record<string, string>,
   nameOf: (id: EntityId) => string,
   viewpoint?: EntityId,
+  sexOf?: (id: EntityId) => Sex | undefined,
 ): { data: [string, string][]; extra: EntityId[] } {
-  const world = templates[event.kind] ?? templates.Unknown ?? '';
-  const self = viewpoint ? templates[`${event.kind}${SELF_KEY_SUFFIX}`] : undefined;
-  const template = self ?? world;
+  const template = templateFor(event, templates, viewpoint);
   const printed = new Set<string>();
-
-  for (const [, inner] of template.matchAll(/\[([^\]]*)\]/g)) {
-    if (!segmentHolds(inner, event, nameOf, viewpoint)) continue;
-    for (const [, key] of inner.matchAll(/\{data:(\w+)\}/g)) printed.add(key);
-  }
-
-  for (const [, key] of template.replace(/\[[^\]]*\]/g, '').matchAll(/\{data:(\w+)\}/g)) {
-    if (event.data?.[key]) printed.add(key);
-  }
-
   const named = new Set<EntityId | undefined>([
     event.subject,
     event.object,
@@ -109,21 +167,7 @@ export function unnarrated(
     viewpoint,
   ]);
 
-  // An extra the template named through {extra:kind} has been printed, so it is not left over.
-  // Only from segments that survived, for the same reason a {data:key} inside a dropped segment
-  // still counts as unprinted.
-  for (const [, inner] of template.matchAll(/\[([^\]]*)\]/g)) {
-    if (!segmentHolds(inner, event, nameOf, viewpoint)) continue;
-    for (const [, prefix] of inner.matchAll(/\{extra:(\w+)\}/g)) {
-      named.add(firstExtraOfKind(event, prefix));
-    }
-  }
-
-  for (const [, prefix] of template
-    .replace(/\[[^\]]*\]/g, '')
-    .matchAll(/\{extra:(\w+)\}/g)) {
-    named.add(firstExtraOfKind(event, prefix));
-  }
+  walkPrinted(template, event, nameOf, viewpoint, sexOf, printed, named);
 
   return {
     data: Object.entries(event.data ?? {}).filter(([key]) => !printed.has(key)),
@@ -131,28 +175,103 @@ export function unnarrated(
   };
 }
 
+function numberedKeys(kind: string, suffix: string, templates: Record<string, string>): string[] {
+  const keys: string[] = [];
+  const primary = kind + suffix;
+  if (templates[primary]) keys.push(primary);
+
+  for (let n = 1; ; n++) {
+    const key = `${kind}.${n}${suffix}`;
+    if (!templates[key]) break;
+    keys.push(key);
+  }
+
+  return keys;
+}
+
+function walkPrinted(
+  template: string,
+  event: HistoryEvent,
+  nameOf: (id: EntityId) => string,
+  viewpoint: EntityId | undefined,
+  sexOf: ((id: EntityId) => Sex | undefined) | undefined,
+  printed: Set<string>,
+  named: Set<EntityId | undefined>,
+): boolean {
+  let i = 0;
+  while (i < template.length) {
+    if (template[i] === '[') {
+      const close = findSegmentEnd(template, i);
+      if (close < 0) break;
+      const innerPrinted = new Set<string>();
+      const innerNamed = new Set<EntityId | undefined>();
+      if (walkPrinted(
+        template.slice(i + 1, close),
+        event,
+        nameOf,
+        viewpoint,
+        sexOf,
+        innerPrinted,
+        innerNamed,
+      )) {
+        for (const key of innerPrinted) printed.add(key);
+        for (const id of innerNamed) named.add(id);
+      }
+      i = close + 1;
+      continue;
+    }
+
+    if (template[i] === '{') {
+      const close = template.indexOf('}', i);
+      if (close < 0) break;
+      const token = template.slice(i + 1, close);
+      if (resolve(token, event, nameOf, viewpoint, sexOf) === null) return false;
+      if (token.startsWith('data:')) printed.add(token.slice(5));
+      if (token.startsWith('extra:')) named.add(firstExtraOfKind(event, token.slice(6)));
+      i = close + 1;
+      continue;
+    }
+
+    i++;
+  }
+
+  return true;
+}
+
 function renderTemplate(
   template: string,
   event: HistoryEvent,
   nameOf: (id: EntityId) => string,
   viewpoint: EntityId | undefined,
+  sexOf: ((id: EntityId) => Sex | undefined) | undefined,
 ): NarrationPart[] {
-  const parts: NarrationPart[] = [];
+  const raw = walk(template, event, nameOf, viewpoint, sexOf, false) ?? [];
+  return merge(finish(raw, nameOf));
+}
 
+function walk(
+  template: string,
+  event: HistoryEvent,
+  nameOf: (id: EntityId) => string,
+  viewpoint: EntityId | undefined,
+  sexOf: ((id: EntityId) => Sex | undefined) | undefined,
+  optional: boolean,
+): RawPart[] | null {
+  const parts: RawPart[] = [];
   let i = 0;
+
   while (i < template.length) {
     const c = template[i];
 
     if (c === '[') {
-      const close = template.indexOf(']', i);
+      const close = findSegmentEnd(template, i);
       if (close < 0) {
         parts.push({ type: 'text', text: template.slice(i) });
         break;
       }
 
-      const segment = renderSegment(template.slice(i + 1, close), event, nameOf, viewpoint);
-      if (segment) parts.push(...segment);
-
+      const inner = walk(template.slice(i + 1, close), event, nameOf, viewpoint, sexOf, true);
+      if (inner) parts.push(...inner);
       i = close + 1;
       continue;
     }
@@ -164,8 +283,12 @@ function renderTemplate(
         break;
       }
 
-      const resolved = resolve(template.slice(i + 1, close), event, nameOf, viewpoint);
-      if (resolved) parts.push(resolved);
+      const resolved = resolve(template.slice(i + 1, close), event, nameOf, viewpoint, sexOf);
+      if (resolved === null) {
+        if (optional) return null;
+      } else {
+        parts.push(resolved);
+      }
 
       i = close + 1;
       continue;
@@ -177,56 +300,91 @@ function renderTemplate(
     i = end;
   }
 
-  return merge(parts);
+  return parts;
 }
 
-/** Whether an optional segment survives — it is dropped whole if anything in it is absent. */
-function segmentHolds(
-  inner: string,
-  event: HistoryEvent,
-  nameOf: (id: EntityId) => string,
-  viewpoint: EntityId | undefined,
-): boolean {
-  for (const [, token] of inner.matchAll(/\{([^}]*)\}/g)) {
-    if (resolve(token, event, nameOf, viewpoint) === null) return false;
+function findSegmentEnd(template: string, openIndex: number): number {
+  let depth = 1;
+  for (let i = openIndex + 1; i < template.length; i++) {
+    if (template[i] === '[') depth++;
+    else if (template[i] === ']') {
+      depth--;
+      if (depth === 0) return i;
+    }
   }
 
-  return true;
+  return -1;
 }
 
-/** Returns null if any placeholder inside the segment is unresolvable. */
-function renderSegment(
-  inner: string,
-  event: HistoryEvent,
-  nameOf: (id: EntityId) => string,
-  viewpoint: EntityId | undefined,
-): NarrationPart[] | null {
-  const parts: NarrationPart[] = [];
+function finish(parts: RawPart[], nameOf: (id: EntityId) => string): NarrationPart[] {
+  const out: NarrationPart[] = [];
+  let capNext = false;
 
-  let i = 0;
-  while (i < inner.length) {
-    if (inner[i] !== '{') {
-      let end = i;
-      while (end < inner.length && inner[end] !== '{') end++;
-      parts.push({ type: 'text', text: inner.slice(i, end) });
-      i = end;
+  const peekWord = (from: number): string => {
+    let text = '';
+    for (let i = from; i < parts.length; i++) {
+      const part = parts[i];
+      if (part.type === 'mark') continue;
+      text += part.type === 'text' ? part.text : nameOf(part.id);
+      if (text.trim().length > 0) break;
+    }
+
+    return text.trim().split(/\s+/, 1)[0] ?? '';
+  };
+
+  const pushText = (text: string) => {
+    if (!text) return;
+    if (capNext) {
+      const idx = [...text].findIndex((ch) => /\p{L}/u.test(ch));
+      if (idx >= 0) {
+        text = text.slice(0, idx) + text.charAt(idx).toUpperCase() + text.slice(idx + 1);
+        capNext = false;
+      }
+    }
+
+    out.push({ type: 'text', text });
+  };
+
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    if (part.type === 'mark') {
+      if (part.mark === 'cap') {
+        capNext = true;
+        continue;
+      }
+
+      const word = peekWord(i + 1);
+      if (part.mark === 'the') {
+        if (word.toLowerCase() !== 'the') pushText('the ');
+      } else if (word.toLowerCase() !== 'a' && word.toLowerCase() !== 'an') {
+        pushText(/^[aeiou]/i.test(word) ? 'an ' : 'a ');
+      }
+
       continue;
     }
 
-    const close = inner.indexOf('}', i);
-    if (close < 0) {
-      parts.push({ type: 'text', text: inner.slice(i) });
-      break;
+    if (part.type === 'text') {
+      pushText(part.text);
+      continue;
     }
 
-    const resolved = resolve(inner.slice(i + 1, close), event, nameOf, viewpoint);
-    if (!resolved) return null;
-
-    parts.push(resolved);
-    i = close + 1;
+    if (capNext) capNext = false;
+    out.push(part);
   }
 
-  return parts;
+  const merged = merge(out.filter((part) => part.type !== 'text' || part.text.length > 0));
+  if (merged.length > 0 && merged[0].type === 'text') {
+    merged[0].text = merged[0].text.trimStart();
+    const lead = merged[0].text;
+    if (/^(the|an?) /i.test(lead) && lead.charAt(0) === lead.charAt(0).toLowerCase()) {
+      merged[0].text = lead.charAt(0).toUpperCase() + lead.slice(1);
+    }
+  }
+
+  const last = merged[merged.length - 1];
+  if (last?.type === 'text') last.text = last.text.trimEnd();
+
+  return merged.filter((part) => part.type !== 'text' || part.text.length > 0);
 }
 
 function resolve(
@@ -234,7 +392,12 @@ function resolve(
   event: HistoryEvent,
   nameOf: (id: EntityId) => string,
   viewpoint: EntityId | undefined,
-): NarrationPart | null {
+  sexOf: ((id: EntityId) => Sex | undefined) | undefined,
+): RawPart | null {
+  if (token === 'cap') return { type: 'mark', mark: 'cap' };
+  if (token === 'a' || token === 'an') return { type: 'mark', mark: 'a' };
+  if (token === 'the') return { type: 'mark', mark: 'the' };
+
   if (token.startsWith('data:')) {
     const value = event.data?.[token.slice(5)];
     return value ? { type: 'text', text: value } : null;
@@ -275,22 +438,39 @@ function resolve(
     return holds ? { type: 'text', text: '' } : null;
   }
 
-  const id =
-    token === 'subject'
-      ? event.subject
-      : token === 'object'
-        ? event.object
-        : token === 'location'
-          ? event.location
-          : token === 'self'
-            ? viewpoint
-            : token === 'other'
-              ? otherFigure(event, viewpoint)
-              : undefined;
+  if (token.startsWith('they:') || token.startsWith('them:') || token.startsWith('their:')) {
+    const colon = token.indexOf(':');
+    const id = slotId(token.slice(colon + 1), event, viewpoint);
+    if (!id) return null;
+    return { type: 'text', text: pronoun(token.slice(0, colon), sexOf?.(id)) };
+  }
 
+  const id = slotId(token, event, viewpoint);
   if (!id) return null;
-
   return { type: 'entity', id };
+}
+
+function pronoun(form: string, sex: Sex | undefined): string {
+  const female = sex === 'Female';
+  const male = sex === 'Male';
+  if (form === 'they') return female ? 'she' : male ? 'he' : 'they';
+  if (form === 'them') return female ? 'her' : male ? 'him' : 'them';
+  if (form === 'their') return female ? 'her' : male ? 'his' : 'their';
+  return 'they';
+}
+
+function slotId(
+  slot: string,
+  event: HistoryEvent,
+  viewpoint: EntityId | undefined,
+): EntityId | undefined {
+  if (slot === 'subject') return event.subject;
+  if (slot === 'object') return event.object;
+  if (slot === 'location') return event.location;
+  if (slot === 'self') return viewpoint;
+  if (slot === 'other') return otherFigure(event, viewpoint);
+  if (slot === 'extra') return (event.extra ?? []).find((id) => kindOf(id) === 'fig');
+  return undefined;
 }
 
 /** The first extra id of the given short kind prefix, in the order the engine wrote them. */
