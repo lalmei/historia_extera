@@ -12,6 +12,7 @@ import {
   type LifeStanding,
   type LifeVantage,
 } from '../biography';
+import { THEME_LABELS } from '../biographyInterpret';
 import { Badge, EntityLink, Panel } from '../components/common';
 import {
   IconCrown,
@@ -226,10 +227,12 @@ export function FigureHero({
       tone: 'var(--tone-faith)',
     },
     {
-      key: 'disposition',
+      key: 'interpretation',
       icon: <IconStar />,
-      fact: standing.dominantDisposition ?? 'Even',
-      note: standing.dominantDisposition ? 'runs strongest' : 'nothing runs strongly',
+      fact: standing.interpretationTheme
+        ? THEME_LABELS[standing.interpretationTheme]
+        : 'Even',
+      note: standing.interpretationTheme ? 'shapes the reading' : 'no strong theme yet',
       tone: 'var(--tone-learning)',
     },
   ];
