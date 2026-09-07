@@ -76,7 +76,7 @@ public static class Narration
 
         Set(EventKind.CivilizationFounded, "{subject} was founded[, with its seat at {location}].");
         Set(EventKind.CivilizationFell,
-            "{subject} came to an end[ after {data:years} years][, {data:cause}][ by {object}].");
+            "{subject} came to an end[ after {data:years}][, {data:cause}][ by {object}].");
         Set(EventKind.CapitalMoved, "{subject} moved its seat of government to {location}.");
 
         Set(EventKind.SettlementFounded,
@@ -85,7 +85,7 @@ public static class Narration
         Set(EventKind.SettlementPromoted, "{subject} grew into a {data:tier}.");
         Set(EventKind.SettlementDeclined, "{subject} dwindled to a {data:tier}.");
         Set(EventKind.SettlementAbandoned,
-            "{subject} was abandoned[ after {data:years} years][, its people lost to {data:cause}]"
+            "{subject} was abandoned[ after {data:years}][, its people lost to {data:cause}]"
             + "[, {data:resettled} of them removing to {data:refuge}].");
         Set(EventKind.SettlementFortified, "Walls were raised around {subject}.");
         Set(EventKind.SettlementSpecialized, "{subject} came to be known for {data:trade}.");
@@ -102,7 +102,7 @@ public static class Narration
             "{subject} was deposed as {data:title} of {object}[, {data:cause}].");
         Set(EventKind.FigureMarried, "{subject} married {object}[ at {location}].");
         Set(EventKind.RulerTermEnded,
-            "{subject} laid down the office of {data:title}[ of {object}][ after {data:years} years].");
+            "{subject} laid down the office of {data:title}[ of {object}][ after {data:years}].");
         Set(EventKind.RegencyBegan,
             "{subject} governed as regent for {object}[, a child of {data:age}].");
         Set(EventKind.RegencyEnded, "{subject} came of age and took {object} in hand.");
@@ -142,14 +142,14 @@ public static class Narration
         Set(EventKind.UndertakingStarted,
             "{subject} undertook {data:objective}[, bound for {location}].");
         Set(EventKind.UndertakingCompleted,
-            "{subject} completed {data:objective}[ at {location}][, after {data:years} years].");
+            "{subject} completed {data:objective}[ at {location}][, after {data:years}].");
         Set(EventKind.UndertakingFailed,
             "{subject}'s undertaking, {data:objective}, failed[ at {location}][, {data:cause}].");
         Set(EventKind.ConspiratorJoined,
             "{subject} drew {object} into a conspiracy against {extra:fig}.");
         Set(EventKind.ConspiracyExposed,
             "The conspiracy of {subject} against {object} was exposed[ at {location}]"
-            + "[, {data:manner}][, after {data:years} years].");
+            + "[, {data:manner}][, after {data:years}].");
         Set(EventKind.ConspiracyAttempted,
             "{subject} moved against {object} and failed[ at {location}][, seeking {data:objective}].");
         Set(EventKind.GuardianAssigned,
@@ -190,7 +190,7 @@ public static class Narration
         // with the years since the last one written beside it is the beginning of an argument.
         Set(EventKind.ApparitionRecorded,
             "{subject} recorded {data:grade}[ at {location}]"
-            + "[, {data:since} years after the last].");
+            + "[, {data:since} after the last].");
         Set(EventKind.SkyClaimMade,
             "{subject} held {data:reading}[, and looked for it in {data:due}].");
         Set(EventKind.SkyClaimConfirmed,
@@ -297,7 +297,7 @@ public static class Narration
             "A road was cut between {object} and {location}, the traffic between them having earned a made way.");
         Set(EventKind.RoadPaved,
             "The road between {object} and {location} was bridged and paved"
-            + "[ after {data:stood} years of use][, shortening the way by {data:saved}].");
+            + "[ after {data:stood} of use][, shortening the way by {data:saved}].");
 
         Set(EventKind.BrigandageWorsened,
             "Brigands took to the roads around {subject}[, {data:cause}].");
@@ -318,7 +318,7 @@ public static class Narration
         SetSelf(EventKind.FigureBorn,
             "[{self:subject}Was born][{self:subject} to {extra:fig} and {object}]"
             + "[{self:subject} in {location}][{self:subject}.]"
-            + "[{self:object}{extra:fig} bore him a {data:child}, {subject}]"
+            + "[{self:object}{extra:fig} bore a {data:child}, {subject}]"
             + "[{self:object}, at {location}][{self:object}.]"
             + "[{self:extra}Bore {object} a {data:child}, {subject}]"
             + "[{self:extra}, at {location}][{self:extra}.]");
@@ -338,7 +338,7 @@ public static class Narration
             "Was deposed as {data:title} of {object}[, {data:cause}].");
         SetSelf(EventKind.FigureMarried, "Married {other}[ at {location}].");
         SetSelf(EventKind.RulerTermEnded,
-            "Laid down the office of {data:title}[ of {object}][ after {data:years} years].");
+            "Laid down the office of {data:title}[ of {object}][ after {data:years}].");
         SetSelf(EventKind.RegencyBegan,
             "[{self:subject}Governed as regent for {object}][{self:subject}, a child of {data:age}]"
             + "[{self:object}Came under the regency of {other}][{self:object}, at the age of {data:age}].");
@@ -375,7 +375,7 @@ public static class Narration
             + "[{self:object}, bound for {location}][{self:object}.]");
         SetSelf(EventKind.UndertakingCompleted,
             "[{self:subject}Completed {data:objective}][{self:subject} at {location}]"
-            + "[{self:subject}, after {data:years} years][{self:subject}.]"
+            + "[{self:subject}, after {data:years}][{self:subject}.]"
             + "[{self:object}{subject} completed {data:objective}]"
             + "[{self:object} at {location}][{self:object}.]"
             + "[{self:extra}Helped {subject} complete {data:objective}][{self:extra}.]");
@@ -457,7 +457,7 @@ public static class Narration
             + "[{self:object}Was {data:result} by {other}][{self:object} over {data:cause}]"
             + "[{self:object}.]");
         SetSelf(EventKind.ApparitionRecorded,
-            "Recorded {data:grade}[ at {location}][, {data:since} years after the last].");
+            "Recorded {data:grade}[ at {location}][, {data:since} after the last].");
         SetSelf(EventKind.SkyClaimMade,
             "Held {data:reading}[, and looked for it in {data:due}].");
         SetSelf(EventKind.SkyClaimConfirmed,

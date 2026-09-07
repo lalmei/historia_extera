@@ -1,4 +1,3 @@
-using System.Globalization;
 using HistoryEngine.Core;
 using HistoryEngine.Entities;
 using HistoryEngine.Events;
@@ -245,7 +244,7 @@ public static class Undertakings
             data: Chronicle.Data(
                 ("kind", undertaking.Kind.ToString()),
                 ("objective", undertaking.Objective),
-                ("years", (year - undertaking.StartYear).ToString(CultureInfo.InvariantCulture))),
+                ("years", Chronicle.Years(year - undertaking.StartYear))),
             significance: Significance.Routine);
     }
 

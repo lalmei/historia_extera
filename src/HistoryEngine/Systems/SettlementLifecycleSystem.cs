@@ -273,7 +273,7 @@ public sealed class SettlementLifecycleSystem : ISystem
         Evacuate(world, settlement, refuge, year);
 
         DetMap<string, string> data = Chronicle.Data(
-            ("years", (year - settlement.FoundedYear).ToString(CultureInfo.InvariantCulture)),
+            ("years", Chronicle.Years(year - settlement.FoundedYear)),
             ("cause", cause),
             ("peakPopulation", settlement.PeakPopulation.ToString(CultureInfo.InvariantCulture)));
 

@@ -211,12 +211,13 @@ public sealed class Chronicle : IChronicle
     }
 
     /// <summary>
-    /// A span of years as prose, pluralised.
+    /// A span of years as a finished phrase, already pluralised.
     /// </summary>
     /// <remarks>
     /// Pluralised at the point the payload is built, because the template grammar has optional
     /// segments but deliberately no conditionals — and "a child of 1 years" is not reason enough
-    /// to give it any.
+    /// to give it any. Templates must take the result as the whole clause: <c>{data:years}</c>,
+    /// never <c>{data:years} years</c>. The same rule covers <c>since</c> and <c>stood</c>.
     /// </remarks>
     public static string Years(int count) =>
         count == 1 ? "1 year" : count.ToString(CultureInfo.InvariantCulture) + " years";
