@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 import { gunzipSync } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import { MIN_SCHEMA_VERSION, normalizeExport, schemaVerdict } from './compat.ts';
+import { ADDED_IN, MIN_SCHEMA_VERSION, normalizeExport, schemaVerdict } from './compat.ts';
 import { loadWorld } from './store.ts';
 import { narrate, narrateText } from './narrate.ts';
 import { buildGrid, buildRealms } from './territory.ts';
@@ -98,6 +98,49 @@ function probeYears(data: WorldExport): number[] {
   const end = data.meta.yearsSimulated;
   return [...new Set([1, Math.max(1, Math.floor(end / 2)), end])];
 }
+
+/**
+ * The engine's own constant, read from source rather than copied here.
+ *
+ * Every other assertion in this file measures `SCHEMA_VERSION` against itself, which is why a
+ * viewer pinned a version behind the engine and no test noticed: `schemaVerdict(SCHEMA_VERSION + 1)`
+ * is `too-new` whatever number the constant holds. This is the one assertion that reaches across
+ * to the other side of the contract, so a schema bump that forgets the viewer fails here instead of
+ * on a reader's screen.
+ */
+function engineSchemaVersion(): number {
+  const source = readFileSync(
+    fileURLToPath(new URL('../../../src/HistoryEngine/Serialization/WorldExport.cs', import.meta.url)),
+    'utf8',
+  );
+  const match = /CurrentSchemaVersion\s*=\s*(\d+)/.exec(source);
+  assert.ok(match, 'WorldExport.cs should declare CurrentSchemaVersion');
+  return Number(match[1]);
+}
+
+test('the viewer pins the schema the engine actually writes', () => {
+  const engine = engineSchemaVersion();
+  assert.equal(
+    SCHEMA_VERSION,
+    engine,
+    `the engine writes schema v${engine} and the viewer reads up to v${SCHEMA_VERSION}; ` +
+      'bump SCHEMA_VERSION in types.ts and add what it gained to ADDED_IN in compat.ts',
+  );
+});
+
+test('every version the viewer accepts above the floor says what it added', () => {
+  // ADDED_IN is what an older export is told it is missing. A version that changed nothing a
+  // reader can see is legitimately absent, but the newest one never is: it is the reason for
+  // the bump.
+  assert.ok(
+    ADDED_IN.some((entry) => entry.since === SCHEMA_VERSION),
+    `schema v${SCHEMA_VERSION} should say what it added in ADDED_IN`,
+  );
+  assert.ok(
+    ADDED_IN.every((entry) => entry.since <= SCHEMA_VERSION),
+    'ADDED_IN should not describe a schema the viewer refuses to open',
+  );
+});
 
 test('the schema range is a range, and its edges are refused', () => {
   assert.equal(schemaVerdict(SCHEMA_VERSION).state, 'current');
