@@ -10,6 +10,7 @@ import {
   type Culture,
   type Dynasty,
   type EntityId,
+  type ExportIndices,
   type Figure,
   type HistoryEvent,
   type HolySite,
@@ -33,6 +34,16 @@ import {
 export interface World {
   export: WorldExport;
   byId: Map<EntityId, AnyEntity>;
+  /**
+   * Event lookups by entity, by year, and by kind, built here rather than read from the file.
+   *
+   * The engine wrote these into the export up to schema 56 and no longer does: they are
+   * reconstructible from `events` by one pass, they scaled with the chronicle, and the pass is
+   * far cheaper than parsing the bytes they took up. They are built the same way for every
+   * export, old or new, so an older file is not read differently — it just has a section in it
+   * that nothing reads.
+   */
+  indices: ExportIndices;
   eventsFor: (id: EntityId) => HistoryEvent[];
   /** Every yearly measure recorded for one entity, in the order the engine sampled them. */
   seriesFor: (id: EntityId) => Series[];
@@ -94,9 +105,10 @@ export async function loadWorld(url: string): Promise<World> {
 }
 
 export function buildWorld(input: WorldExport): World {
-  // Older exports are missing the containers later schemas added. Filling them here rather
-  // than in `loadWorld` means every caller that builds a world from a parsed export — the
-  // tests included — reads the same shape the views were written against.
+  // An export is missing containers for two reasons — it predates the schema that added them,
+  // or it is a current file whose empty ones the engine no longer writes. Filling them here
+  // rather than in `loadWorld` means every caller that builds a world from a parsed export —
+  // the tests included — reads the same shape the views were written against.
   const data = normalizeExport(input);
   const byId = new Map<EntityId, AnyEntity>();
 
@@ -117,10 +129,12 @@ export function buildWorld(input: WorldExport): World {
     for (const entity of collection) byId.set(entity.id, entity);
   }
 
+  const indices = buildIndices(data.events);
+
   const eventsFor = (id: EntityId): HistoryEvent[] => {
-    const indices = data.indices.eventsByEntity[id];
-    if (!indices) return [];
-    return indices.map((index) => data.events[index]);
+    const found = indices.eventsByEntity[id];
+    if (!found) return [];
+    return found.map((index) => data.events[index]);
   };
 
   // Bucketed once on load for the same reason the event index exists: an entity page should
@@ -161,6 +175,7 @@ export function buildWorld(input: WorldExport): World {
   return {
     export: data,
     byId,
+    indices,
     eventsFor,
     seriesFor: (id) => seriesByEntity.get(id) ?? [],
     nameOf,
@@ -169,6 +184,44 @@ export function buildWorld(input: WorldExport): World {
     colourOf: (id) => colours.get(id) ?? 'var(--ink-faint)',
     schema: schemaVerdict(data.schemaVersion),
   };
+}
+
+/**
+ * The three event lookups, in one pass over the chronicle.
+ *
+ * An event names an entity as its subject, its object, its location, or in `extra`, and may
+ * name the same one twice — a battle whose subject is also its location. Each entity gets the
+ * event once, which is what the engine's own index did, and the pages that read this expect.
+ *
+ * Measured on the largest world to hand (310,746 events, 30,443 entities): 272 ms, against
+ * 2,996 ms to parse the file and 799 ms to read it. That ratio is the reason the engine stopped
+ * writing this section out.
+ */
+function buildIndices(events: HistoryEvent[]): ExportIndices {
+  const eventsByEntity: Record<EntityId, number[]> = {};
+  const eventsByYear: Record<string, number[]> = {};
+  const eventCountsByKind: Record<string, number> = {};
+
+  for (let index = 0; index < events.length; index++) {
+    const entry = events[index];
+
+    const year = String(entry.year);
+    (eventsByYear[year] ??= []).push(index);
+    eventCountsByKind[entry.kind] = (eventCountsByKind[entry.kind] ?? 0) + 1;
+
+    for (const id of [entry.subject, entry.object, entry.location]) {
+      if (!id) continue;
+      const bucket = (eventsByEntity[id] ??= []);
+      if (bucket[bucket.length - 1] !== index) bucket.push(index);
+    }
+
+    for (const id of entry.extra ?? []) {
+      const bucket = (eventsByEntity[id] ??= []);
+      if (bucket[bucket.length - 1] !== index) bucket.push(index);
+    }
+  }
+
+  return { eventsByEntity, eventsByYear, eventCountsByKind };
 }
 
 function decodeRaster(data: WorldExport): DecodedRaster {

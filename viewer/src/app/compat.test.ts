@@ -5,7 +5,13 @@ import { createHash } from 'node:crypto';
 import { gunzipSync } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import { ADDED_IN, MIN_SCHEMA_VERSION, normalizeExport, schemaVerdict } from './compat.ts';
+import {
+  ADDED_IN,
+  CHANGED_NO_FACTS,
+  MIN_SCHEMA_VERSION,
+  normalizeExport,
+  schemaVerdict,
+} from './compat.ts';
 import { loadWorld } from './store.ts';
 import { narrate, narrateText } from './narrate.ts';
 import { buildGrid, buildRealms } from './territory.ts';
@@ -130,11 +136,18 @@ test('the viewer pins the schema the engine actually writes', () => {
 
 test('every version the viewer accepts above the floor says what it added', () => {
   // ADDED_IN is what an older export is told it is missing. A version that changed nothing a
-  // reader can see is legitimately absent, but the newest one never is: it is the reason for
-  // the bump.
+  // reader can see is legitimately absent from it — but it is not legitimately absent from
+  // both lists, because then a schema bump the viewer was never told about looks the same as
+  // one that added no facts. So the newest version has to be declared in one or the other.
   assert.ok(
-    ADDED_IN.some((entry) => entry.since === SCHEMA_VERSION),
-    `schema v${SCHEMA_VERSION} should say what it added in ADDED_IN`,
+    ADDED_IN.some((entry) => entry.since === SCHEMA_VERSION) ||
+      CHANGED_NO_FACTS.includes(SCHEMA_VERSION),
+    `schema v${SCHEMA_VERSION} should say what it added in ADDED_IN, or be listed in ` +
+      'CHANGED_NO_FACTS if it added nothing a reader can see',
+  );
+  assert.ok(
+    !ADDED_IN.some((entry) => CHANGED_NO_FACTS.includes(entry.since)),
+    'a version that added no facts must not also claim to have added one',
   );
   assert.ok(
     ADDED_IN.every((entry) => entry.since <= SCHEMA_VERSION),
@@ -188,9 +201,10 @@ test('normalizing fills containers and invents nothing', () => {
   assert.deepEqual(filled.events, []);
   assert.deepEqual(filled.civilizations, []);
   assert.deepEqual(filled.narration, {});
-  assert.deepEqual(filled.indices.eventsByEntity, {});
   assert.deepEqual(filled.figures[0].journeys, []);
   assert.deepEqual(filled.figures[0].spouseIds, []);
+  assert.deepEqual(filled.figures[0].affinities, []);
+  assert.deepEqual(filled.figures[0].betrayals, []);
 
   // The values a later schema records are absent, not defaulted: an older world must not
   // claim a disposition, an occupation or a dedication the engine never wrote down.
@@ -313,3 +327,46 @@ for (const { name, data } of retained) {
     }
   });
 }
+
+// From schema 57 the engine omits every empty container, not only the ones older versions
+// never had — so a *current* file needs the same repair, at every depth the export nests to.
+test('a current export with its empty containers omitted is filled at every depth', () => {
+  const lean = {
+    schemaVersion: SCHEMA_VERSION,
+    meta: { yearsSimulated: 1 },
+    world: { cosmology: { companions: [{ name: 'Giant' }] } },
+    cultures: [{ id: 'cul:1', lexicon: {} }],
+    figures: [
+      {
+        id: 'fig:1',
+        name: 'Someone',
+        bonds: [{ otherId: 'fig:2' }],
+        plots: [{ id: 1 }],
+        disputes: [{ id: 1 }],
+        affinities: [{ otherId: 'fig:2' }],
+        undertakings: [{ id: 1 }],
+        claims: [{ id: 1 }],
+      },
+    ],
+    artifacts: [{ id: 'art:1', tomeContents: { sections: [{ heading: 'One' }] } }],
+    tradeRoutes: [{ id: 'rte:1', road: {} }],
+  } as unknown as WorldExport;
+
+  const filled = normalizeExport(lean);
+
+  assert.deepEqual(filled.figures[0].campaigns, []);
+  assert.deepEqual(filled.figures[0].bonds[0].kinds, []);
+  assert.deepEqual(filled.figures[0].plots[0].acts, []);
+  assert.deepEqual(filled.figures[0].plots[0].members, []);
+  assert.deepEqual(filled.figures[0].disputes[0].acts, []);
+  assert.deepEqual(filled.figures[0].affinities![0].acts, []);
+  assert.deepEqual(filled.figures[0].undertakings[0].steps, []);
+  assert.deepEqual(filled.figures[0].claims[0].restsOnYears, []);
+  assert.deepEqual(filled.artifacts[0].tomeContents!.copies, []);
+  assert.deepEqual(filled.artifacts[0].tomeContents!.sections[0].references, []);
+  assert.deepEqual(filled.tradeRoutes[0].road!.points, []);
+  assert.deepEqual(filled.cultures[0].lexicon.sources, []);
+  assert.deepEqual(filled.world.cosmology.comets, []);
+  assert.deepEqual(filled.world.cosmology.companions[0].moons, []);
+  assert.deepEqual(filled.world.rivers, []);
+});

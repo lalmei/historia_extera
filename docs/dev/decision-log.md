@@ -1711,10 +1711,30 @@ engine and viewer: no shared code, no server, no schema negotiation.
 - **No timestamp anywhere.** The export is a pure function of seed and config, so
   identical inputs produce byte-identical files — which is what makes the golden-hash
   test possible. Provenance is carried by `seed` + `configHash` instead.
-- **Denormalised indices** (`eventsByEntity`, `eventsByYear`) computed once by the
-  engine. Without them every entity page scans the whole event list on each
-  navigation — fine at a thousand events, visibly slow at the 50k target. Values are
-  integer indices into `events`, and event ids *are* their indices (asserted).
+- **Denormalised indices built on load, not written out** (schema 57). Without them every
+  entity page scans the whole event list on each navigation — fine at a thousand events,
+  visibly slow at the 300k a long world reaches — so the viewer still has them; it builds
+  them itself in `buildWorld`. They were in the file until they were measured: 272 ms to
+  rebuild all three on a 310,746-event world, against 3.0 s to parse the file they arrived
+  in and 0.8 s to read it off disk. Carrying them cost more to read than rebuilding them
+  costs to compute, and the section grew with the chronicle. Values are integer indices into
+  `events`, and event ids *are* their indices (asserted) — which is the property the rebuild
+  depends on, so its test moved to `HistoryEvent.References` rather than leaving with them.
+- **Numbers written at the precision they are read at** (schema 57). `System.Text.Json`
+  round-trips a double's bits, so a disposition arrived as `0.7269980808848671` — seventeen
+  digits the viewer draws as a bar. Three decimals, extended below 0.1 until three
+  significant digits survive, because a flat three would have written a comet's mass away.
+  Rounding is in the *writer*: the simulation's doubles are untouched, so this describes the
+  export rather than changing the history. The place count is chosen against a table of
+  literals rather than with `Math.Log10`, which is not required to return the same bits on
+  every platform and would otherwise make a world file differ by machine.
+- **Empty containers omitted** (schema 57). Twenty-five thousand `"campaigns":[]` per world
+  across thirty-one keys. An absent container and an empty one say the same thing, and the
+  viewer's compatibility layer already filled missing lists for older exports — so the fill
+  became the general case rather than the historical one, and its table now has to name
+  every container in the export instead of only the ones some version introduced.
+  Together the three took the standard world from 18.67 MB to 17.62 MB raw, and from
+  1.79 MB to 1.48 MB gzipped — an 18% cut to the number that matters once compression lands.
 - **Raster as raw byte planes**, base64, not PNG. A PNG would bake in a colour ramp;
   the viewer wants its own ramp, with height/biome/rivers as composable layers. The
   height range ships alongside so metres are recoverable.

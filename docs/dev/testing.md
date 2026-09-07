@@ -28,7 +28,7 @@ The suite covers:
 | people | households, upbringing, ranks, bonds, memories, quarrels, plots, friendships, betrayal, and mortality |
 | cosmology and sky records | generated-system checks, coordinate rotations, comet schedules, observations, and claims |
 | events and narration | chronological facts, known placeholders, balanced optional segments, typed references, and wording stability |
-| serialization | schema shape, indices, canonical JSON, replayable territory, and standard fingerprint |
+| serialization | schema shape, number precision, omitted empty containers, canonical JSON, replayable territory, and standard fingerprint |
 
 Calibration assertions describe the tested seed panel and model, not real-world accuracy.
 Changing a threshold may require a fresh measurement rather than widening a test until it

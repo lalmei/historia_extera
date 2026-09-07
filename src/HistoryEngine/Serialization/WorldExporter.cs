@@ -72,7 +72,6 @@ public static class WorldExporter
             ClaimTransitions: BuildClaimTransitions(world),
             ClaimStandings: BuildClaimStandings(world),
             Series: BuildSeries(world),
-            Indices: BuildIndices(world, events),
             Narration: ToDictionary(Narration.Templates));
     }
 
@@ -1505,66 +1504,6 @@ public static class WorldExporter
         }
 
         return list;
-    }
-
-    /// <summary>
-    /// Builds the denormalised lookups the viewer navigates by.
-    /// </summary>
-    /// <remarks>
-    /// Every dictionary here is sorted with an explicit ordinal comparer.
-    /// <see cref="SortedDictionary{TKey,TValue}"/> keyed by string would otherwise use
-    /// <see cref="Comparer{T}.Default"/>, which for strings is culture-sensitive — so the export's
-    /// byte layout would depend on the machine's locale, and the determinism test would pass here
-    /// and fail on someone else's laptop.
-    /// </remarks>
-    private static ExportIndices BuildIndices(WorldState world, IReadOnlyList<ExportEvent> events)
-    {
-        var byEntity = new Dictionary<EntityId, List<int>>();
-        var byYear = new SortedDictionary<int, List<int>>();
-        var countsByKind = new SortedDictionary<string, int>(StringComparer.Ordinal);
-
-        foreach (HistoryEvent entry in world.Chronicle.Events)
-        {
-            foreach (EntityId reference in entry.References())
-            {
-                if (!byEntity.TryGetValue(reference, out List<int>? bucket))
-                {
-                    bucket = new List<int>();
-                    byEntity[reference] = bucket;
-                }
-
-                // An event mentioning the same entity twice should appear once in its page.
-                if (bucket.Count == 0 || bucket[bucket.Count - 1] != entry.Id)
-                {
-                    bucket.Add(entry.Id);
-                }
-            }
-
-            if (!byYear.TryGetValue(entry.Year, out List<int>? yearBucket))
-            {
-                yearBucket = new List<int>();
-                byYear[entry.Year] = yearBucket;
-            }
-
-            yearBucket.Add(entry.Id);
-
-            string kind = entry.Kind.ToString();
-            countsByKind[kind] = countsByKind.TryGetValue(kind, out int count) ? count + 1 : 1;
-        }
-
-        var entityIndex = new SortedDictionary<string, int[]>(StringComparer.Ordinal);
-        foreach (KeyValuePair<EntityId, List<int>> pair in byEntity)
-        {
-            entityIndex[pair.Key.ToString()] = pair.Value.ToArray();
-        }
-
-        var yearIndex = new SortedDictionary<string, int[]>(StringComparer.Ordinal);
-        foreach (KeyValuePair<int, List<int>> pair in byYear)
-        {
-            yearIndex[pair.Key.ToString(CultureInfo.InvariantCulture)] = pair.Value.ToArray();
-        }
-
-        return new ExportIndices(entityIndex, yearIndex, countsByKind);
     }
 
     /// <summary>

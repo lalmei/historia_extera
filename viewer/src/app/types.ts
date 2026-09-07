@@ -11,7 +11,7 @@
  */
 
 /** The schema the current engine writes. `compat.ts` has the oldest one the viewer reads. */
-export const SCHEMA_VERSION = 56;
+export const SCHEMA_VERSION = 57;
 
 /**
  * Whether an event carries the history or merely records a life.
@@ -60,7 +60,6 @@ export interface WorldExport {
   claimTransitions?: ClaimTransition[];
   claimStandings?: ClaimStandingChange[];
   series: Series[];
-  indices: ExportIndices;
   narration: Record<string, string>;
 }
 
@@ -2310,11 +2309,17 @@ export interface HistoryEvent {
 }
 
 /**
- * Denormalised lookups computed by the engine.
+ * Denormalised lookups, built on load rather than read from the file.
  *
- * Values are indices into `events`. Without these, every entity page would scan
- * the whole event list on each navigation — fine at a thousand events, visibly
- * slow at the fifty thousand this is built for.
+ * Values are indices into `events`. Without them, every entity page would scan the whole
+ * event list on each navigation — fine at a thousand events, visibly slow at the three
+ * hundred thousand the largest worlds carry.
+ *
+ * The engine used to write these into the export, and up to schema 56 they are still in the
+ * file; `buildWorld` builds them itself either way. One pass over the parsed chronicle
+ * measured at 272 ms on a 310,746-event world, against 3.0 s to parse the file it arrived in
+ * and 0.8 s to read it off disk — so carrying them cost more to read than rebuilding them
+ * costs to compute, and they scaled with the chronicle.
  */
 export interface ExportIndices {
   eventsByEntity: Record<EntityId, number[]>;

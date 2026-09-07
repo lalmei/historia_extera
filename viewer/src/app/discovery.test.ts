@@ -27,7 +27,6 @@ test('older worlds rank recorded lives without counting events after death', () 
       { id: 'fig:3', name: 'Unremarked', birthYear: 1 },
     ],
     events: [{ id: 1, year: 30, kind: 'FigureBorn', subject: 'fig:2', object: 'fig:1' }],
-    indices: { eventsByEntity: { 'fig:1': [0], 'fig:2': [0] } },
   } as unknown as WorldExport);
   const result = discoverFigures(world);
   assert.equal(result.byId.get('fig:1')!.score, 0);
