@@ -1,7 +1,13 @@
 # Historia Extera
 
-A deterministic world-history generator. Give it a seed and a simulation configuration,
-and it builds centuries of settlements, peoples, rulers, faiths, wars, trade, plagues,
+A deterministic world-history generator. Simialr to Dwarf Fortress Legends, but with a bit of Rim World.
+The goal is generate a habitable planet, and add history to it. 
+
+Simulation is procedural such that given a seed and conifig will you always get the same result.
+I might change to a stochastic engine later, and not entirely sure if I will keep the 1:1 mapping.
+
+
+It builds centuries of settlements, peoples, rulers, faiths, wars, trade, plagues,
 disasters and artifacts. The result is a finished history to read rather than a world
 that continues running in the background.
 
@@ -12,10 +18,10 @@ history byte for byte.
 
 ## What it makes
 
-Not a strategy game you play, and not a random name generator. It runs a world forward
-year by year and records what happened, so the shape of the world is legible afterwards:
-why a city grew, how a dynasty held on, what moved a border, which routes carried trade
-and disease, and why a realm disappeared.
+Generates a galaxy along with a star system with a earth-like habitable planet.
+Plante is currently generated with a world engine that simulations plate tectonics, biomes.
+
+Then assumes at year 1  and n number of civiliations have one town each. 
 
 A finished world contains:
 
