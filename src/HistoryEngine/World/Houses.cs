@@ -303,6 +303,15 @@ public static class Houses
             world.Dynasties[ruler.DynastyId].RulerIds.Add(ruler.Id);
         }
 
+        var data = Chronicle.Data(
+            ("title", culture.RulerTitle),
+            ("claim", claim),
+            ("age", ruler.AgeIn(year).ToString(CultureInfo.InvariantCulture)));
+        if (string.Equals(claim, "by the election of the realm", StringComparison.Ordinal))
+        {
+            data[Narration.VoiceDataKey] = "elective";
+        }
+
         world.Chronicle.Record(
             year,
             EventKind.RulerCrowned,
@@ -310,10 +319,7 @@ public static class Houses
             obj: civilization.Id,
             location: civilization.CapitalId,
             extra: ruler.DynastyId.IsNone ? null : new[] { ruler.DynastyId },
-            data: Chronicle.Data(
-                ("title", culture.RulerTitle),
-                ("claim", claim),
-                ("age", ruler.AgeIn(year).ToString(CultureInfo.InvariantCulture))));
+            data: data);
 
         Occupations.Sync(world, ruler, year);
     }

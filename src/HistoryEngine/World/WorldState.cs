@@ -341,7 +341,11 @@ public sealed class WorldState
     };
 
     /// <summary>Renders one event to prose using this world's names.</summary>
-    public string Narrate(HistoryEvent entry) => Narration.Render(entry, NameOf);
+    public string Narrate(HistoryEvent entry, EntityId viewpoint = default) =>
+        Narration.Render(entry, NameOf, viewpoint, SexOf);
+
+    private Sex? SexOf(EntityId id) =>
+        id.Kind == EntityKind.Figure && Figures.Contains(id) ? Figures[id].Sex : null;
 
     /// <summary>
     /// Writes a person's name into a narration payload under <paramref name="key"/>, if there is

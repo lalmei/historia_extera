@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 using HistoryEngine;
 using HistoryEngine.Core;
+using HistoryEngine.Entities;
 using HistoryEngine.Events;
 using HistoryEngine.World;
 using Xunit;
@@ -14,14 +15,6 @@ namespace HistoryEngine.Tests;
 /// </summary>
 public sealed class NarrationTests
 {
-    /// <summary>
-    /// Every event kind needs a template.
-    /// </summary>
-    /// <remarks>
-    /// The one thing that must not be forgotten when a milestone adds event kinds. A missing
-    /// template does not crash — the event renders as "Something happened" in the viewer, which is
-    /// the kind of defect that survives a demo and ships.
-    /// </remarks>
     /// <summary>
     /// No two event kinds share a number.
     /// </summary>
@@ -81,6 +74,14 @@ public sealed class NarrationTests
         Assert.Empty(collisions);
     }
 
+    /// <summary>
+    /// Every event kind needs a template.
+    /// </summary>
+    /// <remarks>
+    /// The one thing that must not be forgotten when a milestone adds event kinds. A missing
+    /// template does not crash — the event renders as "Something happened" in the viewer, which is
+    /// the kind of defect that survives a demo and ships.
+    /// </remarks>
     [Fact]
     public void EveryEventKindHasATemplate()
     {
@@ -254,8 +255,8 @@ public sealed class NarrationTests
             "fig:7 bore a daughter, fig:11, at set:6.",
             Narration.Render(birth, Name, father));
         Assert.Equal(
-            "Bore fig:4 a daughter, fig:11, at set:6.",
-            Narration.Render(birth, Name, mother));
+            "Bore him a daughter, fig:11, at set:6.",
+            Narration.Render(birth, Name, mother, SexOf));
     }
 
     [Fact]
@@ -274,7 +275,7 @@ public sealed class NarrationTests
         Assert.Equal("Claimed reg:1 for civ:2.", Narration.Render(claim, Name, ruler));
 
         var marriage = new HistoryEvent(
-            1, 20, EventKind.FigureMarried, ruler, spouse, EntityId.Settlement(8));
+            0, 20, EventKind.FigureMarried, ruler, spouse, EntityId.Settlement(8));
 
         Assert.Equal("fig:4 married fig:5 at set:8.", Narration.Render(marriage, Name));
         Assert.Equal("Married fig:5 at set:8.", Narration.Render(marriage, Name, ruler));
@@ -409,7 +410,7 @@ public sealed class NarrationTests
     [Fact]
     public void TemplatesUseOnlyKnownPlaceholders()
     {
-        var allowed = new[] { "subject", "object", "location", "self", "other" };
+        var allowed = new[] { "subject", "object", "location", "self", "other", "cap", "a", "an", "the" };
 
         foreach (KeyValuePair<string, string> pair in Narration.Templates)
         {
@@ -428,6 +429,9 @@ public sealed class NarrationTests
                     || token.StartsWith("as:", StringComparison.Ordinal)
                     || token.StartsWith("not:", StringComparison.Ordinal)
                     || token.StartsWith("self:", StringComparison.Ordinal)
+                    || token.StartsWith("they:", StringComparison.Ordinal)
+                    || token.StartsWith("them:", StringComparison.Ordinal)
+                    || token.StartsWith("their:", StringComparison.Ordinal)
                     || IsKnownExtraSlot(token);
 
                 Assert.True(valid, $"Template for {pair.Key} uses unknown placeholder '{token}'");
@@ -459,7 +463,7 @@ public sealed class NarrationTests
                 if (c == '[') depth++;
                 else if (c == ']') depth--;
 
-                Assert.True(depth is 0 or 1, $"Nested or unbalanced segment in template for {pair.Key}");
+                Assert.True(depth >= 0, $"Unbalanced segment in template for {pair.Key}");
             }
 
             Assert.Equal(0, depth);
@@ -467,6 +471,11 @@ public sealed class NarrationTests
     }
 
     private static string Name(EntityId id) => id.ToString();
+
+    private static Sex? SexOf(EntityId id) =>
+        id == EntityId.Figure(7) ? Sex.Female
+        : id.Kind == EntityKind.Figure ? Sex.Male
+        : null;
 
     /// <summary>
     /// <c>{extra:kind}</c> picks the first entity of that kind out of the event's extra ids, and
@@ -574,5 +583,97 @@ public sealed class NarrationTests
 
         Assert.Equal(string.Empty, Narration.RenderTemplate("[{extra:nope}]", entry, Name));
         Assert.Equal("hol:4", Narration.RenderTemplate("[{extra:hol}]", entry, Name));
+    }
+
+    [Fact]
+    public void NestedOptionalsDropIndependently()
+    {
+        var death = new HistoryEvent(
+            0, 80, EventKind.FigureDied, EntityId.Figure(2), default, default,
+            Data: Chronicle.Data(("cause", "fever")));
+
+        Assert.Equal("fig:2 died, of fever.", Narration.Render(death, Name));
+
+        var asChancellor = death with
+        {
+            Data = Chronicle.Data(("office", "chancellor"), ("cause", "fever")),
+        };
+        Assert.Equal("fig:2 died as chancellor, of fever.", Narration.Render(asChancellor, Name));
+    }
+
+    [Fact]
+    public void ArticlesMatchTheNextWordAndDoNotDoubleThe()
+    {
+        var entry = new HistoryEvent(0, 1, EventKind.Unknown, EntityId.Figure(1), default, default);
+
+        Assert.Equal("grew into a town", Narration.RenderTemplate("grew into {a}town", entry, Name));
+        Assert.Equal(
+            "grew into an entrepot",
+            Narration.RenderTemplate("grew into {a}entrepot", entry, Name));
+        Assert.Equal("The house rose", Narration.RenderTemplate("{the}house rose", entry, Name));
+        Assert.Equal(
+            "The Crown of Aeda was lost",
+            Narration.RenderTemplate("{the}the Crown of Aeda was lost", entry, Name));
+    }
+
+    [Fact]
+    public void ADroppedPrefixCapitalizesTheNextWord()
+    {
+        EntityId child = EntityId.Figure(1);
+        var birth = new HistoryEvent(0, 10, EventKind.FigureBorn, child, default, default);
+
+        Assert.Equal("Was born.", Narration.Render(birth, Name, child));
+        Assert.Equal(
+            "Died as chancellor.",
+            Narration.RenderTemplate(
+                "[{self:subject}{cap}died[ as {data:office}].]",
+                new HistoryEvent(
+                    0, 80, EventKind.FigureDied, child, default, default,
+                    Data: Chronicle.Data(("office", "chancellor"))),
+                Name,
+                child));
+    }
+
+    [Fact]
+    public void PronounsFollowTheNamedFiguresSex()
+    {
+        EntityId woman = EntityId.Figure(7);
+        EntityId man = EntityId.Figure(4);
+        var entry = new HistoryEvent(0, 20, EventKind.Unknown, woman, man, default);
+
+        Func<EntityId, Sex?> sexOf = id => id == woman ? Sex.Female : Sex.Male;
+
+        Assert.Equal("she took him", Narration.RenderTemplate("{they:subject} took {them:object}", entry, Name, default, sexOf));
+        Assert.Equal("her own", Narration.RenderTemplate("{their:subject} own", entry, Name, default, sexOf));
+        Assert.Equal("they took them", Narration.RenderTemplate("{they:subject} took {them:object}", entry, Name));
+    }
+
+    [Fact]
+    public void AnElectiveCrowningUsesTheVoicedTemplate()
+    {
+        var crowned = new HistoryEvent(
+            0, 40, EventKind.RulerCrowned, EntityId.Figure(3), EntityId.Civilization(1),
+            EntityId.Settlement(2),
+            Data: Chronicle.Data(
+                ("title", "Queen"),
+                ("claim", "by the election of the realm"),
+                (Narration.VoiceDataKey, "elective")));
+
+        Assert.Equal("fig:3 was chosen as Queen of civ:1 at set:2.", Narration.Render(crowned, Name));
+        Assert.Equal("Was chosen as Queen of civ:1 at set:2.", Narration.Render(crowned, Name, EntityId.Figure(3)));
+    }
+
+    [Fact]
+    public void NumberedVariantsAreForkedOnTheEventId()
+    {
+        var first = new HistoryEvent(
+            0, 20, EventKind.FigureMarried, EntityId.Figure(4), EntityId.Figure(5), EntityId.Settlement(8));
+        var second = new HistoryEvent(
+            1, 20, EventKind.FigureMarried, EntityId.Figure(4), EntityId.Figure(5), EntityId.Settlement(8));
+
+        Assert.Equal("fig:4 married fig:5 at set:8.", Narration.Render(first, Name));
+        Assert.Equal("fig:4 and fig:5 were wed at set:8.", Narration.Render(second, Name));
+        Assert.Equal(0, Narration.VariantIndex(0, 2));
+        Assert.Equal(1, Narration.VariantIndex(1, 2));
     }
 }
