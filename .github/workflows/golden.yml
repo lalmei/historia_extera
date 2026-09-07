@@ -1,0 +1,30 @@
+# The seed-42 pin, on every pull request.
+#
+# It existed before this workflow did, and nothing ran it: the repository's only
+# workflow drafted releases, so a branch that moved history reached review with a
+# green tick and a stale fingerprint. A pin nothing runs is documentation.
+#
+# One world — five seconds — rather than the suite, deliberately. This answers "did
+# this change history?", which is the question a reviewer cannot answer by reading a
+# diff, and it is the question that goes unnoticed. The panel tests that sweep five
+# seeds stay a local concern; they are minutes, and they catch different things.
+name: golden
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  fingerprint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      # Prints both hashes and exits non-zero when they differ, so the failure says
+      # what moved to rather than only that something did.
+      - run: make golden

@@ -59,7 +59,7 @@ ifneq ($(SAMPLE),)
 endif
 CLI_FLAGS += $(ARGS)
 
-.PHONY: help bump bump-patch bump-minor bump-major bump-dry generate fingerprint terrain-bake terrain-worldengine terrain-generate test test-quiet build viewer install preview macos-app macos-run macos-release macos-release-upload docs-build docs-serve clean
+.PHONY: help golden bump bump-patch bump-minor bump-major bump-dry generate fingerprint terrain-bake terrain-worldengine terrain-generate test test-quiet build viewer install preview macos-app macos-run macos-release macos-release-upload docs-build docs-serve clean
 
 help:
 	@echo "Historia Extera"
@@ -80,6 +80,7 @@ help:
 	@echo "  make macos-release # self-contained app archive + .dmg for this Mac architecture"
 	@echo "  make docs-build    # ProperDocs → site/ (uv)"
 	@echo "  make docs-serve    # ProperDocs live reload (uv)"
+	@echo "  make golden        # check the seed-42 pin (~5s), without rewriting it"
 	@echo "  make bump-patch | bump-minor | bump-major   # semantic version bump"
 	@echo "  make bump-dry PART=minor   # show what a bump would change"
 	@echo "  make clean"
@@ -90,6 +91,34 @@ help:
 generate:
 	dotnet run --project $(CLI_PROJECT) -- $(CLI_FLAGS)
 
+# Every argument here is load-bearing: --fingerprint alone runs successfully and
+# prints a hash of seed 1 at raster 256, which has never matched this pin and never
+# will. Named once so the check and the regeneration cannot drift apart.
+#
+# Both run Release, for the same reason they share these arguments: a pin checked
+# by one build and written by another is a pin nobody can trust. The two configs
+# do agree today — that is a property worth keeping accidental drift away from,
+# not one to lean on.
+GOLDEN_ARGS := --seed 42 --years 300 --civs 8 --size 4096 --raster 64 --fingerprint
+
+# Check the pin without touching it. One world run instead of the whole suite, for
+# the inner loop of "did I move history?" — not a replacement for `make test` before
+# pushing, because this pins one seed and the panel tests that sweep five are the
+# ones that catch what a single history cannot.
+golden:
+	@set -eu; \
+		actual="$$(dotnet run -c Release --project $(CLI_PROJECT) -- $(GOLDEN_ARGS))"; \
+		expected="$$(cat $(GOLDEN))"; \
+		if [ "$$actual" = "$$expected" ]; then \
+			echo "golden ok   $$actual"; \
+		else \
+			echo "golden MOVED"; \
+			echo "  committed $$expected"; \
+			echo "  actual    $$actual"; \
+			echo "If you meant to change behaviour: make fingerprint"; \
+			exit 1; \
+		fi
+
 # Written through a temp file so a failed run leaves the committed golden intact.
 # The chmod is not cosmetic: mktemp creates 0600, and mv would carry that onto a
 # file the repository tracks as 0644.
@@ -97,9 +126,7 @@ fingerprint:
 	@set -eu; \
 		tmp="$$(mktemp "$(GOLDEN).tmp.XXXXXX")"; \
 		trap 'rm -f "$$tmp"' 0 1 2 3 15; \
-		dotnet run --project $(CLI_PROJECT) -- \
-			--seed 42 --years 300 --civs 8 --size 4096 --raster 64 --fingerprint \
-			> "$$tmp"; \
+		dotnet run -c Release --project $(CLI_PROJECT) -- $(GOLDEN_ARGS) > "$$tmp"; \
 		chmod 644 "$$tmp"; \
 		mv "$$tmp" "$(GOLDEN)"; \
 		trap - 0 1 2 3 15; \
