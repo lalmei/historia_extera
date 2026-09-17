@@ -2963,6 +2963,56 @@ across twelve, a completed outbreak reaches 2.1 to 7.0 and the pooled figure is 
 own pooled value sat a hair under a ceiling no measurement supported. Widened to the spread the model
 has, with the abandonment share left to do the work it was written for.
 
+### Three invariants that were always broken and never reached (M30, prerequisite)
+
+The craftsman levy raises people, which advances the figure id counter, which re-forks every
+disposition after it — so it moves every history in the engine. That is expected for a change that
+adds people to a world. What it also did was roll the dice enough times to land on three latent
+defects that no sampled world had ever hit. All three were confirmed against a control: with the
+levy's single call site neutered, the engine reproduced the pre-change fingerprint **exactly**, and
+all three tests passed on it. So these are bugs the levy *exposed*, not bugs it caused — and that
+distinction is the reason they are fixed here, ahead of it, rather than worked around.
+
+**A crown with no ground left.** `Realms.TransferResidents` refuses to hand over the losing realm's
+sitting ruler, and sends them home to their own capital instead. Written for a realm that loses a
+province and keeps a seat; applied to the transfer that takes a realm's *last* town, it strands the
+word literally. `MoveRegion` has already cleared the capital and `Reseat` found nothing to replace
+it with, so the ruler is settled at nowhere and stays recorded, for ever, living in the town of the
+realm that finished him. Seed 16 carries the case: civ:3, no capital, no settlements, not active,
+and its last king still resident in a town flying civ:1's flag. A crown with no ground is not a
+crown anybody is a subject of, so its last ruler now goes with the town like everyone else in it.
+
+**A governor of a realm that no longer holds the town.** The same pass moves a resident's realm and
+touches nothing else, so a governor handed to the winner along with the province he governed went on
+holding the loser's governorship of it. Every office in this engine is required to belong to the
+realm its holder belongs to, and this was the one way to hold one that did not. Offices of the realm
+left behind now end with the leaving — silently, and deliberately not through `Offices.Revoke`,
+because a revocation is a disgrace that writes an event and opens a grievance. Nobody dismissed this
+man; the ground moved under him, and the cession three lines above already says so.
+
+**A reading lost from the town its author had already left.** A claim holding records where its
+carrier sat when the pass last looked. For a book that is the answer — a book is where the holding
+says it is, and everything that moves or burns one goes through that same file. For an author it is
+not, because the carrier walks and the holding is re-seated only on years the claimant is alive.
+Somebody posted to a governorship in one year and dead before the next spring had their reading
+recorded as lost from the town they were posted *away* from: the last address the yearly refresh
+managed to see. Two cases in one seed, both the same shape — a `Posting`, then a death the following
+year. A loss by an author now reads the author's own residence history at the year the pass compared
+against, and falls back to the holding wherever that history has nothing to say.
+
+**And one test that was asking a weaker question than it thought.** `EveryCandidateTradeIsReachable`
+ran a single millennium and asserted all eight trades appeared in it — which cannot tell "the engine
+cannot make a shrine town" from "this world did not happen to", and that distinction is the entire
+reason the test exists. Measured across twenty-four standard worlds, the trades are reachable at very
+different rates: farming in 22 and mining in 21, against a shrine town in 8, fishing in 6 and
+pastoral in 5. A one-world sample of a one-in-three event is a coin toss that gets re-tossed by every
+change that moves a history. It now asks the millennium first, exactly as before, and only sends the
+search on to further worlds for what that one missed — so the ordinary case costs what it always did
+and a reshuffle no longer reads as a missing trade. The skew those rates describe is #275's business,
+not this change's.
+
+---
+
 ---
 
 ## Milestones

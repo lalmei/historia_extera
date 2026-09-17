@@ -18,12 +18,62 @@ namespace HistoryEngine.Tests;
 /// </remarks>
 public sealed class SpecializationTests
 {
+    /// <summary>How many extra worlds the reachability search may open before giving up.</summary>
+    /// <remarks>
+    /// Sized against the measured rates rather than guessed. Over twenty-four standard worlds the
+    /// scarcest trades appear in a fifth to a third of them — pastoral in 5, fishing in 6, a shrine
+    /// town in 8 — so a trade that is genuinely reachable is found within a handful of seeds and
+    /// one that is missing from twenty is not a sampling accident.
+    /// </remarks>
+    private const int ReachabilitySeeds = 20;
+
     /// <summary>Every trade the engine costs must be one a world can actually produce.</summary>
+    /// <remarks>
+    /// <para><b>Reachability is a property of the model, not of one world.</b> This used to ask a
+    /// single millennium whether it had produced all eight, which conflates "the engine cannot make
+    /// a shrine town" with "this particular world did not happen to". The distinction is the whole
+    /// point of the test — it exists because three trades carried full economic curves and had
+    /// never once been chosen — and a one-world sample cannot draw it.</para>
+    ///
+    /// <para><b>So it searches, and stops as soon as the question is answered.</b> The millennium
+    /// world is still asked first and still carries the weight: it is the mature world, and the
+    /// trades gated on town size are the ones that need it. Only what that world missed sends the
+    /// search on to further seeds, and it stops at the first world that completes the set — so the
+    /// ordinary case costs exactly what it always did, and the failing case costs a few short worlds
+    /// rather than a false alarm.</para>
+    ///
+    /// <para>This replaces a pinned single seed. Every change that moves the world's histories
+    /// reshuffles which trades land in seed 42's millennium, and repinning after each one would be
+    /// maintenance paid to keep a weaker question alive.</para>
+    /// </remarks>
     [Fact]
     public void EveryCandidateTradeIsReachable()
     {
-        WorldState world = HistoryRun.Execute(TestWorlds.Long()).World;
+        HashSet<SettlementSpecialization> seen = TradesIn(HistoryRun.Execute(TestWorlds.Long()).World);
 
+        int wanted = Enum.GetValues<SettlementSpecialization>().Length - 1;
+        int opened = 0;
+
+        for (ulong seed = 1; seen.Count < wanted && opened < ReachabilitySeeds; seed++, opened++)
+        {
+            seen.UnionWith(TradesIn(HistoryRun.Execute(TestWorlds.Standard(seed)).World));
+        }
+
+        foreach (SettlementSpecialization trade in Enum.GetValues<SettlementSpecialization>())
+        {
+            if (trade == SettlementSpecialization.None) continue;
+
+            Assert.True(
+                seen.Contains(trade),
+                $"No settlement is known for {Specializations.Label(trade)} in a thousand years or "
+                + $"in {opened} worlds after it, but it carries a full set of capacity curves. "
+                + "Either it needs a way to be chosen or its numbers should come out.");
+        }
+    }
+
+    /// <summary>Every trade any settlement of a finished world is known for.</summary>
+    private static HashSet<SettlementSpecialization> TradesIn(WorldState world)
+    {
         HashSet<SettlementSpecialization> seen = new();
 
         foreach (Settlement settlement in world.Settlements)
@@ -34,16 +84,7 @@ public sealed class SpecializationTests
             }
         }
 
-        foreach (SettlementSpecialization trade in Enum.GetValues<SettlementSpecialization>())
-        {
-            if (trade == SettlementSpecialization.None) continue;
-
-            Assert.True(
-                seen.Contains(trade),
-                $"No settlement in a thousand years is known for {Specializations.Label(trade)}, " +
-                "but it carries a full set of capacity curves. Either it needs a way to be chosen " +
-                "or its numbers should come out.");
-        }
+        return seen;
     }
 
     /// <summary>
