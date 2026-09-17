@@ -172,6 +172,14 @@ public static class ClaimTransmission
             ClaimHolding held = world.ClaimHoldings[i];
             if (held.Claim != subject || holders.ContainsKey(held.RealmId)) continue;
 
+            // Where the carrier actually went from. For a text that is wherever the holding says
+            // the book sat; for an author it is not, because the holding's town is only refreshed
+            // while they are alive and this pass runs once a year. Somebody posted to a new town
+            // in the autumn and dead before the next spring had their reading recorded as lost
+            // from the town they had already left — the last address the refresh managed to see,
+            // rather than the one they died at.
+            EntityId wentFrom = WentFrom(world, held, claimant, year);
+
             world.ClaimHoldings.RemoveAt(i);
             world.ClaimTransitions.Add(new ClaimTransition(
                 subject,
@@ -180,7 +188,7 @@ public static class ClaimTransmission
                 ClaimTransitionKind.Lost,
                 held.Carrier,
                 held.CarrierId,
-                held.SettlementId));
+                wentFrom));
 
             DetMap<string, string> lost = Chronicle.Data(
                 ("reading", claim.Reading),
@@ -195,7 +203,7 @@ public static class ClaimTransmission
                 EventKind.ClaimLost,
                 claimant.Id,
                 obj: held.RealmId,
-                location: held.SettlementId,
+                location: wentFrom,
                 data: lost,
                 significance: Significance.Notable);
         }
@@ -232,6 +240,39 @@ public static class ClaimTransmission
                 data: Chronicle.Data(("reading", claim.Reading)),
                 significance: Significance.Routine);
         }
+    }
+
+    /// <summary>
+    /// The town a lost carrier went from.
+    /// </summary>
+    /// <remarks>
+    /// <para>A holding records where its carrier sat when the pass last looked, and for a book
+    /// that is the answer: the book is where the holding says it is until something moves or
+    /// burns it, and both of those go through this file.</para>
+    ///
+    /// <para>An author is different, because the thing carrying the reading walks. The holding is
+    /// re-seated only on a year when the claimant is still alive, so the last refresh before a
+    /// death can be a year stale — and a man posted to a governorship in one year and dead in the
+    /// next has his reading recorded as lost from the town he was posted away from. Read off his
+    /// own residence history instead, at the year the pass compared against, which is the state
+    /// that made the loss visible.</para>
+    ///
+    /// <para>Falls back to the holding wherever the history has nothing to say, so a claimant with
+    /// no recorded address before the loss is no worse off than before.</para>
+    /// </remarks>
+    private static EntityId WentFrom(
+        WorldState world, ClaimHolding held, Figure claimant, int year)
+    {
+        if (held.Carrier != ClaimCarrierKind.Claimant) return held.SettlementId;
+
+        EntityId where = EntityId.None;
+        foreach (Residence residence in claimant.Residences)
+        {
+            if (residence.FromYear >= year) break;
+            where = residence.SettlementId;
+        }
+
+        return world.Settlements.Contains(where) ? where : held.SettlementId;
     }
 
     /// <summary>
