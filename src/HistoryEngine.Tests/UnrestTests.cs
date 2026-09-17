@@ -82,11 +82,34 @@ public sealed class UnrestTests
     /// is measure the rate over a much wider net before repinning again — because at that point
     /// the question stops being which seeds carry secession and becomes whether the engine is
     /// quietly making it rarer.
+    ///
+    /// <b>Resampled an eighth time when guild masteries landed</b>, which fill a seat that had
+    /// never been granted and so move every history after the first election. The reading over the
+    /// first 320 seeds was 3, or 0.94% — under the 1% the paragraph above set as the point to stop
+    /// repinning and go and measure. So it was measured, and the answer is that the slope is the
+    /// net rather than the engine.
+    ///
+    /// <b>The net was the problem.</b> Widened to 960 seeds, secession occurs in 23 of them:
+    /// <b>2.40%</b>, back among the first five readings and above the two before it. Split at the
+    /// old boundary it is 3 of the first 320 (0.94%) against 20 of the next 640 (3.12%). Every one
+    /// of the seven readings above was taken inside the first 120 to 320 seeds, which is the
+    /// secession-poor end of the range — so the descending series 3.0, 2.5, 2.9, 1.9, 2.8, 1.6,
+    /// 1.25 is substantially an artefact of where the net was cast, and not evidence of drift. A
+    /// ninth resample should measure over several hundred seeds rather than the first hundred-odd,
+    /// because that is the reading that turned out to mean something.
+    ///
+    /// <b>And this resample could isolate its own cause, which no earlier one could.</b> Guild
+    /// masteries are one call site, so the same checkout was scanned with it switched off: 4 of
+    /// the first 320 seeds, 1.25% — reproducing the seventh reading exactly, tail and all
+    /// (112, 113, 150, 175). Against that, 3 of 320 with it on is a redistribution of which
+    /// histories secede and not a suppression of secession: the rule stated at the top holds,
+    /// the path is carried, and this is a resample. The tail was 112, 113, 150 and 175 and is
+    /// now 69, 149, 225 and 547 — the last of which secedes three times over.
     /// </remarks>
     private static readonly ulong[] RareSeeds =
     {
         2, 7, 11, 42, 99, 123, 777, 2024, 3, 5, 13, 17, 19, 23, 29, 31, 37, 41, 47, 53, 61, 71,
-        112, 113, 150, 175,
+        69, 149, 225, 547,
     };
 
     /// <summary>

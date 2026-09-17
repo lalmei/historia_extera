@@ -72,7 +72,12 @@ public static class Crafts
     private const int SupplyHops = 1;
 
     /// <summary>Every craft, in a fixed order so weighted draws are reproducible.</summary>
-    private static readonly Craft[] All =
+    /// <remarks>
+    /// Internal rather than private since <see cref="Guilds"/>: anything that has to walk the
+    /// trades of a town walks them in this order or it is not reproducible, and a second list
+    /// would be a second order to keep in step.
+    /// </remarks>
+    internal static readonly Craft[] All =
     {
         Craft.Smith,
         Craft.Armourer,
@@ -149,6 +154,39 @@ public static class Crafts
         Craft.Bookbinder => "bookbinder",
         Craft.Apothecary => "apothecary",
         _ => "guildsman",
+    };
+
+    /// <summary>The body of a town that practises this craft, as a title names it.</summary>
+    /// <remarks>
+    /// Capitalised and plural because this is half of a seat's name — "Alderman of the Weavers" —
+    /// and the other half comes from <see cref="Entities.Culture.TitleFor"/>. A guild is named for
+    /// its members rather than its product, which is why these are the tradesmen pluralised and
+    /// not "the Cloth Guild": that is what the rolls said.
+    /// </remarks>
+    public static string Company(Craft craft) => craft switch
+    {
+        Craft.Smith => "Smiths",
+        Craft.Armourer => "Armourers",
+        Craft.Goldsmith => "Goldsmiths",
+        Craft.Mason => "Masons",
+        Craft.Carpenter => "Carpenters",
+        Craft.Shipwright => "Shipwrights",
+        Craft.Sailor => "Mariners",
+        Craft.Weaver => "Weavers",
+        Craft.Dyer => "Dyers",
+        Craft.Tanner => "Tanners",
+        Craft.Potter => "Potters",
+        Craft.CharcoalBurner => "Colliers",
+        Craft.Glassblower => "Glassblowers",
+        Craft.Cooper => "Coopers",
+        Craft.Wheelwright => "Wheelwrights",
+        Craft.Miller => "Millers",
+        Craft.Baker => "Bakers",
+        Craft.Brewer => "Brewers",
+        Craft.Salter => "Salters",
+        Craft.Bookbinder => "Bookbinders",
+        Craft.Apothecary => "Apothecaries",
+        _ => "Guildsmen",
     };
 
     /// <summary>
@@ -419,6 +457,8 @@ public static class Crafts
     {
         figure.Craft = craft;
         if (craft == Craft.None || !figure.IsAlive) return;
+
+        figure.CraftYear = year;
 
         world.Chronicle.Record(
             year,

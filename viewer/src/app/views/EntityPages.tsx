@@ -50,6 +50,7 @@ import {
   dynastyOf,
   figureOf,
   figures,
+  guildsOf,
   regionOf,
   settlementOf,
   tradeRoutesOf,
@@ -57,6 +58,7 @@ import {
   treasuresOwnedBy,
   worksMadeBy,
   warOf,
+  type Guild,
   type World,
 } from '../store';
 import {
@@ -435,6 +437,7 @@ export function SettlementPage({ world, settlement }: { world: World; settlement
   const treasures = treasuresOf(world, settlement.id);
   const routes = tradeRoutesOf(world, settlement.id);
   const holySites = world.export.holySites.filter((site) => site.settlementId === settlement.id);
+  const guilds = guildsOf(world, settlement.id);
 
   return (
     <div className="space-y-5">
@@ -569,6 +572,12 @@ export function SettlementPage({ world, settlement }: { world: World; settlement
         {routes.length > 0 && (
           <Panel title={`Trade routes (${routes.length})`}>
             <TradeRouteTable world={world} routes={routes} />
+          </Panel>
+        )}
+
+        {guilds.length > 0 && (
+          <Panel title={`Guilds (${guilds.length})`}>
+            <GuildTable world={world} guilds={guilds} />
           </Panel>
         )}
 
@@ -3695,6 +3704,48 @@ function fortuneDials(fortunes: Fortunes): Dial[] {
       hint: 'Ground lost and not recovered. Halves in twenty-five years, so it outlives the exhaustion',
     },
   ];
+}
+
+/**
+ * The companies a town has had, and who has spoken for each.
+ *
+ * A list rather than a sortable table: a town holds a handful of guilds, and the only order
+ * worth reading is the one the record made them in. Each row is a trade, so a town with two
+ * centuries of smiths is one line with its masters under it rather than eight rows that all
+ * say "Smiths" — which is the whole reason the mastery names its craft.
+ */
+export function GuildTable({ world, guilds }: { world: World; guilds: Guild[] }) {
+  return (
+    <ul className="space-y-3">
+      {guilds.map((guild) => {
+        const standing = guild.masteries.find((held) => held.title.toYear === undefined);
+
+        return (
+          <li key={guild.craft}>
+            <div className="flex items-baseline gap-2">
+              <span className="font-medium">{CRAFT_LABELS[guild.craft] ?? guild.craft}</span>
+              <span className="text-xs text-[var(--ink-faint)]">
+                {guild.masteries.length === 1
+                  ? '1 master recorded'
+                  : `${guild.masteries.length} masters recorded`}
+                {standing === undefined && ' · none standing'}
+              </span>
+            </div>
+            <ul className="mt-1 space-y-0.5 text-sm">
+              {[...guild.masteries].reverse().map((held) => (
+                <li key={`${held.master.id}-${held.title.fromYear}`}>
+                  <EntityLink world={world} id={held.master.id} />
+                  <span className="ml-2 text-[var(--ink-faint)]">
+                    {held.title.title} · {yearRange(held.title.fromYear, held.title.toYear)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </li>
+        );
+      })}
+    </ul>
+  );
 }
 
 export function HolySiteTable({ world, sites }: { world: World; sites: HolySite[] }) {

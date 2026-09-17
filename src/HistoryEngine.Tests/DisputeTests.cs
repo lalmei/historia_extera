@@ -35,8 +35,22 @@ public sealed class DisputeTests
     /// moved the stream. Each new seed again carries all four causes and a wound; seed 104 carries
     /// the death, and the panel has five violent meetings between equals against one involving a
     /// reigning ruler.
+    ///
+    /// Resampled a fifth time when guild masteries landed. The previous panel kept its wound and
+    /// lost its death, which is the scarcer of the two: measured across the first 320 seeds, a
+    /// quarrel ends in blood often enough to find, but the panel of five held exactly one death
+    /// before the shift and none after — the same knife edge the third resample above describes,
+    /// where what empties a panel moves all five seeds at once.
+    ///
+    /// This panel is five seeds that each carry a wound and <em>all five</em> causes, a death in
+    /// three of them. The count is five rather than the four the entries above speak of because
+    /// <see cref="DisputeCause.PassedOverForOffice"/> joined them with #174, and it is no longer
+    /// scarce: a guild election hands the senior loser to <c>Offices.NotePassedOver</c>, so a
+    /// passed-over quarrel now occurs in nearly every seed that quarrels at all. That makes
+    /// <see cref="DisputeCause.KinMurdered"/> the scarce one again, and it is what the seeds here
+    /// were chosen on.
     /// </remarks>
-    private static readonly ulong[] Seeds = { 7, 26, 104, 134, 158 };
+    private static readonly ulong[] Seeds = { 47, 91, 104, 110, 150 };
 
     /// <summary>
     /// Seeds 1 to 16, for the one assertion that is about reachability rather than about rates.

@@ -241,6 +241,7 @@ public static class Offices
     /// </summary>
     /// <param name="scope">The settlement or faith held over, or None for an office over the realm.</param>
     /// <param name="grantedBy">Whoever appointed them, or None where the body chose its own.</param>
+    /// <param name="craft">The trade a guild mastery is over. None for every other office.</param>
     public static void Grant(
         WorldState world,
         Civilization civilization,
@@ -250,9 +251,23 @@ public static class Offices
         EntityId scope,
         EntityId grantedBy,
         string claim,
-        int year)
+        int year,
+        Craft craft = Craft.None)
     {
-        string title = culture.TitleFor(kind, holder.Sex);
+        string title = craft == Craft.None
+            ? culture.TitleFor(kind, holder.Sex)
+            : Guilds.Title(culture, craft, holder.Sex);
+
+        // A man raised to anything else lays down his mastery. Every other seat goes through
+        // Available, which refuses anyone already holding an office — but a crown and a consort's
+        // style do not, because neither is applied for. So a guild master could be crowned and end
+        // up holding both, and the release pass reads the first open office of a realm rather than
+        // all of them: it would then see the mastery, find it sound, and never reach the throne.
+        // Ending the mastery here keeps one office at a time true, which is what that pass assumes.
+        if (kind != OfficeKind.GuildMaster && holder.OpenOffice(OfficeKind.GuildMaster) is not null)
+        {
+            Lapse(world, holder, OfficeKind.GuildMaster, year);
+        }
         CampaignMemory? promotion = kind == OfficeKind.Marshal
             ? Campaigns.PromotionCause(holder)
             : null;
@@ -267,6 +282,7 @@ public static class Offices
             {
                 ScopeId = scope,
                 GrantedBy = grantedBy,
+                Craft = craft,
                 Claim = claim,
             });
 

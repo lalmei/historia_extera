@@ -889,7 +889,10 @@ public static class WorldExporter
                     ToYear: holding.ToYear,
                     ScopeId: OrNull(holding.ScopeId),
                     GrantedBy: OrNull(holding.GrantedBy),
-                    Claim: holding.Claim));
+                    Claim: holding.Claim,
+                    // Only a mastery has one, so this is null on every other row rather than a
+                    // None that every reader would have to know to ignore.
+                    Craft: holding.Craft == Craft.None ? null : holding.Craft));
             }
 
             list.Add(new ExportFigure(

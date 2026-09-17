@@ -174,8 +174,13 @@ public sealed record WorldExport(
     /// written at the precision they are read at rather than at seventeen digits. Empty lists and
     /// dictionaries are omitted, as an absent container and an empty one mean the same thing.
     /// No fact left the export; the same history is written in fewer bytes.
+    ///
+    /// <para>Version 58 names the trade a guild mastery is over. <c>OfficeKind.GuildMaster</c> has
+    /// been in the enum since offices landed and nothing ever granted it, so no export has carried
+    /// one; now that a town's weavers and its smiths are two bodies, the seat has to say which it
+    /// speaks for or a reader cannot tell two masteries of one town apart.</para>
     /// </remarks>
-    public const int CurrentSchemaVersion = 57;
+    public const int CurrentSchemaVersion = 58;
 }
 
 public sealed record ExportMeta(
@@ -982,7 +987,8 @@ public sealed record ExportTitle(
     int? ToYear,
     EntityId? ScopeId,
     EntityId? GrantedBy,
-    string? Claim);
+    string? Claim,
+    Craft? Craft);
 
 /// <summary>
 /// One rung of an army a person was raised to, and the year they reached it.

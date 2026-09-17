@@ -7,6 +7,7 @@ import {
   type Battle,
   type Biome,
   type Civilization,
+  type Craft,
   type Culture,
   type Dynasty,
   type EntityId,
@@ -19,6 +20,7 @@ import {
   type Artifact,
   type Series,
   type Settlement,
+  type Title,
   type TradeRoute,
   type War,
   type WorldExport,
@@ -320,6 +322,49 @@ export function artifactOf(world: World, id: EntityId | undefined): Artifact | u
 /** Every artifact one settlement holds now, in the order they were made. */
 export function treasuresOf(world: World, settlementId: EntityId): Artifact[] {
   return world.export.artifacts.filter((artifact) => artifact.holderId === settlementId);
+}
+
+/** One trade's guild in one town, and every master it is recorded as having had. */
+export interface Guild {
+  craft: Craft;
+  /** Oldest mastery first. Never empty — a guild with no recorded master is not a guild here. */
+  masteries: { title: Title; master: Figure }[];
+}
+
+/**
+ * The guilds a town is recorded as having held, and who spoke for each.
+ *
+ * Derived rather than exported. The engine grants a mastery to a person, so a town's guilds are
+ * the masteries whose scope is this town gathered by their trade — the same relation a
+ * governorship has to its town, read the other way round. Ordering is by the year a trade first
+ * had a master here, so the list reads as the order the town's companies appear in its record.
+ *
+ * Empty for every export before schema 58, which carried no mastery at all.
+ */
+export function guildsOf(world: World, settlementId: EntityId): Guild[] {
+  const byCraft = new Map<Craft, { title: Title; master: Figure }[]>();
+
+  for (const figure of world.export.figures) {
+    for (const title of figure.titles) {
+      if (title.kind !== 'GuildMaster') continue;
+      if (title.scopeId !== settlementId) continue;
+      if (!title.craft || title.craft === 'None') continue;
+
+      const held = byCraft.get(title.craft) ?? [];
+      held.push({ title, master: figure });
+      byCraft.set(title.craft, held);
+    }
+  }
+
+  const guilds: Guild[] = [];
+  for (const [craft, masteries] of byCraft) {
+    masteries.sort((a, b) => a.title.fromYear - b.title.fromYear);
+    guilds.push({ craft, masteries });
+  }
+
+  return guilds.sort(
+    (a, b) => a.masteries[0].title.fromYear - b.masteries[0].title.fromYear,
+  );
 }
 
 /** Every artifact one person claims now, in the order they were made. */
