@@ -242,6 +242,19 @@ public enum EventKind
     /// </remarks>
     CraftTaken = 350,
 
+    /// <summary>Somebody reached a new standing inside their trade.</summary>
+    /// <remarks>
+    /// <para>Written for a freedom and for an admission, and never for the binding: entering a
+    /// trade is already <see cref="CraftTaken"/>, and the apprenticeship <em>is</em> that entry —
+    /// a second line in the same year saying the same thing is the duplication the office model
+    /// already refuses for consorts.</para>
+    ///
+    /// <para>A freedom is Routine, because everyone who serves a term reaches it. An admission to
+    /// mastery is Notable: it is a decision a company made about a person, it is what entitles him
+    /// to be named on the work, and most men who enter a trade never see one.</para>
+    /// </remarks>
+    CraftAdvanced = 351,
+
     // ---- Territory (400) ----
     // Claims are written so ownership can be replayed year by year; they are marked Routine
     // so the timeline is not a run of "extended its reach". Cessions and releases stay on

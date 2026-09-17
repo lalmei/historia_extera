@@ -54,6 +54,17 @@ public sealed class TravelSystem : ISystem
 
     private const double PilgrimageHazard = 0.030;
 
+    /// <summary>
+    /// A journeyman walking between towns of his trade.
+    /// </summary>
+    /// <remarks>
+    /// Between the merchant and the pilgrim, and for the reason the ordering of the others is what
+    /// it is: he keeps less company than a caravan and more than a man walking to a shrine alone,
+    /// since the roads he uses are the trade roads and the towns at both ends want him. He is also
+    /// young, which the pilgrim often is not.
+    /// </remarks>
+    private const double WanderHazard = 0.022;
+
     /// <summary>How much the lawlessness of the worse end adds on top.</summary>
     /// <remarks>
     /// Keyed to the worse of the two ends rather than the average, for the same reason the trade
@@ -219,6 +230,13 @@ public sealed class TravelSystem : ISystem
         if (!Undertakings.CanStart(figure, year)) return;
 
         if (TryTrade(world, figure, home, year, rng)) return;
+
+        // Work before devotion, and before a visit. A journeyman's road is his career rather
+        // than an errand — it is how he finds a shop — so it takes precedence over the reasons
+        // somebody with a shop already travels. Like the merchant's, the gate costs no draw for
+        // everyone it does not apply to.
+        if (TryWander(world, figure, home, year, rng)) return;
+
         if (TryMission(world, figure, home, year, rng)) return;
         if (TryPilgrimage(world, figure, home, year, rng)) return;
         TryVisit(world, figure, home, year, rng);
@@ -245,6 +263,73 @@ public sealed class TravelSystem : ISystem
         // No named target: the destination already is the reason, and "traded to Shche along the
         // Aigionanvos–Shche route" tells a reader nothing the line did not already say.
         Record(world, figure, JourneyKind.Trade, year, home, to, chosen.Id, "on trade");
+        return true;
+    }
+
+    /// <summary>
+    /// A journeyman going to look for work in a town that could use his trade.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Only a journeyman, which is the whole of the historical point.</b> An apprentice
+    /// is bound and cannot leave; a master has a shop and does not want to. The man between the
+    /// two travelled, and the word for his grade is the word for what he did — see
+    /// <see cref="Grades"/>, where the same grade is the one that #251 will carry a craft along
+    /// with.</para>
+    ///
+    /// <para><b>One hop along a trade route, to a town whose ground supports the trade.</b> The
+    /// route graph is the engine's existing answer to "what can be reached from here", held to the
+    /// one hop a craft's materials are held to, and
+    /// <see cref="Crafts.Supports"/> is the one place that says whether a place could hold a trade
+    /// at all. A journeyman walking to a town that cannot work his craft is a journeyman who
+    /// walked for nothing.</para>
+    ///
+    /// <para><b>Including towns that do not practise it yet.</b> The gate is what the ground
+    /// allows, not what the record already holds, so this is the path a craft can travel by: a
+    /// wandering weaver who settles where nobody weaves has brought the loom with him. That the
+    /// arrival is not yet a capability the town keeps is #251's work, and this is the mechanism it
+    /// asks for rather than a second one invented beside it.</para>
+    ///
+    /// <para>Independence pulls, since it is the disposition that already decides how far a person
+    /// goes against their household — and a man who leaves his father's town to find his own shop
+    /// is doing exactly that.</para>
+    /// </remarks>
+    private static bool TryWander(
+        WorldState world, Figure figure, EntityId home, int year, IRng rng)
+    {
+        if (figure.Craft == Craft.None) return false;
+        if (figure.Grade != CraftGrade.Journeyman) return false;
+
+        var towns = new List<Settlement>();
+        foreach (TradeRoute route in TradeRoutes.From(world, home))
+        {
+            EntityId otherId = route.Other(home);
+            if (otherId.IsNone || otherId == home) continue;
+            if (!world.Settlements.Contains(otherId)) continue;
+
+            Settlement other = world.Settlements[otherId];
+            if (!other.IsActive) continue;
+            if (!Crafts.Supports(world, other, figure.Craft)) continue;
+
+            towns.Add(other);
+        }
+
+        if (towns.Count == 0) return false;
+        if (!rng.Chance(0.05 + (figure.Disposition.Independence * 0.05))) return false;
+
+        Settlement chosen = rng.Pick(towns);
+
+        // No named target, for the reason a merchant's trip has none: the town is the errand.
+        // "Along the Aigionanvos-Shche route" would say nothing the line has not said, and the
+        // trade he is looking for work in is already on his page.
+        Record(
+            world,
+            figure,
+            JourneyKind.Wandering,
+            year,
+            home,
+            chosen.Id,
+            EntityId.None,
+            "in search of work");
         return true;
     }
 
@@ -391,7 +476,15 @@ public sealed class TravelSystem : ISystem
         var journey = new Journey(
             kind, departed, from, to, via, durationDays, expectedReturn);
         figure.Journeys.Add(journey);
-        FigureUndertaking undertaking = Undertakings.PrepareJourney(world, figure, journey, year);
+
+        // A wander is not an undertaking. Every other journey opens a named arc with progress
+        // toward a goal, and a journeyman looking for a shop has no such goal — he has a grade.
+        // The default in Undertakings.PrepareJourney is an embassy, so adopting one would put a
+        // craftsman's road on his page as a diplomatic mission and then render its next leg as
+        // "on an embassy to" with nothing to name, the wander carrying no via.
+        FigureUndertaking? undertaking = kind == JourneyKind.Wandering
+            ? null
+            : Undertakings.PrepareJourney(world, figure, journey, year);
 
         var extra = new List<EntityId> { from };
         if (!via.IsNone) extra.Add(via);
@@ -407,7 +500,10 @@ public sealed class TravelSystem : ISystem
 
         Resolve(world, figure, journey, year);
         MaybeStay(world, figure, journey, year);
-        Undertakings.NoteJourney(world, figure, undertaking, journey, year);
+        if (undertaking is not null)
+        {
+            Undertakings.NoteJourney(world, figure, undertaking, journey, year);
+        }
     }
 
     /// <summary>
@@ -526,6 +622,13 @@ public sealed class TravelSystem : ISystem
         JourneyKind.Trade => 0.010 + (0.020 * figure.Disposition.Values.Mercantile),
         JourneyKind.Mission => 0.020 + (0.030 * figure.Disposition.Values.Piety),
         JourneyKind.Pilgrimage => 0.008 + (0.022 * figure.Disposition.Values.Piety),
+
+        // The one journey whose purpose is to find somewhere else to live, so it is the one whose
+        // stay rate is not small by design. A journeyman who found a shop stayed in the town that
+        // gave it to him — that is what the wander-years were for — and still four such trips in
+        // five end at his father's hearth, which keeps the caveat above true: a life with a home
+        // in it remains the ordinary case.
+        JourneyKind.Wandering => 0.10 + (0.10 * figure.Disposition.Independence),
         _ => 0.0,
     };
 
@@ -606,6 +709,7 @@ public sealed class TravelSystem : ISystem
             JourneyKind.Trade => TradeHazard,
             JourneyKind.Visit => VisitHazard,
             JourneyKind.Mission => MissionHazard,
+            JourneyKind.Wandering => WanderHazard,
             _ => PilgrimageHazard,
         };
 

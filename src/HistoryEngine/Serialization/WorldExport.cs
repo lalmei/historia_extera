@@ -175,12 +175,19 @@ public sealed record WorldExport(
     /// dictionaries are omitted, as an absent container and an empty one mean the same thing.
     /// No fact left the export; the same history is written in fewer bytes.
     ///
+    /// <para>Version 59 gives a craft the ladder inside it: the stages of a working life — bound,
+    /// made free of the trade, admitted to keep a shop — each with the year it was reached and the
+    /// town whose company admitted them. A craft said which trade somebody practised and nothing
+    /// about their position in it, so a guildsman was the same thing at sixteen as at sixty; the
+    /// grade is also what entitles a man to be named on an object, which is why makers became
+    /// scarcer and every one of them is now a master.</para>
+    ///
     /// <para>Version 58 names the trade a guild mastery is over. <c>OfficeKind.GuildMaster</c> has
     /// been in the enum since offices landed and nothing ever granted it, so no export has carried
     /// one; now that a town's weavers and its smiths are two bodies, the seat has to say which it
     /// speaks for or a reader cannot tell two masteries of one town apart.</para>
     /// </remarks>
-    public const int CurrentSchemaVersion = 58;
+    public const int CurrentSchemaVersion = 59;
 }
 
 public sealed record ExportMeta(
@@ -919,6 +926,7 @@ public sealed record ExportFigure(
     ExportBackground? Background,
     Occupation Occupation,
     Craft Craft,
+    IReadOnlyList<ExportCraftStep> Grades,
     ExportDisposition Disposition,
     IReadOnlyList<ExportTitle> Titles,
     IReadOnlyList<ExportRankStep> Service,
@@ -989,6 +997,23 @@ public sealed record ExportTitle(
     EntityId? GrantedBy,
     string? Claim,
     Craft? Craft);
+
+/// <summary>
+/// One stage of a working life a person reached, and the year they reached it.
+/// </summary>
+/// <remarks>
+/// The current grade is the last entry — a grade is never laid down, so there is no <c>ToYear</c>
+/// to carry and no way for the list and a stored current value to disagree. Empty for everybody
+/// who never took a craft, which is most of the table.
+///
+/// <para>The town rather than the realm, because a company is a town body: a mastery is admitted
+/// by the men of one place. Absent where the record has no place for the stage.</para>
+/// </remarks>
+public sealed record ExportCraftStep(
+    CraftGrade Grade,
+    EntityId? SettlementId,
+    int Year,
+    string? Claim);
 
 /// <summary>
 /// One rung of an army a person was raised to, and the year they reached it.

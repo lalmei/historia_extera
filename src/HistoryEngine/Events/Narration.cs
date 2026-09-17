@@ -168,6 +168,11 @@ public static class Narration
         // and it takes every one of the twenty-one labels unaltered.
         Set(EventKind.CraftTaken,
             "{subject} was set to the trade of {data:craft}[ in {location}].");
+        // "Was made a master mason" — the grade and the trade together, which is the whole reason
+        // the stage is recorded. One template for both rungs it is written for: a freedom and an
+        // admission are the same sentence with a different word in it, which is how the rolls read.
+        Set(EventKind.CraftAdvanced,
+            "{subject} was made a {data:grade}[ in {location}][, {data:claim}].");
         Set(EventKind.RankGranted,
             "{subject} was raised to {data:rank}[ in the army of {object}][, {data:claim}].");
         // One template, four errands. The reason a journey was made is a holy site for a pilgrim,
@@ -407,6 +412,8 @@ public static class Narration
             "Took to {data:occupation}[ at {location}].");
         SetSelf(EventKind.CraftTaken,
             "Was set to the trade of {data:craft}[ in {location}].");
+        SetSelf(EventKind.CraftAdvanced,
+            "Was made a {data:grade}[ in {location}][, {data:claim}].");
         SetSelf(EventKind.RankGranted,
             "Was raised to {data:rank}[ in the army of {object}][, {data:claim}].");
         SetSelf(EventKind.JourneyMade,

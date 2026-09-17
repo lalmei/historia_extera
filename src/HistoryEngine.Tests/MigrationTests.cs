@@ -190,9 +190,13 @@ public sealed class MigrationTests
                 + "without homes in it rather than a world people occasionally leave.");
         }
 
-        // Trade, mission and pilgrimage all reach it; a visit never does.
-        Assert.Equal(3, kinds.Count);
+        // Trade, mission, pilgrimage and the wander-years all reach it; a visit never does. The
+        // wander is the one whose whole purpose is to end somewhere else — a journeyman who found
+        // a shop stayed in the town that gave it to him — so it stays the likeliest of the four
+        // per trip while the world-level share above stays under a point and a half.
+        Assert.Equal(4, kinds.Count);
         Assert.DoesNotContain(JourneyKind.Visit, kinds);
+        Assert.Contains(JourneyKind.Wandering, kinds);
     }
 
     /// <summary>

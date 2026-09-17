@@ -915,6 +915,7 @@ public static class WorldExporter
                 Background: BuildBackground(figure.Background),
                 Occupation: figure.Occupation,
                 Craft: figure.Craft,
+                Grades: BuildGrades(figure),
                 Disposition: new ExportDisposition(
                     figure.Disposition.Values.Aggression,
                     figure.Disposition.Values.Expansionism,
@@ -948,6 +949,19 @@ public static class WorldExporter
         }
 
         return list;
+    }
+
+    private static IReadOnlyList<ExportCraftStep> BuildGrades(Figure figure)
+    {
+        var steps = new ExportCraftStep[figure.Grades.Count];
+        for (int i = 0; i < figure.Grades.Count; i++)
+        {
+            CraftStep step = figure.Grades[i];
+            steps[i] = new ExportCraftStep(
+                step.Grade, OrNull(step.SettlementId), step.Year, step.Claim);
+        }
+
+        return steps;
     }
 
     private static IReadOnlyList<ExportRankStep> BuildService(Figure figure)

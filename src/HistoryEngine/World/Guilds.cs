@@ -152,6 +152,13 @@ public static class Guilds
             // every other seat, and one office at a time is what the release pass assumes.
             if (figure.CurrentOffice is not null) continue;
 
+            // And only a master is a candidate. A company's alderman was one of the men who kept
+            // shops — that is who the vote was, and #250 is what makes the distinction available
+            // here. A seat whose company has admitted nobody stands empty until it has, which is
+            // the price of not handing a mastery to whoever happened to be the one weaver the
+            // record named in a town: see Grades.
+            if (figure.Grade < Grades.Top) continue;
+
             if (figure.CivilizationId != civilization.Id) continue;
             if (figure.AgeIn(year) < Offices.ServiceAge) continue;
             if (figure.Id == civilization.CurrentRulerId || figure.Id == civilization.RegentId)

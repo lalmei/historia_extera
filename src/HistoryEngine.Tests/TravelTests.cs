@@ -349,9 +349,10 @@ public sealed class TravelTests
             Assert.EndsWith(".", prose);
             Assert.DoesNotContain("  ", prose);
 
-            // Trade is the one errand with nothing to name: the destination is the reason, and
-            // "along the Aigionanvos–Shche route" says nothing the line has not already said.
-            if (kind == JourneyKind.Trade) continue;
+            // Trade and the wander-years are the errands with nothing to name: the destination is
+            // the reason, and "along the Aigionanvos–Shche route" says nothing the line has not
+            // already said.
+            if (kind is JourneyKind.Trade or JourneyKind.Wandering) continue;
 
             string named = world.NameOf(ViaOf(world, entry));
             Assert.Contains(named, prose);

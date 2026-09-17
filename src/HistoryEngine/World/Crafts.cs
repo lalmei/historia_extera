@@ -222,6 +222,56 @@ public static class Crafts
     }
 
     /// <summary>
+    /// The share of a town's people who head a workshop of some trade.
+    /// </summary>
+    /// <remarks>
+    /// <para>Craft <em>households</em>, not craftsmen: a shop was a household, and the man the
+    /// record would name is its head. A quarter or so of an urban population lived by a trade and a
+    /// household ran to four or five people, which puts the heads at about a twentieth of the
+    /// town — so a town of nine hundred holds some fifty workshops across all its trades, and the
+    /// broadest single trade in it holds a few handfuls.</para>
+    ///
+    /// <para>Applied to villages as well, which overstates them slightly and is the right way to
+    /// be wrong: the alternative is a tier threshold that makes the smallest place that can hold a
+    /// trade hold none of it.</para>
+    /// </remarks>
+    private const double WorkshopShare = 0.055;
+
+    /// <summary>
+    /// How many craftsmen of this trade the town's own population implies.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>The company is in the population number, not in the figure table.</b>
+    /// <see cref="Levies"/> is built on that fact — recorded figures are a thin sample of the
+    /// people in a world — and anything that asks how large a body of tradesmen is has to ask the
+    /// town rather than count the names. A city with three weavers in the record holds hundreds,
+    /// and a rule that read the three would say a city's loom trade was the size of a hamlet's.
+    /// </para>
+    ///
+    /// <para>The same weights assignment draws on, normalised: a craft's share of a town's
+    /// workshops is its weight against the weights of every other trade the place supports, which
+    /// makes this the aggregate counterpart of the individual draw and keeps one table behind
+    /// both. Zero where the town cannot support the trade at all, and at least one where it can —
+    /// a place whose loom trade rounds to nothing still has a weaver in it if the gate says so.
+    /// </para>
+    /// </remarks>
+    public static int Practitioners(WorldState world, Settlement settlement, Craft craft)
+    {
+        Supply supply = SupplyAt(world, settlement);
+
+        double own = Weight(craft, supply);
+        if (own <= 0.0) return 0;
+
+        double total = 0.0;
+        foreach (Craft other in All) total += Weight(other, supply);
+        if (total <= 0.0) return 0;
+
+        double workshops = settlement.Population * WorkshopShare * (own / total);
+
+        return Math.Max(1, (int)workshops);
+    }
+
+    /// <summary>
     /// Whether this settlement can support this craft at all.
     /// </summary>
     /// <remarks>
@@ -445,15 +495,27 @@ public static class Crafts
     }
 
     /// <summary>
-    /// Sets a craft and writes the one record of it.
+    /// Sets a craft and writes the one record of it, entering its holder at the stated standing.
     /// </summary>
     /// <remarks>
-    /// Internal rather than private since <see cref="Levies"/>: a craftsman raised out of the
+    /// <para>Internal rather than private since <see cref="Levies"/>: a craftsman raised out of the
     /// population takes a trade exactly the way a guildsman coming of age does, and the chronicle
     /// should not be able to tell the two lines apart. One writer of
-    /// <see cref="EventKind.CraftTaken"/>, so it cannot drift into two.
+    /// <see cref="EventKind.CraftTaken"/>, so it cannot drift into two.</para>
+    ///
+    /// <para><b>The standing is a parameter because the two callers enter at different rungs.</b>
+    /// Coming of age is an indenture; a levy is a man the record found already keeping a shop, and
+    /// he has no term behind him to record. Passing it in rather than correcting it afterwards is
+    /// what keeps his ladder one row rather than a binding and a mastery stamped in the same
+    /// year — see <see cref="Grades"/>, which is where the exception is argued.</para>
     /// </remarks>
-    internal static void Take(WorldState world, Figure figure, Craft craft, int year)
+    internal static void Take(
+        WorldState world,
+        Figure figure,
+        Craft craft,
+        int year,
+        CraftGrade grade = CraftGrade.Apprentice,
+        string? claim = null)
     {
         figure.Craft = craft;
         if (craft == Craft.None || !figure.IsAlive) return;
@@ -467,6 +529,11 @@ public static class Crafts
             location: world.ResidenceOf(figure),
             data: Chronicle.Data(("craft", Label(craft))),
             significance: Significance.Routine);
+
+        // The standing they enter at, which for somebody coming of age is the indenture — what
+        // entering a trade was. Here rather than in the yearly pass so that a craftsman is never a
+        // man of a trade with no standing in it, not even for the rest of the year he took it.
+        Grades.Enter(world, figure, grade, claim, year);
     }
 
     private static int IndexOf(Craft craft) => (int)craft - 1;

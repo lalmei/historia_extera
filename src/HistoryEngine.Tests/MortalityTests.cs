@@ -12,11 +12,24 @@ namespace HistoryEngine.Tests;
 public sealed class MortalityTests
 {
     /// <summary>
-    /// Seeds sampled for the panel. Resampled when persistent conspiracies landed, which moved
-    /// every history and made political murder a plot's ending rather than an annual roll; these
-    /// are seeds that carry one in the current checkout.
+    /// Seeds sampled for the panel.
     /// </summary>
-    private static readonly ulong[] Seeds = { 16, 21, 42, 47, 99 };
+    /// <remarks>
+    /// <para>Resampled when persistent conspiracies landed, which moved every history and made
+    /// political murder a plot's ending rather than an annual roll; and again for craft grades
+    /// (#250), which moved every history too. These are seeds that carry an assassination in the
+    /// current checkout.</para>
+    ///
+    /// <para><b>The second resample is worth reading, because it found the panel had been thin
+    /// rather than merely unlucky.</b> Scanning seeds 1–60 in the checkout before the grades
+    /// landed, only 21 of these five carried a political murder at all — 16, 42 and 47 already
+    /// carried none, so an assertion about ten reachable causes was resting on one seed's single
+    /// death. Over the same 60 seeds the rate itself is unchanged or better: 13 seeds and 17
+    /// murders before, 15 seeds and 22 murders after, so the shift is a redistribution and not a
+    /// suppression. Two seeds are swapped in rather than one, so the claim no longer hangs on a
+    /// single history.</para>
+    /// </remarks>
+    private static readonly ulong[] Seeds = { 12, 17, 26, 42, 99 };
 
     /// <summary>
     /// Variety is a model outcome, not an excuse to turn a court chronicle into a casualty list.

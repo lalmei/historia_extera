@@ -267,6 +267,7 @@ public sealed class Figure
         BirthYear = birthYear;
         Offices = new List<OfficeHolding>();
         Service = new List<RankStep>();
+        Grades = new List<CraftStep>();
         Campaigns = new List<CampaignMemory>();
         Journeys = new List<Journey>();
         Bonds = new List<FigureBond>();
@@ -417,6 +418,27 @@ public sealed class Figure
     /// system can ask it.
     /// </remarks>
     public int CraftYear { get; set; }
+
+    /// <summary>
+    /// Every stage of a trade this figure has been raised to, in the order they were reached.
+    /// </summary>
+    /// <remarks>
+    /// Empty for everyone who never took a craft, which is most people. Kept as a history rather
+    /// than a single value for the reason <see cref="Service"/> is: the year a man was admitted
+    /// master is what tells a reader whether his company was rewarding a long wait or filling a
+    /// shop that had just fallen empty.
+    /// </remarks>
+    public List<CraftStep> Grades { get; }
+
+    /// <summary>The stage this figure currently stands at, or <see cref="CraftGrade.None"/>.</summary>
+    /// <remarks>
+    /// A derivation of <see cref="Grades"/>, never a stored second copy. A grade is not laid
+    /// down — see <see cref="CraftStep"/> — so the last entry is always the operative one.
+    /// </remarks>
+    public CraftGrade Grade => Grades.Count == 0 ? CraftGrade.None : Grades[^1].Grade;
+
+    /// <summary>The stage they stand at, with the year and the town that admitted them.</summary>
+    public CraftStep? CurrentGrade => Grades.Count == 0 ? null : Grades[^1];
 
     /// <summary>
     /// The career they return to when an office ends, if they live. Empty until a posting

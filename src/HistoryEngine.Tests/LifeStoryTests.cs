@@ -328,18 +328,32 @@ public sealed class LifeStoryTests
             figure.Bonds.Exists(bond => bond.Kinds.HasFlag(BondKind.Rival)));
     }
 
+    /// <summary>
+    /// Every journey made toward a goal is a step in that goal, and the wander-years are not one.
+    /// </summary>
+    /// <remarks>
+    /// The exception is the point rather than a hole in the invariant. An undertaking is a named
+    /// commitment with progress toward an end; a journeyman looking for a shop
+    /// (<see cref="JourneyKind.Wandering"/>) has no such end — he has a grade, and the road is how
+    /// the grade is lived. <c>TravelSystem.Record</c> therefore opens no arc for one, which it has
+    /// to: the arc kind a journey falls back to is an embassy, and a craftsman's road recorded as
+    /// a diplomatic mission is a false fact on his page.
+    /// </remarks>
     [Fact]
     public void EveryJourneyIsAStepInAnUndertakingWithACausalEnding()
     {
         WorldState world = HistoryRun.Execute(TestWorlds.Standard(42)).World;
         int journeys = world.Figures.Sum(figure => figure.Journeys.Count);
+        int wanderings = world.Figures.Sum(figure =>
+            figure.Journeys.Count(journey => journey.Kind == JourneyKind.Wandering));
         int journeySteps = world.Figures.Sum(figure =>
             figure.Undertakings.Sum(undertaking =>
                 undertaking.Steps.Count(step =>
                     step.SourceKind is EventKind.JourneyMade or EventKind.JourneyWaylaid)));
 
         Assert.True(journeys > 40);
-        Assert.Equal(journeys, journeySteps);
+        Assert.True(wanderings > 0, "no journeyman in this world ever went looking for work");
+        Assert.Equal(journeys - wanderings, journeySteps);
         Assert.Contains(world.Figures, figure =>
             figure.Undertakings.Exists(undertaking => undertaking.Steps.Count >= 2));
         Assert.Contains(world.Figures, figure =>

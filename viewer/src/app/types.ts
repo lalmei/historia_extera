@@ -11,7 +11,7 @@
  */
 
 /** The schema the current engine writes. `compat.ts` has the oldest one the viewer reads. */
-export const SCHEMA_VERSION = 58;
+export const SCHEMA_VERSION = 59;
 
 /**
  * Whether an event carries the history or merely records a life.
@@ -1388,6 +1388,41 @@ export interface Title {
 }
 
 /**
+ * A standing inside a trade: bound, free of it, or keeping a shop.
+ *
+ * Ordered, and a working life only ever moves up the list. Beside the craft rather than inside
+ * it — the craft says which trade, this says what somebody is in it — and not a measure of
+ * ability: a master is somebody a company admitted, which is the only fact the record kept.
+ */
+export type CraftGrade = 'None' | 'Apprentice' | 'Journeyman' | 'Master';
+
+export const CRAFT_GRADE_LABELS: Record<CraftGrade, string> = {
+  None: 'Not of a trade',
+  Apprentice: 'Apprentice',
+  Journeyman: 'Journeyman',
+  Master: 'Master',
+};
+
+/**
+ * One stage of a working life, and the year it was reached.
+ *
+ * No `toYear`: a grade is not laid down — a man admitted master and later crowned is a master
+ * still — so the current stage is the last entry, which is why a figure carries no separate
+ * current-grade field for the two to disagree over.
+ *
+ * The town, not the realm: a company is a town body, and a mastery is admitted by the men of
+ * one place.
+ */
+export interface CraftStep {
+  grade: CraftGrade;
+  /** The town whose trade admitted them. Absent where the record has no place for the stage. */
+  settlementId?: EntityId;
+  year: number;
+  /** Why they were advanced: "by the admission of the Weavers of Aldenmoor". */
+  claim?: string;
+}
+
+/**
  * A grade in a realm's army, below the marshal's seat and above nothing.
  *
  * Ordered: a career only ever moves up the list. What a realm actually calls each rung is
@@ -1454,13 +1489,14 @@ export interface Campaign {
   promotionYear?: number;
 }
 
-export type JourneyKind = 'Visit' | 'Trade' | 'Pilgrimage' | 'Mission';
+export type JourneyKind = 'Visit' | 'Trade' | 'Pilgrimage' | 'Mission' | 'Wandering';
 
 export const JOURNEY_KIND_LABELS: Record<JourneyKind, string> = {
   Visit: 'Visit',
   Trade: 'Trade',
   Pilgrimage: 'Pilgrimage',
   Mission: 'Mission',
+  Wandering: 'Wander-years',
 };
 
 /** How a journey ended. Most end the dull way; the other two are why the road is worth drawing. */
@@ -2251,6 +2287,13 @@ export interface Figure {
    * 'None' — for everyone who was never in a guild. See `compat.ts`.
    */
   craft?: Craft;
+  /**
+   * Stages of the trade they reached, oldest first. Empty for everyone who never took a craft,
+   * and empty — not absent — in exports written before schema 59: a container the loader
+   * supplies, which is a list this world has nothing in rather than a fact it knows. See
+   * `compat.ts`.
+   */
+  grades: CraftStep[];
   /** Absent in exports written before figures had one. Never defaulted — see `compat.ts`. */
   disposition?: Disposition;
   titles: Title[];

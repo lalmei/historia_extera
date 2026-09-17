@@ -1743,6 +1743,36 @@ engine and viewer: no shared code, no server, no schema negotiation.
   sometimes meant a settlement and sometimes a trade would be the same mistake as identifying a
   reign by its title text. It also made the first seat that kind and scope alone cannot tell
   apart, so the one-holder invariant's key had to take the craft too.
+- **A craft has a ladder inside it** (schema 59). `grades` on a figure: the stages of a working
+  life — bound, made free of the trade, admitted to keep a shop — each with its year and the town
+  whose company admitted them, shaped like `service` and for the same reasons (no `toYear`, since
+  a grade is not laid down, and the current stage is the last entry so a stored copy cannot
+  disagree with the history). The town rather than the realm, because a company is a town body.
+  Two things read it, which is the standard a new dimension is held to: a maker named on an object
+  must be a master, and a mastery seat is elected only from a company's masters.
+  The second cost #248 most of its seats — 53–201 masteries a world became 16–42, and towns
+  holding two or more trades' masteries 7–29 became 4–9 — and that is the right trade. Letting the
+  election confer the mastery was tried first and made 60–69% of every world's craftsmen masters,
+  because the number of seats turning over in three centuries is of the same order as the number of
+  craftsmen the chronicle names at all, so nearly every one of them was elected to something. With
+  the two decoupled, masters are 24–31% of recorded craftsmen and journeymen the majority
+  everywhere.
+  The number of shops a trade has room for is read off the **town's population** rather than the
+  recorded members, since recorded figures are a thin sample — the argument `Levies` already runs
+  on — so a city's loom trade is not sized like a hamlet's. Admission is then a yearly probability
+  rather than a cap on that sample: a cap over two recorded weavers can only allow none or one,
+  which is either no masters anywhere or half the company in a shop.
+  Named makers went **up** rather than down — 33 made objects across the panel to 42, or 1–11 a
+  world to 0–14 — because a town whose recorded potters are all journeymen is a town whose masters
+  were never written down, which is the case the levy exists for. What changed is not how many
+  objects are signed but who signs them: every one is now a man entitled to.
+  A journeyman also travels (`JourneyKind.Wandering`), which is what the word meant: one trade-route
+  hop to a town whose ground supports his craft, including towns that do not practise it yet, at
+  ten times a merchant's rate of settling there. 625 wanderings across the panel and 52 new homes,
+  with the world-level share of journeys ending in emigration still under 1.5%. It is deliberately
+  not an undertaking — the arc kind a journey falls back to is an embassy, and a craftsman's road
+  recorded as a diplomatic mission is a false fact on his page — and it is the transmission path
+  #251 asks for rather than a second one invented beside it.
 - **Raster as raw byte planes**, base64, not PNG. A PNG would bake in a colour ramp;
   the viewer wants its own ramp, with height/biome/rivers as composable layers. The
   height range ships alongside so metres are recoverable.
