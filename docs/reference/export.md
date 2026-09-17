@@ -7,7 +7,7 @@ it; the viewer never calls back into the simulation for missing state.
 mutable `WorldState` or resume the simulation. The export also does not contain a complete
 generation recipe: retain the original configuration and external terrain for reproduction.
 
-The current engine writes schema 58. The current viewer reads schemas 28 through 58. There is
+The current engine writes schema 59. The current viewer reads schemas 28 through 59. There is
 no checked-in JSON Schema file: the authoritative writer shape is
 `src/HistoryEngine/Serialization/WorldExport.cs`, and the matching consumer shape is
 `viewer/src/app/types.ts` plus `viewer/src/app/compat.ts`.
@@ -128,7 +128,7 @@ byte-identical canonical output.
 
 ## Compatibility rules
 
-The viewer refuses exports below schema 28, above schema 58, or without a numeric schema
+The viewer refuses exports below schema 28, above schema 59, or without a numeric schema
 version. For readable versions, compatibility code fills missing containers with empty
 containers but never invents missing facts. A banner lists the later additions the export
 predates.

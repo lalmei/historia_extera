@@ -193,7 +193,14 @@ public static class Levies
         // because a trade with no office and no OccupationTaken means something else entirely in
         // this engine — somebody who died before a career was ever chosen for them.
         Occupations.EnterCareer(world, craftsman, Occupation.Guild, year);
-        Crafts.Take(world, craftsman, craft, year);
+
+        // And he enters the trade a master, without the two stages nobody wrote down. The object
+        // is what documents the exception: this man is raised because something was made and he is
+        // already of the age to keep a shop — see TradeAge, which starts him at twenty-eight and
+        // over. Binding him as an apprentice would make the work older than its maker's trade, and
+        // leaving him a journeyman would make Makers.Find refuse the very name the levy was run to
+        // supply.
+        Crafts.Take(world, craftsman, craft, year, Grades.Top, Grades.FoundClaim);
 
         return craftsman;
     }

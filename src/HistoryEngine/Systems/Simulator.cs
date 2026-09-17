@@ -157,6 +157,13 @@ public sealed class Simulator
     /// drift writes the baseline last, for next year's crown to read. Like crown it draws no random
     /// numbers, and like crown it is a slow yearly accumulator with no reason to want a season.</para>
     ///
+    /// <para><c>grades</c> sits between <c>ranks</c> and <c>artifacts</c>, and both edges are
+    /// load-bearing. After the offices, because a mastery seat filled this spring belongs to a man
+    /// who is already a master and his company's shops must be counted with him in one of them.
+    /// Before the artifacts, because a maker named on an object has to be a master, so a man
+    /// admitted this year can sign a thing made this year — a work is credited to the standing its
+    /// maker held when he made it.</para>
+    ///
     /// <para>The figure-lifecycle, succession and household sequence is the tightest coupling in
     /// the list, and war leans on the same property. Deaths must precede succession or a realm
     /// spends a year without a ruler for no
@@ -202,6 +209,7 @@ public sealed class Simulator
         new HouseholdSystem(),
         new OfficeSystem(),
         new MilitarySystem(),
+        new CraftSystem(),
         new ArtifactSystem(),
     };
 

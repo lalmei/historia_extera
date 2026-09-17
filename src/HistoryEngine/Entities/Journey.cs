@@ -18,6 +18,18 @@ public enum JourneyKind
 
     /// <summary>Preaching, carrying scripture, or fetching copies from a monastery.</summary>
     Mission = 3,
+
+    /// <summary>
+    /// A journeyman on the road, looking for a town with work in his trade.
+    /// </summary>
+    /// <remarks>
+    /// The word is the mechanism. A man free of his indenture and without a shop of his own
+    /// travelled to find one, which makes this the one journey in the engine whose whole purpose is
+    /// that it may not end at the traveller's own hearth — see <see cref="CraftGrade.Journeyman"/>,
+    /// and the stay rule in <c>TravelSystem</c>, which lets a wandering craftsman settle at roughly
+    /// three times the rate a merchant does.
+    /// </remarks>
+    Wandering = 4,
 }
 
 /// <summary>

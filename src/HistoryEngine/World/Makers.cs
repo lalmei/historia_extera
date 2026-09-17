@@ -34,6 +34,15 @@ namespace HistoryEngine.World;
 /// practising it, which is the same rule <see cref="Tomes"/> uses to find a town's scribe. Adding
 /// a draw here would make who made a crown depend on how many objects were made before it in the
 /// same year, and the whole point of the id is that it does not.</para>
+///
+/// <para><b>And it is a master who is named.</b> Being entitled to put your name on the work is
+/// most of what admission to a mastery meant (#250) — a journeyman's work went out of his
+/// master's shop under his master's name — so <see cref="Find"/> asks for the town's senior
+/// master and refuses its journeymen. It refuses them to the levy as well, and deliberately: a
+/// town whose recorded potters are all journeymen is a town whose company has masters the record
+/// failed to name, which is the very case <see cref="Levies"/> exists for. The object gets the
+/// master the population implies rather than a signature its journeyman was not entitled to
+/// give.</para>
 /// </remarks>
 public static class Makers
 {
@@ -89,7 +98,8 @@ public static class Makers
     {
         foreach (Craft craft in CraftsFor(kind))
         {
-            if (guildsmen.TryGetValue((settlementId, craft), out Figure? maker))
+            if (guildsmen.TryGetValue((settlementId, craft), out Figure? maker)
+                && maker.Grade >= Grades.Top)
             {
                 return maker.Id;
             }
@@ -102,8 +112,14 @@ public static class Makers
     /// Every town's craftsman of each trade, built once a year and read by every object made in it.
     /// </summary>
     /// <remarks>
-    /// Lowest id wins, as it does for the scribe a town writes with. Built in one pass rather than
-    /// scanned per settlement, because creation is rare and the figure list is not.
+    /// <para>Lowest id wins, as it does for the scribe a town writes with. Built in one pass rather
+    /// than scanned per settlement, because creation is rare and the figure list is not.</para>
+    ///
+    /// <para>A master outranks an earlier-born journeyman, because the entry has two readers: the
+    /// maker of an object, who must be a master, and the levy's question of whether the town holds
+    /// the trade at all, which any practitioner answers. Keeping one entry per town and trade means
+    /// the man in it is the best claim to both — <see cref="Find"/> checks the grade and
+    /// <see cref="Holds"/> does not.</para>
     /// </remarks>
     public static Dictionary<(EntityId Town, Craft Trade), Figure> Guildsmen(WorldState world, int year)
     {
@@ -116,8 +132,7 @@ public static class Makers
             if (figure.AgeIn(year) < Succession.MajorityAge) continue;
 
             var key = (figure.ResidenceSettlementId, figure.Craft);
-            if (found.TryGetValue(key, out Figure? standing)
-                && standing.Id.CompareTo(figure.Id) <= 0)
+            if (found.TryGetValue(key, out Figure? standing) && !Better(figure, standing))
             {
                 continue;
             }
@@ -126,5 +141,18 @@ public static class Makers
         }
 
         return found;
+    }
+
+    /// <summary>Whether this craftsman is the better entry for his town and trade.</summary>
+    /// <remarks>
+    /// Standing first and then id, which is a total order: a master displaces a journeyman however
+    /// they were born, and two masters are separated by the id as before. Nothing rolls.
+    /// </remarks>
+    private static bool Better(Figure candidate, Figure standing)
+    {
+        bool mastered = candidate.Grade >= Grades.Top;
+        if (mastered != (standing.Grade >= Grades.Top)) return mastered;
+
+        return candidate.Id.CompareTo(standing.Id) < 0;
     }
 }

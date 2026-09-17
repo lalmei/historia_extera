@@ -93,6 +93,7 @@ import {
   KIND_LABELS,
   MEMORY_LABELS,
   OCCUPATION_LABELS,
+  CRAFT_GRADE_LABELS,
   CRAFT_LABELS,
   ORIGIN_LABELS,
   OUTCOME_LABELS,
@@ -793,11 +794,20 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
   const occupationEvent = [...visibleEvents]
     .reverse()
     .find((event) => event.kind === 'OccupationTaken');
+  // A grade is never laid down, so the operative stage is the last one reached by the year being
+  // read — the same shape the ranks above have.
+  const visibleGrades = (figure.grades ?? []).filter((step) => step.year <= selectedYear);
+  const grade = visibleGrades[visibleGrades.length - 1];
+
   // A guildsman is named by their craft where the export carries one: "Smith" says what
-  // "Guild" cannot, and the craft outlives the guild membership that gave it.
+  // "Guild" cannot, and the craft outlives the guild membership that gave it. With a grade it is
+  // named the way the rolls named it — "Master mason" — because that is the distinction the
+  // ladder exists to draw, and a page that showed only "Mason" would hide it.
   const craftLabel =
     figure.craft && figure.craft !== 'None'
-      ? (CRAFT_LABELS[figure.craft] ?? figure.craft)
+      ? grade && grade.grade !== 'None'
+        ? `${CRAFT_GRADE_LABELS[grade.grade]} ${(CRAFT_LABELS[figure.craft] ?? figure.craft).toLowerCase()}`
+        : (CRAFT_LABELS[figure.craft] ?? figure.craft)
       : undefined;
   const trade = atLatest
     ? craftLabel ??
@@ -1086,6 +1096,9 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
               {rank && (
                 <p className="mt-1 text-xs text-[var(--ink-faint)]">Rank · {rank.title}</p>
               )}
+              {activeTitle && grade && grade.grade !== 'None' && craftLabel && (
+                <p className="mt-1 text-xs text-[var(--ink-faint)]">Trade · {craftLabel}</p>
+              )}
               {positionPlace && (
                 <p className="mt-1 text-xs text-[var(--ink-faint)]">
                   {atLatest ? 'Residence' : 'Last recorded place'} ·{' '}
@@ -1266,6 +1279,27 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
                     of {figure.deathDetail ?? DEATH_LABELS[figure.deathCause] ?? figure.deathCause}
                   </span>
                 )}
+              </Field>
+            )}
+            {visibleGrades.length > 0 && (
+              <Field label="Trade">
+                <ul className="space-y-0.5">
+                  {visibleGrades.map((step, index) => (
+                    <li key={index}>
+                      {CRAFT_GRADE_LABELS[step.grade] ?? step.grade}
+                      {step.settlementId !== undefined && (
+                        <>
+                          {' of '}
+                          <EntityLink world={world} id={step.settlementId} />
+                        </>
+                      )}
+                      <span className="ml-2 text-[var(--ink-faint)]">{step.year}</span>
+                      {step.claim && (
+                        <span className="ml-2 text-[var(--ink-faint)]">{step.claim}</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
               </Field>
             )}
             {visibleService.length > 0 && (
