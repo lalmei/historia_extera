@@ -88,6 +88,7 @@ public sealed class OfficeSystem : ISystem
             Release(world, civilization, year);
             FillRealmOffices(world, civilization, culture, year, court);
             FillGovernorships(world, civilization, culture, year, court);
+            FillGuildMasteries(world, civilization, culture, year, court);
             Disgrace(world, civilization, year, court);
         }
     }
@@ -137,6 +138,17 @@ public sealed class OfficeSystem : ISystem
             }
 
             if (held.Kind == OfficeKind.HighPriest && world.FaithOf(civilization) != held.ScopeId)
+            {
+                Offices.Lapse(world, figure, held.Kind, year);
+                continue;
+            }
+
+            // A guild outlives the reign — nobody granted it, so the grantor rule above never
+            // reaches it — but it does not outlive the town. Unlike a governorship a mastery
+            // survives its town becoming a capital: a company of weavers does not dissolve
+            // because the court moved in.
+            if (held.Kind == OfficeKind.GuildMaster
+                && !Guilds.Stands(world, civilization, figure, held))
             {
                 Offices.Lapse(world, figure, held.Kind, year);
                 continue;
@@ -277,6 +289,26 @@ public sealed class OfficeSystem : ISystem
             Appoint(
                 world, civilization, culture, OfficeKind.Governor, settlement.Id, year, local);
         }
+    }
+
+    /// <summary>
+    /// Lets each town's trades elect the masters they have nobody speaking for.
+    /// </summary>
+    /// <remarks>
+    /// <para>Beside the governorships rather than inside them, and walking every active settlement
+    /// rather than only the governed ones. A guild is not a seat of government: a village with a
+    /// smith in it has smiths to speak for, and the tier gate that decides whether a place is worth
+    /// governing has nothing to say about that.</para>
+    ///
+    /// <para>Forked separately from the governorship pass on the same town, so whether a place
+    /// elects a master this year cannot move whether it gets a governor. The walk over the towns
+    /// is inside <see cref="Guilds.Fill"/>, which has to read the figure table once for the realm
+    /// rather than once for each of its settlements.</para>
+    /// </remarks>
+    private static void FillGuildMasteries(
+        WorldState world, Civilization civilization, Culture culture, int year, IRng court)
+    {
+        Guilds.Fill(world, civilization, culture, year, court);
     }
 
     /// <summary>

@@ -231,6 +231,19 @@ public sealed class Culture
             _ => "Governor",
         },
 
+        // A guild master is the master of a trade, and the trade is half the title. The word this
+        // culture uses is all that belongs here; World.Guilds joins it to the company, because
+        // which company exists is a fact about a town rather than about a people.
+        OfficeKind.GuildMaster => Government switch
+        {
+            GovernmentForm.Chiefdom => "Elder",
+            GovernmentForm.Monarchy => "Master",
+            GovernmentForm.Theocracy => "Steward",
+            GovernmentForm.Oligarchy => "Archon",
+            GovernmentForm.Republic => "Alderman",
+            _ => "Master",
+        },
+
         _ => "Officer",
     };
 

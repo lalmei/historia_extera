@@ -207,6 +207,22 @@ public sealed record OfficeHolding(
     public EntityId GrantedBy { get; init; } = EntityId.None;
 
     /// <summary>
+    /// The craft this is the mastery of, where the office is over one.
+    /// </summary>
+    /// <remarks>
+    /// <para>Only a <see cref="OfficeKind.GuildMaster"/> has one, and every one of them does. A
+    /// guild is the guild <em>of</em> something: a town's weavers and its smiths were two bodies
+    /// that competed for the same council, and a seat that does not say which trade it speaks for
+    /// cannot tell them apart.</para>
+    ///
+    /// <para>Beside <see cref="ScopeId"/> rather than folded into it. The scope is the town, and
+    /// two masteries in one town differ in nothing else — an <see cref="EntityId"/> that sometimes
+    /// meant a settlement and sometimes a trade would be the same mistake as identifying a reign
+    /// by its title text.</para>
+    /// </remarks>
+    public Craft Craft { get; init; } = Craft.None;
+
+    /// <summary>
     /// How they came by it, in prose: "by the king's mandate", "by the town's own council".
     /// </summary>
     /// <remarks>
@@ -391,6 +407,16 @@ public sealed class Figure
     /// </para>
     /// </remarks>
     public Craft Craft { get; set; } = Craft.None;
+
+    /// <summary>The year they entered the trade. Zero while they have none.</summary>
+    /// <remarks>
+    /// Standing in a guild is time served, and <see cref="World.Guilds"/> has to weigh it without
+    /// reading the chronicle: the chronicle is what a world says happened, and a decision that
+    /// scans it for its own inputs makes the record load-bearing. The year is already written
+    /// there as <see cref="EventKind.CraftTaken"/> for a reader; this is the same fact where a
+    /// system can ask it.
+    /// </remarks>
+    public int CraftYear { get; set; }
 
     /// <summary>
     /// The career they return to when an office ends, if they live. Empty until a posting

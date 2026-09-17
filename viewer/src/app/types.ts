@@ -11,7 +11,7 @@
  */
 
 /** The schema the current engine writes. `compat.ts` has the oldest one the viewer reads. */
-export const SCHEMA_VERSION = 57;
+export const SCHEMA_VERSION = 58;
 
 /**
  * Whether an event carries the history or merely records a life.
@@ -1352,7 +1352,8 @@ export type OfficeKind =
   | 'Consort'
   | 'Marshal'
   | 'HighPriest'
-  | 'Governor';
+  | 'Governor'
+  | 'GuildMaster';
 
 export const OFFICE_LABELS: Record<OfficeKind, string> = {
   Ruler: 'Ruler',
@@ -1361,6 +1362,7 @@ export const OFFICE_LABELS: Record<OfficeKind, string> = {
   Marshal: 'Marshal',
   HighPriest: 'High priest',
   Governor: 'Governor',
+  GuildMaster: 'Guild master',
 };
 
 export interface Title {
@@ -1375,6 +1377,14 @@ export interface Title {
   grantedBy?: EntityId;
   /** How they came by it, in prose: "by the king's mandate". */
   claim?: string;
+  /**
+   * The trade a guild mastery is over. Absent on every other office.
+   *
+   * A town's weavers and its smiths are two bodies, so two masteries of one town differ in
+   * this and in nothing else — `scopeId` is the same settlement for both. Schema 58 and later;
+   * before it no export carried a mastery at all.
+   */
+  craft?: Craft;
 }
 
 /**

@@ -1735,6 +1735,14 @@ engine and viewer: no shared code, no server, no schema negotiation.
   every container in the export instead of only the ones some version introduced.
   Together the three took the standard world from 18.67 MB to 17.62 MB raw, and from
   1.79 MB to 1.48 MB gzipped — an 18% cut to the number that matters once compression lands.
+- **A guild mastery names its trade** (schema 58). `OfficeKind.GuildMaster` was declared with
+  the other offices and never granted, so no export had ever carried one: a town had not one
+  undifferentiated guild master but none. What was missing was the thing the seat is over, and
+  a craft on a figure supplied it. The craft sits beside `scopeId` rather than inside it,
+  because two masteries of one town share a scope and differ in nothing else — an id that
+  sometimes meant a settlement and sometimes a trade would be the same mistake as identifying a
+  reign by its title text. It also made the first seat that kind and scope alone cannot tell
+  apart, so the one-holder invariant's key had to take the craft too.
 - **Raster as raw byte planes**, base64, not PNG. A PNG would bake in a colour ramp;
   the viewer wants its own ramp, with height/biome/rivers as composable layers. The
   height range ships alongside so metres are recoverable.

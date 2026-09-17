@@ -56,7 +56,7 @@ public sealed class OfficeTests
         {
             // Declared ahead of the systems that fill them. Reaching one here would mean a
             // grant path landed before the office had a court, a candidate pool, or a title.
-            if (kind is OfficeKind.GuildMaster or OfficeKind.Merchant or OfficeKind.Noble)
+            if (kind is OfficeKind.Merchant or OfficeKind.Noble)
             {
                 continue;
             }
@@ -122,7 +122,15 @@ public sealed class OfficeTests
                         + $"{held.Kind} {held.Title} of {held.CivilizationId} "
                         + $"(scope {held.ScopeId}, from {held.FromYear}).");
 
-                    string seat = held.Kind + ":" + held.CivilizationId + ":" + held.ScopeId;
+                    // The craft is part of the seat, not decoration on it. A town holds the
+                    // masonry of its masons and the mastery of its weavers at the same time, and
+                    // those are two seats with one scope — the first offices in the engine that
+                    // kind and scope alone cannot tell apart. It is None for every other office,
+                    // so this key is unchanged for all of them.
+                    string seat = held.Kind
+                        + ":" + held.CivilizationId
+                        + ":" + held.ScopeId
+                        + ":" + held.Craft;
                     Assert.True(seats.Add(seat), $"Two holders of {seat} in seed {seed}.");
                 }
             }

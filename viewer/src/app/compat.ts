@@ -58,6 +58,7 @@ export interface SchemaVerdict {
  * which of the two an old world has.
  */
 export const ADDED_IN: readonly { since: number; feature: string }[] = [
+  { since: 58, feature: 'the trade a guild mastery is over, so a town’s weavers and its smiths are two seats' },
   { since: 56, feature: 'the craftsman who made an object, told apart from the patron who paid for it' },
   { since: 55, feature: 'what each realm made of a reading it held — taught, disputed, or set aside — apart from having it' },
   { since: 54, feature: 'the copies a sack, a fire or an abandonment destroyed, and what a reading was lost to' },
