@@ -359,13 +359,27 @@ public static class Realms
             // The sitting ruler stays a subject of their own crown, and so does anyone else the
             // transfer refuses to hand over — but their address has just left their realm, and
             // they cannot go on living at it.
-            if (from.CurrentRulerId == figure.Id)
+            //
+            // Only while the crown still has ground, though. This rule was written for a realm
+            // that loses a province and keeps a capital to call its ruler home to; applied to the
+            // transfer that takes a realm's *last* town it strands the word literally, because
+            // `MoveRegion` has already cleared the seat and `Reseat` found nothing to replace it
+            // with. The king is then recorded, for ever, living in a town belonging to the realm
+            // that finished him. A crown with no ground left is not a crown anybody is a subject
+            // of, and its last ruler goes with the town like everyone else in it.
+            if (from.CurrentRulerId == figure.Id && !from.CapitalId.IsNone)
             {
                 stranded.Add(figure);
                 continue;
             }
 
             figure.CivilizationId = to.Id;
+
+            // And the offices of the realm they have just left end with the leaving. A governor
+            // handed to the winner along with the town he governed went on holding the loser's
+            // governorship of it — an open seat of a realm its holder is no longer a subject of,
+            // which is the one thing every office in the engine is required not to be.
+            ResignOfficesOf(world, figure, from, year);
         }
 
         // Recorded rather than resolved. `WorldState.ResidenceOf` would quietly answer "at the
@@ -383,6 +397,35 @@ public static class Realms
                 year,
                 withHousehold: true);
         }
+    }
+
+    /// <summary>
+    /// Ends every open office a transferred person held of the realm they have just left.
+    /// </summary>
+    /// <remarks>
+    /// <para>Silent, and deliberately not <see cref="Offices.Revoke"/>. A revocation is a disgrace
+    /// — it writes an event, opens a grievance and is remembered — and none of that happened here.
+    /// Nobody dismissed this governor; the ground moved under him. The seat simply ceases to exist
+    /// for the realm that no longer holds the town, and the chronicle already says why in the
+    /// cession three lines above.</para>
+    ///
+    /// <para>Every office of the losing realm, not only the one scoped to a moving town. Changing
+    /// realm is what voids them: a man handed to the winner cannot go on holding the loser's
+    /// marshalcy any more than the loser's governorship.</para>
+    /// </remarks>
+    private static void ResignOfficesOf(
+        WorldState world, Figure figure, Civilization from, int year)
+    {
+        for (int i = figure.Offices.Count - 1; i >= 0; i--)
+        {
+            OfficeHolding held = figure.Offices[i];
+            if (held.ToYear is not null) continue;
+            if (held.CivilizationId != from.Id) continue;
+
+            figure.Offices[i] = held with { ToYear = year };
+        }
+
+        Occupations.Sync(world, figure, year);
     }
 
     private static bool LivesIn(List<Settlement> moving, EntityId residence)
