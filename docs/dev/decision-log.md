@@ -3013,6 +3013,89 @@ not this change's.
 
 ---
 
+### The craftsman a year needs, raised out of the population (M30)
+
+Giving guildsmen trades and giving objects makers were both landed before this, and together they
+produced a disappointment worth writing down: across the five-seed panel at three hundred years,
+**4 of 49 objects could name a maker**. The model was right and the sample was too thin. Recorded
+figures are a handful per town of thousands, so the ordinary case is that the trade is plainly
+there — the ore, the fuel, the wealth — and nobody in the record holds it.
+
+**The door already existed and nothing had walked through it.** `FigureOrigin.Guild` has been
+declared since crafts landed. Offices solved this exact problem years earlier: `IsAppointed` marks
+the seats a court can fill from the population, `Notable` works a birth year back from a plausible
+career, and a marshal who did not exist last year exists now because the realm needed one. A
+craftsman is the same shape of fact, so the levy is deliberately the same shape of code.
+
+**Demand pulls and nothing else does.** The levy fires at exactly one call site — the moment
+`ArtifactSystem` asks for a maker by name — and nowhere else. There is no background trickle of
+guildsmen. A world that makes nothing raises nobody, and the test that states this asks the record
+rather than the code: every levied craftsman is the maker of something recorded in the very year he
+was introduced. A levy that ever fired on anything but a need would leave someone with no object
+against their name.
+
+**Finding and raising are kept in separate files, and that is not tidiness.** `Makers` was written
+with an explicit claim — "the maker is found, never invented" — and the honest response to changing
+that was to leave it true of `Makers` and put the other half in `Levies`, which calls it first,
+always. A town holding a goldsmith uses him rather than acquiring a rival. Keeping both in one place
+would also have destroyed the distinction the provenance question turns on: a maker already in the
+record is a different kind of fact from a maker the record went and found.
+
+**The gate is asked unchanged, which is the whole risk this feature carried.** A levy that invented
+its own eligibility rule would be a back door around the thing that makes crafts geographic — the
+failure mode the issue named first. `Crafts.Supports` is the single place that says what a trade
+needs from the ground, the water and the road, and the levy asks it exactly as someone coming of age
+does. A jewel from a town with no wealth still names nobody. What changed is only *which* towns are
+silent: the ones that could not have held the trade, rather than the ones whose craftsmen were never
+written down.
+
+**Age bands per craft, argued the way `CareerAge` is.** A master goldsmith has served an
+apprenticeship and is not twenty-two; a sailor can be. Four groups: the long apprenticeships on
+materials too dear to practise on (goldsmith, glassblower, armourer, shipwright, bookbinder, opening
+in the thirties), the trades needing a shop of one's own (smith, mason, miller, dyer, brewer,
+wheelwright, late twenties), the broad trades entered early and practised by many (weaver, potter,
+baker, tanner, cooper, carpenter, charcoal burner, mid-twenties), and the sailor alone at 20–42,
+because the sea took boys and did not keep old men.
+
+**Three independent bounds, none of which compounds.** A levy fires only where no craftsman was
+found, so a town never raises a second of a trade it holds; objects are capped per town by the
+treasury limit, so demand is finite; and a town may hold one levied craftsman per 900 inhabitants —
+the population at which a settlement becomes a town — counted over the living, because the question
+reopens when the man it answered for dies. The attention budget is respected by construction rather
+than by a rule: a levied craftsman holds no appointed office, so `Offices.HeadsAHousehold` already
+answers no for him and the chronicle does not follow him into a nursery. That is asserted rather than
+assumed, because "by construction" stops being true the moment somebody gives the levy a seat to go
+with the trade — which is exactly what #248 proposes to do.
+
+**Measured, and the measurement is the point.** Objects that can name their maker went from 4 of 49
+across the panel before this series to **42 of 53 after it — 8% to 79%**. Regalia in particular is
+now 21 of 21: every crown in the panel names the goldsmith who made it. The cost, against a stated
+ceiling of one percent of a world's recorded people:
+
+| seed | 300y figures | levied | share | 1000y figures | levied | share |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 2 | 1,164 | 1 | 0.09% | 3,287 | 6 | 0.18% |
+| 7 | 1,921 | 10 | 0.52% | 15,536 | 79 | 0.51% |
+| 11 | 1,529 | 8 | 0.52% | 5,490 | 28 | 0.51% |
+| 42 | 1,743 | 12 | 0.69% | 8,345 | 65 | 0.78% |
+| 99 | 1,789 | 6 | 0.34% | 15,922 | 55 | 0.35% |
+
+The millennium column is what the ceiling was for, and it is the only part of this measurement that
+argues anything. A world at a thousand years holds between three and sixteen thousand recorded
+people against one to two thousand at three hundred — an order of magnitude more — and the levy's
+share of them does not grow with it: 0.09–0.69% at three centuries, 0.18–0.78% at ten. Flat under a
+tenfold increase in the thing it would have to compound against is what a sampling door looks like;
+a second birth rate would have climbed. Seed 42 is the worst case at both lengths and moves from
+0.69% to 0.78%, which is the width of the band rather than a trend.
+
+The thousand-year figures are measured rather than tested: a five-seed millennium panel would have
+been the slowest thing in the suite, and #185 exists because that mistake was already made once. The
+one-percent ceiling is asserted at three hundred years, where it costs eighteen seconds.
+
+**The golden moves.** Raising figures advances the id counter, and a figure's disposition is forked
+on its own id — so every history after the first levy differs. This is a deliberate behaviour change
+and the fingerprint is regenerated for it.
+
 ---
 
 ## Milestones

@@ -494,8 +494,10 @@ export interface Fortunes {
  *
  * Empty for anyone born into the record — a dynast's origin is their house, a consort's the
  * marriage that brought them in, and both are already recorded in more detail. It carries
- * information only for people an office raised out of the ordinary population, who would
- * otherwise have no life behind them at all.
+ * information only for people the engine raised out of the ordinary population, who would
+ * otherwise have no life behind them at all: an office filling a seat it could not fill from
+ * the court, or a craft levied because something was being made and the town's craftsmen had
+ * never been written down. `Guild` is the second of those.
  */
 export type FigureOrigin = 'Unrecorded' | 'Soldiery' | 'Clergy' | 'Townsfolk' | 'Guild' | 'Merchant';
 

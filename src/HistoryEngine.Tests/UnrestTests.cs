@@ -67,11 +67,26 @@ public sealed class UnrestTests
     /// 2 in the first 180 could not be told from noise, 5 in 320 can, and five occurrences at 1.6%
     /// are not separable from three at 1.9%. The path is carried, so this is a resample. The tail
     /// was 108, 110, 115, 169 and 174 and is now 51, 90, 208, 278 and 299.
+    ///
+    /// <b>Resampled a seventh time when the craftsman levy landed</b>, which raises people out of
+    /// the population and so moves every history after the first one it raises: 4 of the first 320
+    /// seeds, 1.25%. The path is carried — four occurrences, not zero — and the rule above applies.
+    /// The tail was 51, 90, 208, 278 and 299 and is now 112, 113, 150 and 175.
+    ///
+    /// <b>Worth recording that this is the lowest of the seven readings.</b> Four occurrences in
+    /// 320 cannot be told apart from five in 320 or three in 160, so 1.25% is not separable from
+    /// the 1.6% and 1.9% before it and nothing here justifies calling it a change. But the seven
+    /// readings in order are 3.0, 2.5, 2.9, 1.9, 2.8, 1.6 and 1.25, and the last three are the
+    /// three lowest. That is either noise that happens to look like a slope or a real slow drift,
+    /// and this sample cannot say which. If an eighth resample comes in under 1%, the thing to do
+    /// is measure the rate over a much wider net before repinning again — because at that point
+    /// the question stops being which seeds carry secession and becomes whether the engine is
+    /// quietly making it rarer.
     /// </remarks>
     private static readonly ulong[] RareSeeds =
     {
         2, 7, 11, 42, 99, 123, 777, 2024, 3, 5, 13, 17, 19, 23, 29, 31, 37, 41, 47, 53, 61, 71,
-        51, 90, 208, 278, 299,
+        112, 113, 150, 175,
     };
 
     /// <summary>

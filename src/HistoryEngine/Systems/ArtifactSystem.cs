@@ -129,9 +129,12 @@ public sealed class ArtifactSystem : ISystem
 
                 EntityId owner = LivingPatron(civilization, world);
 
-                // And who made it. Empty wherever the town holds nobody of the trade, which is
-                // most towns and most objects: see Makers on why that is the honest answer.
-                EntityId maker = Makers.Find(settlement.Id, kind, guildsmen);
+                // And who made it. The town's own craftsman where the record holds one, and
+                // otherwise one raised out of its population — the levy fires here and nowhere
+                // else, because this is the only place in the year that asks for a maker by name.
+                // Still empty where the place could not have held the trade at all: see Makers
+                // and Levies on why anonymity stays the honest answer for those.
+                EntityId maker = Levies.ForMaking(world, settlement, kind, year, guildsmen);
 
                 EntityId faith = kind is ArtifactKind.Relic or ArtifactKind.Idol
                     ? settlement.ReligionId
