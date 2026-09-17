@@ -263,10 +263,40 @@ public static class Occupations
 
     private static void Take(WorldState world, Figure figure, Occupation occupation, int year)
     {
-        if (figure.Occupation == occupation) return;
+        if (!EnterCareer(world, figure, occupation, year)) return;
+
+        // Which guild, once we know they are in one. Asked here rather than in Ensure so that a
+        // guild master raised into the record, and a figure who came back to the guild after an
+        // office, both arrive with a trade — everyone who takes the career passes through here.
+        Crafts.Ensure(world, figure, year);
+    }
+
+    /// <summary>
+    /// Puts a career on a figure and writes the one record of it, without choosing a craft.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>The single writer of <see cref="EventKind.OccupationTaken"/>.</b> Split out of
+    /// <see cref="Take"/> for <see cref="Levies"/>, which is the one caller that already knows
+    /// which trade it is raising somebody for and so must not have one drawn for it. Everyone
+    /// else goes through <see cref="Take"/> and gets the draw.</para>
+    ///
+    /// <para>A levied craftsman has to leave both records, not one. <see cref="EventKind.CraftTaken"/>
+    /// says which craft the guild was of and is explicitly documented as sitting <em>beside</em> the
+    /// occupation rather than replacing it, so a guildsman whose entry into the guild was never
+    /// written down is a hole in the chronicle — and one the suite catches, because a trade with no
+    /// office and no <c>OccupationTaken</c> is supposed to mean somebody who died before choosing
+    /// one.</para>
+    ///
+    /// <para>Answers whether the career actually changed, so the caller knows whether the follow-on
+    /// work — a craft, here — is owed.</para>
+    /// </remarks>
+    internal static bool EnterCareer(
+        WorldState world, Figure figure, Occupation occupation, int year)
+    {
+        if (figure.Occupation == occupation) return false;
 
         figure.Occupation = occupation;
-        if (occupation == Occupation.None || !figure.IsAlive) return;
+        if (occupation == Occupation.None || !figure.IsAlive) return false;
 
         world.Chronicle.Record(
             year,
@@ -276,10 +306,7 @@ public static class Occupations
             data: Chronicle.Data(("occupation", Phrase(occupation))),
             significance: Significance.Routine);
 
-        // Which guild, once we know they are in one. Asked here rather than in Ensure so that a
-        // guild master raised into the record, and a figure who came back to the guild after an
-        // office, both arrive with a trade — everyone who takes the career passes through here.
-        Crafts.Ensure(world, figure, year);
+        return true;
     }
 
     private static void RememberPrior(Figure figure)

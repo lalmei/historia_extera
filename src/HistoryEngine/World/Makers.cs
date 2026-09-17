@@ -13,11 +13,22 @@ namespace HistoryEngine.World;
 /// A named craftsman at the head of that chain is the cheapest fame there is, and it is the whole
 /// point of giving guildsmen trades — see <see cref="Crafts"/>.</para>
 ///
-/// <para><b>The maker is found, never invented.</b> This asks the settlement that produced the
-/// object whether it holds a living adult of the right craft, and takes the answer. It does not
-/// raise one, and it does not fall back to a craftsman from somewhere else: a jewel out of a town
-/// with no goldsmith in it is anonymous, which is the honest record for most of what was ever
-/// made. Anonymity is a result here, not a failure.</para>
+/// <para><b>The maker is found here, never invented here.</b> This asks the settlement that
+/// produced the object whether it holds a living adult of the right craft, and takes the answer.
+/// It does not raise one, and it does not fall back to a craftsman from somewhere else.</para>
+///
+/// <para><b>Finding and raising are kept apart on purpose.</b> <see cref="Levies"/> answers the
+/// other half — when a town could have held the trade and the record simply missed the man — and
+/// it calls this first, always, so a town that holds a goldsmith uses him rather than acquiring a
+/// rival. Keeping the two in one place would make it impossible to say which of the two answers a
+/// given object got, and the distinction is the whole provenance question: a maker who was already
+/// in the record is a different kind of fact from a maker the record went and found.</para>
+///
+/// <para><b>Anonymity is still a result, not a failure.</b> A jewel out of a town with no
+/// goldsmith and no wealth to keep one names nobody, because the levy is gated on the same
+/// <see cref="Crafts.Supports"/> the rest of the model is. What changed is only which towns are
+/// silent: the ones that could not have held the trade, rather than the ones whose craftsmen were
+/// never written down.</para>
 ///
 /// <para><b>Nothing rolls.</b> A settlement's craftsman of a trade is its lowest-id living adult
 /// practising it, which is the same rule <see cref="Tomes"/> uses to find a town's scribe. Adding

@@ -406,7 +406,16 @@ public static class Crafts
         weights[index] += (1.0 - independence) * HouseholdPull;
     }
 
-    private static void Take(WorldState world, Figure figure, Craft craft, int year)
+    /// <summary>
+    /// Sets a craft and writes the one record of it.
+    /// </summary>
+    /// <remarks>
+    /// Internal rather than private since <see cref="Levies"/>: a craftsman raised out of the
+    /// population takes a trade exactly the way a guildsman coming of age does, and the chronicle
+    /// should not be able to tell the two lines apart. One writer of
+    /// <see cref="EventKind.CraftTaken"/>, so it cannot drift into two.
+    /// </remarks>
+    internal static void Take(WorldState world, Figure figure, Craft craft, int year)
     {
         figure.Craft = craft;
         if (craft == Craft.None || !figure.IsAlive) return;
