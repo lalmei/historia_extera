@@ -1045,11 +1045,16 @@ public static class WorldExporter
         return list;
     }
 
-    private static List<ExportJourney> BuildJourneys(Figure figure)
+    internal static List<ExportJourney> BuildJourneys(Figure figure)
     {
         var list = new List<ExportJourney>(figure.Journeys.Count);
         foreach (Journey journey in figure.Journeys)
         {
+            // Only a genuine multi-hop way earns its place. A direct itinerary's SettlementIds is
+            // just [from, to] again, already on every journey, and IsDirect is the same test
+            // Itinerary itself uses to tell "a route was found" from "a route worth naming".
+            bool multiHop = journey.Itinerary is { IsDirect: false };
+
             list.Add(new ExportJourney(
                 Kind: journey.Kind,
                 Year: journey.Year,
@@ -1061,7 +1066,9 @@ public static class WorldExporter
                 Outcome: journey.Outcome,
                 ReturnSettlementId: OrNull(journey.ReturnSettlementId),
                 ReturnYear: journey.ReturnYear,
-                ReturnDay: journey.ReturnDay));
+                ReturnDay: journey.ReturnDay,
+                RouteIds: multiHop ? journey.Itinerary!.RouteIds : null,
+                SettlementIds: multiHop ? journey.Itinerary!.SettlementIds : null));
         }
 
         return list;

@@ -1832,6 +1832,17 @@ function JourneyList({
             {repeated ? ' journeys' : ''}
             {' from '}
             <EntityLink world={world} id={journey.fromSettlementId} />
+            {!repeated && journey.settlementIds && journey.settlementIds.length > 2 && (
+              <>
+                {' by way of '}
+                {journey.settlementIds.slice(1, -1).map((id, index) => (
+                  <span key={id}>
+                    {index > 0 ? ', ' : ''}
+                    <EntityLink world={world} id={id} />
+                  </span>
+                ))}
+              </>
+            )}
             {' to '}
             <EntityLink world={world} id={journey.toSettlementId} />
             {journey.viaId && (

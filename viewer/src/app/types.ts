@@ -11,7 +11,7 @@
  */
 
 /** The schema the current engine writes. `compat.ts` has the oldest one the viewer reads. */
-export const SCHEMA_VERSION = 59;
+export const SCHEMA_VERSION = 60;
 
 /**
  * Whether an event carries the history or merely records a life.
@@ -1526,6 +1526,14 @@ export interface Journey {
   /** Dated return, or arrival for somebody who stayed; absent when the traveller was lost. */
   returnYear?: number;
   returnDay?: number;
+  /**
+   * The routes actually crossed, in travel order. Present only for a way of more than one route —
+   * a direct trip already has its ends in `fromSettlementId`/`toSettlementId`, and a journey with
+   * no itinerary at all fell back to the straight line between them, which names no route.
+   */
+  routeIds?: EntityId[];
+  /** Every settlement the way passes through, endpoints included. One longer than `routeIds`. */
+  settlementIds?: EntityId[];
 }
 
 export type BondKind =

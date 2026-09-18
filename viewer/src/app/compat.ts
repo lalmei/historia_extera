@@ -58,6 +58,7 @@ export interface SchemaVerdict {
  * which of the two an old world has.
  */
 export const ADDED_IN: readonly { since: number; feature: string }[] = [
+  { since: 60, feature: 'the towns and routes a multi-hop journey actually passed through' },
   { since: 59, feature: 'the stages of a working life — bound, made free of a trade, admitted to keep a shop' },
   { since: 58, feature: 'the trade a guild mastery is over, so a town’s weavers and its smiths are two seats' },
   { since: 56, feature: 'the craftsman who made an object, told apart from the patron who paid for it' },
@@ -268,6 +269,7 @@ const SHAPES: Readonly<Record<string, Shape>> = {
       'spouseIds',
     ],
     children: {
+      journeys: 'journey',
       bonds: 'bond',
       undertakings: 'undertaking',
       claims: 'claim',
@@ -276,6 +278,7 @@ const SHAPES: Readonly<Record<string, Shape>> = {
       affinities: 'affinity',
     },
   },
+  journey: { lists: ['routeIds', 'settlementIds'] },
   bond: { lists: ['kinds'] },
   undertaking: { lists: ['participantIds', 'steps'] },
   claim: { lists: ['restsOnYears'] },
