@@ -1,4 +1,4 @@
-import { CRAFT_LABELS, OCCUPATION_LABELS } from './types.ts';
+import { CAMPAIGN_ROLE_LABELS, CRAFT_LABELS, OCCUPATION_LABELS } from './types.ts';
 import {
   interpretationSentenceParts,
   primaryInterpretationTheme,
@@ -634,7 +634,7 @@ export function buildLifeArc(
       key: `campaign:${subject}`,
       year: notableCampaign.year,
       kind: 'Campaign',
-      label: notableCampaign.role === 'Commanded' ? 'Command' : 'In the field',
+      label: CAMPAIGN_ROLE_LABELS[notableCampaign.role],
       detail: `${ctx.nameOf(subject)}, ${notableCampaign.year}`,
       aboutId: subject,
       score: 62 + notableCampaign.renownGained,

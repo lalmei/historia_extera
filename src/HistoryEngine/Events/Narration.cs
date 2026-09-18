@@ -183,6 +183,8 @@ public static class Narration
             "{subject} travelled to {location}[, {data:purpose}]"
             + "[ {the}{extra:hol}][ {the}{extra:rel}][ {extra:civ}]"
             + "[ along {the}{extra:rte}].");
+        SetKeyed(EventKind.JourneyMade, "campaign",
+            "{subject} marched to {location} with the host.");
         Set(EventKind.JourneyWaylaid,
             "{subject} came to grief[ on the way to {location}][, {data:cause}].");
         Set(EventKind.FigureWounded,
@@ -420,6 +422,10 @@ public static class Narration
             "Travelled to {location}[, {data:purpose}]"
             + "[ {the}{extra:hol}][ {the}{extra:rel}][ {extra:civ}]"
             + "[ along {the}{extra:rte}].");
+        // A levy is not a merchant's errand or a pilgrim's vow, and "travelled" undersells being
+        // called up. Keyed on the same voice a coronation already uses to pick its own wording —
+        // see Houses.cs for the elective case this mechanism was built for.
+        SetKeyedSelf(EventKind.JourneyMade, "campaign", "Marched to {location} with the host.");
         SetSelf(EventKind.JourneyWaylaid,
             "Came to grief[ on the way to {location}][, {data:cause}].");
         SetSelf(EventKind.FigureWounded,
@@ -516,9 +522,32 @@ public static class Narration
         // the joiner, the war and the ally who called them.
         SetSelf(EventKind.WarJoined,
             "[{self:extra}{cap}entered {the}{object} alongside {location}.]");
+        // The plain .self line below is the fallback for a witness whose CampaignRole the caller
+        // did not supply — normal rendering picks one of the three keyed lines beneath it instead,
+        // driven by role rather than by data on the shared event: the same engagement is witnessed
+        // by a commander, a soldier and a besieged townsman at once, and no one of them owns the
+        // event the way a coronation's subject owns theirs. See TemplateFor(HistoryEvent, EntityId,
+        // string?) for where the role argument is read.
         SetSelf(EventKind.BattleFought,
             "[{as:victor}{cap}prevailed at {the}{subject}[, at a cost of {data:losses} dead].]"
             + "[{not:victor}{cap}was at {the}{subject}, which {object} won"
+            + "[, at a cost of {data:losses} dead].]");
+        SetKeyedSelf(EventKind.BattleFought, "commanded",
+            "[{as:victor}{cap}commanded the host that carried {the}{subject}"
+            + "[, at a cost of {data:losses} dead].]"
+            + "[{not:victor}{cap}commanded at {the}{subject}, which {object} won"
+            + "[, at a cost of {data:losses} dead].]");
+        SetKeyedSelf(EventKind.BattleFought, "fought",
+            "[{as:victor}{cap}fought at {the}{subject} and carried it"
+            + "[, at a cost of {data:losses} dead].]"
+            + "[{not:victor}{cap}fought at {the}{subject}, which {object} won"
+            + "[, at a cost of {data:losses} dead].]");
+        // A besieged townsman never took the field, so this line never says so — it says what
+        // actually happened to them, which was staying inside the walls.
+        SetKeyedSelf(EventKind.BattleFought, "enduredsiege",
+            "[{as:victor}{cap}endured {the}{subject} and saw it relieved"
+            + "[, at a cost of {data:losses} dead].]"
+            + "[{not:victor}{cap}endured {the}{subject}, which {object} won"
             + "[, at a cost of {data:losses} dead].]");
         SetSelf(EventKind.SiegeBegan,
             "[{self:extra}{the}{subject} began against {location}.]");
@@ -587,14 +616,30 @@ public static class Narration
     }
 
     /// <summary>
-    /// The template the engine selected for this event: a factual <c>voice</c> key, a numbered
-    /// variant mixed from the event id, a <c>.self</c> line, or the world wording.
+    /// The template the engine selected for this event: a role the caller supplied, a factual
+    /// <c>voice</c> key, a numbered variant mixed from the event id, a <c>.self</c> line, or the
+    /// world wording.
     /// </summary>
-    public static string TemplateFor(HistoryEvent entry, EntityId viewpoint = default)
+    /// <param name="role">
+    /// How this viewpoint stood at the event, when that is not a fact the event itself carries.
+    /// A <see cref="HistoryEngine.Entities.CampaignRole"/>, lowercased with no separators
+    /// (<c>"enduredsiege"</c>) — one <see cref="HistoryEngine.Entities.HistoryEvent"/> is read by a
+    /// commander, a soldier and a besieged townsman alike, so unlike <c>voice</c> this cannot live
+    /// in the event's own data without three figures disagreeing about what it says. The caller
+    /// already knows the role from the figure's own <c>CampaignMemory</c>, so it is passed rather
+    /// than guessed at from names in the data the way <c>{as:victor}</c> does.
+    /// </param>
+    public static string TemplateFor(HistoryEvent entry, EntityId viewpoint = default, string? role = null)
     {
         string kind = entry.Kind.ToString();
         string? voice = entry.DataValue(VoiceDataKey);
         bool self = !viewpoint.IsNone && viewpoint.Kind == EntityKind.Figure;
+
+        if (self && !string.IsNullOrEmpty(role)
+            && TryTemplate(kind + "." + role + SelfKeySuffix, out string? roleSelf))
+        {
+            return roleSelf;
+        }
 
         if (!string.IsNullOrEmpty(voice))
         {
@@ -653,13 +698,15 @@ public static class Narration
     /// The figure whose chronicle is being read. Selects the <c>.self</c> template and resolves
     /// <c>{self}</c>, <c>{other}</c> and the role tests.
     /// </param>
+    /// <param name="role">See <see cref="TemplateFor(HistoryEvent, EntityId, string?)"/>.</param>
     public static string Render(
         HistoryEvent entry,
         Func<EntityId, string> nameOf,
         EntityId viewpoint = default,
-        Func<EntityId, Sex?>? sexOf = null)
+        Func<EntityId, Sex?>? sexOf = null,
+        string? role = null)
     {
-        string template = TemplateFor(entry, viewpoint);
+        string template = TemplateFor(entry, viewpoint, role);
         string prose = RenderTemplate(template, entry, nameOf, viewpoint, sexOf);
 
         // A role-gated .self template can drop every segment for a witness it does not cover.

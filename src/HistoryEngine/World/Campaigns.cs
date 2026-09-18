@@ -644,7 +644,10 @@ public static class Campaigns
             figure.Id,
             location: toId,
             extra: new[] { fromId },
-            data: Chronicle.Data(("purpose", "with the host"), ("kind", journey.Kind.ToString())),
+            data: Chronicle.Data(
+                ("purpose", "with the host"),
+                ("kind", journey.Kind.ToString()),
+                (Narration.VoiceDataKey, "campaign")),
             significance: Significance.Routine);
     }
 
