@@ -40,6 +40,60 @@ public static class Itineraries
 
         return world.RouteGraphFor(year).Search(sourceId, destinationId);
     }
+
+    /// <summary>
+    /// The cheapest reach in one-way travel days from one settlement to every other, in a single
+    /// search.
+    /// </summary>
+    /// <remarks>
+    /// For a caller that needs to price many candidates against the same origin — the levy in
+    /// <see cref="Campaigns.NoteSoldiers"/> weighs every soldier of a belligerent realm against
+    /// distance from one battle — asking <see cref="Find"/> once per candidate would run a fresh
+    /// Dijkstra per candidate per battle. A single-source search already answers the cost to every
+    /// settlement it can reach; this is that search, exposed instead of thrown away after one
+    /// answer is read out of it.
+    /// </remarks>
+    internal static RouteGraph.SettlementReach ReachFrom(WorldState world, EntityId sourceId, int year)
+    {
+        RouteGraph graph = world.RouteGraphFor(year);
+        if (!world.Settlements.Contains(sourceId) || !world.Settlements[sourceId].IsActive)
+        {
+            return graph.ReachFrom(EntityId.None);
+        }
+
+        return graph.ReachFrom(sourceId);
+    }
+
+    /// <summary>
+    /// The straight-line one-way cost between two settlements at plain overland pace, with no
+    /// road built — the same fallback an ordinary journey already falls back to when no itinerary
+    /// was found.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>A discount on travelling, not a precondition for it.</b> A route path is cheaper
+    /// than open ground, never the only way across it — an army, unlike a caravan, does not need a
+    /// merchant to have run the way first. <see cref="Systems.TravelSystem.DurationDays(WorldState,
+    /// EntityId, EntityId, Itinerary?, int)"/> already treats a null itinerary this way for an
+    /// ordinary journey rather than declaring the trip impossible; this is the one-way version of
+    /// that same idea, for a caller — the campaign levy — that prices a candidate before any
+    /// itinerary exists to ask about.</para>
+    ///
+    /// <para>Not a second formula invented beside the graph's own. <see cref="TravelPace.
+    /// OneWayDays"/> is exactly what <see cref="RouteGraph"/> already charges an unroaded leg
+    /// between two settlements a route directly joins; calling it here on the straight line between
+    /// two settlements no route joins at all is the same expression at the one edge the graph does
+    /// not have.</para>
+    /// </remarks>
+    internal static int OverlandOneWayDays(WorldState world, EntityId aId, EntityId bId)
+    {
+        if (!world.Settlements.Contains(aId) || !world.Settlements.Contains(bId)) return 1;
+
+        Settlement a = world.Settlements[aId];
+        Settlement b = world.Settlements[bId];
+        double distance = world.Distance(a.X, a.Z, b.X, b.Z);
+
+        return TravelPace.OneWayDays(distance, world.Config.UnitsPerTravelDay, TradeRouteMode.Overland, null);
+    }
 }
 
 /// <summary>The pure travel-pace arithmetic shared by a whole trip and by one leg of it.</summary>
@@ -218,27 +272,96 @@ internal sealed class RouteGraph
         var frontier = new PriorityQueue<int, long>();
         frontier.Enqueue(source, source);
 
+        // Stops as soon as the destination itself is settled: a single-target search does not
+        // need the cost to every other settlement, only the guarantee that this one is final.
         while (frontier.TryDequeue(out int node, out _))
         {
             if (settled[node]) continue;
             settled[node] = true;
             if (node == destination) break;
 
-            for (int e = _adjacencyStart[node]; e < _adjacencyStart[node + 1]; e++)
+            Relax(node, cost, viaNode, viaEdge, settled, frontier, n);
+        }
+
+        return ReconstructPath(source, destination, cost, viaNode, viaEdge);
+    }
+
+    /// <summary>
+    /// Dijkstra from one settlement to every other it can reach, kept as a reusable
+    /// <see cref="SettlementReach"/> rather than collapsed to one answer.
+    /// </summary>
+    /// <remarks>
+    /// No early exit: unlike <see cref="Search"/>, every settlement's final cost is wanted, not
+    /// just one. A source outside the graph (an unset or inactive settlement, index &lt; 0) settles
+    /// nothing and is reported as unable to reach anywhere, which is the same answer <see
+    /// cref="Search"/> gives for such a source via <see cref="Itineraries.Find"/>'s own guards.
+    /// </remarks>
+    internal SettlementReach ReachFrom(EntityId sourceId)
+    {
+        int n = _settlementCount;
+        int source = sourceId.Index;
+
+        var cost = new int[n];
+        var viaNode = new int[n];
+        var viaEdge = new int[n];
+
+        for (int i = 0; i < n; i++)
+        {
+            cost[i] = int.MaxValue;
+            viaNode[i] = -1;
+            viaEdge[i] = -1;
+        }
+
+        if (source >= 0 && source < n)
+        {
+            cost[source] = 0;
+
+            var settled = new bool[n];
+            var frontier = new PriorityQueue<int, long>();
+            frontier.Enqueue(source, source);
+
+            while (frontier.TryDequeue(out int node, out _))
             {
-                int next = _edgeTarget[e];
-                if (settled[next]) continue;
+                if (settled[node]) continue;
+                settled[node] = true;
 
-                int relaxed = cost[node] + _edgeCost[e];
-                if (relaxed >= cost[next]) continue;
-
-                cost[next] = relaxed;
-                viaNode[next] = node;
-                viaEdge[next] = e;
-                frontier.Enqueue(next, ((long)relaxed * n) + next);
+                Relax(node, cost, viaNode, viaEdge, settled, frontier, n);
             }
         }
 
+        return new SettlementReach(this, source, cost, viaNode, viaEdge);
+    }
+
+    private void Relax(
+        int node,
+        int[] cost,
+        int[] viaNode,
+        int[] viaEdge,
+        bool[] settled,
+        PriorityQueue<int, long> frontier,
+        int settlementCount)
+    {
+        for (int e = _adjacencyStart[node]; e < _adjacencyStart[node + 1]; e++)
+        {
+            int next = _edgeTarget[e];
+            if (settled[next]) continue;
+
+            int relaxed = cost[node] + _edgeCost[e];
+            if (relaxed >= cost[next]) continue;
+
+            cost[next] = relaxed;
+            viaNode[next] = node;
+            viaEdge[next] = e;
+            frontier.Enqueue(next, ((long)relaxed * settlementCount) + next);
+        }
+    }
+
+    /// <summary>Walks a Dijkstra result's predecessor arrays back into an itinerary, or null.</summary>
+    private Itinerary? ReconstructPath(
+        int source, int destination, int[] cost, int[] viaNode, int[] viaEdge)
+    {
+        if (destination < 0 || destination >= _settlementCount) return null;
+        if (destination == source) return null;
         if (cost[destination] == int.MaxValue) return null;
 
         var settlementIndices = new List<int> { destination };
@@ -268,5 +391,54 @@ internal sealed class RouteGraph
         }
 
         return new Itinerary(routeIds, settlementIds, cost[destination]);
+    }
+
+    /// <summary>
+    /// One settlement's Dijkstra distances to every other, kept so many candidates can be priced
+    /// against the same origin without a second search.
+    /// </summary>
+    /// <remarks>
+    /// A thin read-only view over the arrays <see cref="RouteGraph.ReachFrom"/> built: nothing here
+    /// re-walks the graph. <see cref="To"/> reconstructs a path from the same predecessor arrays
+    /// <see cref="CostTo"/> already reads its price from, so a caller that wants both the number and
+    /// the way pays for the search once.
+    /// </remarks>
+    internal sealed class SettlementReach
+    {
+        private readonly RouteGraph _graph;
+        private readonly int _source;
+        private readonly int[] _cost;
+        private readonly int[] _viaNode;
+        private readonly int[] _viaEdge;
+
+        internal SettlementReach(
+            RouteGraph graph, int source, int[] cost, int[] viaNode, int[] viaEdge)
+        {
+            _graph = graph;
+            _source = source;
+            _cost = cost;
+            _viaNode = viaNode;
+            _viaEdge = viaEdge;
+        }
+
+        /// <summary>
+        /// One-way travel days from the search's origin to this settlement, or null when the
+        /// active network does not reach it (or it does not exist).
+        /// </summary>
+        internal int? CostTo(EntityId settlementId)
+        {
+            int index = settlementId.Index;
+            if (index < 0 || index >= _cost.Length) return null;
+
+            int cost = _cost[index];
+            return cost == int.MaxValue ? null : cost;
+        }
+
+        /// <summary>
+        /// The itinerary from the search's origin to this settlement, built from the same Dijkstra
+        /// pass <see cref="CostTo"/> reads, or null exactly when <see cref="CostTo"/> would be null.
+        /// </summary>
+        internal Itinerary? To(EntityId settlementId) =>
+            _graph.ReconstructPath(_source, settlementId.Index, _cost, _viaNode, _viaEdge);
     }
 }

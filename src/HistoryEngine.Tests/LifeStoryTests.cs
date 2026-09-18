@@ -329,15 +329,21 @@ public sealed class LifeStoryTests
     }
 
     /// <summary>
-    /// Every journey made toward a goal is a step in that goal, and the wander-years are not one.
+    /// Every journey made toward a goal is a step in that goal, and the two journeys made toward
+    /// no goal of their own are not.
     /// </summary>
     /// <remarks>
-    /// The exception is the point rather than a hole in the invariant. An undertaking is a named
-    /// commitment with progress toward an end; a journeyman looking for a shop
-    /// (<see cref="JourneyKind.Wandering"/>) has no such end — he has a grade, and the road is how
-    /// the grade is lived. <c>TravelSystem.Record</c> therefore opens no arc for one, which it has
-    /// to: the arc kind a journey falls back to is an embassy, and a craftsman's road recorded as
-    /// a diplomatic mission is a false fact on his page.
+    /// <para>The exceptions are the point rather than a hole in the invariant. An undertaking is a
+    /// named commitment with progress toward an end, and the arc kind a journey falls back to is an
+    /// embassy — so opening one for a journey that has no end of its own does not leave the page
+    /// blank, it writes a diplomatic mission that never happened.</para>
+    ///
+    /// <para>A journeyman looking for a shop (<see cref="JourneyKind.Wandering"/>) has no such end
+    /// — he has a grade, and the road is how the grade is lived. A levied man's march
+    /// (<see cref="JourneyKind.Campaign"/>) has an end that is already recorded elsewhere: the
+    /// campaign he was levied into is the commitment, and his <see cref="CampaignMemory"/> is where
+    /// it is kept. Giving the march a second arc of its own would have him undertake the war twice,
+    /// once as a soldier and once as an envoy.</para>
     /// </remarks>
     [Fact]
     public void EveryJourneyIsAStepInAnUndertakingWithACausalEnding()
@@ -346,6 +352,8 @@ public sealed class LifeStoryTests
         int journeys = world.Figures.Sum(figure => figure.Journeys.Count);
         int wanderings = world.Figures.Sum(figure =>
             figure.Journeys.Count(journey => journey.Kind == JourneyKind.Wandering));
+        int marches = world.Figures.Sum(figure =>
+            figure.Journeys.Count(journey => journey.Kind == JourneyKind.Campaign));
         int journeySteps = world.Figures.Sum(figure =>
             figure.Undertakings.Sum(undertaking =>
                 undertaking.Steps.Count(step =>
@@ -353,7 +361,8 @@ public sealed class LifeStoryTests
 
         Assert.True(journeys > 40);
         Assert.True(wanderings > 0, "no journeyman in this world ever went looking for work");
-        Assert.Equal(journeys - wanderings, journeySteps);
+        Assert.True(marches > 0, "nobody in this world was ever levied away from home");
+        Assert.Equal(journeys - wanderings - marches, journeySteps);
         Assert.Contains(world.Figures, figure =>
             figure.Undertakings.Exists(undertaking => undertaking.Steps.Count >= 2));
         Assert.Contains(world.Figures, figure =>

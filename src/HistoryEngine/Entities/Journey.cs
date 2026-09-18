@@ -30,6 +30,18 @@ public enum JourneyKind
     /// three times the rate a merchant does.
     /// </remarks>
     Wandering = 4,
+
+    /// <summary>
+    /// Marched with a host to a battle away from home.
+    /// </summary>
+    /// <remarks>
+    /// Not a traveller's own errand — a levy called them — but recorded on the same list a
+    /// merchant's road is recorded on, because a life page reads leaving and coming home as one
+    /// timeline whatever sent them. See <see cref="World.Campaigns"/>, which builds one of these
+    /// from the same route search it weighed the levy by, rather than asking the graph again for
+    /// a distance it already knows.
+    /// </remarks>
+    Campaign = 5,
 }
 
 /// <summary>

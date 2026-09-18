@@ -349,10 +349,10 @@ public sealed class TravelTests
             Assert.EndsWith(".", prose);
             Assert.DoesNotContain("  ", prose);
 
-            // Trade and the wander-years are the errands with nothing to name: the destination is
-            // the reason, and "along the Aigionanvos–Shche route" says nothing the line has not
-            // already said.
-            if (kind is JourneyKind.Trade or JourneyKind.Wandering) continue;
+            // Trade, the wander-years, and a campaign march are the errands with nothing to name:
+            // the destination is the reason. A march carries no via at all — the host is not a
+            // place or a person the chronicle names separately from the battle it marches to.
+            if (kind is JourneyKind.Trade or JourneyKind.Wandering or JourneyKind.Campaign) continue;
 
             string named = world.NameOf(ViaOf(world, entry));
             Assert.Contains(named, prose);

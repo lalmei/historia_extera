@@ -39,4 +39,24 @@ public sealed class Itinerary
 
     /// <summary>A single leg, straight from origin to destination with nothing in between.</summary>
     public bool IsDirect => RouteIds.Count <= 1;
+
+    /// <summary>The same way, walked from the other end.</summary>
+    /// <remarks>
+    /// Valid because the route network is undirected: a leg costs the same one-way price crossed
+    /// either direction, since <see cref="World.RouteGraph"/> builds an edge each way for every
+    /// route it admits. A search made from one end can therefore serve a traveller starting at the
+    /// other without the graph being asked again for a distance it already found.
+    /// </remarks>
+    public Itinerary Reversed()
+    {
+        int legs = RouteIds.Count;
+        var routeIds = new EntityId[legs];
+        for (int i = 0; i < legs; i++) routeIds[i] = RouteIds[legs - 1 - i];
+
+        int stops = SettlementIds.Count;
+        var settlementIds = new EntityId[stops];
+        for (int i = 0; i < stops; i++) settlementIds[i] = SettlementIds[stops - 1 - i];
+
+        return new Itinerary(routeIds, settlementIds, OneWayDays);
+    }
 }
