@@ -75,6 +75,32 @@ public sealed class WorldState
     private Roadbed? _roadbed;
 
     /// <summary>
+    /// The route-graph search for this year's active trade routes, rebuilt only when the year
+    /// changes.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Systems.TravelSystem"/> asks for an itinerary once per recorded journey, many
+    /// times a year, and the active route set is fixed for the whole of a year by the time travel
+    /// runs — <c>TradeRouteSystem</c> opens and closes routes earlier in the same tick. Keying the
+    /// cache on the year alone is therefore enough: it costs one graph build per simulated year
+    /// rather than one per journey, the same trade a lazily-built <see cref="Roadbed"/> makes
+    /// against being rebuilt per road.
+    /// </remarks>
+    internal RouteGraph RouteGraphFor(int year)
+    {
+        if (_routeGraph is null || _routeGraphYear != year)
+        {
+            _routeGraph = RouteGraph.Build(this, year);
+            _routeGraphYear = year;
+        }
+
+        return _routeGraph;
+    }
+
+    private RouteGraph? _routeGraph;
+    private int _routeGraphYear;
+
+    /// <summary>
     /// The run's root RNG. Systems must <see cref="IRng.Fork"/> from it rather than draw from
     /// it directly, so that one system's consumption cannot shift another's.
     /// </summary>
