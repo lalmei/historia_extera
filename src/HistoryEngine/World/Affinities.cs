@@ -1,6 +1,7 @@
 using HistoryEngine.Core;
 using HistoryEngine.Entities;
 using HistoryEngine.Events;
+using HistoryEngine.Systems;
 
 namespace HistoryEngine.World;
 
@@ -39,6 +40,25 @@ namespace HistoryEngine.World;
 /// <see cref="Houses.Die"/> so the export can never show a standing friendship with a dead man in
 /// it. Nothing here kills anybody: a betrayal leaves enmity, and what enmity becomes is already
 /// answered by <see cref="Disputes"/> and <see cref="Conspiracies"/>.</para>
+///
+/// <para><b>Milestone 32 gives the ladder one rung further.</b> <see cref="AffinityStage.Lover"/>
+/// was declared with the rest of <see cref="BondKind"/> and had no write site, exactly where
+/// <see cref="BondKind.Friend"/> stood before this ladder existed — so a friendship eligible to
+/// marry may now climb one rung past <see cref="AffinityStage.Friendship"/> instead of only
+/// standing there. Marriage does not walk that rung; it reads it, in
+/// <see cref="ResolveCourtshipAtMarriage"/>, called from the marriage roll rather than from this
+/// file's own yearly pass — the ladder still only ever grows one rung a year, and a wedding is not
+/// a year.</para>
+///
+/// <para><b>A courtship can still be betrayed, and needed no new path to allow it.</b>
+/// <see cref="TurnsOnAFriend"/> already fires for any stage at or above
+/// <see cref="AffinityStage.Confidence"/>, which a <see cref="AffinityStage.Lover"/> tie clears the
+/// same way a <see cref="AffinityStage.Friendship"/> one does; it writes the same
+/// <see cref="EventKind.FriendshipBetrayed"/> event and the same <see cref="BetrayalTie.Friendship"/>
+/// record. This is deliberate rather than an oversight: a lover is still the friend they were before
+/// they were a lover — the flag never left the bond — and a second betrayal path that existed only
+/// for the rung above would duplicate a gate this file already has, for a distinction the reader
+/// gets for free from the closed affinity's own <see cref="AffinityStage"/>.</para>
 /// </remarks>
 public static class Affinities
 {
@@ -153,13 +173,44 @@ public static class Affinities
             return;
         }
 
+        if (affinity.Stage == AffinityStage.Lover)
+        {
+            // Courtship's own top rung. Nothing here climbs it further — there is nowhere left to
+            // climb to — and nothing here marries it either: that is a choice HouseholdSystem
+            // makes at its own roll, reading this tie rather than being driven by it, the same
+            // separation Turns keeps between what a bond permits and who acts on it. A standing
+            // courtship is reinforced for as long as the two remain within reach, on the same
+            // town-and-stale-clock terms a standing friendship already keeps.
+            if (!together) return;
+
+            affinity.LastActionYear = year;
+            LifeStories.WarmCourtship(
+                opener, friend, year, EventKind.AffinityDeepened, world.ResidenceOf(opener));
+            return;
+        }
+
         if (affinity.Stage == AffinityStage.Friendship)
         {
-            // A standing friendship does not climb, and there is nothing to write about a year in
-            // which two friends went on being friends. Living in the same town is what keeps the
-            // stale clock from reaching it; friends who end up in different towns drift, which is
-            // the one thing residence history was always able to say and nothing yet asked it.
+            // Living in the same town is what keeps the stale clock from reaching it; friends who
+            // end up in different towns drift, which is the one thing residence history was always
+            // able to say and nothing yet asked it.
             if (!together) return;
+
+            if (CourtshipEligible(world, opener, friend, year))
+            {
+                double courtshipWarmth = Warmth(world, opener, friend, year);
+                double courtshipClimb = DetMath.Clamp(
+                    0.02 + (0.12 * courtshipWarmth), 0.01, 0.18);
+
+                // Drawn even for a pair that then fails the roll, so a courtship's own stream does
+                // not depend on how many other eligible pairs shared the same town this year — the
+                // property Fork exists to give every question on this ladder.
+                if (Fork(world, opener, friend, year, "court").Chance(courtshipClimb))
+                {
+                    Deepen(world, opener, friend, affinity, year);
+                    return;
+                }
+            }
 
             affinity.LastActionYear = year;
             LifeStories.Warm(
@@ -174,6 +225,44 @@ public static class Affinities
         if (!Fork(world, opener, friend, year, "deepen").Chance(climb)) return;
 
         Deepen(world, opener, friend, affinity, year);
+    }
+
+    /// <summary>
+    /// Whether a standing friendship is also one the ladder may carry into a courtship.
+    /// </summary>
+    /// <remarks>
+    /// <para>The same four guards a marriage roll already enforces — age, an existing spouse, a
+    /// vow of celibacy, close kin — read from <see cref="HouseholdSystem"/> rather than duplicated,
+    /// so a rule that tightens there (a faith adding itself to <see cref="HouseholdSystem"/>'s
+    /// celibate list, say) tightens here for free instead of drifting out of step.</para>
+    ///
+    /// <para>The one guard a friendship never needed: opposite sexes. This engine's marriage roll
+    /// pairs a figure with the opposite sex and nothing downstream reads a same-sex spouse, so a
+    /// same-sex pair climbing to <see cref="AffinityStage.Lover"/> would reach a rung nothing could
+    /// ever consume — a courtship that can only ever cool or part, never marry, which is a poorer
+    /// account of those two people's friendship than simply leaving it a friendship.</para>
+    ///
+    /// <para><b>Nor may either of them already be courting somebody else.</b> Marriage refuses a
+    /// second spouse, but nothing about <see cref="AffinityStage"/> stops a figure holding several
+    /// open friendships at once — <see cref="OpenCapacity"/> is three — and without this guard two
+    /// of them could each climb to <see cref="AffinityStage.Lover"/> in different years. Refused
+    /// here, at the climb, rather than caught later at the marriage roll or the read: the same
+    /// choice <see cref="OpenCapacity"/> itself makes for a friendship's own count, and the one that
+    /// lets <see cref="OpenLover"/> and <c>HouseholdSystem.MatchLover</c> both trust there is at
+    /// most one to find.</para>
+    /// </remarks>
+    private static bool CourtshipEligible(WorldState world, Figure opener, Figure friend, int year)
+    {
+        if (opener.Sex == friend.Sex) return false;
+        if (opener.IsMarried || friend.IsMarried) return false;
+        if (opener.AgeIn(year) < HouseholdSystem.MarriageAge) return false;
+        if (friend.AgeIn(year) < HouseholdSystem.MarriageAge) return false;
+        if (HouseholdSystem.VowedToCelibacy(world, opener)) return false;
+        if (HouseholdSystem.VowedToCelibacy(world, friend)) return false;
+        if (Succession.AreCloseKin(world, opener, friend)) return false;
+        if (OpenLover(opener) is not null || OpenLover(friend) is not null) return false;
+
+        return true;
     }
 
     /// <summary>Walks one rung, and writes what was done to get there.</summary>
@@ -207,6 +296,10 @@ public static class Affinities
                 break;
             case AffinityStage.Confidence:
                 LifeStories.AddConfidence(
+                    opener, friend, year, EventKind.AffinityDeepened, affinity.PlaceId);
+                break;
+            case AffinityStage.Lover:
+                LifeStories.AddCourtship(
                     opener, friend, year, EventKind.AffinityDeepened, affinity.PlaceId);
                 break;
             default:
@@ -649,13 +742,16 @@ public static class Affinities
         // would carry a great many of them.
         if (affinity.Stage < AffinityStage.Friendship) return;
 
+        var data = Chronicle.Data(("manner", how));
+        if (affinity.Stage == AffinityStage.Lover) data[Narration.VoiceDataKey] = "courtship";
+
         world.Chronicle.Record(
             year,
             EventKind.AffinityEnded,
             opener.Id,
             obj: friend.Id,
             location: affinity.PlaceId,
-            data: Chronicle.Data(("manner", how)),
+            data: data,
             significance: Significance.Routine);
     }
 
@@ -683,6 +779,131 @@ public static class Affinities
             affinity.Stage,
             actor.IsNone ? affinity.OpenerId : actor,
             act ?? how));
+    }
+
+    // -----------------------------------------------------------------------
+    // Marriage reading the ladder
+    // -----------------------------------------------------------------------
+
+    /// <summary>
+    /// Consumes a courtship a marriage matches, or ends one it overtakes instead.
+    /// </summary>
+    /// <remarks>
+    /// <para>Called from <c>HouseholdSystem.Wed</c> once a marriage is decided, which is what lets
+    /// the household roll read a courtship without owning the ladder that produced it — the same
+    /// separation <see cref="CourtshipEligible"/> keeps by reading <see cref="HouseholdSystem"/>'s
+    /// guards rather than the other way around. This is the one door out of
+    /// <see cref="AffinityStage.Lover"/> besides cooling or a border: it is not walked, it is
+    /// chosen, on a wedding day rather than an annual pass.</para>
+    ///
+    /// <para>Where the marriage is to the figure's own lover, that tie closes as
+    /// <see cref="AffinityOutcome.Wed"/> — the good ending the rung was climbed for, and the reason
+    /// <c>HouseholdSystem</c> weights toward it before ever reaching the political draw. Where
+    /// either party carried a standing lover who is not the one at the altar, that tie closes as
+    /// <see cref="AffinityOutcome.Overridden"/> and both halves of it keep a memory of what the
+    /// marriage cost them — a fact both pages hold, the way a betrayal is. A figure with no open
+    /// courtship at all costs this nothing beyond two short scans of a list capped at three.</para>
+    /// </remarks>
+    public static void ResolveCourtshipAtMarriage(WorldState world, Figure first, Figure second, int year)
+    {
+        FigureAffinity? firstLover = OpenLover(first);
+        if (firstLover is not null && firstLover.Involves(second.Id))
+        {
+            CloseAsMarriage(world, firstLover, year);
+            return;
+        }
+
+        if (firstLover is not null) Overtake(world, first, firstLover, year);
+
+        FigureAffinity? secondLover = OpenLover(second);
+        if (secondLover is not null) Overtake(world, second, secondLover, year);
+    }
+
+    /// <summary>This figure's own standing courtship, if any. At most one, by construction.</summary>
+    /// <remarks>
+    /// Nobody can carry two: <see cref="CourtshipEligible"/> refuses the climb to <em>anybody who
+    /// already has one open</em>, checked directly against both parties' own affinity lists rather
+    /// than inferred from something else being true of them. A figure may still hold up to
+    /// <see cref="OpenCapacity"/> open friendships at once, and any of those could climb — but the
+    /// first one that does closes this door on the other two, the same year it opens it for itself.
+    /// </remarks>
+    private static FigureAffinity? OpenLover(Figure figure)
+    {
+        foreach (FigureAffinity affinity in figure.Affinities)
+        {
+            if (affinity.IsOpen && affinity.Stage == AffinityStage.Lover) return affinity;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Whether this figure's own standing courtship, if any, is with exactly this candidate.
+    /// </summary>
+    /// <remarks>
+    /// Read by <c>HouseholdSystem.Marry</c> after the partner is finally chosen, not before — a
+    /// figure weighted toward their own lover may still end up married to somebody else if that
+    /// roll fails, and the political draw that then runs may independently land on that same lover
+    /// regardless. Asking the question this way, once, against whoever the marriage actually joined,
+    /// is what keeps the courtship voice <c>HouseholdSystem.Wed</c> writes and the
+    /// <see cref="AffinityOutcome.Wed"/> outcome this file writes in agreement: both read the same
+    /// fact instead of two different guesses at it.
+    /// </remarks>
+    public static bool IsOpenLoverOf(Figure figure, Figure candidate)
+    {
+        FigureAffinity? lover = OpenLover(figure);
+        return lover is not null && lover.Other(figure.Id) == candidate.Id;
+    }
+
+    private static void CloseAsMarriage(WorldState world, FigureAffinity affinity, int year)
+    {
+        Figure opener = world.Figures[affinity.OpenerId];
+        Figure friend = world.Figures[affinity.FriendId];
+
+        Close(affinity, year, AffinityOutcome.Wed, EventKind.AffinityEnded, "it became their marriage");
+
+        world.Chronicle.Record(
+            year,
+            EventKind.AffinityEnded,
+            opener.Id,
+            obj: friend.Id,
+            location: affinity.PlaceId,
+            data: Chronicle.Data(
+                ("manner", "it became their marriage"),
+                (Narration.VoiceDataKey, "courtship")),
+            significance: Significance.Routine);
+    }
+
+    private static void Overtake(WorldState world, Figure figure, FigureAffinity affinity, int year)
+    {
+        EntityId otherId = affinity.Other(figure.Id);
+
+        Close(
+            affinity,
+            year,
+            AffinityOutcome.Overridden,
+            EventKind.AffinityEnded,
+            "a marriage elsewhere overtook it");
+
+        // Guarded the way Advance's own walk is: an open affinity's other party is expected to
+        // still be on the books, but reading it back rather than trusting it is the cheaper habit
+        // to keep uniformly than to reason anew about every call site that touches one.
+        if (!world.Figures.Contains(otherId)) return;
+
+        Figure other = world.Figures[otherId];
+        LifeStories.Heartbreak(figure, other, year, EventKind.AffinityEnded, affinity.PlaceId);
+        LifeStories.Heartbreak(other, figure, year, EventKind.AffinityEnded, affinity.PlaceId);
+
+        world.Chronicle.Record(
+            year,
+            EventKind.AffinityEnded,
+            figure.Id,
+            obj: other.Id,
+            location: affinity.PlaceId,
+            data: Chronicle.Data(
+                ("manner", "a marriage elsewhere overtook it"),
+                (Narration.VoiceDataKey, "courtship")),
+            significance: Significance.Routine);
     }
 
     // -----------------------------------------------------------------------
@@ -925,6 +1146,7 @@ public static class Affinities
         AffinityStage.Kindness => "did them a good turn",
         AffinityStage.Confidence => "trusted them with something",
         AffinityStage.Friendship => "counted them a friend",
+        AffinityStage.Lover => "came to love them",
         _ => "came to know them",
     };
 
@@ -940,6 +1162,7 @@ public static class Affinities
         AffinityStage.Kindness => "did a good turn for",
         AffinityStage.Confidence => "put their trust in",
         AffinityStage.Friendship => "came to count as a friend of",
+        AffinityStage.Lover => "came to love",
         _ => "came to know",
     };
 
@@ -948,6 +1171,7 @@ public static class Affinities
         AffinityStage.Kindness => "Did a good turn for",
         AffinityStage.Confidence => "Put their trust in",
         AffinityStage.Friendship => "Came to count as a friend of",
+        AffinityStage.Lover => "Came to love",
         _ => "Came to know",
     };
 }

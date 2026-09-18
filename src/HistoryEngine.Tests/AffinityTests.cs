@@ -310,6 +310,12 @@ public sealed class AffinityTests
     /// The flag was declared years before anything wrote it, and the point of this pass is that it
     /// now has exactly one write site. A second one appearing later — a shortcut that declares two
     /// people friends because it needed them to be — is the regression this catches.
+    ///
+    /// <para>Since Milestone 32, the affinity behind a <see cref="BondKind.Friend"/> bond may stand
+    /// at <see cref="AffinityStage.Friendship"/> or may have climbed one rung further to
+    /// <see cref="AffinityStage.Lover"/>: <c>AddCourtship</c> does not clear the flag the friendship
+    /// itself set, the way a betrayal does not clear it either — a courtship is a friendship that
+    /// went further, not a different tie standing in for one.</para>
     /// </remarks>
     [Fact]
     public void EveryFriendBondIsBackedByAFriendshipThatReachedTheTop()
@@ -328,7 +334,9 @@ public sealed class AffinityTests
                     FigureAffinity? affinity = figure.Affinities.Find(
                         candidate => candidate.Involves(bond.OtherId));
                     Assert.NotNull(affinity);
-                    Assert.Equal(AffinityStage.Friendship, affinity!.Stage);
+                    Assert.True(
+                        affinity!.Stage is AffinityStage.Friendship or AffinityStage.Lover,
+                        $"Seed {seed}: a friend bond is backed by an affinity at {affinity.Stage}.");
                     Assert.True(affinity.StartYear <= bond.LastChangedYear);
                     backed++;
                 }

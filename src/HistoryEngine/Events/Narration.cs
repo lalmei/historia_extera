@@ -144,6 +144,8 @@ public static class Narration
         Set(EventKind.FigureMarried, "{subject} married {object}[ at {location}].");
         SetAlt(EventKind.FigureMarried, 1,
             "{subject} and {object} were wed[ at {location}].");
+        SetKeyed(EventKind.FigureMarried, "courtship",
+            "{subject} married {object}, having courted {them:object}[ at {location}].");
         Set(EventKind.RulerTermEnded,
             "{subject} laid down the office of {data:title}[ of {object}][ after {data:years}].");
         Set(EventKind.RegencyBegan,
@@ -230,6 +232,9 @@ public static class Narration
             "{subject} {data:act} {object}[ at {location}].");
         Set(EventKind.AffinityEnded,
             "The friendship between {subject} and {object} ended[ at {location}]"
+            + "[ when {data:manner}].");
+        SetKeyed(EventKind.AffinityEnded, "courtship",
+            "The courtship between {subject} and {object} ended[ at {location}]"
             + "[ when {data:manner}].");
         Set(EventKind.FriendshipBetrayed,
             "{subject} turned on {object}[ at {location}][, over {data:cause}].");
@@ -393,6 +398,8 @@ public static class Narration
         SetSelf(EventKind.RulerDeposed,
             "Was deposed as {data:title} of {object}[, {data:cause}].");
         SetSelf(EventKind.FigureMarried, "Married {other}[ at {location}].");
+        SetKeyedSelf(EventKind.FigureMarried, "courtship",
+            "Married {other}, having courted {them:other}[ at {location}].");
         SetSelf(EventKind.RulerTermEnded,
             "Laid down the office of {data:title}[ of {object}][ after {data:years}].");
         SetSelf(EventKind.RegencyBegan,
@@ -488,6 +495,9 @@ public static class Narration
         SetSelf(EventKind.AffinityEnded,
             "[{self:subject}{the}friendship with {other} ended[ when {data:manner}].]"
             + "[{self:object}{the}friendship with {other} ended[ when {data:manner}].]");
+        SetKeyedSelf(EventKind.AffinityEnded, "courtship",
+            "[{self:subject}{the}courtship with {other} ended[ when {data:manner}].]"
+            + "[{self:object}{the}courtship with {other} ended[ when {data:manner}].]");
         SetSelf(EventKind.FriendshipBetrayed,
             "[{self:subject}{cap}turned on {other}[, over {data:cause}].]"
             + "[{self:object}{cap}was betrayed by {other}[, over {data:cause}].]");

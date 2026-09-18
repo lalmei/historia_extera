@@ -29,8 +29,16 @@ namespace HistoryEngine.Systems;
 /// </remarks>
 public sealed class HouseholdSystem : ISystem
 {
-    /// <summary>Youngest age at which a figure may be married.</summary>
-    private const int MarriageAge = 16;
+    /// <summary>
+    /// Youngest age at which a figure may be married.
+    /// </summary>
+    /// <remarks>
+    /// Internal rather than private since Milestone 32: <see cref="Affinities"/> reads it too, so
+    /// that the age a courtship may climb to <see cref="AffinityStage.Lover"/> at is the same age
+    /// a marriage would accept, rather than a second number somebody has to remember to keep in
+    /// step with this one.
+    /// </remarks>
+    internal const int MarriageAge = 16;
 
     /// <summary>Rank in the line beyond which the chronicle stops arranging marriages.</summary>
     private const int MarriageableRank = 8;
@@ -92,6 +100,18 @@ public sealed class HouseholdSystem : ISystem
 
     /// <summary>Extra odds of a foreign match at full <see cref="CultureValues.Mercantile"/>.</summary>
     private const double ForeignMatchFromTrade = 0.5;
+
+    /// <summary>
+    /// Odds a figure with a standing lover marries them rather than entering the political draw.
+    /// </summary>
+    /// <remarks>
+    /// High rather than certain. A dynasty's marriages remain arranged first and felt second — that
+    /// is what moves houses between realms and is not a mistake this milestone corrects — so a
+    /// standing courtship weighs the roll heavily toward itself without removing the chance that a
+    /// house's needs simply come first this year, which is the case <see cref="Affinities"/> then
+    /// reads as <see cref="AffinityOutcome.Overridden"/>.
+    /// </remarks>
+    private const double CourtshipMarriageChance = 0.70;
 
     public string Name => "houses";
 
@@ -203,10 +223,27 @@ public sealed class HouseholdSystem : ISystem
             if (!rng.Chance(MarriageChance)) continue;
 
             Culture culture = world.CultureOf(figure);
-            Figure? found = FindPartner(world, figure, culture, year, rng);
+
+            // A standing lover is read before the political draw, not instead of it: the roll
+            // below still fires even where none exists, and a figure with no courtship costs the
+            // stream nothing more than the one it already spent. See MatchLover for why this is a
+            // weighting rather than the political draw's replacement.
+            Figure? beloved = MatchLover(world, figure, year, rng);
+            Figure? found = beloved ?? FindPartner(world, figure, culture, year, rng);
             Figure partner = found ?? MatchAtHome(world, figure, culture, year, rng);
 
-            Wed(world, figure, partner, ranks, year);
+            // Not "did MatchLover supply this partner": the political draw just below it scans
+            // every other house's unmarried dynasts and can land on the same person MatchLover
+            // would have offered, if the weighted roll happened to fail first. Asking the question
+            // this way — is the figure actually being married to their own open lover, however the
+            // roll that produced this partner ran — is what keeps the chronicle's courtship voice
+            // and the affinity's own Wed outcome reading the same fact, since
+            // Affinities.ResolveCourtshipAtMarriage answers the identical question a few lines
+            // below. Two independent guesses at "was this a courtship" would eventually disagree;
+            // one shared answer cannot.
+            bool courtship = Affinities.IsOpenLoverOf(figure, partner);
+
+            Wed(world, figure, partner, ranks, year, courtship);
 
             // A spouse invented for this wedding takes their trade after it, not before. Chosen
             // first, they were an unmarried person who might reasonably enter holy orders, and
@@ -214,6 +251,11 @@ public sealed class HouseholdSystem : ISystem
             // one — which is where most of the remaining violations came from once the vow
             // itself was fixed. An existing partner is untouched: they had a life already.
             if (found is null) Occupations.Ensure(world, partner, year);
+
+            // Consumed or overridden after the wedding is on the books, not before: WhoMoves and
+            // the chronicle both need the marriage to already be a fact, and a lover overridden by
+            // this same figure's own wedding is exactly the case Affinities reads for it.
+            Affinities.ResolveCourtshipAtMarriage(world, figure, partner, year);
         }
     }
 
@@ -310,6 +352,52 @@ public sealed class HouseholdSystem : ISystem
         !faithId.IsNone
         && world.Religions.Contains(faithId)
         && world.Religions[faithId].Character.CelibateClergy;
+
+    /// <summary>
+    /// Weights the marriage roll toward a figure's own standing courtship, where one survives.
+    /// </summary>
+    /// <remarks>
+    /// <para>Issue #175: marriage used to end in <c>rng.Pick</c> over every unmarried dynast in the
+    /// world, reading nothing the engine already held about the two people it joined. A figure who
+    /// climbed <see cref="AffinityStage.Lover"/> with somebody carries exactly the kind of standing
+    /// the political draw below has none of, so it is asked first — and the roll still keeps the
+    /// political match live even where a lover exists, because an arranged marriage overriding a
+    /// courtship is the historically correct outcome, not a bug this milestone is fixing.</para>
+    ///
+    /// <para>Eligibility is re-verified rather than trusted from the year the courtship climbed:
+    /// years may have passed since two people became lovers, and a candidate a throne, an office,
+    /// or a faith has since claimed is refused now even though it did not refuse them then — the
+    /// same guards <see cref="FindPartner"/> already applies to its own candidates, asked of one
+    /// figure instead of scanned across a world.</para>
+    /// </remarks>
+    private static Figure? MatchLover(WorldState world, Figure figure, int year, IRng rng)
+    {
+        FigureAffinity? lover = null;
+        foreach (FigureAffinity affinity in figure.Affinities)
+        {
+            if (!affinity.IsOpen || affinity.Stage != AffinityStage.Lover) continue;
+            lover = affinity;
+            break;
+        }
+
+        if (lover is null) return null;
+
+        EntityId candidateId = lover.Other(figure.Id);
+        if (!world.Figures.Contains(candidateId)) return null;
+
+        Figure candidate = world.Figures[candidateId];
+        if (!candidate.IsAlive || candidate.IsMarried) return null;
+        if (!InAStandingRealm(world, candidate)) return null;
+        if (VowedToCelibacy(world, candidate)) return null;
+        if (Succession.HoldsAThrone(world, candidate)) return null;
+        if (PinnedByOffice(candidate)) return null;
+        if (Succession.AreCloseKin(world, figure, candidate)) return null;
+
+        // The one roll that is not FindPartner's abroad draw and not the parent MarriageChance
+        // roll: whether this year's marriage is the one the courtship was climbed for, or whether
+        // the house's own needs come first and the political draw below still gets its turn.
+        return rng.Chance(CourtshipMarriageChance) ? candidate : null;
+    }
 
     /// <summary>
     /// Looks for a match among the other houses.
@@ -432,7 +520,12 @@ public sealed class HouseholdSystem : ISystem
     /// Id breaks the tie so the choice never depends on iteration order.
     /// </remarks>
     private static void Wed(
-        WorldState world, Figure figure, Figure partner, DetMap<EntityId, int> ranks, int year)
+        WorldState world,
+        Figure figure,
+        Figure partner,
+        DetMap<EntityId, int> ranks,
+        int year,
+        bool courtship)
     {
         // Read before the move below rewrites one of them. A match made across a frontier is a
         // fact about two realms and belongs in both their histories; the same wedding read after
@@ -458,6 +551,10 @@ public sealed class HouseholdSystem : ISystem
         // capital puts a provincial couple in a town neither of them lives in, and every later
         // line that does know where they live — a siege they endured, a journey they set out on —
         // then reads as though they had appeared there from nowhere.
+        //
+        // The courtship voice is the one thing that tells this marriage apart from an arranged
+        // one in the chronicle: same event kind, same facts, a different key into Narration so a
+        // reader can tell a match the two of them made from one their houses made for them.
         world.Chronicle.Record(
             year,
             EventKind.FigureMarried,
@@ -465,6 +562,7 @@ public sealed class HouseholdSystem : ISystem
             obj: partner.Id,
             location: household,
             extra: HousesJoined(figure, partner),
+            data: courtship ? Chronicle.Data((Narration.VoiceDataKey, "courtship")) : null,
             significance:
                 Houses.HeldPower(figure) || Houses.HeldPower(partner)
                 || (crossedRealms && (ReignsIn(world, figure) || ReignsIn(world, partner)))

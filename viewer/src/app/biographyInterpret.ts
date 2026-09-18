@@ -293,7 +293,10 @@ export function extractEvidence(
     const endYear = at.endYear ?? year;
     const span = endYear - at.startYear;
     const stage = at.acts.at(-1)?.stage ?? at.stage;
-    if (stage === 'Friendship' && span >= FRIENDSHIP_MIN_YEARS) {
+    // 'Lover' is a friendship that climbed one rung further (Milestone 32), not a different tie
+    // standing in for one — mirrors the >= comparison EvidenceExtractor.cs uses server-side, so a
+    // courted pair keeps the same friendship evidence a merely-friendly pair gets.
+    if ((stage === 'Friendship' || stage === 'Lover') && span >= FRIENDSHIP_MIN_YEARS) {
       evidence.push({
         kind: 'Friendship',
         strength: clamp01(span / 40),

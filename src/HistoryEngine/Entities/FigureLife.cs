@@ -66,6 +66,9 @@ public enum BondCause
 
     /// <summary>A friend turned on the other, which is a bond change and not a bond ending.</summary>
     Betrayal = 13,
+
+    /// <summary>A friendship that climbed one rung further, into a courtship.</summary>
+    Courtship = 14,
 }
 
 /// <summary>A directed, persistent relationship between two recorded people.</summary>
@@ -181,6 +184,19 @@ public enum MemoryKind
     /// show as formative were ones nobody chose; this is the one a person did.
     /// </remarks>
     Friendship = 17,
+
+    /// <summary>Reaching the top of a courtship: two people who came to love each other.</summary>
+    Courtship = 18,
+
+    /// <summary>
+    /// A standing courtship left behind when the other half of it married somebody else.
+    /// </summary>
+    /// <remarks>
+    /// The counterpart <see cref="Betrayal"/> already had for a friendship turned on, written for
+    /// the reason that one was: without it, a marriage that overrode a lover left the spurned
+    /// party's page with nothing to show for what it cost them.
+    /// </remarks>
+    Heartbreak = 19,
 }
 
 /// <summary>How a wound was got, which decides only how it is described.</summary>
@@ -903,6 +919,21 @@ public enum AffinityStage
 
     /// <summary>A tie both of them would name, and the rung a betrayal has something to betray.</summary>
     Friendship = 3,
+
+    /// <summary>
+    /// A tie the two would call love, and the rung a marriage may consume.
+    /// </summary>
+    /// <remarks>
+    /// The rung <see cref="BondKind.Lover"/> was declared for since the first life-story pass and
+    /// had no write site — exactly where <see cref="BondKind.Friend"/> stood before this ladder
+    /// reached it. It is reachable only from <see cref="Friendship"/>, by the same guards a
+    /// marriage already enforces (age, an existing spouse, a celibacy vow, close kin) plus the one
+    /// this ladder does not otherwise ask: the two must be of the kind the engine marries, since a
+    /// tie nothing downstream can consume would be a rung with nowhere to lead. It does not climb
+    /// further — there is no rung above it here, only the choice the marriage roll makes when it
+    /// reads this tie (<c>HouseholdSystem.FindPartner</c>, in the systems namespace).
+    /// </remarks>
+    Lover = 4,
 }
 
 /// <summary>
@@ -942,6 +973,23 @@ public enum AffinityOutcome
 
     /// <summary>A death ended it while it still stood.</summary>
     Lapsed = 4,
+
+    /// <summary>
+    /// A courtship became the marriage it was climbed for. The good ending at
+    /// <see cref="AffinityStage.Lover"/>, the way <see cref="Open"/> is the good ending below it.
+    /// </summary>
+    Wed = 5,
+
+    /// <summary>
+    /// A standing courtship gave way to a marriage that was not to each other.
+    /// </summary>
+    /// <remarks>
+    /// Not a betrayal — nobody here did the other a wrong the record can hold against them, only a
+    /// political necessity that outran a private tie. It exists because <see cref="Cooled"/> and
+    /// <see cref="Parted"/> would both say something false: nothing went cold and no border came
+    /// between them, a marriage elsewhere simply arrived first.
+    /// </remarks>
+    Overridden = 6,
 }
 
 /// <summary>One thing that was done in the course of a friendship.</summary>
