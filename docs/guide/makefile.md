@@ -67,4 +67,5 @@ make bump-patch
 ```
 
 Version targets update files but do not commit or tag the result. They require
-`uv tool install bump-my-version`.
+`uv tool install bump-my-version`. Publishing a GitHub Release then patch-bumps
+`main` as `github-actions[bot]` so the next draft is already named.
