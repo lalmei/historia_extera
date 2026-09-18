@@ -66,4 +66,5 @@ make bump-dry PART=minor
 make bump-patch
 ```
 
-Version targets update files but do not commit or tag the result.
+Version targets update files but do not commit or tag the result. They require
+`uv tool install bump-my-version`.

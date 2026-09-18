@@ -19,7 +19,7 @@ package = false
 
 # One version for the whole project (see Directory.Build.props). bump-my-version keeps the
 # mirrors in step: `make bump-patch` / `bump-minor` / `bump-major`, or `make bump PART=...`.
-# Committing and tagging stay manual — this repository is worked through GitButler.
+# Install once with `uv tool install bump-my-version`. Committing and tagging stay manual.
 [tool.bumpversion]
 current_version = "0.12.0"
 parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)"
