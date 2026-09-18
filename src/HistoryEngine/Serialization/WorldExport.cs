@@ -186,8 +186,17 @@ public sealed record WorldExport(
     /// been in the enum since offices landed and nothing ever granted it, so no export has carried
     /// one; now that a town's weavers and its smiths are two bodies, the seat has to say which it
     /// speaks for or a reader cannot tell two masteries of one town apart.</para>
+    ///
+    /// <para>Version 60 gives a journey the way it actually took: <c>RouteIds</c> and
+    /// <c>SettlementIds</c>, in travel order, when <see cref="World.Itineraries.Find"/> found a
+    /// path of more than one hop. A direct trip and one with no itinerary at all both carry
+    /// neither — the fallback straight line a journey takes when the network could not be searched
+    /// is not a way anybody read off a map, so there is nothing honest to name. One-way days are
+    /// not repeated here: they are exactly half of <c>DurationDays</c> for every outcome but
+    /// staying, where they are the whole of it, so a reader already has the number from a field
+    /// that was on every journey before this one existed.</para>
     /// </remarks>
-    public const int CurrentSchemaVersion = 59;
+    public const int CurrentSchemaVersion = 60;
 }
 
 public sealed record ExportMeta(
@@ -1055,6 +1064,19 @@ public sealed record ExportCampaign(
 /// <summary>
 /// One trip a person made and was expected home from. Residence is not this.
 /// </summary>
+/// <remarks>
+/// <para><c>RouteIds</c> and <c>SettlementIds</c> carry the way the journey actually took across
+/// the route network, in travel order, but only when that way crossed more than one route.
+/// <see cref="FromSettlementId"/> and <see cref="ToSettlementId"/> already say where a direct trip
+/// began and ended, so a single-route itinerary would repeat them under a new name; a multi-hop
+/// one names the towns between the two that a reader has no other way to learn. Both are absent
+/// when no itinerary was found at all — the journey still happened, priced by the straight line
+/// between its ends, but that line is not a way anybody read off a road.</para>
+///
+/// <para>One-way days are not carried separately. They are exactly half of
+/// <see cref="DurationDays"/> for every outcome but <see cref="Entities.JourneyOutcome.Stayed"/>,
+/// where they are the whole of it — a fact already on every journey, not a second copy of it.</para>
+/// </remarks>
 public sealed record ExportJourney(
     JourneyKind Kind,
     int Year,
@@ -1066,7 +1088,9 @@ public sealed record ExportJourney(
     JourneyOutcome Outcome,
     EntityId? ReturnSettlementId,
     int? ReturnYear,
-    int? ReturnDay);
+    int? ReturnDay,
+    IReadOnlyList<EntityId>? RouteIds = null,
+    IReadOnlyList<EntityId>? SettlementIds = null);
 
 /// <summary>
 /// One period of living somewhere, with the year it began and what caused it.

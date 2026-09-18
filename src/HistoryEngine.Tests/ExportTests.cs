@@ -1,7 +1,9 @@
 using System.Globalization;
+using System.Linq;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using HistoryEngine.Core;
+using HistoryEngine.Entities;
 using HistoryEngine.Events;
 using HistoryEngine.Serialization;
 using HistoryEngine.World;
@@ -437,5 +439,65 @@ public sealed class ExportTests
         Assert.Equal(Narration.SyntaxVersion, export.Meta.NarrationSyntaxVersion);
         Assert.Equal(export.Events.Count, export.Meta.EventCount);
         Assert.NotEmpty(export.Meta.SystemOrder);
+    }
+
+    /// <summary>
+    /// A journey of more than one route exports the ordered routes and settlements it actually
+    /// crossed; a journey with no itinerary at all exports neither.
+    /// </summary>
+    /// <remarks>
+    /// Built on a hand-placed <see cref="Figure"/> rather than a full history run, for the same
+    /// reason <c>ItineraryTests</c> builds its own routes: a real run offers no guarantee any
+    /// figure ever draws a two-hop trip, and the point here is the export mapping, not the search
+    /// that produces an itinerary to map.
+    /// </remarks>
+    [Fact]
+    public void JourneysExportTheirWayAcrossTheRouteNetworkOrNothingAtAll()
+    {
+        var figure = new Figure(
+            EntityId.Figure(0), EntityId.Civilization(0), EntityId.Culture(0), "Traveller",
+            Sex.Male, birthYear: 0);
+
+        EntityId townA = EntityId.Settlement(0);
+        EntityId townB = EntityId.Settlement(1);
+        EntityId townC = EntityId.Settlement(2);
+        EntityId routeAb = EntityId.TradeRoute(0);
+        EntityId routeBc = EntityId.TradeRoute(1);
+
+        var multiHop = new Itinerary(
+            routeIds: new[] { routeAb, routeBc },
+            settlementIds: new[] { townA, townB, townC },
+            oneWayDays: 10);
+        figure.Journeys.Add(new Journey(
+            JourneyKind.Trade, new Stamp(10, 0), townA, townC, EntityId.None,
+            durationDays: 20, expectedReturn: new Stamp(11, 0), itinerary: multiHop));
+
+        // A journey the search never found a way for at all — the destination is unreached over
+        // the network, or the search never ran — carries no itinerary and falls back to the
+        // straight line, exactly as every journey did before more than one hop could be searched.
+        figure.Journeys.Add(new Journey(
+            JourneyKind.Visit, new Stamp(20, 0), townA, townC, EntityId.None,
+            durationDays: 6, expectedReturn: new Stamp(21, 0), itinerary: null));
+
+        List<ExportJourney> exported = WorldExporter.BuildJourneys(figure);
+
+        ExportJourney withWay = exported[0];
+        Assert.Equal(new[] { routeAb, routeBc }, withWay.RouteIds);
+        Assert.Equal(new[] { townA, townB, townC }, withWay.SettlementIds);
+
+        ExportJourney withoutWay = exported[1];
+        Assert.Null(withoutWay.RouteIds);
+        Assert.Null(withoutWay.SettlementIds);
+
+        // The omission is real at the byte level, not just a null in the DTO: the journey with no
+        // itinerary must not carry the keys at all, per the export's empty/absent-container rule.
+        string json = JsonSerializer.Serialize(exported, Json.Compact);
+        using JsonDocument document = JsonDocument.Parse(json);
+        JsonElement[] elements = document.RootElement.EnumerateArray().ToArray();
+
+        Assert.True(elements[0].TryGetProperty("routeIds", out _));
+        Assert.True(elements[0].TryGetProperty("settlementIds", out _));
+        Assert.False(elements[1].TryGetProperty("routeIds", out _));
+        Assert.False(elements[1].TryGetProperty("settlementIds", out _));
     }
 }
