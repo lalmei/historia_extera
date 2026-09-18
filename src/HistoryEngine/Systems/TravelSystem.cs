@@ -469,12 +469,12 @@ public sealed class TravelSystem : ISystem
         EntityId via,
         string purpose)
     {
-        TradeRoute? corridor = TradeRoutes.Between(world, from, to);
-        int durationDays = DurationDays(world, from, to, corridor, year);
+        Itinerary? itinerary = Itineraries.Find(world, from, to, year);
+        int durationDays = DurationDays(world, from, to, itinerary, year);
         Stamp departed = world.Now;
         Stamp expectedReturn = world.Config.Calendar.Plus(departed, durationDays);
         var journey = new Journey(
-            kind, departed, from, to, via, durationDays, expectedReturn);
+            kind, departed, from, to, via, durationDays, expectedReturn, itinerary);
         figure.Journeys.Add(journey);
 
         // A wander is not an undertaking. Every other journey opens a named arc with progress
@@ -727,9 +727,8 @@ public sealed class TravelSystem : ISystem
 
         if (Warring(world, figure, journey)) hazard += WartimeToll;
 
-        return DetMath.Clamp01(
-            Math.Min(hazard * Ground(corridor, Reach(world, journey) * FullReach, journey.Year),
-            WorstCase));
+        double ground = Ground(world, journey.Itinerary, Reach(world, journey) * FullReach, journey.Year);
+        return DetMath.Clamp01(Math.Min(hazard * ground, WorstCase));
     }
 
     /// <summary>How lawless the worse of the two ends is, in [0, 1].</summary>
@@ -761,6 +760,36 @@ public sealed class TravelSystem : ISystem
     }
 
     /// <summary>The round-trip time charged by the way that existed when the traveller set out.</summary>
+    /// <remarks>
+    /// Reads the itinerary's summed one-way legs when one was found — a journey of more than one
+    /// route no longer prices itself by the straight line between its ends. When none was found
+    /// (the pair is unreached, or the search never ran) this falls back to the direct line at plain
+    /// overland pace, exactly as every journey did before the network could be searched past one
+    /// hop.
+    /// </remarks>
+    internal static int DurationDays(
+        WorldState world,
+        EntityId fromId,
+        EntityId toId,
+        Itinerary? itinerary,
+        int year)
+    {
+        if (!world.Settlements.Contains(fromId) || !world.Settlements.Contains(toId)) return 2;
+
+        if (itinerary is null || itinerary.RouteIds.Count == 0)
+        {
+            Settlement from = world.Settlements[fromId];
+            Settlement to = world.Settlements[toId];
+            double direct = world.Distance(from.X, from.Z, to.X, to.Z);
+            return DurationDays(direct, world.Config.UnitsPerTravelDay, TradeRouteMode.Overland, null);
+        }
+
+        return Math.Max(2, itinerary.OneWayDays * 2);
+    }
+
+    /// <summary>
+    /// The round-trip time charged by a single corridor's way, for a corridor already in hand.
+    /// </summary>
     internal static int DurationDays(
         WorldState world,
         EntityId fromId,
@@ -797,14 +826,7 @@ public sealed class TravelSystem : ISystem
         TradeRouteMode mode,
         RoadGrade? grade)
     {
-        double modePace = mode switch
-        {
-            TradeRouteMode.Coastal => 1.70,
-            TradeRouteMode.River => 1.25,
-            _ => 1.0,
-        };
-        double surfacePace = grade == RoadGrade.Paved ? 1.25 : 1.0;
-        double pace = unitsPerTravelDay * modePace * surfacePace;
+        double pace = TravelPace.Pace(unitsPerTravelDay, mode, grade);
 
         return Math.Max(2, (int)Math.Ceiling((Math.Max(0.0, oneWayDistance) * 2.0) / pace));
     }
@@ -821,30 +843,90 @@ public sealed class TravelSystem : ISystem
     }
 
     /// <summary>
-    /// What the ground between the two towns does to the hazard, as a multiplier.
+    /// What the ground the whole itinerary crosses does to the hazard, as a multiplier.
     /// </summary>
     /// <remarks>
     /// <para>Open country is the baseline, because most journeys in this world cross ground nobody
     /// has ever spent anything on. A cut road is a discount on that; the country the road had to
     /// bend through gives some of the discount back.</para>
     ///
-    /// <para>Reading <see cref="Road.Length"/> costs nothing: the path was searched once when the
-    /// road was built and the number has been on the route ever since. This is the whole of the
-    /// engine's use of road geometry, and it is a use the route's traffic could not have served —
-    /// traffic says how much is carried, not how far round the carrying has to go.</para>
+    /// <para><b>Weighted across every leg of the way, by how much of it each leg actually is.</b> A
+    /// pilgrimage that crosses two paved routes and one stretch of open country between them is not
+    /// as safe as a paved road and not as exposed as open country either — it is mostly the one and
+    /// partly the other, in the proportion the legs' own lengths say. A direct, single-route journey
+    /// is the special case of one leg, and reduces to exactly the corridor's own surface and its own
+    /// detour ratio: the number this returned before an itinerary could have more than one leg.</para>
+    ///
+    /// <para>Reading a leg's <see cref="Road.Length"/> costs nothing: the path was searched once
+    /// when the road was built and the number has been sitting on the route ever since. This is the
+    /// whole of the engine's use of road geometry, and it is a use the route's traffic could not
+    /// have served — traffic says how much is carried, not how far round the carrying has to go.
+    /// A leg with no road yet contributes its straight-line stretch at open-country safety, the same
+    /// answer a lone unroaded corridor always gave.</para>
     /// </remarks>
+    internal static double Ground(WorldState world, Itinerary? itinerary, double direct, int year)
+    {
+        if (itinerary is null || itinerary.RouteIds.Count == 0) return 1.0;
+
+        double weightedSurface = 0.0;
+        double actualLength = 0.0;
+
+        for (int i = 0; i < itinerary.RouteIds.Count; i++)
+        {
+            EntityId routeId = itinerary.RouteIds[i];
+            TradeRoute? leg = world.TradeRoutes.Contains(routeId) ? world.TradeRoutes[routeId] : null;
+
+            double legDirect = LegDistance(world, itinerary.SettlementIds[i], itinerary.SettlementIds[i + 1]);
+            (double surface, double length) = LegGround(leg, legDirect, year);
+
+            weightedSurface += surface * length;
+            actualLength += length;
+        }
+
+        return CombineGround(weightedSurface, actualLength, direct);
+    }
+
+    /// <summary>The single-corridor case: one leg, straight from origin to destination.</summary>
     internal static double Ground(TradeRoute? corridor, double direct, int year)
     {
-        if (corridor?.Road is not Road road) return 1.0;
-        if (road.BuiltYear > year) return 1.0;
+        (double surface, double length) = LegGround(corridor, direct, year);
+        return CombineGround(surface * length, length, direct);
+    }
 
-        double surface = road.Grade == RoadGrade.Paved ? PavedSafety : TrackSafety;
+    /// <summary>A leg's own safety and the length it contributes, before the legs are combined.</summary>
+    private static (double Surface, double Length) LegGround(TradeRoute? leg, double legDirect, int year)
+    {
+        if (leg?.Road is Road road && road.BuiltYear <= year)
+        {
+            double surface = road.Grade == RoadGrade.Paved ? PavedSafety : TrackSafety;
+            return (surface, road.Length);
+        }
+
+        return (1.0, legDirect);
+    }
+
+    /// <summary>The detour toll, applied once to the itinerary's actual length against the direct line.</summary>
+    private static double CombineGround(double weightedSurface, double actualLength, double direct)
+    {
+        if (actualLength <= 0.0) return 1.0;
+
+        double surface = weightedSurface / actualLength;
         if (direct <= 1.0) return surface;
 
-        double detour = road.Length / direct;
+        double detour = actualLength / direct;
         double country = DetMath.Clamp01((detour - EasyCountry) / (HardCountry - EasyCountry));
 
         return surface * (1.0 + (country * HardCountryToll));
+    }
+
+    /// <summary>The straight-line distance between two settlements, or zero when either is unknown.</summary>
+    private static double LegDistance(WorldState world, EntityId a, EntityId b)
+    {
+        if (!world.Settlements.Contains(a) || !world.Settlements.Contains(b)) return 0.0;
+
+        Settlement sa = world.Settlements[a];
+        Settlement sb = world.Settlements[b];
+        return world.Distance(sa.X, sa.Z, sb.X, sb.Z);
     }
 
     /// <summary>What the chronicle says happened, in the traveller's own year.</summary>

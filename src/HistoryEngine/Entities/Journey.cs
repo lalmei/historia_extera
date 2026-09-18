@@ -81,7 +81,8 @@ public sealed class Journey
         EntityId toSettlementId,
         EntityId viaId,
         int durationDays,
-        Stamp expectedReturn)
+        Stamp expectedReturn,
+        Itinerary? itinerary = null)
     {
         Kind = kind;
         Year = departed.Year;
@@ -93,6 +94,7 @@ public sealed class Journey
         ReturnSettlementId = fromSettlementId;
         ReturnYear = expectedReturn.Year;
         ReturnDay = expectedReturn.Day;
+        Itinerary = itinerary;
     }
 
     public JourneyKind Kind { get; }
@@ -110,6 +112,18 @@ public sealed class Journey
     /// The route, holy site or host realm that made the journey make sense, or none.
     /// </summary>
     public EntityId ViaId { get; }
+
+    /// <summary>
+    /// The way this journey actually took across the trade-route network — its ordered routes and
+    /// the settlements between them — or null when no way was found.
+    /// </summary>
+    /// <remarks>
+    /// Null exactly when <see cref="World.Itineraries.Find"/> found no path: the destination is
+    /// unreachable over the active network, or the two ends are the same settlement. A journey with
+    /// no itinerary still happens — it falls back to the straight line between the two towns, the
+    /// way every journey did before the route network could be searched for more than one hop.
+    /// </remarks>
+    public Itinerary? Itinerary { get; }
 
     /// <summary>
     /// Days on the road for the planned outward-and-return itinerary, derived from its actual way.
