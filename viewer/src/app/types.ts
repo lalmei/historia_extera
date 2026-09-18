@@ -1999,14 +1999,17 @@ export type AffinityStage =
   | 'Acquaintance'
   | 'Kindness'
   | 'Confidence'
-  | 'Friendship';
+  | 'Friendship'
+  | 'Lover';
 
 export type AffinityOutcome =
   | 'Open'
   | 'Cooled'
   | 'Parted'
   | 'Betrayed'
-  | 'Lapsed';
+  | 'Lapsed'
+  | 'Wed'
+  | 'Overridden';
 
 export const AFFINITY_ORIGIN_LABELS: Record<AffinityOrigin, string> = {
   SharedResidence: 'From a town they shared',
@@ -2019,6 +2022,7 @@ export const AFFINITY_STAGE_LABELS: Record<AffinityStage, string> = {
   Kindness: 'A good turn done',
   Confidence: 'A confidence given',
   Friendship: 'Friends',
+  Lover: 'Lovers',
 };
 
 export const AFFINITY_OUTCOME_LABELS: Record<AffinityOutcome, string> = {
@@ -2027,6 +2031,8 @@ export const AFFINITY_OUTCOME_LABELS: Record<AffinityOutcome, string> = {
   Parted: 'Parted by distance',
   Betrayed: 'Ended in betrayal',
   Lapsed: 'Ended in death',
+  Wed: 'Became their marriage',
+  Overridden: 'Overtaken by a marriage elsewhere',
 };
 
 export type BetrayalTie = 'Friendship' | 'Marriage';

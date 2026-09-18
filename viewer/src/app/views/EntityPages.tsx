@@ -1918,7 +1918,10 @@ function Friendship({
           ? `–${affinity.endYear}`
           : ''}
         {years > 0 && ` · known to each other for ${years} ${years === 1 ? 'year' : 'years'}`}
-        {!open && affinity.stage !== 'Friendship' && ' · it never became a friendship'}
+        {!open
+          && affinity.stage !== 'Friendship'
+          && affinity.stage !== 'Lover'
+          && ' · it never became a friendship'}
       </p>
       {betrayer !== undefined ? (
         <p className="mt-1 text-sm">

@@ -409,6 +409,95 @@ public static class LifeStories
         Reinforce(second, MemoryKind.Friendship, first.Id, year);
     }
 
+    // -----------------------------------------------------------------------
+    // Courtship
+    // -----------------------------------------------------------------------
+
+    /// <summary>The rung above friendship, at which the two of them would call themselves lovers.</summary>
+    /// <remarks>
+    /// The counterpart <see cref="AddFriendship"/> already is, one step further: a heavier weight on
+    /// affection and trust than a friendship carries, because this rung asks more of the two people
+    /// who climb it and a marriage that later reads this bond ought to find something worth reading.
+    /// </remarks>
+    public static void AddCourtship(
+        Figure first, Figure second, int year, EventKind source, EntityId location)
+    {
+        Relate(
+            first, second,
+            BondKind.Lover,
+            BondKind.Lover,
+            BondCause.Courtship,
+            year,
+            source,
+            second.Id,
+            location,
+            affection: 0.30,
+            trust: 0.22,
+            obligation: 0.06,
+            reciprocalAffection: 0.30,
+            reciprocalTrust: 0.22,
+            reciprocalObligation: 0.06);
+
+        Remember(first, MemoryKind.Courtship, year, source, second.Id, location, 0.60);
+        Remember(second, MemoryKind.Courtship, year, source, first.Id, location, 0.60);
+    }
+
+    /// <summary>
+    /// Keeps a standing courtship standing, the way <see cref="Warm"/> keeps a friendship.
+    /// </summary>
+    /// <remarks>
+    /// A separate call rather than a reuse of <see cref="Warm"/>, because that one reinforces
+    /// <see cref="MemoryKind.Friendship"/> — the memory a courtship's own climb may have pushed out
+    /// of a full list — and reinforcing the wrong memory kind would be a silent no-op rather than an
+    /// error, which is exactly the failure this ladder's tests are built to catch.
+    /// </remarks>
+    public static void WarmCourtship(
+        Figure first, Figure second, int year, EventKind source, EntityId location)
+    {
+        Relate(
+            first, second,
+            BondKind.None,
+            BondKind.None,
+            BondCause.Courtship,
+            year,
+            source,
+            second.Id,
+            location,
+            affection: 0.03,
+            trust: 0.02,
+            reciprocalAffection: 0.03,
+            reciprocalTrust: 0.02);
+
+        Reinforce(first, MemoryKind.Courtship, second.Id, year);
+        Reinforce(second, MemoryKind.Courtship, first.Id, year);
+    }
+
+    /// <summary>
+    /// A courtship left standing when the other half of it married somebody else.
+    /// </summary>
+    /// <remarks>
+    /// Called once from each side, the way <see cref="Betray"/> is, so each party's memory names
+    /// the other rather than one call trying to write both directions from one pair of arguments.
+    /// Not a grievance and not an enmity: <see cref="BondKind.Lover"/> stays on the bond — two
+    /// people who loved each other are not two people who never did — but nothing here is a wrong
+    /// either of them can act on, only a private tie a political one outran.
+    /// </remarks>
+    public static void Heartbreak(
+        Figure spurned, Figure other, int year, EventKind source, EntityId location)
+    {
+        FigureBond? bond = BondTo(spurned, other.Id);
+        if (bond is not null)
+        {
+            bond.Affection = DetMath.Clamp(bond.Affection - 0.10, -1.0, 1.0);
+            bond.LastCause = BondCause.Courtship;
+            bond.LastChangedYear = year;
+            bond.LastEventKind = source;
+            bond.LastLocationId = location;
+        }
+
+        Remember(spurned, MemoryKind.Heartbreak, year, source, other.Id, location, 0.56);
+    }
+
     /// <summary>
     /// One friend turned on the other.
     /// </summary>
