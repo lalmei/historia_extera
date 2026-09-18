@@ -1,8 +1,28 @@
 import { Fragment, useMemo, useState } from 'react';
 import { narrate, stitchYears, unnarrated } from '../narrate';
 import { figureOf, type World } from '../store';
-import type { HistoryEvent } from '../types';
+import type { EntityId, HistoryEvent } from '../types';
 import { EntityLink } from './common';
+
+/**
+ * How the viewpoint figure stood at this event, when that is not a fact the event itself
+ * carries — a commander, a soldier and a besieged townsman all witness the same `BattleFought`
+ * event, so unlike a `voice` value it cannot live in the event's own data. Read from the
+ * figure's own `campaigns`, matched by battle id, rather than guessed from anything printed.
+ * Absent for every event kind that has no such entry, which is the ordinary case and costs
+ * nothing — the lookup just comes back empty and `narrate` falls through to `voice` or `.self`.
+ */
+function campaignRoleOf(
+  world: World,
+  viewpoint: EntityId | undefined,
+  event: HistoryEvent,
+): string | undefined {
+  if (!viewpoint) return undefined;
+  const campaign = figureOf(world, viewpoint)?.campaigns.find(
+    (entry) => entry.battleId === event.subject,
+  );
+  return campaign?.role.toLowerCase();
+}
 
 /**
  * Renders narrated events with every entity slot as a cross-link.
@@ -29,6 +49,7 @@ export function NarratedEvent({
         world.nameOf,
         viewpoint,
         (id) => figureOf(world, id)?.sex,
+        campaignRoleOf(world, viewpoint, event),
       ),
     [event, world, viewpoint],
   );
@@ -263,6 +284,7 @@ function EventRecord({
         world.nameOf,
         viewpoint,
         (id) => figureOf(world, id)?.sex,
+        campaignRoleOf(world, viewpoint, event),
       ),
     [event, world, viewpoint],
   );

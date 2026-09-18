@@ -94,6 +94,36 @@ test('a voice key selects a factual register without a kind switch', () => {
   assert.equal(narrateText(crowned, templates, nameOf, 'fig:3'), 'Was chosen as Queen of civ:1.');
 });
 
+test('a campaign role picks a role-keyed self line ahead of voice', () => {
+  const templates = {
+    BattleFought: '{object} prevailed at {the}{subject}.',
+    'BattleFought.self': '[{not:victor}{cap}was at {the}{subject}, which {object} won.]',
+    'BattleFought.enduredsiege.self': '[{not:victor}{cap}endured {the}{subject}, which {object} won.]',
+    'BattleFought.commanded.self': '[{as:victor}{cap}commanded the host that carried {the}{subject}.]',
+  };
+  const nameOf = (id: string) => id;
+  const battle = event({
+    kind: 'BattleFought',
+    subject: 'bat:9',
+    object: 'civ:4',
+    data: { victor: 'fig:1' },
+  });
+
+  assert.equal(
+    narrateText(battle, templates, nameOf, 'fig:3', undefined, 'enduredsiege'),
+    'Endured the bat:9, which civ:4 won.',
+  );
+  assert.equal(
+    narrateText(battle, templates, nameOf, 'fig:1', undefined, 'commanded'),
+    'Commanded the host that carried the bat:9.',
+  );
+  // No role known: falls back to the plain .self line, as before this existed.
+  assert.equal(
+    narrateText(battle, templates, nameOf, 'fig:3'),
+    'Was at the bat:9, which civ:4 won.',
+  );
+});
+
 test('consecutive events of the same year stitch into one group', () => {
   const groups = stitchYears([
     event({ id: 0, year: 40, kind: 'RulerCrowned' }),

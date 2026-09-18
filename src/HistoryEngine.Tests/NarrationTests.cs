@@ -300,6 +300,68 @@ public sealed class NarrationTests
             Narration.Render(battle, Name, other));
     }
 
+    /// <summary>
+    /// <see cref="CampaignRole"/> already separates a commander, a rank-and-file soldier and a
+    /// besieged townsman; the <c>.self</c> line for a shared <c>BattleFought</c> event now does
+    /// too, driven by the role the caller passes rather than by anything in the event's own data —
+    /// no single event can carry three people's different relationships to it.
+    /// </summary>
+    [Fact]
+    public void CampaignRoleChoosesHowABattleIsRemembered()
+    {
+        EntityId commander = EntityId.Figure(1);
+        EntityId soldier = EntityId.Figure(2);
+        EntityId townsman = EntityId.Figure(3);
+        var battle = new HistoryEvent(
+            0, 90, EventKind.BattleFought, EntityId.Battle(9), EntityId.Civilization(4), default,
+            Extra: new[] { commander, soldier, townsman },
+            Data: Chronicle.Data(("victor", "fig:1"), ("losses", "400")));
+
+        Assert.Equal(
+            "Commanded the host that carried the bat:9, at a cost of 400 dead.",
+            Narration.Render(battle, Name, commander, role: CampaignRole.Commanded.Voice()));
+        Assert.Equal(
+            "Fought at the bat:9, which civ:4 won, at a cost of 400 dead.",
+            Narration.Render(battle, Name, soldier, role: CampaignRole.Fought.Voice()));
+        Assert.Equal(
+            "Endured the bat:9, which civ:4 won, at a cost of 400 dead.",
+            Narration.Render(battle, Name, townsman, role: CampaignRole.EnduredSiege.Voice()));
+
+        // The generic .self line still answers when no role is known.
+        Assert.Equal(
+            "Was at the bat:9, which civ:4 won, at a cost of 400 dead.",
+            Narration.Render(battle, Name, townsman));
+    }
+
+    /// <summary>The winning commander's own role line still reads as a triumph, not just a role.</summary>
+    [Fact]
+    public void ACommanderWhoWonReadsAsPrevailingNotMerelyPresent()
+    {
+        EntityId commander = EntityId.Figure(1);
+        var battle = new HistoryEvent(
+            0, 90, EventKind.BattleFought, EntityId.Battle(9), EntityId.Civilization(4), default,
+            Extra: new[] { commander },
+            Data: Chronicle.Data(("victor", "fig:1")));
+
+        Assert.Equal(
+            "Commanded the host that carried the bat:9.",
+            Narration.Render(battle, Name, commander, role: CampaignRole.Commanded.Voice()));
+    }
+
+    /// <summary>A levied figure's march reads before the battle it led to, and names the host.</summary>
+    [Fact]
+    public void AMarchToACampaignReadsAsMarchingNotAnOrdinaryTrip()
+    {
+        EntityId soldier = EntityId.Figure(6);
+        var march = new HistoryEvent(
+            0, 88, EventKind.JourneyMade, soldier, default, EntityId.Settlement(5),
+            Extra: new[] { EntityId.Settlement(1) },
+            Data: Chronicle.Data(("purpose", "with the host"), ("kind", "Campaign"), ("voice", "campaign")));
+
+        Assert.Equal("Marched to set:5 with the host.", Narration.Render(march, Name, soldier));
+        Assert.Equal("fig:6 marched to set:5 with the host.", Narration.Render(march, Name));
+    }
+
     [Fact]
     public void AJoiningRulerEntersTheWarInTheirOwnVoice()
     {

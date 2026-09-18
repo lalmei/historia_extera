@@ -68,8 +68,9 @@ export function narrate(
   nameOf: (id: EntityId) => string,
   viewpoint?: EntityId,
   sexOf?: (id: EntityId) => Sex | undefined,
+  campaignRole?: string,
 ): NarrationPart[] {
-  const template = templateFor(event, templates, viewpoint);
+  const template = templateFor(event, templates, viewpoint, campaignRole);
   const parts = renderTemplate(template, event, nameOf, viewpoint, sexOf);
 
   if (viewpoint && parts.length === 0) {
@@ -85,8 +86,9 @@ export function narrateText(
   nameOf: (id: EntityId) => string,
   viewpoint?: EntityId,
   sexOf?: (id: EntityId) => Sex | undefined,
+  campaignRole?: string,
 ): string {
-  return narrate(event, templates, nameOf, viewpoint, sexOf)
+  return narrate(event, templates, nameOf, viewpoint, sexOf, campaignRole)
     .map((part) => (part.type === 'text' ? part.text : nameOf(part.id)))
     .join('');
 }
@@ -105,17 +107,29 @@ export function stitchYears(events: HistoryEvent[]): HistoryEvent[][] {
 }
 
 /**
- * The template key the engine selected: a factual voice, a numbered variant mixed
- * from the event id, a `.self` line, or the world wording.
+ * The template key the engine selected: a role the caller supplied, a factual voice, a
+ * numbered variant mixed from the event id, a `.self` line, or the world wording.
+ *
+ * `campaignRole` is how a commander, a soldier and a besieged townsman read the same
+ * `BattleFought` event differently — a `CampaignRole` (see `types.ts`) lowercased with
+ * no separators (`'enduredsiege'`), looked up by the caller from that figure's own
+ * `campaigns` list rather than carried in the event's data, because one shared event
+ * cannot hold three people's different relationships to it. Must match the same
+ * priority `Narration.TemplateFor(HistoryEvent, EntityId, string?)` gives it.
  */
 export function templateFor(
   event: HistoryEvent,
   templates: Record<string, string>,
   viewpoint?: EntityId,
+  campaignRole?: string,
 ): string {
   const kind = event.kind;
   const voice = event.data?.[VOICE_DATA_KEY];
   const self = Boolean(viewpoint) && kindOf(viewpoint) === 'fig';
+
+  if (self && campaignRole && templates[`${kind}.${campaignRole}${SELF_KEY_SUFFIX}`]) {
+    return templates[`${kind}.${campaignRole}${SELF_KEY_SUFFIX}`];
+  }
 
   if (voice && self && templates[`${kind}.${voice}${SELF_KEY_SUFFIX}`]) {
     return templates[`${kind}.${voice}${SELF_KEY_SUFFIX}`];
@@ -157,8 +171,9 @@ export function unnarrated(
   nameOf: (id: EntityId) => string,
   viewpoint?: EntityId,
   sexOf?: (id: EntityId) => Sex | undefined,
+  campaignRole?: string,
 ): { data: [string, string][]; extra: EntityId[] } {
-  const template = templateFor(event, templates, viewpoint);
+  const template = templateFor(event, templates, viewpoint, campaignRole);
   const printed = new Set<string>();
   const named = new Set<EntityId | undefined>([
     event.subject,

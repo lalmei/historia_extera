@@ -1489,7 +1489,7 @@ export interface Campaign {
   promotionYear?: number;
 }
 
-export type JourneyKind = 'Visit' | 'Trade' | 'Pilgrimage' | 'Mission' | 'Wandering';
+export type JourneyKind = 'Visit' | 'Trade' | 'Pilgrimage' | 'Mission' | 'Wandering' | 'Campaign';
 
 export const JOURNEY_KIND_LABELS: Record<JourneyKind, string> = {
   Visit: 'Visit',
@@ -1497,6 +1497,7 @@ export const JOURNEY_KIND_LABELS: Record<JourneyKind, string> = {
   Pilgrimage: 'Pilgrimage',
   Mission: 'Mission',
   Wandering: 'Wander-years',
+  Campaign: 'March to war',
 };
 
 /** How a journey ended. Most end the dull way; the other two are why the road is worth drawing. */

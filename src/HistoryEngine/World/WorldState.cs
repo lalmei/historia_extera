@@ -367,8 +367,8 @@ public sealed class WorldState
     };
 
     /// <summary>Renders one event to prose using this world's names.</summary>
-    public string Narrate(HistoryEvent entry, EntityId viewpoint = default) =>
-        Narration.Render(entry, NameOf, viewpoint, SexOf);
+    public string Narrate(HistoryEvent entry, EntityId viewpoint = default, string? role = null) =>
+        Narration.Render(entry, NameOf, viewpoint, SexOf, role);
 
     private Sex? SexOf(EntityId id) =>
         id.Kind == EntityKind.Figure && Figures.Contains(id) ? Figures[id].Sex : null;

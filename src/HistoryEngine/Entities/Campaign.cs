@@ -20,6 +20,19 @@ public enum CampaignRole
     EnduredSiege = 3,
 }
 
+/// <summary>Reads a <see cref="CampaignRole"/> as the narration role key that selects its voice.</summary>
+public static class CampaignRoleNarration
+{
+    /// <summary>
+    /// <c>"commanded"</c>, <c>"fought"</c>, <c>"enduredsiege"</c> — lowercase, no separators, the
+    /// same shape as an ordinary <c>voice</c> value, so the template lookup in
+    /// <see cref="HistoryEngine.Events.Narration"/> treats a role no differently from any other
+    /// keyed <c>.self</c> line. <see cref="CampaignRole.Ruled"/> resolves too, though nothing keys
+    /// off it today — a ruler is never a battle witness.
+    /// </summary>
+    public static string Voice(this CampaignRole role) => role.ToString().ToLowerInvariant();
+}
+
 /// <summary>The bodily fate of a named participant once an engagement is settled.</summary>
 public enum CampaignFate
 {
