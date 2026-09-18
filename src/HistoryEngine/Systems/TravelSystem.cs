@@ -155,10 +155,10 @@ public sealed class TravelSystem : ISystem
     /// slots produces one good line and one that reads "died, of when the ship was driven
     /// aground", which is the sort of thing that survives a demo.
     /// </remarks>
-    private readonly record struct Mishap(string Clause, string Death);
+    internal readonly record struct Mishap(string Clause, string Death);
 
     /// <summary>How a journey ends badly on a road somebody keeps.</summary>
-    private static readonly Mishap[] RoadMishaps =
+    internal static readonly Mishap[] RoadMishaps =
     {
         new("set upon on the road", "wounds taken on the road"),
         new("robbed at a crossing", "wounds taken at a crossing"),
@@ -166,7 +166,7 @@ public sealed class TravelSystem : ISystem
     };
 
     /// <summary>How one ends badly in country with no road at all.</summary>
-    private static readonly Mishap[] WildMishaps =
+    internal static readonly Mishap[] WildMishaps =
     {
         new("lost in country nobody keeps", "exposure on the way"),
         new("caught by weather in the hills", "the weather in the hills"),
@@ -174,12 +174,23 @@ public sealed class TravelSystem : ISystem
     };
 
     /// <summary>How one ends badly at sea.</summary>
-    private static readonly Mishap[] WaterMishaps =
+    internal static readonly Mishap[] WaterMishaps =
     {
         new("in a storm off the coast", "a storm at sea"),
         new("when the ship was driven aground", "a wreck off the coast"),
         new("of thirst after a long calm", "thirst at sea"),
     };
+
+    /// <summary>
+    /// One leg of an itinerary, as far as a mishap needs to know about it: which route it was (or
+    /// none, when the itinerary's own route has since vanished from the world), and the two
+    /// settlements it runs between in travel order.
+    /// </summary>
+    internal readonly record struct Leg(TradeRoute? Route, EntityId FromSettlementId, EntityId ToSettlementId)
+    {
+        /// <summary>Whether this leg is the coastal stretch of the trip.</summary>
+        internal bool Afloat => Route is { Mode: TradeRouteMode.Coastal };
+    }
 
     public string Name => "travel";
 
@@ -640,8 +651,18 @@ public sealed class TravelSystem : ISystem
     /// recorded as its own event so that a life page reads "travelled to Shche" in most years and
     /// "came to grief on the way to Shche" in the year it mattered, rather than the reader having
     /// to notice a changed field on an otherwise identical line.
+    ///
+    /// <para><b>A mishap happens on one leg.</b> A journey of more than one hop is not equally
+    /// exposed along its whole length — a paved corridor and a stretch of open country between the
+    /// same two towns are not the same risk — so before anything is decided about what befell the
+    /// traveller, one leg of their actual itinerary is chosen to be where it happened. Everything
+    /// downstream (afloat or ashore, the flavour of the mishap, where it is chronicled) reads that
+    /// leg, rather than asking <see cref="TradeRoutes.Between"/> a question a multi-hop trip was
+    /// never answering — that query looks for one corridor joining the two endpoints directly, and
+    /// says nothing when a journey has to change roads along the way, which described almost every
+    /// long trip once the route network could be searched past one hop.</para>
     /// </remarks>
-    private static void Resolve(WorldState world, Figure figure, Journey journey, int year)
+    internal static void Resolve(WorldState world, Figure figure, Journey journey, int year)
     {
         // Forked from the root by traveller and year rather than drawn from the stream that chose
         // the destination, so that adding a holy site or a trade route — either of which changes
@@ -649,14 +670,18 @@ public sealed class TravelSystem : ISystem
         // in another realm came home that year.
         IRng road = world.Root.Fork("travel.road", figure.Id.ToDiscriminator()).Fork("year", year);
 
-        TradeRoute? corridor = TradeRoutes.Between(
-            world, journey.FromSettlementId, journey.ToSettlementId);
+        // A separate substream, forked the same way but under its own purpose, so choosing which
+        // leg a mishap falls on never shifts the position of a single draw on `road` — the hazard
+        // roll, the fatality roll and the plunder roll all land on the same draw of `road` whether
+        // or not this stream is ever touched.
+        IRng legChoice = world.Root.Fork("travel.mishap-leg", figure.Id.ToDiscriminator()).Fork("year", year);
+        Leg? leg = ChosenLeg(world, journey, legChoice);
+        bool afloat = leg is { } chosen && chosen.Afloat;
 
-        double hazard = Hazard(world, figure, journey, corridor);
+        double hazard = Hazard(world, figure, journey, afloat);
         if (!road.Chance(hazard)) return;
 
-        bool afloat = corridor is { Mode: TradeRouteMode.Coastal };
-        Mishap mishap = WhatHappened(world, journey, corridor, afloat, road);
+        Mishap mishap = WhatHappened(world, journey, leg, afloat, road);
 
         journey.Outcome = JourneyOutcome.Waylaid;
 
@@ -666,7 +691,7 @@ public sealed class TravelSystem : ISystem
             figure.Id,
             obj: figure.DynastyId,
             location: journey.ToSettlementId,
-            extra: Where(journey, corridor),
+            extra: Where(journey, leg),
             data: Chronicle.Data(("cause", mishap.Clause), ("kind", journey.Kind.ToString())));
 
         double fatal = afloat ? WaterFatality : LandFatality;
@@ -701,8 +726,14 @@ public sealed class TravelSystem : ISystem
     }
 
     /// <summary>The share of journeys like this one that go wrong, in [0, <see cref="WorstCase"/>].</summary>
-    private static double Hazard(
-        WorldState world, Figure figure, Journey journey, TradeRoute? corridor)
+    /// <remarks>
+    /// <paramref name="afloat"/> is the caller's own answer for whether the leg a mishap would fall
+    /// on is a coastal one — the same answer <see cref="Resolve"/> uses afterward to price the
+    /// fatality and decide whether there is anything left to plunder. Deciding it twice, once here
+    /// and once there, would risk the two disagreeing about whether the traveller was ever on
+    /// water; asking the caller instead makes that impossible.
+    /// </remarks>
+    private static double Hazard(WorldState world, Figure figure, Journey journey, bool afloat)
     {
         double hazard = journey.Kind switch
         {
@@ -712,8 +743,6 @@ public sealed class TravelSystem : ISystem
             JourneyKind.Wandering => WanderHazard,
             _ => PilgrimageHazard,
         };
-
-        bool afloat = corridor is { Mode: TradeRouteMode.Coastal };
 
         // Brigandage is a fact about the country either end sits in. A sea passage crosses none of
         // it — pirates are not modelled, and pretending the roads' lawlessness follows a ship out
@@ -929,16 +958,67 @@ public sealed class TravelSystem : ISystem
         return world.Distance(sa.X, sa.Z, sb.X, sb.Z);
     }
 
+    /// <summary>
+    /// The one leg of the itinerary a mishap is charged to, or null when the journey has no
+    /// itinerary at all.
+    /// </summary>
+    /// <remarks>
+    /// <para>Weighted by how much of the trip each leg actually is — the same per-leg length
+    /// <see cref="Ground"/> already weights each leg's surface by, read via <see cref="LegGround"/>
+    /// rather than a second notion of "how long is this leg" that could quietly drift from the
+    /// hazard's own geography. A longer leg is more of the journey, so it is more likely to be
+    /// where the journey went wrong.</para>
+    ///
+    /// <para>Draws from its own substream, forked by the caller under a purpose that names this
+    /// concern and no other, so that adding or removing a leg from an itinerary cannot perturb the
+    /// hazard, fatality or plunder draws made on the traveller's <c>travel.road</c> stream.</para>
+    /// </remarks>
+    private static Leg? ChosenLeg(WorldState world, Journey journey, IRng rng)
+    {
+        Itinerary? itinerary = journey.Itinerary;
+        if (itinerary is null || itinerary.RouteIds.Count == 0) return null;
+
+        var legs = new Leg[itinerary.RouteIds.Count];
+        var lengths = new double[itinerary.RouteIds.Count];
+        var indices = new int[itinerary.RouteIds.Count];
+
+        for (int i = 0; i < itinerary.RouteIds.Count; i++)
+        {
+            EntityId routeId = itinerary.RouteIds[i];
+            TradeRoute? route = world.TradeRoutes.Contains(routeId) ? world.TradeRoutes[routeId] : null;
+            EntityId fromId = itinerary.SettlementIds[i];
+            EntityId toId = itinerary.SettlementIds[i + 1];
+
+            double legDirect = LegDistance(world, fromId, toId);
+            (_, double length) = LegGround(route, legDirect, journey.Year);
+
+            legs[i] = new Leg(route, fromId, toId);
+            lengths[i] = length;
+            indices[i] = i;
+        }
+
+        int chosen = rng.PickWeighted(indices, i => lengths[i]);
+        return legs[chosen];
+    }
+
     /// <summary>What the chronicle says happened, in the traveller's own year.</summary>
-    private static Mishap WhatHappened(
-        WorldState world, Journey journey, TradeRoute? corridor, bool afloat, IRng rng)
+    /// <remarks>
+    /// A robbery is blamed on a lawless town whenever one of the settlements the itinerary actually
+    /// passes through is lawless enough, whether or not it is either end of the trip. Otherwise the
+    /// mishap reads as a road mishap exactly when there is a real leg to charge it to — which is
+    /// every time an itinerary was found — and as a wilderness mishap only in the one case left
+    /// once <see cref="World.Itineraries.Find"/> could search past a single hop: no itinerary
+    /// exists at all, because the destination could not be reached over the network and the
+    /// journey fell back to the straight line between its ends.
+    /// </remarks>
+    private static Mishap WhatHappened(WorldState world, Journey journey, Leg? leg, bool afloat, IRng rng)
     {
         if (afloat) return rng.Pick(WaterMishaps);
 
-        // Named when one end of the road is visibly lawless, because then the chronicle can say
-        // where the men came from — and it is the only line in the world that ties a robbery to
-        // the town whose grievance produced the robbers. Otherwise the road is simply not safe
-        // and nobody knows whose men they were.
+        // Named when one of the towns the trip actually passes through is visibly lawless, because
+        // then the chronicle can say where the men came from — and it is the only line in the
+        // world that ties a robbery to the town whose grievance produced the robbers. Otherwise the
+        // road is simply not safe and nobody knows whose men they were.
         Settlement? lawless = Lawless(world, journey);
         if (lawless is not null && rng.Chance(BlameChance))
         {
@@ -947,15 +1027,30 @@ public sealed class TravelSystem : ISystem
                 "wounds taken on the road");
         }
 
-        return corridor is null ? rng.Pick(WildMishaps) : rng.Pick(RoadMishaps);
+        return leg is null ? rng.Pick(WildMishaps) : rng.Pick(RoadMishaps);
     }
 
-    /// <summary>The lawless end of the road, if either end is lawless enough to be blamed.</summary>
+    /// <summary>
+    /// The most lawless settlement the itinerary actually passes through, if any is lawless enough
+    /// to be blamed.
+    /// </summary>
+    /// <remarks>
+    /// Reads every settlement the itinerary names, not just its two ends — a robbery three towns
+    /// along the way can be blamed on the lawless town it actually passed, not only on where the
+    /// traveller started or where they were headed. Falls back to just the two ends when there is
+    /// no itinerary, exactly as before <see cref="World.Itineraries.Find"/> existed. Settlements are
+    /// walked in the itinerary's own travel order, so a tie between two equally lawless towns is
+    /// always broken toward whichever the traveller reached first — deterministic, and never a
+    /// function of iteration order over anything unordered.
+    /// </remarks>
     private static Settlement? Lawless(WorldState world, Journey journey)
     {
         Settlement? worst = null;
+        IReadOnlyList<EntityId> ends = journey.Itinerary is { } itinerary
+            ? itinerary.SettlementIds
+            : new[] { journey.FromSettlementId, journey.ToSettlementId };
 
-        foreach (EntityId end in new[] { journey.FromSettlementId, journey.ToSettlementId })
+        foreach (EntityId end in ends)
         {
             if (!world.Settlements.Contains(end)) continue;
 
@@ -967,9 +1062,22 @@ public sealed class TravelSystem : ISystem
         return worst;
     }
 
-    /// <summary>The origin and the corridor, so the mishap lands on their pages too.</summary>
-    private static EntityId[] Where(Journey journey, TradeRoute? corridor) =>
-        corridor is null
-            ? new[] { journey.FromSettlementId }
-            : new[] { journey.FromSettlementId, corridor.Id };
+    /// <summary>
+    /// The settlement nearer the mishap and the route it fell on, so the mishap lands on their
+    /// pages too.
+    /// </summary>
+    /// <remarks>
+    /// The nearer end of the chosen leg, in travel order — not always <see
+    /// cref="Journey.FromSettlementId"/>. On a three-hop pilgrimage the origin can be a hundred
+    /// leagues from the leg a mishap actually fell on; the settlement the traveller had most
+    /// recently left when it happened is the one honest answer to "where", since they were waylaid
+    /// somewhere along that leg and had not yet reached its far end. Falls back to the origin alone
+    /// when there is no itinerary to name a leg with.
+    /// </remarks>
+    private static EntityId[] Where(Journey journey, Leg? leg) =>
+        leg is { } chosen
+            ? chosen.Route is { } route
+                ? new[] { chosen.FromSettlementId, route.Id }
+                : new[] { chosen.FromSettlementId }
+            : new[] { journey.FromSettlementId };
 }
