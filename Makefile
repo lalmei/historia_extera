@@ -23,10 +23,10 @@ UV          ?= uv
 UV_RUN      := $(UV) run
 
 # Semantic version bumps across every file that mirrors the one version (see the
-# [tool.bumpversion] block in pyproject.toml). Run through uv in a throwaway
-# environment, so bump-my-version never lands in this project's dependencies.
-BUMP        := $(UV) run --no-project --with bump-my-version==1.5.1 bump-my-version
-PART        ?= patch
+# [tool.bumpversion] block in pyproject.toml). Install once with
+# `uv tool install bump-my-version`. Committing and tagging stay manual.
+BUMP ?= bump-my-version
+PART ?= patch
 
 SEED   ?= 42
 YEARS  ?= 300
