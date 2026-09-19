@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using HistoryEngine.Core;
 using HistoryEngine.Entities;
 using HistoryEngine.Events;
@@ -194,5 +195,121 @@ public sealed class SpecializationTests
         }
 
         Assert.True(held > 0, "A thousand years produced no garrison town at all.");
+    }
+
+    /// <summary>
+    /// The panel five: the exact seeds issue #275's diagnostic and rebalance were measured
+    /// against, so this test's pass/fail matches the numbers in that issue's report.
+    /// </summary>
+    private static readonly ulong[] PanelSeeds = { 2, 7, 11, 42, 99 };
+
+    /// <summary>Same thresholds <see cref="Systems.SpecializationSystem"/>'s own Pastoral term
+    /// uses — see that type's remarks on why these particular numbers mean "dry".</summary>
+    private const double DryFertility = 0.55;
+    private const double DryRainfall = 0.45;
+
+    /// <summary>
+    /// Coastal ground must not go entirely to Farming and Trade, and dry ground must not go
+    /// entirely to Farming and Mining.
+    /// </summary>
+    /// <remarks>
+    /// <para>This is the acceptance criterion issue #275 set, checked the way the issue's own
+    /// panel checked it: a settlement's geography is read straight off <see cref="Region"/> and
+    /// <see cref="Terrain.Hydrology"/>, the same fields and the same thresholds
+    /// <see cref="Systems.SpecializationSystem.Score"/> itself reads, so this cannot pass by
+    /// coincidence of some other definition of "coastal" or "dry".</para>
+    ///
+    /// <para><b>Conditional on purpose.</b> Two of the five panel seeds (7 and 99) settle
+    /// effectively no dry country — a fact about where <see cref="World.SiteSelection"/> put
+    /// settlements in those particular worlds, not about this system's scoring. An unconditional
+    /// "every seed produces a Pastoral settlement" assertion would be false for a reason this
+    /// change does not touch and should not be blamed for, so the Pastoral half of the check only
+    /// runs on seeds that actually settled dry ground. The Fishing half has no such exemption:
+    /// every one of the five panel seeds has settled coastline, so it is asserted
+    /// unconditionally.</para>
+    ///
+    /// <para><b>Why a mine camp is not dry country for this purpose.</b> Seed 99 settles exactly
+    /// one site inside the dry thresholds at a thousand years, and it is a
+    /// <see cref="SiteCharacter.Mine"/> camp on regional fertility 0.51 against a bar of 0.55 —
+    /// ground a realm sent a party to stand on because of what was under it. The scorer is
+    /// deliberately built to let that errand win there: see
+    /// <see cref="Systems.SpecializationSystem"/>'s <c>MineCampPrior</c>, which exists precisely
+    /// so a camp sent out for ore is recorded as a mining town rather than disappearing into the
+    /// surrounding trade. Counting that one site as "this world supports herding" would assert
+    /// that a lone ore camp on marginally dry ground ought to have become a herding village
+    /// instead — which is not the criterion issue #275 set ("no trade absent from a world whose
+    /// geography supports it") but its opposite, and could only be satisfied by inflating Pastoral
+    /// until it beat a well-argued prior. Measured: forcing that single site Pastoral costs a
+    /// craft town at three hundred years, below the floor the same issue set. So mine camps are
+    /// excluded from the opportunity count, and seed 99 is exempt for the same reason seed 7 is —
+    /// it has no dry country a trade was free to choose.</para>
+    ///
+    /// <para>Runs at <see cref="TestWorlds.Long"/> only — a thousand years, matching the horizon
+    /// where the issue's founding-time bias was measured at its worst (74.5% Farming before this
+    /// change) and where a fishing-starved seed had the most time to prove it stays that way. This
+    /// keeps the assertion to the same five short worlds the panel already runs elsewhere in this
+    /// class, rather than adding a second thousand-year sweep (see issue #185 on structural test
+    /// runtime).</para>
+    /// </remarks>
+    [Fact]
+    public void EveryCoastGetsAFisherAndEveryDryCountryGetsAHerder()
+    {
+        foreach (ulong seed in PanelSeeds)
+        {
+            WorldState world = HistoryRun.Execute(TestWorlds.Long(seed)).World;
+
+            bool settledCoast = false;
+            bool settledDry = false;
+            bool fishingFound = false;
+            bool pastoralFound = false;
+
+            foreach (Settlement settlement in world.Settlements)
+            {
+                if (!settlement.IsActive) continue;
+
+                Region region = world.Regions[settlement.RegionId];
+                bool onCoast = world.Terrain.Hydrology.IsCoast(settlement.X, settlement.Z)
+                                || region.IsCoastal;
+                // A camp sent out for ore is not ground herding was free to win — see the remarks.
+                bool onDry = region.Fertility <= DryFertility
+                             && region.Rainfall <= DryRainfall
+                             && settlement.Site != SiteCharacter.Mine;
+
+                if (onCoast)
+                {
+                    settledCoast = true;
+                    if (settlement.Specialization == SettlementSpecialization.Fishing)
+                    {
+                        fishingFound = true;
+                    }
+                }
+
+                if (onDry)
+                {
+                    settledDry = true;
+                    if (settlement.Specialization == SettlementSpecialization.Pastoral)
+                    {
+                        pastoralFound = true;
+                    }
+                }
+            }
+
+            Assert.True(settledCoast, $"Seed {seed} settled no coastline at all in a thousand " +
+                "years — the panel measured real coastline here, so this seed no longer matches " +
+                "the geography the acceptance criterion was written against.");
+
+            Assert.True(
+                fishingFound,
+                $"Seed {seed} has settled coastline but not one fishing settlement in a " +
+                "thousand years.");
+
+            if (settledDry)
+            {
+                Assert.True(
+                    pastoralFound,
+                    $"Seed {seed} has settled dry country but not one pastoral settlement in a " +
+                    "thousand years.");
+            }
+        }
     }
 }
