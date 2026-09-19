@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
   NARRATION_SYNTAX_VERSION,
   narrateText,
+  separateStitchedEvents,
   stitchYears,
   templateFor,
   variantIndex,
@@ -134,6 +135,18 @@ test('consecutive events of the same year stitch into one group', () => {
   assert.equal(groups.length, 2);
   assert.deepEqual(groups[0].map((entry) => entry.id), [0, 1]);
   assert.equal(groups[1][0].year, 41);
+});
+
+test('stitched events need separating only on a figure\'s own page', () => {
+  // A figure viewpoint mixes subjectless .self lines with fully-subjected third-party
+  // ones in the same year-group ("Pentius died, of old age." + "Removed to Viitanes.") —
+  // those need a hard break so the second doesn't read as continuing the first.
+  assert.equal(separateStitchedEvents('fig:1'), true);
+  // A settlement, war, or other non-figure page never has subjectless lines — every
+  // event names its own subject, so the existing space-joined prose reads fine.
+  assert.equal(separateStitchedEvents('set:2'), false);
+  assert.equal(separateStitchedEvents('war:1'), false);
+  assert.equal(separateStitchedEvents(undefined), false);
 });
 
 function event(overrides: Partial<HistoryEvent> & { kind?: string } = {}): HistoryEvent {

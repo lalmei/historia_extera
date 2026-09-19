@@ -107,6 +107,25 @@ export function stitchYears(events: HistoryEvent[]): HistoryEvent[][] {
 }
 
 /**
+ * Whether a stitched year-group needs a hard line break between its events rather
+ * than a plain joining space.
+ *
+ * A figure's own `.self` templates are deliberately subjectless ("Moved to
+ * Viitanes.") because the page they appear on already supplies the subject. That
+ * is the right call read alone, but stitched with a bare space right after a
+ * fully-subjected third-party sentence from the same year ("Pentius died, of old
+ * age."), it reads as a continuation of that sentence rather than a second, unrelated
+ * event — a garden path a reader has to backtrack out of. Off a figure's page every
+ * event carries its own explicit subject, so the same space-joined stitching reads
+ * as connected prose (`"X was founded by Y. Y rose under Z."`) and is left alone.
+ * Mirrors the `self` test `templateFor` uses to pick `.self` templates in the first
+ * place, so the two stay in lockstep.
+ */
+export function separateStitchedEvents(viewpoint?: EntityId): boolean {
+  return Boolean(viewpoint) && kindOf(viewpoint!) === 'fig';
+}
+
+/**
  * The template key the engine selected: a role the caller supplied, a factual voice, a
  * numbered variant mixed from the event id, a `.self` line, or the world wording.
  *
