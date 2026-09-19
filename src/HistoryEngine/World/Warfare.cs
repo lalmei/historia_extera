@@ -953,7 +953,9 @@ public static class Warfare
                 figure,
                 year,
                 DeathCause.Battle,
-                "in the sack of " + target.Name,
+                // A bare noun phrase, for the reason Hardships.Detail carries one: the
+                // obituary template and both viewer pages supply the "of" themselves.
+                "the sack of " + target.Name,
                 new[] { battle.Id, war.Id });
         }
 
