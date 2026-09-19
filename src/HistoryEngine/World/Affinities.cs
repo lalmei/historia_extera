@@ -855,6 +855,21 @@ public static class Affinities
         return lover is not null && lover.Other(figure.Id) == candidate.Id;
     }
 
+    /// <summary>
+    /// Who this figure's own standing courtship is with, if they have one.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="IsOpenLoverOf"/> answers "is it this one" against a candidate already in hand;
+    /// <c>HouseholdSystem.WedCourtships</c> has no candidate yet and needs to ask "who, if
+    /// anyone" instead — the one other question <see cref="OpenLover"/> can answer without a
+    /// second scan of a list this file already owns.
+    /// </remarks>
+    public static EntityId? OpenLoverId(Figure figure)
+    {
+        FigureAffinity? lover = OpenLover(figure);
+        return lover?.Other(figure.Id);
+    }
+
     private static void CloseAsMarriage(WorldState world, FigureAffinity affinity, int year)
     {
         Figure opener = world.Figures[affinity.OpenerId];
