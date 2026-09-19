@@ -126,6 +126,7 @@ public sealed class HouseholdSystem : ISystem
 
         ComeOfAge(world, year);
         Marry(world, ranks, year, rng);
+        WedCourtships(world, ranks, year);
         Bear(world, ranks, year, rng);
     }
 
@@ -397,6 +398,118 @@ public sealed class HouseholdSystem : ISystem
         // roll: whether this year's marriage is the one the courtship was climbed for, or whether
         // the house's own needs come first and the political draw below still gets its turn.
         return rng.Chance(CourtshipMarriageChance) ? candidate : null;
+    }
+
+    /// <summary>
+    /// Weds every pair who found each other before the chronicle ever asked about them.
+    /// </summary>
+    /// <remarks>
+    /// <para>Issue #309: a census across five seeds found <see cref="Marriageable"/> naming
+    /// perhaps one figure in thirty as a candidate for marriage at all, while
+    /// <see cref="Affinities"/> keeps forming <see cref="AffinityStage.Lover"/> ties among
+    /// co-residents without asking anyone's rank. Of every pair that reached that rung across the
+    /// census, not one had both members marriageable — the ladder was doing exactly what it was
+    /// built to do, and the dynastic roll above had no way to ever see the result. Raising
+    /// <see cref="MarriageableRank"/> to reach them would also reach every distant cousin the
+    /// attention budget exists to forget, and inflating <see cref="CourtshipMarriageChance"/> does
+    /// nothing for two people the roll above never considers in the first place. So this pass asks
+    /// a narrower question than <see cref="Marry"/> does: not "should the house marry this person
+    /// off", but "have these two already decided, and is there any remaining reason to refuse
+    /// them" — the same reasons <see cref="Marriageable"/> checks, with the one about proximity to
+    /// a throne left out, because nobody here was ever going to inherit one.</para>
+    ///
+    /// <para>Run as its own pass after <see cref="Marry"/> rather than folded into it, so that
+    /// nobody is asked twice. A figure <see cref="Marriageable"/> already had a full turn above —
+    /// their own <see cref="MatchLover"/> call included, win or lose against
+    /// <see cref="CourtshipMarriageChance"/> — and <see cref="CourtshipReady"/> excludes them by
+    /// construction rather than by remembering who already went. Anyone left standing here is
+    /// left standing precisely because the pass above had no seat for them, not because it tried
+    /// and failed.</para>
+    ///
+    /// <para>No roll decides whether either of these two marries: <see cref="MarriageChance"/>
+    /// governs whether a house goes looking, and there is no house here doing any looking. Two
+    /// people who already climbed a ladder this engine tracks specifically for its own sake need
+    /// nothing further asked of the dice — only that nothing about either of them has changed
+    /// since, which the guards below re-verify rather than assume.</para>
+    ///
+    /// <para>Bounded the same way <see cref="Marry"/> bounds itself: a couple wed here joins the
+    /// figure table behind the walk, and is not itself a candidate for anything until next year.
+    /// Neither partner gains a rank, a dynasty, or a household by marrying — <see cref="Wed"/>
+    /// moves whichever of them has the weaker claim and nothing else — so <see cref="Bear"/> never
+    /// sees them as fertile and no child of theirs is ever recorded, the same way none would have
+    /// been had the political draw somehow reached them.</para>
+    /// </remarks>
+    private static void WedCourtships(WorldState world, DetMap<EntityId, int> ranks, int year)
+    {
+        // Id order, and bounded like Marry: a spouse this pass could invent would be a second
+        // instance of the same bug MatchAtHome exists to avoid for the dynastic pass, except this
+        // pass never invents one at all — every candidate here already exists, holding the other
+        // half of a standing tie the ladder recorded years, sometimes decades, ago.
+        int known = world.Figures.Count;
+
+        for (int i = 0; i < known; i++)
+        {
+            Figure figure = world.Figures[i];
+            if (!CourtshipReady(world, ranks, figure, year)) continue;
+
+            EntityId? loverId = Affinities.OpenLoverId(figure);
+            if (loverId is not EntityId candidateId) continue;
+            if (!world.Figures.Contains(candidateId)) continue;
+
+            Figure candidate = world.Figures[candidateId];
+
+            // Re-verified rather than trusted, on the same reasoning MatchLover already gives for
+            // its own candidate: years may separate the climb from this tick, and a vow taken or a
+            // household inherited since would refuse this marriage today even though nothing
+            // refused the courtship then. Close kin and opposite sexes cannot actually have
+            // changed since CourtshipEligible already gated the climb on both — kept here anyway
+            // so this pass never trusts a guard it did not itself just ask.
+            if (!CourtshipReady(world, ranks, candidate, year)) continue;
+            if (figure.Sex == candidate.Sex) continue;
+            if (Succession.AreCloseKin(world, figure, candidate)) continue;
+
+            // Same-house matches are refused here for the identical reason FindPartner refuses
+            // them for the dynastic pass: both partners would land in one line of succession and
+            // be counted twice by everything downstream that walks a house. It is the one guard
+            // Marriageable never had to state, because Marriageable never let two members of the
+            // same house reach this pairing in the first place — a dynast within
+            // MarriageableRank only ever meets candidates FindPartner drew from other houses. This
+            // pass draws no candidates at all, it reads whichever pair the ladder already formed,
+            // and two distant cousins of the same dynasty — both well past MarriageableRank, both
+            // still co-residents Affinities tracks — are exactly the pair that guard was never
+            // asked to consider.
+            if (!figure.DynastyId.IsNone && figure.DynastyId == candidate.DynastyId) continue;
+
+            Wed(world, figure, candidate, ranks, year, courtship: true);
+
+            // Closes the tie as AffinityOutcome.Wed, the same call the dynastic pass makes right
+            // after its own Wed — one shared answer to "was this a courtship" rather than a second
+            // guess this file would eventually let drift from the first.
+            Affinities.ResolveCourtshipAtMarriage(world, figure, candidate, year);
+        }
+    }
+
+    /// <summary>
+    /// The guards <see cref="Marriageable"/> applies, minus the one that exists only to bound the
+    /// dynastic chronicle's own attention.
+    /// </summary>
+    /// <remarks>
+    /// Alive, unmarried, of age, in a realm still standing, and not under a vow — everything
+    /// <see cref="Marriageable"/> asks before it ever gets to <see cref="Figure.DynastyId"/> or
+    /// <see cref="MarriageableRank"/>. Refusing anyone <see cref="Marriageable"/> already accepts
+    /// is what keeps this pass from being a second, dice-free route into a marriage the dynastic
+    /// roll is still deciding this same year; everyone left is left because that check found no
+    /// seat for them at all, not because this year's roll had not gotten to them yet.
+    /// </remarks>
+    private static bool CourtshipReady(
+        WorldState world, DetMap<EntityId, int> ranks, Figure figure, int year)
+    {
+        if (!figure.IsAlive || figure.IsMarried) return false;
+        if (figure.AgeIn(year) < MarriageAge) return false;
+        if (!InAStandingRealm(world, figure)) return false;
+        if (VowedToCelibacy(world, figure)) return false;
+
+        return !Marriageable(world, figure, ranks, year);
     }
 
     /// <summary>

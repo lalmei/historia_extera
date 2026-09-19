@@ -49,7 +49,18 @@ public sealed class CourtshipTests
     [Fact]
     public void NobodyCarriesTwoOpenCourtshipsAtOnce()
     {
+        // Issue #309: reached rather than still open. Before HouseholdSystem.WedCourtships
+        // existed, a figure outside the dynastic pool who reached AffinityStage.Lover had no
+        // route to marriage at all, so a run's end caught plenty of them still standing and
+        // "still open" was as good a sign the panel had exercised this rung as any. Now that
+        // route exists and takes it the same year it can, so a courtship the panel reached is
+        // ordinarily also one it married off — this test's own new neighbours measure that
+        // directly — and "still open at year 300" has become the rare case of a courtship formed
+        // too close to the end for the guards to catch, not the common one. The count this guards
+        // against, at most one open Lover tie per figure, is unaffected by any of that: it is a
+        // property of the moment, not of how long a tie survives.
         int figuresWithOneOrMore = 0;
+        int everReachedLover = 0;
 
         foreach (ulong seed in WidePanel)
         {
@@ -61,6 +72,12 @@ public sealed class CourtshipTests
                 foreach (FigureAffinity affinity in figure.Affinities)
                 {
                     if (affinity.IsOpen && affinity.Stage == AffinityStage.Lover) open++;
+
+                    if (affinity.OpenerId == figure.Id
+                        && affinity.Acts.Exists(act => act.Stage == AffinityStage.Lover))
+                    {
+                        everReachedLover++;
+                    }
                 }
 
                 Assert.True(
@@ -73,8 +90,11 @@ public sealed class CourtshipTests
         }
 
         Assert.True(
-            figuresWithOneOrMore > 0,
+            everReachedLover > 0,
             "The wide panel produced no standing courtship at all.");
+        _output.WriteLine(
+            $"{everReachedLover} courtships reached across the panel, "
+            + $"{figuresWithOneOrMore} still standing open at the end of a run.");
     }
 
     /// <summary>
@@ -358,6 +378,238 @@ public sealed class CourtshipTests
         _output.WriteLine(
             $"{overridden} courtships overridden by a marriage elsewhere, "
             + $"{stillCarryingTheMemory} of {overridden * 2} sides still carrying the memory.");
+    }
+
+    /// <summary>
+    /// Whether either half of a pair had a route into marriage that did not depend on
+    /// <c>HouseholdSystem.WedCourtships</c> — a dynasty, or a household an office raised.
+    /// </summary>
+    /// <remarks>
+    /// The one predicate every test below needs and none of them should reimplement: a figure
+    /// with either of these already had a full turn at <c>HouseholdSystem.Marry</c>, lover or not,
+    /// so a courtship marriage between two people who both fail it is a marriage that pass could
+    /// never have produced.
+    /// </remarks>
+    private static bool NeitherHadADynasticRoute(Figure a, Figure b, int year) =>
+        a.DynastyId.IsNone && !Offices.HeadsAHousehold(a, year)
+        && b.DynastyId.IsNone && !Offices.HeadsAHousehold(b, year);
+
+    /// <summary>
+    /// Issue #309: a courtship between two figures outside the dynastic marriage pool — no
+    /// throne within reach, no household an office raised — now ends in a wedding of its own,
+    /// rather than sitting on a rung the political draw could never see.
+    /// </summary>
+    /// <remarks>
+    /// A census across five seeds at this shape found <c>HouseholdSystem.Marriageable</c> naming
+    /// perhaps one figure in thirty, while <see cref="Affinities"/> kept forming
+    /// <see cref="AffinityStage.Lover"/> ties among the other twenty-nine — and not one pair that
+    /// reached that rung had both members marriageable. This is the panel-level evidence that the
+    /// gap <c>HouseholdSystem.WedCourtships</c> exists to close is actually being closed, not just
+    /// that the new code compiles.
+    /// </remarks>
+    [Fact]
+    public void ACourtshipBetweenTwoFiguresOutsideTheDynasticPoolNowEndsInMarriage()
+    {
+        int nonDynasticCourtships = 0;
+
+        foreach (ulong seed in Seeds)
+        {
+            WorldState world = HistoryRun.Execute(TestWorlds.Standard(seed)).World;
+
+            foreach (HistoryEvent entry in world.Chronicle.Events)
+            {
+                if (entry.Kind != EventKind.FigureMarried) continue;
+                if (entry.DataValue(Narration.VoiceDataKey) != "courtship") continue;
+
+                Figure a = world.Figures[entry.Subject];
+                Figure b = world.Figures[entry.Object];
+                if (NeitherHadADynasticRoute(a, b, entry.Year)) nonDynasticCourtships++;
+            }
+        }
+
+        Assert.True(
+            nonDynasticCourtships > 0,
+            "No courtship between two figures outside the dynastic marriage pool produced a "
+            + "marriage across the panel — issue #309's own route into marriage never fired.");
+    }
+
+    /// <summary>
+    /// A marriage <c>WedCourtships</c> makes is recorded exactly the way <c>Marry</c>'s own
+    /// courtship marriages are: the chronicle carries the courtship voice, and the affinity that
+    /// produced it closes as <see cref="AffinityOutcome.Wed"/> rather than being left open or
+    /// quietly dropped.
+    /// </summary>
+    /// <remarks>
+    /// Both halves are read from the affinity outward rather than the chronicle outward, the same
+    /// way <see cref="AMarriageThatConsumedACourtshipIsDistinguishableFromAnArrangedOne"/> does for
+    /// the dynastic pass — the two facts are supposed to agree because
+    /// <c>Affinities.ResolveCourtshipAtMarriage</c> is the one place both <c>HouseholdSystem</c>
+    /// passes ask the same question, and this is what catches the day one of them stopped calling
+    /// it.
+    /// </remarks>
+    [Fact]
+    public void ANonDynasticCourtshipMarriageClosesItsAffinityAsWedAndSpeaksWithTheCourtshipVoice()
+    {
+        int checkedPairs = 0;
+
+        foreach (ulong seed in Seeds)
+        {
+            WorldState world = HistoryRun.Execute(TestWorlds.Standard(seed)).World;
+
+            foreach (FigureAffinity affinity in All(world))
+            {
+                if (affinity.Outcome != AffinityOutcome.Wed) continue;
+
+                Figure opener = world.Figures[affinity.OpenerId];
+                Figure friend = world.Figures[affinity.FriendId];
+                if (!NeitherHadADynasticRoute(opener, friend, affinity.EndYear!.Value)) continue;
+
+                Assert.Contains(friend.Id, opener.SpouseIds);
+                Assert.Contains(opener.Id, friend.SpouseIds);
+
+                Assert.Contains(
+                    world.Chronicle.Events,
+                    e => e.Kind == EventKind.FigureMarried
+                        && e.Year == affinity.EndYear
+                        && ((e.Subject == opener.Id && e.Object == friend.Id)
+                            || (e.Subject == friend.Id && e.Object == opener.Id))
+                        && e.DataValue(Narration.VoiceDataKey) == "courtship");
+
+                checkedPairs++;
+            }
+        }
+
+        Assert.True(
+            checkedPairs > 0,
+            "No non-dynastic courtship in the panel closed its affinity as Wed.");
+    }
+
+    /// <summary>
+    /// Every guard <c>HouseholdSystem.WedCourtships</c> is supposed to enforce still holds on the
+    /// marriages it actually produced: opposite sexes, no close kin, nobody under the marriage
+    /// age, and a marriage recorded exactly once on each side.
+    /// </summary>
+    [Fact]
+    public void NonDynasticCourtshipMarriagesRespectEveryMarriageGuard()
+    {
+        int checkedPairs = 0;
+
+        foreach (ulong seed in Seeds)
+        {
+            WorldState world = HistoryRun.Execute(TestWorlds.Standard(seed)).World;
+
+            foreach (HistoryEvent entry in world.Chronicle.Events)
+            {
+                if (entry.Kind != EventKind.FigureMarried) continue;
+                if (entry.DataValue(Narration.VoiceDataKey) != "courtship") continue;
+
+                Figure a = world.Figures[entry.Subject];
+                Figure b = world.Figures[entry.Object];
+                if (!NeitherHadADynasticRoute(a, b, entry.Year)) continue;
+
+                Assert.NotEqual(a.Sex, b.Sex);
+                Assert.False(
+                    Succession.AreCloseKin(world, a, b),
+                    $"Seed {seed}: a non-dynastic courtship married close kin.");
+                Assert.True(a.AgeIn(entry.Year) >= HouseholdSystem.MarriageAge);
+                Assert.True(b.AgeIn(entry.Year) >= HouseholdSystem.MarriageAge);
+
+                // SpouseIds accumulates across a lifetime rather than being overwritten, so this
+                // is the one entry this wedding itself wrote, not a coincidence of an earlier or
+                // later marriage to somebody else.
+                Assert.Contains(b.Id, a.SpouseIds);
+                Assert.Contains(a.Id, b.SpouseIds);
+
+                checkedPairs++;
+            }
+        }
+
+        Assert.True(
+            checkedPairs > 0,
+            "No non-dynastic courtship marriage was found to check guards on.");
+    }
+
+    /// <summary>
+    /// <c>WedCourtships</c> is a pass of its own, not a rewrite of <c>Marry</c>: a dynast's own
+    /// courtship marriage — the one <see cref="AMarriageThatConsumedACourtshipIsDistinguishableFromAnArrangedOne"/>
+    /// already measures — still only happens to a figure the dynastic pool actually names.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="NeitherHadADynasticRoute"/> is exactly the guard
+    /// <c>HouseholdSystem.CourtshipReady</c> uses to decide whether a figure is this pass's to
+    /// marry rather than <c>Marry</c>'s; asking whether it is ever satisfied by a marriage that
+    /// <em>does</em> involve a dynast would be asking whether the new pass leaked into the old
+    /// one's territory. It never should, because <c>Wed</c> and
+    /// <c>Affinities.ResolveCourtshipAtMarriage</c> are the only things either pass calls and
+    /// neither of them cares which pass is calling.
+    /// </remarks>
+    [Fact]
+    public void ADynastsCourtshipMarriageStillComesFromTheDynasticPoolAlone()
+    {
+        int dynasticCourtships = 0;
+
+        foreach (ulong seed in Seeds)
+        {
+            WorldState world = HistoryRun.Execute(TestWorlds.Standard(seed)).World;
+
+            foreach (HistoryEvent entry in world.Chronicle.Events)
+            {
+                if (entry.Kind != EventKind.FigureMarried) continue;
+                if (entry.DataValue(Narration.VoiceDataKey) != "courtship") continue;
+
+                Figure a = world.Figures[entry.Subject];
+                Figure b = world.Figures[entry.Object];
+                if (NeitherHadADynasticRoute(a, b, entry.Year)) continue;
+
+                Assert.True(
+                    !a.DynastyId.IsNone || Offices.HeadsAHousehold(a, entry.Year)
+                    || !b.DynastyId.IsNone || Offices.HeadsAHousehold(b, entry.Year),
+                    $"Seed {seed}: a courtship marriage counted as dynastic has neither a dynast "
+                    + "nor a raised household head in it.");
+
+                dynasticCourtships++;
+            }
+        }
+
+        Assert.True(
+            dynasticCourtships > 0,
+            "No dynastic courtship marriage was found across the panel.");
+    }
+
+    /// <summary>
+    /// The project's central promise holds for this pass too: the same seed and config produce
+    /// the same marriages, the same voice on each, and the same affinity outcomes — not merely
+    /// the same figure count.
+    /// </summary>
+    /// <remarks>
+    /// <c>WedCourtships</c> draws no dice of its own, but it does iterate <see cref="DetMap{TKey,
+    /// TValue}"/> lookups and a figure table whose order a stray dictionary or LINQ ordering
+    /// could quietly disturb — see <see cref="HouseholdSystem.WedCourtships"/>'s own remarks on
+    /// why it follows <c>Marry</c>'s id-order idiom. This is the test that would have caught it.
+    /// </remarks>
+    [Fact]
+    public void SameSeedProducesIdenticalCourtshipMarriagesAcrossTwoRuns()
+    {
+        WorldConfig config = TestWorlds.Standard(Seeds[0]);
+
+        WorldState first = HistoryRun.Execute(config).World;
+        WorldState second = HistoryRun.Execute(config).World;
+
+        List<string> Fingerprint(WorldState world)
+        {
+            var lines = new List<string>();
+            foreach (HistoryEvent entry in world.Chronicle.Events)
+            {
+                if (entry.Kind != EventKind.FigureMarried) continue;
+                lines.Add(
+                    $"{entry.Year}:{entry.Subject}:{entry.Object}:"
+                    + $"{entry.DataValue(Narration.VoiceDataKey)}");
+            }
+
+            return lines;
+        }
+
+        Assert.Equal(Fingerprint(first), Fingerprint(second));
     }
 
     /// <summary>Reads each affinity once, from the side that sought it.</summary>
