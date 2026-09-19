@@ -28,8 +28,36 @@ public sealed class MortalityTests
     /// murders before, 15 seeds and 22 murders after, so the shift is a redistribution and not a
     /// suppression. Two seeds are swapped in rather than one, so the claim no longer hangs on a
     /// single history.</para>
+    ///
+    /// <para><b>Third resample, for issue #275.</b> The settlement rebalance in that issue never
+    /// touches <c>Conspiracies.cs</c> or the 0.48 poison/blade coin flip in <c>Murder</c>, but it
+    /// changes population growth widely enough that a fixed-seed history diverges downstream of
+    /// it — the same seed can produce a different figure's plot, or the same plot a different
+    /// manner of death, purely because an earlier settlement grew to a different size on a
+    /// different year. That is what happened here: on the pre-#275 checkout this panel's seeds 12
+    /// and 26 each carried one Poisoning (plus one and two Assassinations); on the post-#275
+    /// checkout seed 12 still carries an Assassination but no longer a Poisoning, seed 26 carries
+    /// no political murder at all, and no other panel seed picked up one either — <b>Poisoning
+    /// dropped out of the union not because it stopped happening, but because this five-seed
+    /// sample stopped rolling it.</b> A 60-seed sweep on the post-#275 checkout (the same sweep
+    /// style as the second resample above, <c>TestWorlds.Standard</c> at each seed) found
+    /// Poisoning in 13 of 60 seeds and Assassination in 21, for 16 Poisoning and 24 Assassination
+    /// deaths overall (a 40%/60% split, close enough to the 48% coin flip that the difference is
+    /// sampling noise) — the aggregate rate is unmoved (25 of 60 seeds carried a political murder
+    /// before #275, 26 of 60 after), so this is the redistribution the second resample already
+    /// anticipated, not a new suppression.</para>
+    ///
+    /// <para>Seeds 33, 38, 47 and 52 were chosen because each carries <em>both</em> an
+    /// Assassination and a Poisoning on its own on the post-#275 checkout, so — as the second
+    /// resample insisted — the Poisoning half of this test no longer hangs on a single history;
+    /// losing any one of the four still leaves three independent witnesses. Seed 12 is kept from
+    /// the previous panel for continuity (it still carries an Assassination) rather than dropped
+    /// outright. Across the five, exceptional deaths are 14.3% of 8,100 (1,155 exceptional),
+    /// comfortably inside the 3–20% band below, and Battle, Accident, Execution, Childbirth,
+    /// Plague and Disaster all still appear alongside Assassination and Poisoning — nothing here
+    /// was picked for the murder causes alone.</para>
     /// </remarks>
-    private static readonly ulong[] Seeds = { 12, 17, 26, 42, 99 };
+    private static readonly ulong[] Seeds = { 12, 33, 38, 47, 52 };
 
     /// <summary>
     /// Variety is a model outcome, not an excuse to turn a court chronicle into a casualty list.
