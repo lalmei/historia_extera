@@ -1,5 +1,5 @@
 import { Fragment, useMemo, useState } from 'react';
-import { narrate, stitchYears, unnarrated } from '../narrate';
+import { narrate, separateStitchedEvents, stitchYears, unnarrated } from '../narrate';
 import { figureOf, type World } from '../store';
 import type { EntityId, HistoryEvent } from '../types';
 import { EntityLink } from './common';
@@ -136,6 +136,9 @@ export function EventList({
 
   const visible = filtered.slice(0, limit);
   const groups = useMemo(() => stitchYears(visible), [visible]);
+  // A figure's own subjectless `.self` lines ("Moved to Viitanes.") need a hard break
+  // from a same-year neighbour, or the two read as one sentence — see separateStitchedEvents.
+  const separateEvents = separateStitchedEvents(viewpoint);
 
   if (events.length === 0) {
     return <p className="text-sm text-[var(--ink-faint)]">{emptyMessage}</p>;
@@ -233,13 +236,20 @@ export function EventList({
               {group[0].year}
             </span>
             <span className="min-w-0 text-sm leading-relaxed">
-              {group.map((event, index) => (
-                <Fragment key={event.id}>
-                  {index > 0 ? ' ' : null}
-                  <NarratedEvent world={world} event={event} viewpoint={viewpoint} />
-                  {showRecord && <EventRecord world={world} event={event} viewpoint={viewpoint} />}
-                </Fragment>
-              ))}
+              {group.map((event, index) =>
+                separateEvents ? (
+                  <span key={event.id} className={`block ${index > 0 ? 'mt-1' : ''}`}>
+                    <NarratedEvent world={world} event={event} viewpoint={viewpoint} />
+                    {showRecord && <EventRecord world={world} event={event} viewpoint={viewpoint} />}
+                  </span>
+                ) : (
+                  <Fragment key={event.id}>
+                    {index > 0 ? ' ' : null}
+                    <NarratedEvent world={world} event={event} viewpoint={viewpoint} />
+                    {showRecord && <EventRecord world={world} event={event} viewpoint={viewpoint} />}
+                  </Fragment>
+                ),
+              )}
             </span>
           </li>
         ))}
