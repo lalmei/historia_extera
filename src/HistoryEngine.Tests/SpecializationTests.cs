@@ -244,6 +244,24 @@ public sealed class SpecializationTests
     /// excluded from the opportunity count, and seed 99 is exempt for the same reason seed 7 is —
     /// it has no dry country a trade was free to choose.</para>
     ///
+    /// <para><b>The same argument, reaching a second shape.</b> A mine camp is ore ground the
+    /// realm chose before the town existed, and <see cref="SiteCharacter.Mine"/> records that
+    /// choice. But a settlement can also arrive on ordinary ground and take
+    /// <see cref="SettlementSpecialization.Mining"/> as its trade afterwards, and the exclusion
+    /// above missed it: the character is <see cref="SiteCharacter.Plain"/> while the trade is ore
+    /// either way. Seed 7 produces exactly that — one village on fertility 0.523 and rainfall
+    /// 0.449, both a hair inside the bars, mining a plain. Counting it asserts precisely what the
+    /// paragraph above refuses, that a settlement already working ore ought to have herded
+    /// instead, so the exclusion now reads the trade as well as the character.</para>
+    ///
+    /// <para><b>Why this was not caught when the criterion was written.</b> The assertion is
+    /// conditional on geography the world happens to produce, so it is dormant on any seed that
+    /// settles no dry ground — and seed 7 settled none, which is why the paragraph above names it
+    /// alongside seed 99. Removing <c>Occupation.Townsfolk</c> shifted where that world's towns
+    /// were founded and put one on marginally dry ground, arming a branch the panel had never
+    /// run. Seed 7 records no Pastoral settlement at all, before that change or after, so what
+    /// moved was whether this test looks — not whether the world supports herding.</para>
+    ///
     /// <para>Runs at <see cref="TestWorlds.Long"/> only — a thousand years, matching the horizon
     /// where the issue's founding-time bias was measured at its worst (74.5% Farming before this
     /// change) and where a fishing-starved seed had the most time to prove it stays that way. This
@@ -270,10 +288,12 @@ public sealed class SpecializationTests
                 Region region = world.Regions[settlement.RegionId];
                 bool onCoast = world.Terrain.Hydrology.IsCoast(settlement.X, settlement.Z)
                                 || region.IsCoastal;
-                // A camp sent out for ore is not ground herding was free to win — see the remarks.
+                // Ground that went to ore is not ground herding was free to win, whether the
+                // realm sent a party there for it or the town chose it later — see the remarks.
                 bool onDry = region.Fertility <= DryFertility
                              && region.Rainfall <= DryRainfall
-                             && settlement.Site != SiteCharacter.Mine;
+                             && settlement.Site != SiteCharacter.Mine
+                             && settlement.Specialization != SettlementSpecialization.Mining;
 
                 if (onCoast)
                 {
