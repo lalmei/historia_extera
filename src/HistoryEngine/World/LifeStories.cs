@@ -15,6 +15,33 @@ public static class LifeStories
 {
     public const int MemoryCapacity = 12;
 
+    /// <summary>
+    /// New comrades one engagement can introduce a figure to.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>The bond graph had no bound at all before this, and memories always had one.</b>
+    /// <see cref="ResolveBattle"/> paired every same-side participant with every other, so a
+    /// figure's companion count grew with the square of the line they stood in and the number of
+    /// lines they ever stood in. Nothing capped it the way <see cref="MemoryCapacity"/> caps what
+    /// a person still carries, and the difference was not deliberate — it was simply never
+    /// reached, because no world in the standard panel happened to produce a house that fought
+    /// constantly enough to show it.</para>
+    ///
+    /// <para><b>One did, once the courtship pass changed which houses rose.</b> Seed 11 threw up a
+    /// dynasty that held its wars for a century, and seven of the ten most-bonded people in that
+    /// world were its members, the first of them carrying 131 companionships out of 149 bonds
+    /// total. The world was not wrong about the war; the bond model was wrong that a man meets a
+    /// hundred and thirty new brothers-in-arms and remembers every one of them personally.</para>
+    ///
+    /// <para><b>Only strangers are counted against it.</b> Standing beside somebody already known
+    /// deepens that bond however often it happens and is never refused — a retinue that campaigns
+    /// together for twenty years is exactly what this bond is for, and it adds no edge to the
+    /// graph. What is bounded is how many people one battle can introduce, which is the term that
+    /// was quadratic. A figure with a long war record still ends with far more companions than
+    /// this number; they simply acquire them a campaign at a time rather than all at once.</para>
+    /// </remarks>
+    public const int CompanionsMetPerBattle = 8;
+
     public const double ActiveMemoryThreshold = 0.18;
 
     public const double FormativeMemoryThreshold = 0.72;
@@ -617,6 +644,13 @@ public static class LifeStories
             }
         }
 
+        // How many comrades each of them leaves this battle having met, so that the pairing below
+        // stays linear in the size of a line rather than quadratic in it. Indexed by position in
+        // participants, not keyed by id: the list is already in WitnessIds order, so an array
+        // parallel to it is both the cheapest counter and the one that cannot introduce an
+        // iteration order of its own.
+        var met = new int[participants.Count];
+
         for (int i = 0; i < participants.Count; i++)
         {
             for (int j = i + 1; j < participants.Count; j++)
@@ -624,11 +658,29 @@ public static class LifeStories
                 (Figure first, CampaignMemory firstMemory) = participants[i];
                 (Figure second, CampaignMemory secondMemory) = participants[j];
 
-                if (firstMemory.SideId == secondMemory.SideId)
+                if (firstMemory.SideId != secondMemory.SideId) continue;
+
+                // Two people who already know each other stand closer for having done it again,
+                // however many times, and that is deliberately uncapped: a retinue that campaigns
+                // together for twenty years is the relationship this bond exists to record, and
+                // nothing about it grows the graph — the edge is already there and only its
+                // weights move.
+                if (BondTo(first, second.Id) is not null)
                 {
                     AddCompanionship(
                         first, second, year, source, battle.Id, BattlePlace(battle));
+                    continue;
                 }
+
+                // A stranger, and therefore a new edge. Both of them have to have room for it,
+                // because the bond is mutual and a one-sided companionship is not a thing this
+                // model can express.
+                if (met[i] >= CompanionsMetPerBattle || met[j] >= CompanionsMetPerBattle) continue;
+
+                AddCompanionship(
+                    first, second, year, source, battle.Id, BattlePlace(battle));
+                met[i]++;
+                met[j]++;
             }
         }
 
