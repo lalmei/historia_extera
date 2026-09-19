@@ -315,8 +315,7 @@ public static class Affinities
             obj: other.Id,
             location: affinity.PlaceId,
             data: Chronicle.Data(
-                ("act", StageVerb(affinity.Stage)),
-                ("actSelf", StageVerbCapitalised(affinity.Stage))),
+                ("act", StageVerb(affinity.Stage))),
             significance: Significance.Routine);
     }
 
@@ -1143,50 +1142,53 @@ public static class Affinities
 
     private static string OriginDetail(AffinityOrigin origin) => origin switch
     {
-        AffinityOrigin.SharedCampaign => "having stood in the same line",
-        AffinityOrigin.SharedService => "the service they shared",
+        AffinityOrigin.SharedCampaign => "the campaign they had shared",
+        AffinityOrigin.SharedService => "the service they had shared",
         _ => "the town they shared",
     };
 
+    // "a wrong they held against them" used two unnamed pronouns for two different people in one
+    // clause, which a reader can only resolve by guessing — the failure mode this ladder's whole
+    // pronoun policy exists to avoid. Rather than pick a pronoun and risk binding it to the wrong
+    // party, the grudge case says what the wrong was without saying whose it was: the surrounding
+    // template ("{subject} fell out with {object}, over ...") already carries that.
     private static string TurnDetail(bool quarrelling, bool plotting) =>
         plotting
             ? "a design on their life"
             : quarrelling
                 ? "the quarrel between them"
-                : "a wrong they held against them";
+                : "an old grievance";
 
     /// <summary>How the rung reads on the friendship's own record, where both parties are named.</summary>
     private static string StageDetail(AffinityStage stage) => stage switch
     {
-        AffinityStage.Kindness => "did them a good turn",
-        AffinityStage.Confidence => "trusted them with something",
-        AffinityStage.Friendship => "counted them a friend",
+        AffinityStage.Kindness => "stepped in to help them",
+        AffinityStage.Confidence => "trusted them with a secret",
+        AffinityStage.Friendship => "openly called them a friend",
         AffinityStage.Lover => "came to love them",
         _ => "came to know them",
     };
 
     /// <summary>
-    /// The same act as a bare verb, for a chronicle line that supplies its own object.
+    /// The same act as a bare transitive verb, so a chronicle line can supply its own subject —
+    /// a name in the world line, a pronoun on the figure's own page — and then its own object.
     /// </summary>
     /// <remarks>
-    /// Two spellings for the reason the quarrel ladder needs two: a template cannot capitalise, and
-    /// the world line and the figure's own page need the verb with and without its pronoun.
+    /// One spelling now covers all three clauses that use it: the world line names the subject
+    /// ("{subject} {data:act} {object}"), and the figure's own page puts a pronoun in front of it
+    /// on the acting party's side ("{they:self} {data:act} {other}") rather than opening on a bare,
+    /// capitalised verb the way this used to. A bare verb with no subject reads as a fragment even
+    /// when the page it is on makes the actor obvious, and it reads as outright wrong here because
+    /// {other} is named right after it — a second person in the sentence with nobody performing the
+    /// verb on them. Every entry below must therefore parse as a complete sentence once a subject —
+    /// a name or a pronoun — is put in front of it.
     /// </remarks>
     private static string StageVerb(AffinityStage stage) => stage switch
     {
-        AffinityStage.Kindness => "did a good turn for",
-        AffinityStage.Confidence => "put their trust in",
-        AffinityStage.Friendship => "came to count as a friend of",
-        AffinityStage.Lover => "came to love",
+        AffinityStage.Kindness => "stepped in to help",
+        AffinityStage.Confidence => "confided in",
+        AffinityStage.Friendship => "befriended",
+        AffinityStage.Lover => "fell in love with",
         _ => "came to know",
-    };
-
-    private static string StageVerbCapitalised(AffinityStage stage) => stage switch
-    {
-        AffinityStage.Kindness => "Did a good turn for",
-        AffinityStage.Confidence => "Put their trust in",
-        AffinityStage.Friendship => "Came to count as a friend of",
-        AffinityStage.Lover => "Came to love",
-        _ => "Came to know",
     };
 }

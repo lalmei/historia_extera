@@ -276,8 +276,7 @@ public static class Disputes
             obj: rival.Id,
             location: dispute.PlaceId,
             data: Chronicle.Data(
-                ("act", StageVerb(dispute.Stage)),
-                ("actSelf", StageVerbCapitalised(dispute.Stage))),
+                ("act", StageVerb(dispute.Stage))),
             significance: Significance.Routine);
     }
 
@@ -675,12 +674,17 @@ public static class Disputes
             .Fork("with", rival.Id.ToDiscriminator())
             .Fork(question, year);
 
+    // Each cause used to lean on "them"/"their" for whose office, succession or kin it was — but
+    // the aggrieved party is {subject} here while the nearer name in the rendered sentence is
+    // {object} ("{subject} fell out with {object}, over ..."), so a reader's first guess at the
+    // pronoun's owner is the wrong one. None of these needs a pronoun to say what the wrong was;
+    // the opening clause already says who fell out with whom.
     private static string CauseDetail(DisputeCause cause) => cause switch
     {
-        DisputeCause.OfficeRevoked => "an office taken from them",
-        DisputeCause.SuccessionPassedOver => "a succession they lost",
-        DisputeCause.KinMurdered => "the murder of their kin",
-        DisputeCause.PassedOverForOffice => "a post they were passed over for",
+        DisputeCause.OfficeRevoked => "the loss of an office",
+        DisputeCause.SuccessionPassedOver => "a lost succession",
+        DisputeCause.KinMurdered => "the murder of kin",
+        DisputeCause.PassedOverForOffice => "being passed over for a post",
         _ => "an accusation at court",
     };
 
@@ -690,16 +694,20 @@ public static class Disputes
         DisputeStage.Insult => "insulted them openly",
         DisputeStage.Accusation => "laid a charge against them",
         DisputeStage.Challenge => "demanded satisfaction of them",
-        _ => "held it against them",
+        _ => "held a grudge against them",
     };
 
     /// <summary>
-    /// The same act as a bare verb, for a chronicle line that supplies its own object.
+    /// The same act as a bare transitive verb, so a chronicle line can supply its own subject —
+    /// a name in the world line, a pronoun on the figure's own page — and then its own object.
     /// </summary>
     /// <remarks>
-    /// Two spellings because a template cannot capitalise. The narration reads "X insulted Y" in
-    /// the third person and "Insulted Y" on X's own page, and both need the verb without the
-    /// pronoun that the quarrel record can afford to use.
+    /// One spelling now covers all three clauses that use it, the same consolidation
+    /// <see cref="Affinities"/> made for its own ladder: the world line names the subject
+    /// ("{subject} {data:act} {object}"), and the figure's own page puts a pronoun in front of it
+    /// on the opener's side ("{they:self} {data:act} {other}") instead of opening on a bare,
+    /// capitalised verb with {other} named right after it and nobody in the sentence doing
+    /// anything to them.
     /// </remarks>
     private static string StageVerb(DisputeStage stage) => stage switch
     {
@@ -707,13 +715,5 @@ public static class Disputes
         DisputeStage.Accusation => "laid a charge against",
         DisputeStage.Challenge => "demanded satisfaction of",
         _ => "held a grudge against",
-    };
-
-    private static string StageVerbCapitalised(DisputeStage stage) => stage switch
-    {
-        DisputeStage.Insult => "Insulted",
-        DisputeStage.Accusation => "Laid a charge against",
-        DisputeStage.Challenge => "Demanded satisfaction of",
-        _ => "Held a grudge against",
     };
 }

@@ -496,27 +496,39 @@ public static class Narration
         // out with someone, and the other party was fallen out with, and neither page is a
         // separate incident.
         SetSelf(EventKind.DisputeOpened,
-            "[{self:subject}{cap}fell out with {other}[, over {data:cause}].]"
+            "[{self:subject}{cap}{they:self} fell out with {other}[, over {data:cause}].]"
             + "[{self:object}{other} fell out with {them:self}[, over {data:cause}].]");
+        // {data:act} is a bare transitive verb ("insulted", "befriended", ...) with no subject of
+        // its own, by design — see Disputes.StageVerb / Affinities.StageVerb. The world line
+        // supplies the subject as a name; this page supplies it as a pronoun instead, which is the
+        // fix for a line that used to open on the bare verb ("Insulted Stanit.") with {other} named
+        // right after it and nobody in the sentence doing the insulting.
         SetSelf(EventKind.DisputeEscalated,
-            "[{self:subject}{data:actSelf} {other}.]"
+            "[{self:subject}{cap}{they:self} {data:act} {other}.]"
             + "[{self:object}{other} {data:act} {them:self}.]");
         SetSelf(EventKind.DisputeSettled,
             "[{self:subject}{the}quarrel with {other} ended[ when {data:manner}].]"
             + "[{self:object}{the}quarrel with {other} ended[ when {data:manner}].]"
-            + "[{self:extra}{cap}judged between {subject} and {object}.]");
+            + "[{self:extra}{cap}{they:self} judged between {subject} and {object}.]");
         SetSelf(EventKind.SpouseBetrayed,
-            "[{self:subject}{cap}turned on {other}, {their:self} own {data:tie}[, over {data:cause}].]"
+            "[{self:subject}{cap}{they:self} turned on {other}, {their:self} own {data:tie}"
+            + "[, over {data:cause}].]"
             + "[{self:object}{cap}was betrayed by {other}[, over {data:cause}].]");
         SetSelf(EventKind.OfficePassedOver,
             "[{self:subject}{cap}was passed over for {data:office}[ in favour of {other}]"
             + "[, having {data:claim}].]"
             + "[{self:object}{cap}was given {data:office} over {other}.]");
+        // Symmetric: nobody is the acting party in an acquaintance, so both roles get the same
+        // pronoun-led clause rather than one of them reading as the one who did the knowing.
         SetSelf(EventKind.AcquaintanceFormed,
-            "[{self:subject}{cap}came to know {other}[, through {data:cause}].]"
-            + "[{self:object}{cap}came to know {other}[, through {data:cause}].]");
+            "[{self:subject}{cap}{they:self} came to know {other}[, through {data:cause}].]"
+            + "[{self:object}{cap}{they:self} came to know {other}[, through {data:cause}].]");
+        // Same fix and the same reason as DisputeEscalated above: {data:act} is deliberately a bare
+        // verb, and the pronoun that used to be missing is what turned "Did a good turn for
+        // Stanit." — a sentence about Stanit with nobody doing anything for them — into a sentence
+        // that says who did.
         SetSelf(EventKind.AffinityDeepened,
-            "[{self:subject}{data:actSelf} {other}.]"
+            "[{self:subject}{cap}{they:self} {data:act} {other}.]"
             + "[{self:object}{other} {data:act} {them:self}.]");
         SetSelf(EventKind.AffinityEnded,
             "[{self:subject}{the}friendship with {other} ended[ when {data:manner}].]"
@@ -525,10 +537,11 @@ public static class Narration
             "[{self:subject}{the}courtship with {other} ended[ when {data:manner}].]"
             + "[{self:object}{the}courtship with {other} ended[ when {data:manner}].]");
         SetSelf(EventKind.FriendshipBetrayed,
-            "[{self:subject}{cap}turned on {other}[, over {data:cause}].]"
+            "[{self:subject}{cap}{they:self} turned on {other}[, over {data:cause}].]"
             + "[{self:object}{cap}was betrayed by {other}[, over {data:cause}].]");
         SetSelf(EventKind.DuelFought,
-            "[{self:subject}{cap}met {other}[ over {data:cause}][ and {data:result} {them:other}].]"
+            "[{self:subject}{cap}{they:self} met {other}[ over {data:cause}]"
+            + "[ and {data:result} {them:other}].]"
             + "[{self:object}{cap}was {data:result} by {other}[ over {data:cause}].]");
         SetSelf(EventKind.ApparitionRecorded,
             "Recorded {data:grade}[ at {location}][, {data:since} after the last].");
