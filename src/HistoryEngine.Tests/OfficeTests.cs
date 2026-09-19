@@ -457,7 +457,7 @@ public sealed class OfficeTests
                 // what it did until a review noticed that no governor had ever died of the one
                 // cause the residence model is responsible for.
                 if (figure.DeathCause is not (DeathCause.Disaster or DeathCause.Battle)) continue;
-                if (figure.DeathDetail?.StartsWith("in the sack of ", StringComparison.Ordinal) != true
+                if (figure.DeathDetail?.StartsWith("the sack of ", StringComparison.Ordinal) != true
                     && figure.DeathCause != DeathCause.Disaster)
                 {
                     continue;

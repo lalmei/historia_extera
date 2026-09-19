@@ -232,7 +232,7 @@ public sealed class HardshipTests
                 // as starving, and it goes through the central path like every other death.
                 if (figure.DeathCause != DeathCause.Illness) continue;
                 if (figure.DeathDetail is null) continue;
-                if (!figure.DeathDetail.StartsWith("in the famine", StringComparison.Ordinal))
+                if (!figure.DeathDetail.StartsWith("the famine", StringComparison.Ordinal))
                 {
                     continue;
                 }

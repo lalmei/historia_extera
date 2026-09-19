@@ -306,12 +306,21 @@ public static class Hardships
         return DetMath.Clamp(0.36 + (1.1 * severity) + sharp, 0.36, 0.92);
     }
 
+    /// <summary>What killed them, as a bare noun phrase.</summary>
+    /// <remarks>
+    /// Every place this reaches a reader already supplies the preposition: the obituary template
+    /// writes <c>[, of {data:cause}]</c>, the tome writes <c>", of "</c> before it, and both viewer
+    /// pages render <c>of {deathDetail}</c>. Carrying one of our own produced <c>"died, of in the
+    /// famine at Kivijarvia"</c> — fifty-one of them in a three-century history, because this is
+    /// the same slot <see cref="Houses.CauseLabel"/> fills with <c>"old age"</c> and <c>"illness"</c>,
+    /// and a substitute has to be the same part of speech as what it substitutes for.
+    /// </remarks>
     private static string Detail(HardshipKind kind, Settlement settlement) => kind switch
     {
-        HardshipKind.Famine => "in the famine at " + settlement.Name,
-        HardshipKind.Plague => "of the plague at " + settlement.Name,
-        HardshipKind.Sack => "in the sack of " + settlement.Name,
-        _ => "in the calamity at " + settlement.Name,
+        HardshipKind.Famine => "the famine at " + settlement.Name,
+        HardshipKind.Plague => "the plague at " + settlement.Name,
+        HardshipKind.Sack => "the sack of " + settlement.Name,
+        _ => "the calamity at " + settlement.Name,
     };
 
     private static EntityId[] Extra(Settlement settlement, IReadOnlyList<EntityId>? extra)
