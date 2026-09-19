@@ -120,7 +120,7 @@ public static class Narration
         Set(EventKind.SettlementDeclined, "{subject} dwindled to {a}{data:tier}.");
         Set(EventKind.SettlementAbandoned,
             "{subject} was abandoned[ after {data:years}][, its people lost to {data:cause}]"
-            + "[, {data:resettled} of them removing to {data:refuge}].");
+            + "[, {data:resettled} of them moving to {data:refuge}].");
         Set(EventKind.SettlementFortified, "Walls were raised around {subject}.");
         Set(EventKind.SettlementSpecialized, "{subject} came to be known for {data:trade}.");
         Set(EventKind.SettlementFamine,
@@ -193,10 +193,23 @@ public static class Narration
             "{subject} was {data:severity} wounded at {the}{object}[, {data:injury}].");
         Set(EventKind.UndertakingStarted,
             "{subject} undertook {data:objective}[, bound for {location}].");
+        // A pilgrimage, a trade venture, a missionary circuit and an embassy all name their
+        // destination inside the objective itself (see Undertakings.Objective and the bereavement
+        // vow in ConsiderBereavementVow, which follows the same convention) — the figure page
+        // prints that string on its own with no separate {location} link, so the place has to
+        // live there. Repeating it in {location} here is what produced "undertook an embassy to
+        // Shche, bound for Shche": the same town named twice in one sentence. The plain line
+        // above still serves the one undertaking whose objective names a person rather than a
+        // place — a sworn revenge — where {location} is the only place the battlefield is said.
+        SetKeyed(EventKind.UndertakingStarted, "journey", "{subject} undertook {data:objective}.");
         Set(EventKind.UndertakingCompleted,
             "{subject} completed {data:objective}[ at {location}][, after {data:years}].");
+        SetKeyed(EventKind.UndertakingCompleted, "journey",
+            "{subject} completed {data:objective}[, after {data:years}].");
         Set(EventKind.UndertakingFailed,
             "{subject}'s undertaking, {data:objective}, failed[ at {location}][, {data:cause}].");
+        SetKeyed(EventKind.UndertakingFailed, "journey",
+            "{subject}'s undertaking, {data:objective}, failed[, {data:cause}].");
         Set(EventKind.ConspiratorJoined,
             "{subject} drew {object} into a conspiracy against {extra:fig}.");
         Set(EventKind.ConspiracyExposed,
@@ -440,12 +453,25 @@ public static class Narration
         SetSelf(EventKind.UndertakingStarted,
             "[{self:subject}{cap}undertook {data:objective}[, bound for {location}].]"
             + "[{self:object}{subject} undertook {data:objective}[, bound for {location}].]");
+        // Same fix as the world line above, and the same reason: for the four journey kinds the
+        // objective already says where, so {location} would only repeat it.
+        SetKeyedSelf(EventKind.UndertakingStarted, "journey",
+            "[{self:subject}{cap}undertook {data:objective}.]"
+            + "[{self:object}{subject} undertook {data:objective}.]");
         SetSelf(EventKind.UndertakingCompleted,
             "[{self:subject}{cap}completed {data:objective}[ at {location}][, after {data:years}].]"
             + "[{self:object}{subject} completed {data:objective}[ at {location}].]"
             + "[{self:extra}{cap}helped {subject} complete {data:objective}.]");
+        SetKeyedSelf(EventKind.UndertakingCompleted, "journey",
+            "[{self:subject}{cap}completed {data:objective}[, after {data:years}].]"
+            + "[{self:object}{subject} completed {data:objective}.]"
+            + "[{self:extra}{cap}helped {subject} complete {data:objective}.]");
         SetSelf(EventKind.UndertakingFailed,
             "[{self:subject}{cap}could not complete {data:objective}[ at {location}][, because {data:cause}].]"
+            + "[{self:object}{subject} could not complete {data:objective}[, because {data:cause}].]"
+            + "[{self:extra}{cap}was implicated when {subject} failed to complete {data:objective}.]");
+        SetKeyedSelf(EventKind.UndertakingFailed, "journey",
+            "[{self:subject}{cap}could not complete {data:objective}[, because {data:cause}].]"
             + "[{self:object}{subject} could not complete {data:objective}[, because {data:cause}].]"
             + "[{self:extra}{cap}was implicated when {subject} failed to complete {data:objective}.]");
         SetSelf(EventKind.ConspiratorJoined,

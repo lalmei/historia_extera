@@ -490,9 +490,11 @@ public sealed class TravelSystem : ISystem
 
         // A wander is not an undertaking. Every other journey opens a named arc with progress
         // toward a goal, and a journeyman looking for a shop has no such goal — he has a grade.
-        // The default in Undertakings.PrepareJourney is an embassy, so adopting one would put a
-        // craftsman's road on his page as a diplomatic mission and then render its next leg as
-        // "on an embassy to" with nothing to name, the wander carrying no via.
+        // Undertakings.PrepareJourney no longer has a silent fallback for a journey kind it does
+        // not recognise (it throws instead, precisely so a mistake here fails loudly rather than
+        // quietly filing a craftsman's road as a diplomatic embassy), so this exclusion is
+        // load-bearing: a wander carries no via, and routing one into PrepareJourney would not
+        // fall back to embassy any more — it would crash the tick.
         FigureUndertaking? undertaking = kind == JourneyKind.Wandering
             ? null
             : Undertakings.PrepareJourney(world, figure, journey, year);

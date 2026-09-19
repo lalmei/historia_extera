@@ -375,4 +375,137 @@ public sealed class TravelTests
 
         return EntityId.None;
     }
+
+    private static readonly string[] JourneyUndertakingKinds =
+        { "Pilgrimage", "TradeVenture", "MissionaryCircuit", "Embassy" };
+
+    /// <summary>
+    /// A pilgrimage, a trade venture, a missionary circuit and an embassy all name their
+    /// destination inside <c>{data:objective}</c> — the figure page prints that string with no
+    /// separate destination link, so it has to live there. Before this fix the
+    /// UndertakingStarted/Completed/Failed templates named the same settlement again in
+    /// <c>{location}</c>, producing lines like "undertook an embassy to Shche, bound for Shche."
+    /// This checks every one of those events, across several seeds, and fails if the place name
+    /// is said more than once anywhere in the rendered line.
+    /// </summary>
+    [Fact]
+    public void UndertakingLifecycleDoesNotNameItsDestinationTwice()
+    {
+        var seen = new HashSet<string>();
+        int checkedCount = 0;
+
+        foreach (ulong seed in Seeds)
+        {
+            WorldState world = HistoryRun.Execute(TestWorlds.Standard(seed)).World;
+
+            foreach (HistoryEvent entry in world.Chronicle.Events)
+            {
+                if (entry.Kind is not (EventKind.UndertakingStarted
+                    or EventKind.UndertakingCompleted or EventKind.UndertakingFailed))
+                {
+                    continue;
+                }
+
+                string? kind = entry.DataValue("kind");
+                if (kind is null || Array.IndexOf(JourneyUndertakingKinds, kind) < 0) continue;
+                if (entry.Location.IsNone) continue;
+
+                seen.Add(kind);
+                checkedCount++;
+
+                string place = world.NameOf(entry.Location);
+                string prose = world.Narrate(entry);
+                int mentions = CountOccurrences(prose, place);
+                Assert.True(
+                    mentions <= 1,
+                    $"'{place}' is named {mentions} times in \"{prose}\" ({entry.Kind}, {kind}).");
+            }
+        }
+
+        Assert.True(checkedCount > 0, "No journey-kind undertaking event was recorded to check.");
+        // Not every seed grows every kind of undertaking in a few hundred years; pooling seeds
+        // is what earns coverage of all four without pinning the test to one lucky roll.
+        Assert.Equal(JourneyUndertakingKinds.Length, seen.Count);
+    }
+
+    /// <summary>
+    /// A revenge undertaking's objective names an opponent, not a place — "revenge against
+    /// Aeda" — so unlike the four journey kinds it carries no destination of its own. Its
+    /// UndertakingCompleted/Failed line is the one place the battlefield is said at all, and this
+    /// guards against ever suppressing {location} for every undertaking kind rather than only the
+    /// four that already say their destination in the objective.
+    /// </summary>
+    [Fact]
+    public void RevengeStillNamesWhereItWasSettled()
+    {
+        bool found = false;
+
+        foreach (ulong seed in Seeds)
+        {
+            WorldState world = HistoryRun.Execute(TestWorlds.Standard(seed)).World;
+
+            foreach (HistoryEvent entry in world.Chronicle.Events)
+            {
+                if (entry.Kind is not (EventKind.UndertakingCompleted or EventKind.UndertakingFailed))
+                {
+                    continue;
+                }
+
+                if (entry.DataValue("kind") != "Revenge") continue;
+                if (entry.Location.IsNone) continue;
+
+                string prose = world.Narrate(entry);
+                Assert.Contains(world.NameOf(entry.Location), prose);
+                found = true;
+            }
+        }
+
+        Assert.True(found, "No settled revenge undertaking was recorded across the seeds tried.");
+    }
+
+    /// <summary>
+    /// The second leg of the same embassy reads as a continuation of the first, not as a
+    /// different kind of trip — see NextJourney's Embassy case in Undertakings.cs, which was
+    /// changed from "on an embassy to" (a phrase that never appeared on the very first leg) to
+    /// the same "guest" wording TryVisit used, prefixed with "again".
+    /// </summary>
+    [Fact]
+    public void ARepeatedEmbassyLegReadsAsTheSameKindOfVisitAsTheFirst()
+    {
+        bool found = false;
+
+        foreach (ulong seed in Seeds)
+        {
+            WorldState world = HistoryRun.Execute(TestWorlds.Standard(seed)).World;
+
+            foreach (HistoryEvent entry in world.Chronicle.Events)
+            {
+                if (entry.Kind != EventKind.JourneyMade) continue;
+                if (entry.DataValue("purpose") != "again as a guest of") continue;
+
+                string prose = world.Narrate(entry);
+                Assert.Contains("again as a guest of", prose);
+                Assert.DoesNotContain("embassy", prose);
+                found = true;
+            }
+        }
+
+        Assert.True(found, "No embassy in these seeds ever reached a second leg.");
+    }
+
+    private static int CountOccurrences(string haystack, string needle)
+    {
+        if (string.IsNullOrEmpty(needle)) return 0;
+
+        int count = 0;
+        int index = 0;
+        while ((index = haystack.IndexOf(needle, index, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            index += needle.Length;
+        }
+
+        return count;
+    }
+
 }

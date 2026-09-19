@@ -45,6 +45,11 @@ public static class Undertakings
             .Fork("year", year);
         if (!attempt.Chance(chance)) return null;
 
+        // Exhaustive on purpose: CurrentJourney above already filtered to IsJourney(item.Kind),
+        // so active.Kind can only ever be one of the four cases below. A fifth journey kind
+        // reaching this switch is exactly the silent-embassy hazard the objective mapping below
+        // also guards against — better a thrown exception naming the gap than a wandering
+        // craftsman or a marching soldier quietly narrated as a diplomat.
         return active.Kind switch
         {
             UndertakingKind.Pilgrimage => new JourneyPlan(
@@ -58,8 +63,12 @@ public static class Undertakings
                 active.ViaId.Kind == EntityKind.HolySite
                     ? "to fetch copies from"
                     : "to continue preaching among"),
-            _ => new JourneyPlan(
-                JourneyKind.Visit, active.DestinationId, active.ViaId, "on an embassy to"),
+            // The same wording TryVisit used for the first leg — an envoy does not become a
+            // different kind of traveller on the second visit, so the line should not either.
+            UndertakingKind.Embassy => new JourneyPlan(
+                JourneyKind.Visit, active.DestinationId, active.ViaId, "again as a guest of"),
+            _ => throw new InvalidOperationException(
+                $"No journey wording exists for an active {active.Kind} undertaking."),
         };
     }
 
@@ -70,12 +79,18 @@ public static class Undertakings
         FigureUndertaking? existing = Match(figure, journey);
         if (existing is not null) return existing;
 
+        // Wandering never reaches here — TravelSystem.Record skips PrepareJourney entirely for
+        // it — and a Campaign march is recorded straight to the chronicle without ever calling
+        // this method. So the only kind left for the default case is Visit, and it is named
+        // rather than caught by a silent `_`, for the reason given on JourneyPlan's switch above.
         UndertakingKind kind = journey.Kind switch
         {
             JourneyKind.Trade => UndertakingKind.TradeVenture,
             JourneyKind.Pilgrimage => UndertakingKind.Pilgrimage,
             JourneyKind.Mission => UndertakingKind.MissionaryCircuit,
-            _ => UndertakingKind.Embassy,
+            JourneyKind.Visit => UndertakingKind.Embassy,
+            _ => throw new InvalidOperationException(
+                $"A {journey.Kind} journey does not open an undertaking."),
         };
         int required = kind switch
         {
@@ -183,12 +198,16 @@ public static class Undertakings
         if (sites.Count == 0) return;
 
         HolySite chosen = resolve.Pick(sites);
+        // Names the destination the same way Objective(...) does for every other pilgrimage, so
+        // this vow gets the same "journey" voice and the same single, un-duplicated mention of
+        // the place — see UndertakingData's remarks for why that voice assumes the destination
+        // is already in the string.
         Start(
             world,
             mourner,
             UndertakingKind.Pilgrimage,
             year,
-            "a pilgrimage in memory of " + deceased.FullName,
+            "a pilgrimage to " + world.NameOf(chosen.SettlementId) + " in memory of " + deceased.FullName,
             deceased.Id,
             chosen.SettlementId,
             chosen.Id,
@@ -241,10 +260,10 @@ public static class Undertakings
             extra: undertaking.ParticipantIds.Count == 0
                 ? null
                 : undertaking.ParticipantIds.ToArray(),
-            data: Chronicle.Data(
-                ("kind", undertaking.Kind.ToString()),
-                ("objective", undertaking.Objective),
-                ("years", Chronicle.Years(year - undertaking.StartYear))),
+            data: Chronicle.Data(UndertakingData(
+                undertaking.Kind,
+                undertaking.Objective,
+                ("years", Chronicle.Years(year - undertaking.StartYear)))),
             significance: Significance.Routine);
     }
 
@@ -266,10 +285,8 @@ public static class Undertakings
             extra: undertaking.ParticipantIds.Count == 0
                 ? null
                 : undertaking.ParticipantIds.ToArray(),
-            data: Chronicle.Data(
-                ("kind", undertaking.Kind.ToString()),
-                ("objective", undertaking.Objective),
-                ("cause", cause)),
+            data: Chronicle.Data(UndertakingData(
+                undertaking.Kind, undertaking.Objective, ("cause", cause))),
             significance: Significance.Routine);
     }
 
@@ -291,11 +308,11 @@ public static class Undertakings
             extra: undertaking.ParticipantIds.Count == 0
                 ? null
                 : undertaking.ParticipantIds.ToArray(),
-            data: Chronicle.Data(
-                ("kind", undertaking.Kind.ToString()),
-                ("objective", undertaking.Objective),
+            data: Chronicle.Data(UndertakingData(
+                undertaking.Kind,
+                undertaking.Objective,
                 ("cause", cause),
-                ("state", "abandoned")),
+                ("state", "abandoned"))),
             significance: Significance.Routine);
     }
 
@@ -484,12 +501,36 @@ public static class Undertakings
             figure.Id,
             obj: target,
             location: destination,
-            data: Chronicle.Data(("kind", kind.ToString()), ("objective", objective)),
+            data: Chronicle.Data(UndertakingData(kind, objective)),
             significance: motive == MemoryKind.Bereavement
                 ? Significance.Notable
                 : Significance.Routine);
 
         return undertaking;
+    }
+
+    /// <summary>
+    /// The data pairs every Started/Completed/Failed event carries, plus the caller's own extras.
+    /// </summary>
+    /// <remarks>
+    /// The "journey" voice is what keeps a chronicle from naming a destination twice. For the
+    /// four journey undertakings, <see cref="Objective"/> already bakes the place into the
+    /// objective string — necessarily, since the figure page's open-goal card prints that string
+    /// on its own with no <c>{location}</c> slot to fall back on — so the World.self templates
+    /// keyed <c>.journey</c> in <see cref="Narration"/> drop their own bracketed
+    /// <c>[, bound for {location}]</c> / <c>[ at {location}]</c> clause: the reader is told once,
+    /// not twice, which town an embassy or a pilgrimage went to. Revenge carries no such
+    /// collision — its objective names an enemy, not a place — so it is left to key nothing and
+    /// fall through to the plain templates, where {location} still earns its keep naming the
+    /// battlefield.
+    /// </remarks>
+    private static (string, string)[] UndertakingData(
+        UndertakingKind kind, string objective, params (string, string)[] extra)
+    {
+        var pairs = new List<(string, string)> { ("kind", kind.ToString()), ("objective", objective) };
+        if (IsJourney(kind)) pairs.Add((Narration.VoiceDataKey, "journey"));
+        pairs.AddRange(extra);
+        return pairs.ToArray();
     }
 
     private static FigureUndertaking? Match(Figure figure, Journey journey) =>
@@ -503,7 +544,9 @@ public static class Undertakings
         JourneyKind.Trade => UndertakingKind.TradeVenture,
         JourneyKind.Pilgrimage => UndertakingKind.Pilgrimage,
         JourneyKind.Mission => UndertakingKind.MissionaryCircuit,
-        _ => UndertakingKind.Embassy,
+        JourneyKind.Visit => UndertakingKind.Embassy,
+        _ => throw new InvalidOperationException(
+            $"A {kind} journey does not open an undertaking."),
     };
 
     private static bool IsJourney(UndertakingKind kind) => kind is
@@ -580,6 +623,16 @@ public static class Undertakings
         && world.Settlements.Contains(undertaking.DestinationId)
         && world.Settlements[undertaking.DestinationId].IsActive;
 
+    /// <summary>
+    /// Names the goal for the four journey undertakings. The destination is baked into this
+    /// string rather than left for the chronicle's own <c>{location}</c> slot, because the
+    /// objective is also read verbatim off the figure's own page in the viewer — the "Undertaking
+    /// · a pilgrimage to Shche" line and the open-goal card both print this text directly, with
+    /// no destination link of their own to fall back on. The chronicle templates for
+    /// UndertakingStarted / Completed / Failed compensate on their side instead: the "journey"
+    /// voice they key off of (see <see cref="Start"/>) drops their own bracketed location, so the
+    /// place is still said exactly once in the rendered sentence.
+    /// </summary>
     private static string Objective(
         UndertakingKind kind, WorldState world, EntityId destination)
     {
@@ -589,7 +642,9 @@ public static class Undertakings
             UndertakingKind.TradeVenture => "a lasting trade venture with " + place,
             UndertakingKind.Pilgrimage => "a pilgrimage to " + place,
             UndertakingKind.MissionaryCircuit => "a missionary circuit through " + place,
-            _ => "an embassy to " + place,
+            UndertakingKind.Embassy => "an embassy to " + place,
+            _ => throw new InvalidOperationException(
+                $"{kind} does not name its objective from a destination."),
         };
     }
 }
