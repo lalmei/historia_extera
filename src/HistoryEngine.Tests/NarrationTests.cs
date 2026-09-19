@@ -605,6 +605,102 @@ public sealed class NarrationTests
             Narration.Render(vow, Name, deceased));
     }
 
+    /// <summary>
+    /// An embassy's objective already names its destination (see Undertakings.Objective), so the
+    /// "journey" voice must not repeat it in {location}. This is the exact bug reported against
+    /// the old template: "undertook an embassy to Shche, bound for Shche" — the same town said
+    /// twice in one sentence.
+    /// </summary>
+    [Fact]
+    public void AJourneyUndertakingNamesItsDestinationOnlyOnce()
+    {
+        EntityId envoy = EntityId.Figure(1);
+        var started = new HistoryEvent(
+            Id: 0,
+            Year: 12,
+            Kind: EventKind.UndertakingStarted,
+            Subject: envoy,
+            Object: default,
+            Location: EntityId.Settlement(3),
+            Data: Chronicle.Data(("objective", "an embassy to set:3"), ("voice", "journey")));
+
+        Assert.Equal("fig:1 undertook an embassy to set:3.", Narration.Render(started, Name));
+        Assert.Equal("Undertook an embassy to set:3.", Narration.Render(started, Name, envoy));
+
+        // The plain (unvoiced) template is untouched: it still serves the undertaking kinds
+        // whose objective names a person rather than a place — see the Revenge case below —
+        // so {location} still earns its place there.
+        var plain = started with { Data = Chronicle.Data(("objective", "an embassy to set:3")) };
+        Assert.Equal(
+            "fig:1 undertook an embassy to set:3, bound for set:3.",
+            Narration.Render(plain, Name));
+    }
+
+    /// <summary>
+    /// Completion and failure repeat the same fix, and both keep the year/cause clause the
+    /// objective cannot carry — dropping {location} must not drop the rest of the sentence.
+    /// </summary>
+    [Fact]
+    public void AJourneyUndertakingCompletionAndFailureAlsoNameTheDestinationOnlyOnce()
+    {
+        EntityId trader = EntityId.Figure(4);
+        var completed = new HistoryEvent(
+            Id: 0,
+            Year: 30,
+            Kind: EventKind.UndertakingCompleted,
+            Subject: trader,
+            Object: default,
+            Location: EntityId.Settlement(9),
+            Data: Chronicle.Data(
+                ("objective", "a lasting trade venture with set:9"),
+                ("years", "8 years"),
+                ("voice", "journey")));
+
+        Assert.Equal(
+            "fig:4 completed a lasting trade venture with set:9, after 8 years.",
+            Narration.Render(completed, Name));
+
+        var failed = new HistoryEvent(
+            Id: 1,
+            Year: 30,
+            Kind: EventKind.UndertakingFailed,
+            Subject: trader,
+            Object: default,
+            Location: EntityId.Settlement(9),
+            Data: Chronicle.Data(
+                ("objective", "a lasting trade venture with set:9"),
+                ("cause", "its deadline passed"),
+                ("voice", "journey")));
+
+        Assert.Equal(
+            "fig:4's undertaking, a lasting trade venture with set:9, failed, its deadline passed.",
+            Narration.Render(failed, Name));
+    }
+
+    /// <summary>
+    /// Revenge is the one undertaking kind whose objective names a person, not a place — no
+    /// "journey" voice is ever attached to it (see Undertakings.UndertakingData) — so its
+    /// completion still needs {location} to say where the answering battle was fought.
+    /// </summary>
+    [Fact]
+    public void ARevengeCompletionStillNamesTheBattlefield()
+    {
+        EntityId avenger = EntityId.Figure(5);
+        var completed = new HistoryEvent(
+            Id: 0,
+            Year: 40,
+            Kind: EventKind.UndertakingCompleted,
+            Subject: avenger,
+            Object: default,
+            Location: EntityId.Settlement(6),
+            Data: Chronicle.Data(
+                ("objective", "revenge against fig:8"), ("years", "3 years")));
+
+        Assert.Equal(
+            "fig:5 completed revenge against fig:8 at set:6, after 3 years.",
+            Narration.Render(completed, Name));
+    }
+
     [Fact]
     public void InheritedArtifactsDoNotImplyActionAfterTheFormerHoldersDeath()
     {
