@@ -571,7 +571,13 @@ public sealed class TravelSystem : ISystem
         EntityId wasRealm = figure.CivilizationId;
         figure.CivilizationId = destination.CivilizationId;
 
-        if (!Houses.Settle(world, figure, destination.Id, ResidenceReason.Settled, year))
+        // With household: whoever stayed behind at the old address — a spouse who did not make
+        // the journey, children too young to have been posted or married anywhere — emigrates to
+        // join the traveller rather than being left keeping a house the traveller has just given
+        // up. A family reuniting at the new town is the ordinary reading of "settled there"; a
+        // family permanently split by one member's journey is not, and was the previous default.
+        if (!Houses.Settle(
+            world, figure, destination.Id, ResidenceReason.Settled, year, withHousehold: true))
         {
             figure.CivilizationId = wasRealm;
             return;

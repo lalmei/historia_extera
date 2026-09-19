@@ -252,7 +252,15 @@ public sealed class SettlementLifecycleSystem : ISystem
                     ? world.Civilizations[figure.CivilizationId].CapitalId
                     : EntityId.None;
 
-            Houses.Settle(world, figure, to, ResidenceReason.Flight, year);
+            // With household. This loop already walks every living resident of the settlement
+            // being abandoned, so a spouse or child would be settled here anyway on their own
+            // turn through it — but not necessarily to the same refuge, since two residents of a
+            // border town can belong to different realms and this method resolves "to" from each
+            // figure's own civilization. Passing the household explicitly keeps a family together
+            // at whichever refuge the household head goes to, instead of letting the loop order
+            // and each member's own realm scatter them across two towns that happen to both be
+            // taking in refugees.
+            Houses.Settle(world, figure, to, ResidenceReason.Flight, year, withHousehold: true);
         }
     }
 

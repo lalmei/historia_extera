@@ -473,7 +473,10 @@ public static class Houses
     /// does not leave his wife and children in a provincial town to be counted among its casualties,
     /// and that rule previously existed in one caller and was missing from the others. Only those
     /// who actually shared the old address come along — a grown child who has married out has an
-    /// address of their own and keeps it.</para>
+    /// address of their own and keeps it, and a grown child who has instead built a trade of their
+    /// own MAY keep it too: see <c>IsEstablishedAdult</c> and <c>ChildStaysBehind</c> below. A
+    /// spouse always follows; an unmarried, unposted, unestablished child always follows; an
+    /// established one is a coin the child gets to call.</para>
     /// </remarks>
     /// <returns>Whether the person actually moved.</returns>
     public static bool Settle(
@@ -541,10 +544,70 @@ public static class Houses
             // Nor does a child who governs a town of their own go and live in their father's.
             if (PostedElsewhere(child, to)) continue;
 
+            // A grown child with a trade of their own MAY go, but is no longer swept along as a
+            // certainty. A married-out child already keeps their own address above because they
+            // have joined another household; an established one has not joined anyone else's, but
+            // has still built a life apart from their parent's — an apprenticeship finished, a
+            // guild bench, a place in the town's own affairs — and a father posted to a distant
+            // province does not necessarily uproot a son who has become, in his own right, a
+            // mason of that town. The town being abandoned under everyone's feet is the one
+            // exception: there is no "stay behind" version of a place that no longer exists, so
+            // flight always takes the whole household regardless of what anyone has built there.
+            if (reason != ResidenceReason.Flight
+                && IsEstablishedAdult(child, year)
+                && ChildStaysBehind(world, child, year))
+            {
+                continue;
+            }
+
             Settle(world, child, to, reason, year);
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// Whether a child has come of age and built a trade of their own, rather than still being
+    /// carried on their parent's account.
+    /// </summary>
+    /// <remarks>
+    /// Reuses <see cref="Succession.MajorityAge"/> rather than a new constant, because that is
+    /// already the engine's one answer to "is this person an adult" everywhere else a figure's
+    /// independence matters — a second age threshold here would just be an invitation for the two
+    /// to drift apart later. "Established" asks for an occupation and not merely an age, because
+    /// <see cref="Occupations.Ensure"/> gives nearly everyone a career within a year of majority
+    /// regardless of whether they have actually settled into it; a child of majority age is only
+    /// treated as somebody with a life of their own once that career shows up on the record, which
+    /// keeps a household intact for the narrow window between coming of age and taking a trade.
+    /// </remarks>
+    private static bool IsEstablishedAdult(Figure child, int year) =>
+        child.AgeIn(year) >= Succession.MajorityAge && child.Occupation != Occupation.None;
+
+    /// <summary>
+    /// Whether an established adult child, free to go either way, chooses to stay put.
+    /// </summary>
+    /// <remarks>
+    /// <para>Forked on the child's own id and the year, following the idiom
+    /// <see cref="Undertakings"/> already uses for a person's own choices, so the same family
+    /// moving in two different years — or two different families moving in the same year — never
+    /// share a draw and never depend on how many other households happened to move first.</para>
+    ///
+    /// <para>A flat 55% chance of staying: close enough to a coin flip that most established
+    /// children still follow their parents, the way most families in fact travel together, but
+    /// tipped slightly toward staying because the whole point of this rule is that a trade is a
+    /// real anchor, not a coin flip against no anchor at all. A craftsman actually practising a
+    /// craft — <see cref="Figure.Craft"/> set, not merely an occupation on paper — leans further
+    /// still, to 70%: a guild bench and standing among a town's other craftsmen is a harder thing
+    /// to walk away from than an office-derived occupation like Court or Official, which describes
+    /// what somebody does more than where they belong.</para>
+    /// </remarks>
+    private static bool ChildStaysBehind(WorldState world, Figure child, int year)
+    {
+        double stayChance = child.Craft != Craft.None ? 0.70 : 0.55;
+        IRng rng = world.Root
+            .Fork("residence.stay", child.Id.ToDiscriminator())
+            .Fork("year", year);
+        return rng.Chance(stayChance);
     }
 
     /// <summary>
@@ -572,9 +635,9 @@ public static class Houses
         ResidenceReason.Recall => "recalled to court",
         ResidenceReason.Accession => "on taking the throne",
         ResidenceReason.Regency => "to govern for the heir",
-        ResidenceReason.Flight => "the town being abandoned",
-        ResidenceReason.Settled => "having stayed after the journey there",
-        _ => "the realm having changed hands",
+        ResidenceReason.Flight => "after the town was abandoned",
+        ResidenceReason.Settled => "having stayed on after a journey",
+        _ => "after the realm changed hands",
     };
 
     public static void Die(

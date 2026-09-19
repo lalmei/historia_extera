@@ -437,6 +437,16 @@ public sealed class SuccessionSystem : ISystem
         // a mother who married out — is the person the walk prefers, and leaving them where
         // they are would put the office in one realm and its holder in another.
         regent.CivilizationId = civilization.Id;
+
+        // Without household here: the code just below already moves the one other household
+        // member this figure might have — the consort — and it does so with checks (not a ruling
+        // monarch elsewhere, not holding some other office) that `Settle`'s own generic household
+        // pass does not know to make. Turning this on would let the generic pass move the consort
+        // first, unguarded, before those checks ever run, which is the exact mistake they exist to
+        // prevent one call down. A regent's unmarried, unestablished children with no office of
+        // their own are the one household member this leaves uncarried; bringing them too wants
+        // the consort-move below folded into `Settle` itself rather than duplicated here, which is
+        // out of scope for this change.
         Houses.Settle(world, regent, civilization.CapitalId, ResidenceReason.Regency, year);
 
         if (world.Figures.Contains(regent.SpouseId))
@@ -447,12 +457,20 @@ public sealed class SuccessionSystem : ISystem
                 && (held is null || held.Kind == OfficeKind.Consort))
             {
                 consort.CivilizationId = civilization.Id;
+
+                // With household, now that the guards above have already cleared this consort to
+                // move: a regent's spouse can have children of their own from an earlier marriage,
+                // not among `regent.ChildIds`, and those children deserve the same rule everyone
+                // else's do. Harmless where they are the same children the call above already
+                // moved, or where the regent has already arrived and this is a no-op — `Settle`
+                // declines a move to an address already held.
                 Houses.Settle(
                     world,
                     consort,
                     regent.ResidenceSettlementId,
                     ResidenceReason.Regency,
-                    year);
+                    year,
+                    withHousehold: true);
             }
         }
 
