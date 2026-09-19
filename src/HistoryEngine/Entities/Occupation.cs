@@ -24,8 +24,10 @@ public enum Occupation
     /// <summary>The temple. The career a high priest is raised from.</summary>
     Clergy = 2,
 
-    /// <summary>A standing figure of their own town. The career a governor is raised from.</summary>
-    Townsfolk = 3,
+    // 3 was Townsfolk: standing in a town, with no trade under it. Removed because it was not a
+    // career — everyone the chronicle follows does something, and a person of standing and nothing
+    // else is someone it should not have been following. The value is left unused rather than
+    // reassigned so an older export cannot silently read as a different trade.
 
     /// <summary>A craft or learned trade.</summary>
     Guild = 4,

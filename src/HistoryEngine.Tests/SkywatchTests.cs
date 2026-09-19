@@ -299,7 +299,7 @@ public sealed class SkywatchTests
                     Sex.Male,
                     1)
                 {
-                    Occupation = Occupation.Townsfolk,
+                    Occupation = Occupation.Guild,
                     ResidenceSettlementId = civilization.CapitalId,
                 });
             }
