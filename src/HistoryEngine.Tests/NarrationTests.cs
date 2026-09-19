@@ -834,4 +834,264 @@ public sealed class NarrationTests
         Assert.Equal(0, Narration.VariantIndex(0, 2));
         Assert.Equal(1, Narration.VariantIndex(1, 2));
     }
+
+    /// <summary>
+    /// Every rung of the friendship ladder used to open a figure's own chronicle line on a bare,
+    /// capitalised verb with no subject — "Did a good turn for fig:2." — because
+    /// <c>{data:actSelf}</c> supplied the verb only, pre-capitalised, with nothing in front of it.
+    /// That reads as a fragment even without a second person in the sentence, and reads as
+    /// nonsensical with one: a reader cannot tell who did the good turn. The fix puts
+    /// <c>{they:self}</c> in front of the bare verb instead, on both the subject's page and (via
+    /// the object clause, which already had a subject: {other}) the object's.
+    /// </summary>
+    [Fact]
+    public void AffinityDeepenedNamesASubjectOnEveryRungFromBothSides()
+    {
+        EntityId opener = EntityId.Figure(1);
+        EntityId friend = EntityId.Figure(2);
+        EntityId place = EntityId.Settlement(3);
+
+        // (verb as stored in "act", world line, opener's own page, friend's own page)
+        (string act, string world, string selfSubject, string selfObject)[] rungs =
+        {
+            ("stepped in to help",
+                "fig:1 stepped in to help fig:2 at set:3.",
+                "They stepped in to help fig:2.",
+                "fig:1 stepped in to help them."),
+            ("confided in",
+                "fig:1 confided in fig:2 at set:3.",
+                "They confided in fig:2.",
+                "fig:1 confided in them."),
+            ("befriended",
+                "fig:1 befriended fig:2 at set:3.",
+                "They befriended fig:2.",
+                "fig:1 befriended them."),
+            ("fell in love with",
+                "fig:1 fell in love with fig:2 at set:3.",
+                "They fell in love with fig:2.",
+                "fig:1 fell in love with them."),
+        };
+
+        int id = 0;
+        foreach ((string act, string world, string selfSubject, string selfObject) in rungs)
+        {
+            var withPlace = new HistoryEvent(
+                id++, 900, EventKind.AffinityDeepened, opener, friend, place,
+                Data: Chronicle.Data(("act", act)));
+
+            Assert.Equal(world, Narration.Render(withPlace, Name));
+            Assert.Equal(selfSubject, Narration.Render(withPlace, Name, opener));
+            Assert.Equal(selfObject, Narration.Render(withPlace, Name, friend));
+
+            // The optional "[ at {location}]" segment must drop cleanly when there is no place,
+            // on the world line and on both self clauses.
+            var withoutPlace = new HistoryEvent(
+                id++, 900, EventKind.AffinityDeepened, opener, friend, default,
+                Data: Chronicle.Data(("act", act)));
+
+            Assert.Equal(world.Replace(" at set:3", string.Empty), Narration.Render(withoutPlace, Name));
+            Assert.Equal(selfSubject, Narration.Render(withoutPlace, Name, opener));
+            Assert.Equal(selfObject, Narration.Render(withoutPlace, Name, friend));
+        }
+    }
+
+    /// <summary>
+    /// The same missing-subject defect, and the same fix, on the quarrel ladder's escalation line.
+    /// </summary>
+    [Fact]
+    public void DisputeEscalatedNamesASubjectOnEveryRungFromBothSides()
+    {
+        EntityId opener = EntityId.Figure(1);
+        EntityId rival = EntityId.Figure(2);
+        EntityId place = EntityId.Settlement(3);
+
+        (string act, string world, string selfSubject, string selfObject)[] rungs =
+        {
+            ("insulted",
+                "fig:1 insulted fig:2 at set:3.",
+                "They insulted fig:2.",
+                "fig:1 insulted them."),
+            ("laid a charge against",
+                "fig:1 laid a charge against fig:2 at set:3.",
+                "They laid a charge against fig:2.",
+                "fig:1 laid a charge against them."),
+            ("demanded satisfaction of",
+                "fig:1 demanded satisfaction of fig:2 at set:3.",
+                "They demanded satisfaction of fig:2.",
+                "fig:1 demanded satisfaction of them."),
+        };
+
+        int id = 0;
+        foreach ((string act, string world, string selfSubject, string selfObject) in rungs)
+        {
+            var withPlace = new HistoryEvent(
+                id++, 900, EventKind.DisputeEscalated, opener, rival, place,
+                Data: Chronicle.Data(("act", act)));
+
+            Assert.Equal(world, Narration.Render(withPlace, Name));
+            Assert.Equal(selfSubject, Narration.Render(withPlace, Name, opener));
+            Assert.Equal(selfObject, Narration.Render(withPlace, Name, rival));
+
+            var withoutPlace = new HistoryEvent(
+                id++, 900, EventKind.DisputeEscalated, opener, rival, default,
+                Data: Chronicle.Data(("act", act)));
+
+            Assert.Equal(world.Replace(" at set:3", string.Empty), Narration.Render(withoutPlace, Name));
+            Assert.Equal(selfSubject, Narration.Render(withoutPlace, Name, opener));
+            Assert.Equal(selfObject, Narration.Render(withoutPlace, Name, rival));
+        }
+    }
+
+    /// <summary>
+    /// An acquaintance is symmetric — nobody is "the one who came to know" the other — so both
+    /// parties' own pages must read the same pronoun-led clause, with and without a recorded cause.
+    /// </summary>
+    [Fact]
+    public void AcquaintanceFormedNamesASubjectForBothPartiesWithAndWithoutACause()
+    {
+        EntityId first = EntityId.Figure(1);
+        EntityId second = EntityId.Figure(2);
+        EntityId place = EntityId.Settlement(3);
+
+        var withCause = new HistoryEvent(
+            0, 900, EventKind.AcquaintanceFormed, first, second, place,
+            Data: Chronicle.Data(("cause", "the town they shared")));
+
+        Assert.Equal(
+            "fig:1 came to know fig:2 at set:3, through the town they shared.",
+            Narration.Render(withCause, Name));
+        Assert.Equal(
+            "They came to know fig:2, through the town they shared.",
+            Narration.Render(withCause, Name, first));
+        Assert.Equal(
+            "They came to know fig:1, through the town they shared.",
+            Narration.Render(withCause, Name, second));
+
+        var withoutCause = new HistoryEvent(
+            1, 900, EventKind.AcquaintanceFormed, first, second, place);
+
+        Assert.Equal("fig:1 came to know fig:2 at set:3.", Narration.Render(withoutCause, Name));
+        Assert.Equal("They came to know fig:2.", Narration.Render(withoutCause, Name, first));
+        Assert.Equal("They came to know fig:1.", Narration.Render(withoutCause, Name, second));
+    }
+
+    /// <summary>
+    /// A quarrel's opening line already named the aggrieved party as its subject on the object's
+    /// own page ("fig:2 fell out with them"), but the aggrieved party's own page opened on a bare
+    /// "Fell out with fig:2." — the same defect as the two acts ladders, fixed the same way.
+    /// </summary>
+    [Fact]
+    public void DisputeOpenedNamesASubjectOnTheAggrievedPartysOwnPageWithAndWithoutACause()
+    {
+        EntityId aggrieved = EntityId.Figure(1);
+        EntityId rival = EntityId.Figure(2);
+        EntityId place = EntityId.Settlement(3);
+
+        var withCause = new HistoryEvent(
+            0, 900, EventKind.DisputeOpened, aggrieved, rival, place,
+            Data: Chronicle.Data(("cause", "the loss of an office")));
+
+        Assert.Equal(
+            "fig:1 fell out with fig:2 at set:3, over the loss of an office.",
+            Narration.Render(withCause, Name));
+        Assert.Equal(
+            "They fell out with fig:2, over the loss of an office.",
+            Narration.Render(withCause, Name, aggrieved));
+        Assert.Equal(
+            "fig:1 fell out with them, over the loss of an office.",
+            Narration.Render(withCause, Name, rival));
+
+        var withoutCause = new HistoryEvent(1, 900, EventKind.DisputeOpened, aggrieved, rival, place);
+
+        Assert.Equal("fig:1 fell out with fig:2 at set:3.", Narration.Render(withoutCause, Name));
+        Assert.Equal("They fell out with fig:2.", Narration.Render(withoutCause, Name, aggrieved));
+        Assert.Equal("fig:1 fell out with them.", Narration.Render(withoutCause, Name, rival));
+    }
+
+    /// <summary>
+    /// The arbiter's own line ("Judged between fig:1 and fig:2.") named both litigants and nobody
+    /// doing the judging, the same fragment class as the two ladders above.
+    /// </summary>
+    [Fact]
+    public void DisputeSettledNamesASubjectOnTheArbitersOwnPage()
+    {
+        EntityId opener = EntityId.Figure(1);
+        EntityId rival = EntityId.Figure(2);
+        EntityId arbiter = EntityId.Figure(3);
+
+        var settled = new HistoryEvent(
+            0, 900, EventKind.DisputeSettled, opener, rival, default,
+            Extra: new[] { arbiter },
+            Data: Chronicle.Data(("manner", "terms were imposed")));
+
+        Assert.Equal(
+            "They judged between fig:1 and fig:2.",
+            Narration.Render(settled, Name, arbiter));
+    }
+
+    /// <summary>
+    /// A friend or a spouse who turned used to open the turning party's own page on a bare
+    /// "Turned on fig:2.", the missing-subject defect once more.
+    /// </summary>
+    [Fact]
+    public void BetrayalLinesNameASubjectOnTheBetrayersOwnPage()
+    {
+        EntityId betrayer = EntityId.Figure(1);
+        EntityId betrayed = EntityId.Figure(2);
+
+        var friendship = new HistoryEvent(
+            0, 900, EventKind.FriendshipBetrayed, betrayer, betrayed, default,
+            Data: Chronicle.Data(("cause", "an old grievance")));
+
+        Assert.Equal(
+            "fig:1 turned on fig:2, over an old grievance.",
+            Narration.Render(friendship, Name));
+        Assert.Equal(
+            "They turned on fig:2, over an old grievance.",
+            Narration.Render(friendship, Name, betrayer));
+        Assert.Equal(
+            "Was betrayed by fig:1, over an old grievance.",
+            Narration.Render(friendship, Name, betrayed));
+
+        var marriage = new HistoryEvent(
+            1, 900, EventKind.SpouseBetrayed, betrayer, betrayed, default,
+            Data: Chronicle.Data(("cause", "the quarrel between them"), ("tie", "husband")));
+
+        Assert.Equal(
+            "fig:1 turned on fig:2, their own husband, over the quarrel between them.",
+            Narration.Render(marriage, Name));
+        Assert.Equal(
+            "They turned on fig:2, their own husband, over the quarrel between them.",
+            Narration.Render(marriage, Name, betrayer));
+        Assert.Equal(
+            "Was betrayed by fig:1, over the quarrel between them.",
+            Narration.Render(marriage, Name, betrayed));
+    }
+
+    /// <summary>
+    /// The victor's own page used to open "Met fig:2, ... and killed them." with no subject; the
+    /// loser's page was already fine, since it is a passive clause with {other} as the named agent.
+    /// </summary>
+    [Fact]
+    public void DuelFoughtNamesASubjectOnTheVictorsOwnPage()
+    {
+        EntityId victor = EntityId.Figure(1);
+        EntityId beaten = EntityId.Figure(2);
+
+        var duel = new HistoryEvent(
+            0, 900, EventKind.DuelFought, victor, beaten, default,
+            Data: Chronicle.Data(
+                ("cause", "the loss of an office"),
+                ("result", "killed")));
+
+        Assert.Equal(
+            "fig:1 met fig:2 over the loss of an office and killed them.",
+            Narration.Render(duel, Name));
+        Assert.Equal(
+            "They met fig:2 over the loss of an office and killed them.",
+            Narration.Render(duel, Name, victor));
+        Assert.Equal(
+            "Was killed by fig:1 over the loss of an office.",
+            Narration.Render(duel, Name, beaten));
+    }
 }
