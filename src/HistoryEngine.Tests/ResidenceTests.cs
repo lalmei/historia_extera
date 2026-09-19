@@ -340,4 +340,247 @@ public sealed class ResidenceTests
 
         Assert.True(checkedResidents > 100, $"Only {checkedResidents} living residents were checked.");
     }
+
+    /// <summary>
+    /// A spouse who shared the mover's old address follows on a move that is not the marriage
+    /// itself.
+    /// </summary>
+    /// <remarks>
+    /// Exercises <see cref="Houses.Settle"/> directly with <c>withHousehold: true</c>, the way a
+    /// recall, an accession, a regency, a flight or a settled journey now all call it, rather than
+    /// waiting for one to occur in a full run. A governor recalled to court leaving his wife behind
+    /// in the province is the exact failure the household pass exists to prevent.
+    /// </remarks>
+    [Fact]
+    public void ASpouseFollowsOnANonMarriageMove()
+    {
+        WorldState world = WorldBuilder.Create(TestWorlds.Small());
+        Civilization civilization = world.Civilizations[0];
+        Culture culture = world.Cultures[civilization.CultureId];
+        EntityId destination = OtherCapital(world, civilization);
+
+        Figure figure = Houses.NewFigure(world, civilization, culture, Sex.Male, birthYear: 1);
+        Figure spouse = Houses.NewFigure(world, civilization, culture, Sex.Female, birthYear: 1);
+        figure.SpouseId = spouse.Id;
+        figure.SpouseIds.Add(spouse.Id);
+        spouse.SpouseId = figure.Id;
+        spouse.SpouseIds.Add(figure.Id);
+
+        bool moved = Houses.Settle(
+            world, figure, destination, ResidenceReason.Recall, year: 40, withHousehold: true);
+
+        Assert.True(moved);
+        Assert.Equal(destination, figure.ResidenceSettlementId);
+        Assert.Equal(destination, spouse.ResidenceSettlementId);
+    }
+
+    /// <summary>
+    /// A married child keeps the address of the household they founded rather than the one they
+    /// grew up in.
+    /// </summary>
+    /// <remarks>
+    /// Dragging a married child along splits the household they founded: they would arrive at the
+    /// parent's new town with their own spouse left behind, which is the failure
+    /// <see cref="Houses.Settle"/> already documents one generation down.
+    /// </remarks>
+    [Fact]
+    public void AMarriedChildDoesNotFollow()
+    {
+        WorldState world = WorldBuilder.Create(TestWorlds.Small());
+        Civilization civilization = world.Civilizations[0];
+        Culture culture = world.Cultures[civilization.CultureId];
+        EntityId home = civilization.CapitalId;
+        EntityId destination = OtherCapital(world, civilization);
+
+        Figure figure = Houses.NewFigure(world, civilization, culture, Sex.Male, birthYear: 1);
+        Figure child = Houses.NewFigure(world, civilization, culture, Sex.Female, birthYear: 20);
+        Figure childSpouse = Houses.NewFigure(world, civilization, culture, Sex.Male, birthYear: 20);
+        figure.ChildIds.Add(child.Id);
+        child.SpouseId = childSpouse.Id;
+        child.SpouseIds.Add(childSpouse.Id);
+        childSpouse.SpouseId = child.Id;
+        childSpouse.SpouseIds.Add(child.Id);
+
+        Houses.Settle(world, figure, destination, ResidenceReason.Recall, year: 40, withHousehold: true);
+
+        Assert.Equal(destination, figure.ResidenceSettlementId);
+        Assert.Equal(home, child.ResidenceSettlementId);
+    }
+
+    /// <summary>
+    /// A child posted to govern a town of their own does not follow a parent's move into a
+    /// different one.
+    /// </summary>
+    /// <remarks>
+    /// The failure <see cref="Houses.PostedElsewhere"/> exists to prevent: a court can post a
+    /// father to one town in the same decade it posts his unmarried son to another, and without
+    /// this guard the engine would end up with a governor who lives somewhere he does not govern.
+    /// </remarks>
+    [Fact]
+    public void AChildWithTheirOwnPostingDoesNotFollow()
+    {
+        WorldState world = WorldBuilder.Create(TestWorlds.Small());
+        Civilization civilization = world.Civilizations[0];
+        Culture culture = world.Cultures[civilization.CultureId];
+        EntityId home = civilization.CapitalId;
+        EntityId destination = OtherCapital(world, civilization);
+        EntityId thirdTown = ThirdSettlement(world, civilization, home, destination);
+
+        Figure figure = Houses.NewFigure(world, civilization, culture, Sex.Male, birthYear: 1);
+        Figure child = Houses.NewFigure(world, civilization, culture, Sex.Female, birthYear: 20);
+        figure.ChildIds.Add(child.Id);
+        child.Offices.Add(
+            new OfficeHolding(OfficeKind.Governor, "Governor", civilization.Id, 30, null)
+            {
+                ScopeId = thirdTown,
+            });
+
+        Houses.Settle(world, figure, destination, ResidenceReason.Recall, year: 40, withHousehold: true);
+
+        Assert.Equal(destination, figure.ResidenceSettlementId);
+        Assert.Equal(home, child.ResidenceSettlementId);
+    }
+
+    /// <summary>
+    /// An established adult child — of majority age and already carrying a trade of their own —
+    /// sometimes stays behind and sometimes follows, but the same way every time for the same
+    /// seed, id and year.
+    /// </summary>
+    /// <remarks>
+    /// <para>This is the determinism guarantee the whole feature stands or falls on: the choice is
+    /// forked from <see cref="WorldState.Root"/> keyed on the child's id and the year, the same
+    /// idiom <see cref="Undertakings"/> already uses for a person's own choices, so it must be
+    /// reproducible and must not depend on draws any other household happens to make.</para>
+    ///
+    /// <para>One child per seed is not reliable enough on its own — a single coin flip is exactly
+    /// as likely to land the same way five times as not — so this samples twenty established
+    /// children per seed to make "some stay and some go" a near-certainty, and separately rebuilds
+    /// one seed's scenario twice to check that a single, specific outcome repeats exactly.</para>
+    /// </remarks>
+    [Fact]
+    public void AnEstablishedAdultChildSometimesStaysAndSometimesGoesButIsDeterministicPerSeed()
+    {
+        bool anyStayed = false;
+        bool anyWent = false;
+
+        foreach (ulong seed in Seeds)
+        {
+            bool[] outcome = SettleWithEstablishedChildren(seed, childCount: 20);
+            foreach (bool stayed in outcome)
+            {
+                if (stayed) anyStayed = true;
+                else anyWent = true;
+            }
+        }
+
+        Assert.True(anyStayed, "No established adult child ever stayed behind across five seeds.");
+        Assert.True(anyWent, "No established adult child ever followed along across five seeds.");
+
+        // Determinism: rebuilding the identical scenario — same seed, same construction order, so
+        // the same figure ids and the same year — must reach the identical answer for every child.
+        bool[] first = SettleWithEstablishedChildren(42, childCount: 20);
+        bool[] second = SettleWithEstablishedChildren(42, childCount: 20);
+        Assert.Equal(first, second);
+    }
+
+    /// <summary>
+    /// Builds one parent with <paramref name="childCount"/> established adult children sharing the
+    /// parent's address, settles the parent with the household, and reports which children stayed.
+    /// </summary>
+    private static bool[] SettleWithEstablishedChildren(ulong seed, int childCount)
+    {
+        WorldState world = WorldBuilder.Create(TestWorlds.Standard(seed));
+        Civilization civilization = world.Civilizations[0];
+        Culture culture = world.Cultures[civilization.CultureId];
+        EntityId home = civilization.CapitalId;
+        EntityId destination = OtherCapital(world, civilization);
+
+        const int year = 60;
+        Figure figure = Houses.NewFigure(world, civilization, culture, Sex.Male, birthYear: 1);
+        var children = new Figure[childCount];
+        for (int i = 0; i < childCount; i++)
+        {
+            // Well past majority (16) and already carrying a trade, so every one of them is
+            // "established" and free to choose, rather than a minor who has no choice at all.
+            Figure child = Houses.NewFigure(
+                world, civilization, culture, Sex.Female, birthYear: year - 30);
+            child.Occupation = Occupation.Merchant;
+            figure.ChildIds.Add(child.Id);
+            children[i] = child;
+        }
+
+        Houses.Settle(world, figure, destination, ResidenceReason.Recall, year, withHousehold: true);
+
+        var outcome = new bool[childCount];
+        for (int i = 0; i < childCount; i++)
+        {
+            outcome[i] = children[i].ResidenceSettlementId == home;
+        }
+
+        return outcome;
+    }
+
+    /// <summary>A settlement flight sweeps the whole household even an established child would
+    /// otherwise be free to sit out, because there is no town left to stay behind in.</summary>
+    [Fact]
+    public void FlightTakesAnEstablishedChildRegardlessOfTheCoin()
+    {
+        int checkedChildren = 0;
+
+        foreach (ulong seed in Seeds)
+        {
+            WorldState world = WorldBuilder.Create(TestWorlds.Standard(seed));
+            Civilization civilization = world.Civilizations[0];
+            Culture culture = world.Cultures[civilization.CultureId];
+            EntityId home = civilization.CapitalId;
+            EntityId destination = OtherCapital(world, civilization);
+
+            const int year = 60;
+            Figure figure = Houses.NewFigure(world, civilization, culture, Sex.Male, birthYear: 1);
+            var children = new Figure[20];
+            for (int i = 0; i < children.Length; i++)
+            {
+                Figure child = Houses.NewFigure(
+                    world, civilization, culture, Sex.Female, birthYear: year - 30);
+                child.Occupation = Occupation.Merchant;
+                figure.ChildIds.Add(child.Id);
+                children[i] = child;
+            }
+
+            // One call for the whole household, exactly as a real evacuation does it: every
+            // established child's coin is rolled in the same pass, and every one of them must
+            // still come out on the other side, because the alternative is a resident of a town
+            // that no longer exists.
+            Houses.Settle(world, figure, destination, ResidenceReason.Flight, year, withHousehold: true);
+
+            foreach (Figure child in children)
+            {
+                Assert.Equal(destination, child.ResidenceSettlementId);
+                checkedChildren++;
+            }
+        }
+
+        Assert.True(checkedChildren > 0, "No established child was ever checked against a flight.");
+    }
+
+    private static EntityId OtherCapital(WorldState world, Civilization civilization)
+    {
+        foreach (Civilization other in world.Civilizations)
+        {
+            if (other.Id != civilization.Id) return other.CapitalId;
+        }
+
+        throw new InvalidOperationException("Test world has only one civilization.");
+    }
+
+    private static EntityId ThirdSettlement(
+        WorldState world, Civilization civilization, EntityId home, EntityId destination)
+    {
+        foreach (Settlement settlement in world.Settlements)
+        {
+            if (settlement.Id != home && settlement.Id != destination) return settlement.Id;
+        }
+
+        throw new InvalidOperationException("Test world has no third settlement.");
+    }
 }
