@@ -49,7 +49,6 @@ public static class Occupations
     {
         FigureOrigin.Soldiery => Occupation.Soldiery,
         FigureOrigin.Clergy => Occupation.Clergy,
-        FigureOrigin.Townsfolk => Occupation.Townsfolk,
         FigureOrigin.Guild => Occupation.Guild,
         FigureOrigin.Merchant => Occupation.Merchant,
         _ => Occupation.None,
@@ -102,7 +101,24 @@ public static class Occupations
                 // them a trade can still be seated, and without this they would leave office
                 // still wearing it. Dynasts go back to court; FromOrigin cannot help them,
                 // because they arrived Unrecorded.
-                Take(world, figure, Occupation.Court, year);
+                //
+                // Somebody raised out of a town is the exception, and the reason this is not
+                // simply Court. They were invented to hold the seat and so have no trade behind
+                // them, and the town door used to hand them one — standing, and nothing under it.
+                // Now they roll for a life the way a child does, off their own id, so the man who
+                // lays down a governorship goes back to a craft or a counting-house rather than to
+                // a court he has never attended. Forked on the figure alone, so a governor who
+                // takes and lays down three seats returns to the same trade every time.
+                Take(
+                    world,
+                    figure,
+                    figure.Origin == FigureOrigin.Townsfolk
+                        ? Choose(
+                            world,
+                            figure,
+                            world.Root.Fork("occupation", figure.Id.ToDiscriminator()))
+                        : Occupation.Court,
+                    year);
             }
 
             return;
@@ -133,7 +149,6 @@ public static class Occupations
     {
         Occupation.Soldiery => "arms",
         Occupation.Clergy => "holy orders",
-        Occupation.Townsfolk => "the standing of the town",
         Occupation.Guild => "a craft",
         Occupation.Merchant => "trade",
         Occupation.Court => "the court",
@@ -147,12 +162,6 @@ public static class Occupations
     {
         if (figure.Occupation == Occupation.None) return OfficeMismatch;
         if (figure.Occupation == ForOffice(office)) return OfficeMatch;
-
-        // A governorship looks for someone of the town; holding it is office.
-        if (office == OfficeKind.Governor && figure.Occupation == Occupation.Townsfolk)
-        {
-            return OfficeMatch;
-        }
 
         return OfficeMismatch;
     }
@@ -210,7 +219,6 @@ public static class Occupations
         {
             Occupation.Soldiery,
             Occupation.Clergy,
-            Occupation.Townsfolk,
             Occupation.Guild,
             Occupation.Merchant,
             Occupation.Court,
@@ -235,8 +243,13 @@ public static class Occupations
         {
             0.08 + (decided.Aggression * 1.10) + (decided.Expansionism * 0.40),
             0.08 + (decided.Piety * 1.20),
-            0.08 + (decided.Tradition * 0.70),
-            0.08 + (decided.Learning * 1.10),
+
+            // Tradition buys a craft. It used to buy standing in a town instead, at 0.70, and when
+            // that stopped being a career the pull had nowhere to go — a people who valued tradition
+            // above all else would have read as a people of letters and counting-houses. A craft is
+            // the trade that is actually inherited and taught, so it takes 0.45 of the 0.70 and the
+            // scribe's existing 0.25 below carries the rest.
+            0.08 + (decided.Learning * 1.10) + (decided.Tradition * 0.45),
             0.08 + (decided.Mercantile * 1.20),
             0.06 + (figure.Disposition.Centralism * 0.25),
             0.05 + (decided.Learning * 1.15) + (decided.Tradition * 0.25),
@@ -244,7 +257,7 @@ public static class Occupations
 
         if (!figure.DynastyId.IsNone)
         {
-            weights[5] += 0.12 + ((1.0 - independence) * 0.35);
+            weights[IndexOf(Occupation.Court)] += 0.12 + ((1.0 - independence) * 0.35);
         }
 
         PullToward(world, figure.MotherId, independence, weights);
@@ -363,10 +376,11 @@ public static class Occupations
                     weights[IndexOf(Occupation.Clergy)] += pull;
                     break;
                 case CareerFamily.TradeCraft:
-                    weights[IndexOf(Occupation.Townsfolk)] += pull * 0.24;
-                    weights[IndexOf(Occupation.Guild)] += pull * 0.30;
-                    weights[IndexOf(Occupation.Merchant)] += pull * 0.30;
-                    if (mentor.Occupation is Occupation.Townsfolk or Occupation.Guild or Occupation.Merchant)
+                    // The two halves of the family split what used to go three ways, so a trade
+                    // mentor pulls as hard in total as they did before the third option went.
+                    weights[IndexOf(Occupation.Guild)] += pull * 0.42;
+                    weights[IndexOf(Occupation.Merchant)] += pull * 0.42;
+                    if (mentor.Occupation is Occupation.Guild or Occupation.Merchant)
                     {
                         weights[IndexOf(mentor.Occupation)] += pull * 0.36;
                     }
@@ -389,7 +403,10 @@ public static class Occupations
             double intensity = LifeStories.EffectiveIntensity(memory, figure.BirthYear + Succession.MajorityAge);
             double bold = figure.Disposition.Values.Aggression;
             weights[IndexOf(Occupation.Soldiery)] += intensity * bold * 0.46;
-            weights[IndexOf(Occupation.Townsfolk)] += intensity * (1.0 - bold) * 0.24;
+
+            // The other way a child reads a siege: not the walls but the work behind them. This
+            // pull used to settle them into the town with nothing to do once they were there.
+            weights[IndexOf(Occupation.Guild)] += intensity * (1.0 - bold) * 0.24;
         }
     }
 
@@ -397,11 +414,10 @@ public static class Occupations
     {
         Occupation.Soldiery => 0,
         Occupation.Clergy => 1,
-        Occupation.Townsfolk => 2,
-        Occupation.Guild => 3,
-        Occupation.Merchant => 4,
-        Occupation.Court => 5,
-        Occupation.Scribe => 6,
-        _ => 5,
+        Occupation.Guild => 2,
+        Occupation.Merchant => 3,
+        Occupation.Court => 4,
+        Occupation.Scribe => 5,
+        _ => 4,
     };
 }

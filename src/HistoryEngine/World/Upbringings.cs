@@ -158,7 +158,7 @@ public static class Upbringings
     {
         Occupation.Soldiery => CareerFamily.Arms,
         Occupation.Clergy => CareerFamily.Faith,
-        Occupation.Townsfolk or Occupation.Guild or Occupation.Merchant => CareerFamily.TradeCraft,
+        Occupation.Guild or Occupation.Merchant => CareerFamily.TradeCraft,
         _ => CareerFamily.LettersOffice,
     };
 

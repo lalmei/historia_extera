@@ -505,7 +505,7 @@ export const ORIGIN_LABELS: Record<FigureOrigin, string> = {
   Unrecorded: '',
   Soldiery: 'Risen from the ranks',
   Clergy: 'Risen through the temple',
-  Townsfolk: 'Of the town',
+  Townsfolk: 'Raised from the town',
   Guild: 'Risen through a guild',
   Merchant: 'Risen through a merchant house',
 };
@@ -538,7 +538,6 @@ export type Occupation =
   | 'None'
   | 'Soldiery'
   | 'Clergy'
-  | 'Townsfolk'
   | 'Guild'
   | 'Merchant'
   | 'Court'
@@ -606,7 +605,6 @@ export const OCCUPATION_LABELS: Record<Occupation, string> = {
   None: 'Not yet of age',
   Soldiery: 'Soldiery',
   Clergy: 'Clergy',
-  Townsfolk: 'Of the town',
   Guild: 'Guild',
   Merchant: 'Merchant',
   Court: 'Court',
