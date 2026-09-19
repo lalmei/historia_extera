@@ -373,10 +373,23 @@ public sealed class ConspiracyTests
                     // existed. Whether such a child should later inherit the grievance is a real
                     // question, but it is not this assertion's to answer: the model deals
                     // bereavement to the household present at the death.
+                    //
+                    // At or after, not exactly at, for the same reason AccusedYear above is read
+                    // that way: KinMurderedYear holds one year and the latest murder in a family
+                    // wins it. A house that is struck twice leaves its survivors carrying the
+                    // second date, and asserting the first would be asserting that no such house
+                    // exists — which is a claim about how quiet a world happened to be, not about
+                    // whether a plot used the ordinary paths. Seed panels found the first family
+                    // murdered in two different generations once the courtship pass changed which
+                    // houses rose; the bereavement was dealt correctly both times.
                     Assert.All(
                         Succession.ImmediateFamily(world, target)
                             .Where(kin => kin.BirthYear <= ended),
-                        kin => Assert.Equal(ended, kin.KinMurderedYear));
+                        kin => Assert.True(
+                            kin.KinMurderedYear >= ended,
+                            $"Seed {seed}: {kin.FullName} was in the household when "
+                            + $"{target.FullName} was murdered in {ended} and carries "
+                            + $"{kin.KinMurderedYear}."));
                     continue;
                 }
 

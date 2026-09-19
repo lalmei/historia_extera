@@ -269,11 +269,27 @@ public sealed class AffinityTests
                 SalientMemory? wound = betrayed.Memories.Find(
                     memory => memory.Kind == MemoryKind.Betrayal
                         && memory.AboutId == betrayer.Id);
+
                 // The kind and the person, not the source: a later betrayal by the same man —
                 // informing on a plot they were both in — reinforces this memory and takes over
                 // its source, which is the memory model working as intended.
-                Assert.NotNull(wound);
-                Assert.True(wound!.Year >= affinity.StartYear);
+                //
+                // Asserted as "unless the working set is full", not outright, because memories are
+                // a capped and evictable set and this assertion used to claim they were not.
+                // LifeStories.Remember holds MemoryCapacity of them and drops the least salient
+                // once that is crossed, and salience fades with age — so a man betrayed young who
+                // then buries eight people and wins two battles genuinely stops carrying the
+                // wound, which is the model working rather than failing. Seed 58's Conan is
+                // exactly that man: betrayed twice, at capacity, still holding the later of the
+                // two. The durable record of a betrayal is the bond below, which BondKind.Betrayer
+                // was added to carry for precisely this reason; the memory is what he still acts
+                // on. Tying the exemption to a full list keeps the check real — a betrayal can
+                // only go unremembered where something was actually competing to displace it.
+                Assert.True(
+                    wound is not null || betrayed.Memories.Count >= LifeStories.MemoryCapacity,
+                    $"Seed {seed}: {betrayed.FullName} carries no memory of being turned on by "
+                    + $"{betrayer.FullName}, and had room to keep one.");
+                if (wound is not null) Assert.True(wound.Year >= affinity.StartYear);
 
                 FigureBond? bond = LifeStories.BondTo(betrayed, betrayer.Id);
                 Assert.NotNull(bond);
