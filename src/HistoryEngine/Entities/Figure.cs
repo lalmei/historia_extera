@@ -60,6 +60,19 @@ public enum ResidenceReason
     /// somebody out of the realm they were born in without an office sending them.
     /// </remarks>
     Settled = 8,
+
+    /// <summary>
+    /// The household they belong to moved, and they moved with it.
+    /// </summary>
+    /// <remarks>
+    /// Every other reason here is something that happened to the person holding it. This one is
+    /// the only second-hand reason: a governor's wife did not take up the governorship, and a
+    /// traveller's children did not stay on after a journey they never made. Giving them the
+    /// mover's own reason wrote both of those lies onto their pages, and in the
+    /// <see cref="Settled"/> case it broke the guarantee that reason carries — that the journey
+    /// which caused it is on the same figure's record — for people whose journey list is empty.
+    /// </remarks>
+    Household = 9,
 }
 
 /// <summary>One period of living somewhere, and what put them there.</summary>
