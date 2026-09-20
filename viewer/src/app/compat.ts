@@ -98,8 +98,14 @@ export const ADDED_IN: readonly { since: number; feature: string }[] = [
  * Version 57 dropped the denormalised `indices` section, which the reader rebuilds in one pass;
  * stopped writing doubles at seventeen digits; and stopped writing empty containers. The same
  * history, in 17.6 MB raw and 1.48 MB gzipped where it was 18.7 MB and 1.79 MB.
+ *
+ * Version 61 dropped `orientation.galacticPlaneInclinationDeg`. It was always exactly
+ * `90 - poleTiltFromGalacticPoleDeg`, so nothing a reader could learn from it has gone; and its
+ * name and its label both claimed an angle to a horizon, which no export has ever had the
+ * observer or the sidereal time to compute. Older files still carry the field and the viewer
+ * ignores it.
  */
-export const CHANGED_NO_FACTS: readonly number[] = [57];
+export const CHANGED_NO_FACTS: readonly number[] = [57, 61];
 
 export function schemaVerdict(version: number | null | undefined): SchemaVerdict {
   if (version === null || version === undefined || !Number.isFinite(version)) {

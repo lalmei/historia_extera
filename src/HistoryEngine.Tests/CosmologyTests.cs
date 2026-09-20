@@ -371,6 +371,65 @@ public sealed class CosmologyTests
     }
 
     [Fact]
+    public void TheTiltIsTheAngleToTheNearerGalacticPoleAndSaysNothingAboutAHorizon()
+    {
+        for (ulong seed = 1; seed <= 64; seed++)
+        {
+            CelestialOrientation orientation = WorldCosmology.From(seed).Orientation;
+
+            // The pole the engine stores, rebuilt here from the exported angles rather than read
+            // off the same expression the property uses.
+            double latitude = orientation.PoleGalacticLatitudeRad;
+            double longitude = orientation.PoleGalacticLongitudeRad;
+            double cosB = Math.Cos(latitude);
+            double x = cosB * Math.Cos(longitude);
+            double y = cosB * Math.Sin(longitude);
+            double z = Math.Sin(latitude);
+
+            // The north galactic pole is (0, 0, 1) in galactic coordinates, so the dot product is
+            // just z. Folding the directed angle gives the angle to whichever galactic pole is
+            // nearer, which is what the property reports.
+            double directedDeg = Math.Acos(Math.Clamp(z, -1.0, 1.0)) * 180.0 / Math.PI;
+            double nearerDeg = Math.Min(directedDeg, 180.0 - directedDeg);
+            Assert.Equal(nearerDeg, orientation.PoleTiltFromGalacticPoleDeg, 9);
+            Assert.Equal(1.0, (x * x) + (y * y) + (z * z), 9);
+
+            // The fold is deliberate: a pole mirrored through the galactic plane reports the same
+            // tilt, and the hemisphere it points into is the latitude's sign, not the tilt.
+            CelestialOrientation mirrored = orientation with
+            {
+                PoleGalacticLatitudeRad = -orientation.PoleGalacticLatitudeRad,
+            };
+            Assert.Equal(orientation.PoleTiltFromGalacticPoleDeg, mirrored.PoleTiltFromGalacticPoleDeg, 9);
+        }
+    }
+
+    [Fact]
+    public void TheGalacticPoleSitsAtTheDeclinationTheTiltImplies()
+    {
+        // The tilt is equally the inclination of the galactic plane to the celestial equator,
+        // because each plane's normal is the pole above it. The transform is where that reading
+        // has to hold: the galactic pole must stand the complement of the tilt off the equator.
+        for (ulong seed = 1; seed <= 64; seed++)
+        {
+            CelestialOrientation orientation = WorldCosmology.From(seed).Orientation;
+
+            (_, double northDeclination) = orientation.ToEquatorial(0.0, DetSeries.HalfPi);
+            (_, double southDeclination) = orientation.ToEquatorial(0.0, -DetSeries.HalfPi);
+
+            Assert.Equal(
+                90.0 - orientation.PoleTiltFromGalacticPoleDeg,
+                Math.Abs(northDeclination),
+                8);
+            Assert.Equal(-northDeclination, southDeclination, 8);
+            Assert.Equal(
+                DetSeries.ToDegrees(orientation.PoleGalacticLatitudeRad),
+                northDeclination,
+                8);
+        }
+    }
+
+    [Fact]
     public void EquatorialCoordinatesRoundTripBackToGalacticOnes()
     {
         CelestialOrientation orientation = WorldCosmology.From(7).Orientation;

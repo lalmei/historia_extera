@@ -196,7 +196,7 @@ public sealed record WorldExport(
     /// staying, where they are the whole of it, so a reader already has the number from a field
     /// that was on every journey before this one existed.</para>
     /// </remarks>
-    public const int CurrentSchemaVersion = 60;
+    public const int CurrentSchemaVersion = 61;
 }
 
 public sealed record ExportMeta(
@@ -381,15 +381,16 @@ public sealed record ExportPlanetStorm(
 public sealed record ExportTint(double R, double G, double B);
 
 /// <summary>
-/// Where the world's spin axis points inside its galaxy, which is what decides whether the band of
-/// light wheels overhead each night or lies fixed along the horizon.
+/// Where the world's spin axis points inside its galaxy. The tilt is the angle to the nearer
+/// galactic pole, which is equally the inclination of the galactic plane to the celestial equator,
+/// and so says whether the band of light keeps its altitude through the night or sweeps across the
+/// sky. No angle here is measured against a horizon; that would need an observer and a time.
 /// </summary>
 public sealed record ExportCelestialOrientation(
     double PoleGalacticLongitudeRad,
     double PoleGalacticLatitudeRad,
     double RightAscensionOriginRollRad,
-    double PoleTiltFromGalacticPoleDeg,
-    double GalacticPlaneInclinationDeg);
+    double PoleTiltFromGalacticPoleDeg);
 
 public sealed record ExportComet(
     int Index,

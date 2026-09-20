@@ -13,7 +13,7 @@ import type {
   StarSpectralClass,
   WorldKind,
 } from '../types';
-import { COMPANION_ROLE_LABELS } from '../types';
+import { bandMotion, COMPANION_ROLE_LABELS } from '../types';
 import { PageTitle, Panel } from './common';
 import type { World } from '../store';
 import { NightSky } from './NightSky';
@@ -70,11 +70,7 @@ export function CosmologyPage({ world }: { world: World }) {
         <div className="grid gap-5 lg:grid-cols-5">
           <div className="lg:col-span-3">
             <Panel title={`Night sky from ${name}`}>
-              <NightSky
-                galaxy={c.galaxy}
-                seed={seed ?? 0}
-                planeInclinationDeg={c.orientation?.galacticPlaneInclinationDeg}
-              />
+              <NightSky galaxy={c.galaxy} seed={seed ?? 0} />
             </Panel>
           </div>
           <div className="lg:col-span-2">
@@ -363,7 +359,7 @@ function GalaxyCard({
         {orientation && (
           <Diag
             label="Celestial pole"
-            value={`${orientation.poleTiltFromGalacticPoleDeg.toFixed(0)}° from the galactic pole`}
+            value={`${orientation.poleTiltFromGalacticPoleDeg.toFixed(0)}° from the galactic pole · ${bandMotion(orientation.poleTiltFromGalacticPoleDeg)}`}
           />
         )}
       </dl>
@@ -1100,7 +1096,7 @@ function ScientificDetails({
           {c.orientation && (
             <Diag
               label="Celestial pole"
-              value={`${c.orientation.poleTiltFromGalacticPoleDeg.toFixed(0)}° from the galactic pole · band ${c.orientation.galacticPlaneInclinationDeg.toFixed(0)}° to the horizon`}
+              value={`${c.orientation.poleTiltFromGalacticPoleDeg.toFixed(0)}° from the galactic pole · ${bandMotion(c.orientation.poleTiltFromGalacticPoleDeg)}`}
             />
           )}
         </DetailGroup>
