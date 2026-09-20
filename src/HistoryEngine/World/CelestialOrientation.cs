@@ -8,9 +8,12 @@ namespace HistoryEngine.World;
 /// </summary>
 /// <remarks>
 /// <para>There is no reason for a planet's pole to line up with its galaxy, so the pole is drawn
-/// uniformly over the sphere. The angle would determine how the galactic plane crosses a local
-/// sky. The engine exports the orientation and exposes coordinate transforms. The viewer
-/// does not yet render a local horizon or feed this value into historical decisions.</para>
+/// uniformly over the sphere. The tilt that follows says how the galactic plane sits against the
+/// celestial equator, and so whether the band of light holds its altitude through the night or
+/// sweeps across the sky. It is not an angle to anybody's horizon: that needs a surface observer,
+/// a geographic latitude and a sidereal time, and the engine has none of the three. The engine
+/// exports the orientation and exposes coordinate transforms. The viewer renders no local
+/// horizon, and no historical decision reads any of this.</para>
 ///
 /// <para>Rolled on its own stream, the way the galaxy is, so adding an orientation cannot
 /// reshuffle the star or the habitable body.</para>
@@ -38,15 +41,16 @@ public sealed record CelestialOrientation(
         return new CelestialOrientation(longitude, latitude, roll);
     }
 
-    /// <summary>Angle between the celestial pole and the galactic pole; Earth's is about 63°.</summary>
+    /// <summary>
+    /// Angle between the celestial pole and the nearer galactic pole, so 0–90° whichever way the
+    /// axis points; Earth's is about 63°. Because each plane's normal is the pole above it, this
+    /// is also the inclination of the galactic plane to the celestial equator: near 0° the two
+    /// planes coincide and the band of light keeps its altitude all night, near 90° the axis lies
+    /// in the galactic plane and the band sweeps across the sky. Which galactic hemisphere the
+    /// pole points into is the sign of <see cref="PoleGalacticLatitudeRad"/>, not this angle.
+    /// </summary>
     public double PoleTiltFromGalacticPoleDeg =>
         DetSeries.ToDegrees(DetSeries.HalfPi - Math.Abs(PoleGalacticLatitudeRad));
-
-    /// <summary>
-    /// Angle the galactic plane makes with the horizon for an observer on the equator — near 90°
-    /// the band of light stands upright and wheels overhead, near 0° it lies along the horizon.
-    /// </summary>
-    public double GalacticPlaneInclinationDeg => 90.0 - PoleTiltFromGalacticPoleDeg;
 
     /// <summary>
     /// Converts a galactic direction, longitude 0 at the nucleus, into equatorial coordinates in

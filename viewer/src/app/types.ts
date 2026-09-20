@@ -11,7 +11,7 @@
  */
 
 /** The schema the current engine writes. `compat.ts` has the oldest one the viewer reads. */
-export const SCHEMA_VERSION = 60;
+export const SCHEMA_VERSION = 61;
 
 /**
  * Whether an event carries the history or merely records a life.
@@ -200,10 +200,30 @@ export interface ExportCelestialOrientation {
   poleGalacticLongitudeRad: number;
   poleGalacticLatitudeRad: number;
   rightAscensionOriginRollRad: number;
-  /** Earth's is about 63 degrees. */
+  /**
+   * Angle to the nearer galactic pole, 0-90 degrees; Earth's is about 63. It is equally the
+   * inclination of the galactic plane to the celestial equator, so it says whether the band of
+   * light holds its altitude through the night or is carried across the sky. It is not an angle
+   * to a horizon, and the export has no observer or time with which to compute one.
+   */
   poleTiltFromGalacticPoleDeg: number;
-  /** Angle the band of light makes with the horizon at the equator. */
-  galacticPlaneInclinationDeg: number;
+}
+
+/**
+ * What the pole's tilt means for a night, which is the part of it a reader can picture.
+ *
+ * The tilt is the angle between the world's spin axis and the galaxy's own, so it is equally the
+ * angle between the celestial equator and the band of light. Near 0° the two coincide: the sky
+ * turns within the band, and the band stays where it is however long anyone watches. Near 90° the
+ * axis lies in the band, and a night's turning carries it right across the sky.
+ *
+ * Deliberately a description and not an angle. An angle to a horizon needs an observer, a
+ * geographic latitude and a sidereal time, and the export carries none of the three.
+ */
+export function bandMotion(poleTiltDeg: number): string {
+  if (poleTiltDeg < 25) return 'the band holds its place through the night';
+  if (poleTiltDeg < 65) return 'the night swings the band across the sky';
+  return 'the night carries the band from pole to pole';
 }
 
 export interface ExportComet {

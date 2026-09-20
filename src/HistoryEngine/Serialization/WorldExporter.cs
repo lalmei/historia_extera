@@ -297,8 +297,7 @@ public static class WorldExporter
             orientation.PoleGalacticLongitudeRad,
             orientation.PoleGalacticLatitudeRad,
             orientation.RightAscensionOriginRollRad,
-            orientation.PoleTiltFromGalacticPoleDeg,
-            orientation.GalacticPlaneInclinationDeg);
+            orientation.PoleTiltFromGalacticPoleDeg);
 
     private static ExportGiantAppearance? BuildAppearance(GiantAppearance? appearance)
     {

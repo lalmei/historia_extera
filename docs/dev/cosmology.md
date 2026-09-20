@@ -85,9 +85,18 @@ latitude and defines the zero of right ascension.
 `ToEquatorial` and `ToGalactic` implement this rotation. The current night-sky renderer does
 not use it; the displayed texture stays in galactic coordinates.
 
-`GalacticPlaneInclinationDeg` is currently the complement of the folded pole tilt. Despite
-its source comment, it is not a calculated angle to a local observer's horizon. Do not use it
-as one; the local-horizon inputs described below are missing.
+`PoleTiltFromGalacticPoleDeg` is the angle between the celestial pole and the nearer galactic
+pole, folded to 0–90° so that it does not depend on which galactic hemisphere the spin axis
+points into; that hemisphere is the sign of `PoleGalacticLatitudeRad`. Because a plane's normal
+is the pole above it, the same angle is the inclination of the galactic plane to the celestial
+equator, and so it says whether the band of light holds its altitude through a night (near 0°,
+the two planes nearly coincide) or is carried across the sky by the world's turning (near 90°,
+the spin axis lies in the band). Earth's is about 63°.
+
+That is a statement about two planes, not about anyone's horizon. Schema 61 removed the
+exported `galacticPlaneInclinationDeg`, which was the complement of this angle under a name and
+a viewer label that both claimed a horizon; the viewer now describes the band's motion in words
+instead. Older exports still carry the field and the viewer ignores it.
 
 The engine has no transformation to a local horizon. **Altitude** would be angle above that
 horizon, and **azimuth** the compass direction around it. Both would require a surface

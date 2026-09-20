@@ -5454,6 +5454,42 @@ drawn where the giant actually is. Seed 42's fingerprint moves, and the golden i
 
 ---
 
+### The angle that was never measured against a horizon
+
+`CelestialOrientation` exported two numbers for the sky's geometry and only ever knew one.
+`PoleTiltFromGalacticPoleDeg` was `90 - |b|`, and `GalacticPlaneInclinationDeg` was `90 -` that,
+which is `|b|` again: a second scalar that told a reader nothing the first had not. Worse, the
+name was on the wrong quantity and the comment on neither. The inclination of one plane to
+another is the angle between their normals, and the normals here are the two poles — so the
+galactic plane's inclination to the celestial equator *is* the pole tilt, Earth's familiar 63°,
+while the field called "plane inclination" was computing 27°. The comment attached to it claimed
+something else again: the angle the band of light makes with the horizon for an observer on the
+equator. There is no observer. There is no geographic latitude and no sidereal time. Nothing in
+the engine can compute an angle to a horizon, and the one that named itself for one was off by
+the complement and backwards besides — it said the band "wheels overhead" at 90°, which is the
+case in which the band coincides with the celestial equator and does not move at all.
+
+**One angle, documented as what it is.** The tilt keeps its name and its fold, and now says why
+it folds: the angle is to whichever galactic pole is nearer, because which of the two the spin
+axis points at is the sign of `PoleGalacticLatitudeRad` and does not belong in a magnitude. Two
+tests hold the reading in place — one rebuilds the pole vector and takes the angle itself, the
+other puts the galactic pole through `ToEquatorial` and checks it stands at the declination the
+tilt implies, which is where the plane-against-equator reading actually lives.
+
+**The viewer says it in words.** "Band 27° to the horizon" is gone from the night-sky overlay and
+from both orientation lines. What a reader wanted from that number was what the band does over a
+night, so that is what is written: the band holds its place, the night swings it across the sky,
+or the night carries it pole to pole, keyed to the tilt. The sky texture stays in galactic
+coordinates, as it always was, and no longer carries a mark implying it is a view from the ground.
+
+**Schema 61.** The export drops `orientation.galacticPlaneInclinationDeg`. No fact leaves with it
+— it was the complement of a field that stays — so it is declared in the viewer's
+`CHANGED_NO_FACTS` rather than its version history, the way schema 57's dropped `indices` was.
+Older exports still carry the field and are read without it. No formula changed and no history
+moved, so seed 42's fingerprint stands.
+
+---
+
 ---
 
 ## Notes for Phase 2
