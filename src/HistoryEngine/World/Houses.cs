@@ -524,7 +524,7 @@ public static class Houses
             Figure spouse = world.Figures[figure.SpouseId];
             if (spouse.IsAlive && world.ResidenceOf(spouse) == was && !PostedElsewhere(spouse, to))
             {
-                Settle(world, spouse, to, reason, year);
+                Settle(world, spouse, to, ResidenceReason.Household, year);
             }
         }
 
@@ -560,7 +560,7 @@ public static class Houses
                 continue;
             }
 
-            Settle(world, child, to, reason, year);
+            Settle(world, child, to, ResidenceReason.Household, year);
         }
 
         return true;
@@ -637,6 +637,7 @@ public static class Houses
         ResidenceReason.Regency => "to govern for the heir",
         ResidenceReason.Flight => "after the town was abandoned",
         ResidenceReason.Settled => "having stayed on after a journey",
+        ResidenceReason.Household => "with the household",
         _ => "after the realm changed hands",
     };
 

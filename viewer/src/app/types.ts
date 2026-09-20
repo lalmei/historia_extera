@@ -1657,7 +1657,8 @@ export type ResidenceReason =
   | 'Regency'
   | 'RealmChangedHands'
   | 'Flight'
-  | 'Settled';
+  | 'Settled'
+  | 'Household';
 
 export const RESIDENCE_REASON_LABELS: Record<ResidenceReason, string> = {
   Birth: 'born there',
@@ -1666,9 +1667,10 @@ export const RESIDENCE_REASON_LABELS: Record<ResidenceReason, string> = {
   Recall: 'recalled to court',
   Accession: 'on taking the throne',
   Regency: 'to govern for the heir',
-  RealmChangedHands: 'the realm having changed hands',
-  Flight: 'the town being abandoned',
-  Settled: 'having stayed after the journey there',
+  RealmChangedHands: 'after the realm changed hands',
+  Flight: 'after the town was abandoned',
+  Settled: 'having stayed on after a journey',
+  Household: 'with the household',
 };
 
 /**
