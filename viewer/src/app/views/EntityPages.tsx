@@ -8,6 +8,7 @@ import {
   RipplesPanel,
   StandingReadout,
 } from './FigureLife';
+import { Historiography } from '../components/Historiography';
 import { HistoryPanels } from '../components/History';
 import {
   affinityAt,
@@ -3247,7 +3248,7 @@ export function ArtifactPage({ world, artifact }: { world: World; artifact: Arti
                       {section.heading}
                       {section.year ? (
                         <span className="ml-2 text-xs font-normal text-[var(--ink-faint)]">
-                          {section.year}
+                          {section.year > artifact.createdYear ? 'Continuation · ' : 'Original account · '}{section.year}
                         </span>
                       ) : null}
                     </h3>
@@ -3284,6 +3285,8 @@ export function ArtifactPage({ world, artifact }: { world: World; artifact: Arti
             )}
           </Panel>
         )}
+
+        {artifact.tomeContents?.kind === 'Campaign' && <Historiography world={world} artifact={artifact} />}
 
         {copies.length > 0 && (
           <Panel title="Circulation">

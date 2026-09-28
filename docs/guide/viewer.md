@@ -182,3 +182,17 @@ development middleware.
 
 The [viewer internals](../dev/viewer.md) page documents static-build behavior, data loading,
 historical replay, routing, and the native shell.
+
+## Reading a campaign account against the record
+
+A campaign tome has **The account and the record** below its contents. It lists the
+commander's individually described engagements and those with no individual account,
+including engagements mentioned only in service totals. The later-record disclosure shows
+what the war's chronicle added after the writing date. If the war ended later, both dates
+are shown. Links lead to the battles, war and any later surviving account with additional
+coverage of the same commander and war.
+
+Original sections and continuations keep separate labels and dates. A copy made later does
+not update the account's original date, and the reader does not assume that later additions
+reached every copy. This comparison currently covers campaign tomes only. See the
+[scope and measured examples](../dev/historiography.md).
