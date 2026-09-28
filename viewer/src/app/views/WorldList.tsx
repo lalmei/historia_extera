@@ -3,11 +3,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { IconChevronRight, IconPlay, IconRefresh, IconTrash } from '../components/icons';
 import { generateHref } from '../components/SiteChrome';
 import {
-  DEFAULT_PARAMS,
   POLL_MS,
   cancelRun,
   generatorUrl,
-  paramsFromFilename,
   readRun,
   startRun,
   worldFileName,
@@ -373,13 +371,13 @@ function WorldRow({
           {formatExportDate(world.modifiedAt)}
         </td>
         <td className="he-data px-5 py-4 text-[var(--ink-soft)]">
-          {params ? params.seed : '—'}
+          {world.seed ?? params?.seed ?? '—'}
         </td>
         <td className="he-data px-5 py-4 text-[var(--ink-soft)]">
-          {params ? params.years.toLocaleString() : '—'}
+          {(world.years ?? params?.years)?.toLocaleString() ?? '—'}
         </td>
         <td className="he-data px-5 py-4 text-[var(--ink-soft)]">
-          {params ? params.civs : '—'}
+          {world.initialCivilizations ?? params?.civs ?? '—'}
         </td>
         <td className="px-5 py-4">
           <div className="he-row-actions flex items-center justify-end gap-0.5">
@@ -389,7 +387,7 @@ function WorldRow({
               label={
                 params
                   ? `Run ${title} again through the current engine`
-                  : 'Settings unknown'
+                  : (world.rerunReason ?? 'No generation recipe. Use the original CLI command.')
               }
             >
               <IconPlay className="h-4 w-4" />
@@ -400,7 +398,7 @@ function WorldRow({
               label={
                 params
                   ? `Open ${title}'s settings in the generator`
-                  : 'Settings unknown'
+                  : (world.rerunReason ?? 'No generation recipe. Use the original CLI command.')
               }
             >
               <IconRefresh className="h-4 w-4" />
@@ -457,6 +455,12 @@ function WorldRow({
                     </ul>
                   )}
                 </dd>
+                {!params && (
+                  <>
+                    <dt className="text-[var(--ink-faint)]">Rerun</dt>
+                    <dd>{world.rerunReason ?? 'No generation recipe. Use the original CLI command.'}</dd>
+                  </>
+                )}
                 <dt className="text-[var(--ink-faint)]">File</dt>
                 <dd className="he-data min-w-0">
                   <span className="block truncate" title={world.name}>
@@ -767,7 +771,7 @@ function matchesQuery(world: SavedWorld, needle: string): boolean {
     world.designation,
     world.name,
     world.engineVersion,
-    params ? String(params.seed) : '',
+    String(world.seed ?? params?.seed ?? ''),
   ]
     .filter(Boolean)
     .join(' ')
@@ -776,20 +780,7 @@ function matchesQuery(world: SavedWorld, needle: string): boolean {
 }
 
 function worldParams(world: SavedWorld): RunParams | null {
-  if (world.params) return world.params;
-
-  const named = paramsFromFilename(world.name);
-  if (named?.seed === undefined || named.years === undefined || named.civs === undefined) {
-    return null;
-  }
-
-  return {
-    seed: named.seed,
-    years: named.years,
-    civs: named.civs,
-    size: named.size ?? DEFAULT_PARAMS.size,
-    eastWestPeriodic: named.eastWestPeriodic ?? false,
-  };
+  return world.params ?? null;
 }
 
 function viewerUrl(world: string): string {

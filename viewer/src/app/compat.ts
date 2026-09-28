@@ -32,6 +32,8 @@
  * `test-fixtures/compat`. See its README for provenance and the boundaries exercised.
  */
 
+import { UNSAFE_SEED } from './rerun.mjs';
+
 import { SCHEMA_VERSION, type WorldExport } from './types.ts';
 
 /** Oldest export the viewer will open. Below this it refuses and says to regenerate. */
@@ -58,6 +60,7 @@ export interface SchemaVerdict {
  * which of the two an old world has.
  */
 export const ADDED_IN: readonly { since: number; feature: string }[] = [
+  { since: 62, feature: 'recorded generation settings and explicit rerun eligibility' },
   { since: 60, feature: 'the towns and routes a multi-hop journey actually passed through' },
   { since: 59, feature: 'the stages of a working life — bound, made free of a trade, admitted to keep a shop' },
   { since: 58, feature: 'the trade a guild mastery is over, so a town’s weavers and its smiths are two seats' },
@@ -306,6 +309,9 @@ const SHAPES: Readonly<Record<string, Shape>> = {
  * thousand events in a large world to not allocate an empty array for.
  */
 export function normalizeExport(data: WorldExport): WorldExport {
+  if (data.meta?.seed !== undefined && (!Number.isSafeInteger(data.meta.seed) || data.meta.seed < 0)) {
+    throw new Error(UNSAFE_SEED);
+  }
   const root = data as unknown as Record<string, unknown>;
 
   if (!root.narration || typeof root.narration !== 'object') root.narration = {};

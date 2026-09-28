@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { copyFile, mkdir, open, readdir, rename, stat, unlink } from 'node:fs/promises';
 import path from 'node:path';
+import { rerunSettings, MISSING_RECIPE } from '../src/app/rerun.mjs';
 
 /**
  * Runs the generator CLI on request, for the dev server only.
@@ -474,7 +475,11 @@ async function inspectWorld(file, name) {
       designation: header.designation,
       worldName: header.worldName,
       kind: header.kind,
-      params: paramsFor(name, header),
+      seed: header.seed,
+      years: header.years,
+      initialCivilizations: header.initialCivilizations,
+      params: header.rerun.params,
+      rerunReason: header.rerun.reason,
     };
   } catch (cause) {
     return {
@@ -483,7 +488,8 @@ async function inspectWorld(file, name) {
       bytes: info.size,
       modifiedAt: info.mtime.toISOString(),
       schemaVersion: null,
-      params: paramsFromFilename(name),
+      params: null,
+      rerunReason: MISSING_RECIPE,
       engineVersion: null,
       error: message(cause),
     };
@@ -497,7 +503,7 @@ async function inspectWorld(file, name) {
  *
  * @param {string} file
  */
-async function readWorldHeader(file) {
+export async function readWorldHeader(file) {
   const handle = await open(file, 'r');
 
   try {
@@ -513,9 +519,21 @@ async function readWorldHeader(file) {
     const schemaVersion = readIntField(prefix, 'schemaVersion');
     if (schemaVersion === null) throw new Error('schemaVersion is missing from the file header');
 
+    // Meta precedes world in the export contract. Parse the complete object, including
+    // nested recipe fields, instead of matching similarly named keys inside strings.
+    const worldAt = prefix.search(/,\s*"world"\s*:/);
+    const meta = worldAt < 0 ? null : JSON.parse(prefix.slice(0, worldAt) + '}').meta;
+    const rerun = rerunSettings(meta, {
+      width: readIntField(prefix, 'width'),
+      height: readIntField(prefix, 'height'),
+      eastWestPeriodic: readBoolField(prefix, 'eastWestPeriodic'),
+    });
     return {
+      rerun,
       schemaVersion,
-      seed: readIntField(prefix, 'seed'),
+      seed: Number.isSafeInteger(meta?.seed) ? meta.seed : null,
+      initialCivilizations: Number.isSafeInteger(meta?.generation?.initialCivilizations)
+        ? meta.generation.initialCivilizations : null,
       years: readIntField(prefix, 'yearsSimulated'),
       size: readIntField(prefix, 'width'),
       eastWestPeriodic: readBoolField(prefix, 'eastWestPeriodic'),
@@ -527,51 +545,6 @@ async function readWorldHeader(file) {
   } finally {
     await handle.close();
   }
-}
-
-/**
- * @param {string} name
- * @param {{
- *   seed: number | null,
- *   years: number | null,
- *   size: number | null,
- *   eastWestPeriodic: boolean | null,
- * }} header
- */
-function paramsFor(name, header) {
-  const named = paramsFromFilename(name);
-
-  const seed = header.seed ?? named?.seed;
-  const years = header.years ?? named?.years;
-  const civs = named?.civs ?? PARAMS.civs.fallback;
-  const size = header.size ?? named?.size ?? PARAMS.size.fallback;
-
-  if (seed === undefined || years === undefined) return named;
-
-  return {
-    seed,
-    years,
-    civs,
-    size,
-    eastWestPeriodic: header.eastWestPeriodic ?? named?.eastWestPeriodic ?? false,
-  };
-}
-
-/**
- * @param {string} name
- * @returns {RunParams | null}
- */
-function paramsFromFilename(name) {
-  const match = /^world-s(\d+)-y(\d+)-c(\d+)(?:-z(\d+))?(-ewp)?\.json$/i.exec(name);
-  if (!match) return null;
-
-  return {
-    seed: Number(match[1]),
-    years: Number(match[2]),
-    civs: Number(match[3]),
-    size: match[4] ? Number(match[4]) : PARAMS.size.fallback,
-    eastWestPeriodic: Boolean(match[5]),
-  };
 }
 
 /**

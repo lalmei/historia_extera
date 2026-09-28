@@ -11,7 +11,7 @@
  */
 
 /** The schema the current engine writes. `compat.ts` has the oldest one the viewer reads. */
-export const SCHEMA_VERSION = 61;
+export const SCHEMA_VERSION = 62;
 
 /**
  * Whether an event carries the history or merely records a life.
@@ -89,6 +89,13 @@ export interface Series {
 }
 
 export interface ExportMeta {
+  /** Schema 62: rerun eligibility, independent of filenames. */
+  generation?: {
+    version: number;
+    initialCivilizations: number;
+    terrainSource: string;
+    unsupportedReason?: string;
+  };
   seed: number;
   configHash: string;
   systemOrderHash: string;

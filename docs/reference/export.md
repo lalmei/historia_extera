@@ -150,3 +150,16 @@ For another consumer:
 Schema changes are additive within the viewer's current compatibility range, but the project
 does not publish a separate long-term compatibility guarantee for third-party consumers. Pin
 the schema range you test.
+
+## Generation eligibility (schema 62)
+
+`meta.generation` version 1 records `initialCivilizations`, `terrainSource` (the external
+terrain content identity, or an empty string for procedural terrain), and an optional
+`unsupportedReason`. The seed, year count, extent and topology remain in the existing header.
+`meta.configHash` identifies custom configuration; it is not a recoverable configuration.
+Only settings representable by the viewer form receive a supported recipe. Unsupported
+settings require the original CLI or library invocation, and legacy exports have no recipe.
+No reader may infer rerun eligibility or civilization count from a filename.
+
+The numeric JSON seed remains an exact C# `ulong`. The viewer rejects values outside its
+safe integer range before building a world or offering a rerun.

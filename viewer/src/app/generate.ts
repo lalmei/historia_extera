@@ -2,15 +2,16 @@
  * Talking to the dev server's generator.
  *
  * The endpoint exists only under `astro dev` (see `viewer/dev/world-generator.mjs`), so
- * everything here is gated on `CAN_GENERATE`. That constant is `import.meta.env.DEV`,
+ * everything here is gated on `CAN_GENERATE`. That constant is `import.meta.env?.DEV`,
  * which Vite replaces with a literal at build time — the generator UI is therefore not
  * merely hidden in a production build, it is removed from the bundle along with this
  * module. A built viewer remains a static file that opens off disk.
  */
 
 import type { WorldExport } from './types.ts';
+import { rerunSettings } from './rerun.mjs';
 
-export const CAN_GENERATE: boolean = import.meta.env.DEV;
+export const CAN_GENERATE: boolean = import.meta.env?.DEV ?? false;
 
 const RUNS = '/api/worlds/runs';
 
@@ -150,36 +151,9 @@ export function worldFileName(params: RunParams): string {
   return `world-s${params.seed}-y${params.years}-c${params.civs}-z${params.size}${boundary}.json`;
 }
 
-/**
- * Settings encoded in a generator filename.
- *
- * Older runs omitted `-z<size>`; those still parse, and size stays unknown so the
- * caller can fill it from the export header instead.
- */
-export function paramsFromFilename(name: string): Partial<RunParams> | null {
-  const match = /^world-s(\d+)-y(\d+)-c(\d+)(?:-z(\d+))?(-ewp)?\.json$/i.exec(name);
-  if (!match) return null;
-
-  return {
-    seed: Number(match[1]),
-    years: Number(match[2]),
-    civs: Number(match[3]),
-    ...(match[4] ? { size: Number(match[4]) } : {}),
-    eastWestPeriodic: Boolean(match[5]),
-  };
-}
-
-/** Rebuild the form from a loaded export, preferring the filename for the civ count. */
-export function paramsFromExport(data: WorldExport, fileName?: string): RunParams {
-  const named = fileName ? paramsFromFilename(fileName) : null;
-
-  return {
-    seed: data.meta.seed,
-    years: data.meta.yearsSimulated,
-    civs: named?.civs ?? DEFAULT_PARAMS.civs,
-    size: named?.size ?? data.world.width,
-    eastWestPeriodic: data.world.eastWestPeriodic,
-  };
+/** Only a recorded, supported recipe can populate a rerun. Filenames are labels. */
+export function paramsFromExport(data: WorldExport, _fileName?: string): RunParams | null {
+  return rerunSettings(data.meta, data.world).params;
 }
 
 /**
@@ -207,16 +181,18 @@ export function paramsFromSearch(search: string | URLSearchParams): RunParams | 
   const query = typeof search === 'string' ? new URLSearchParams(search) : search;
   if (!query.has('seed') && !query.has('years') && !query.has('from')) return null;
 
-  const named = query.get('from') ? paramsFromFilename(query.get('from')!) : null;
+  // A source filename is only a label. Old links without explicit settings must
+  // fail form validation rather than silently reconstructing a different world.
+  const fallback = query.has('from') ? Number.NaN : undefined;
 
   return {
-    seed: readSearchNumber(query, 'seed', named?.seed ?? DEFAULT_PARAMS.seed),
-    years: readSearchNumber(query, 'years', named?.years ?? DEFAULT_PARAMS.years),
-    civs: readSearchNumber(query, 'civs', named?.civs ?? DEFAULT_PARAMS.civs),
-    size: readSearchNumber(query, 'size', named?.size ?? DEFAULT_PARAMS.size),
+    seed: readSearchNumber(query, 'seed', fallback ?? DEFAULT_PARAMS.seed),
+    years: readSearchNumber(query, 'years', fallback ?? DEFAULT_PARAMS.years),
+    civs: readSearchNumber(query, 'civs', fallback ?? DEFAULT_PARAMS.civs),
+    size: readSearchNumber(query, 'size', fallback ?? DEFAULT_PARAMS.size),
     eastWestPeriodic: query.has('ewp')
       ? query.get('ewp') !== '0'
-      : (named?.eastWestPeriodic ?? DEFAULT_PARAMS.eastWestPeriodic),
+      : DEFAULT_PARAMS.eastWestPeriodic,
   };
 }
 
@@ -224,7 +200,7 @@ function readSearchNumber(query: URLSearchParams, name: string, fallback: number
   const raw = query.get(name);
   if (raw === null || raw === '') return fallback;
   const value = Number(raw);
-  return Number.isSafeInteger(value) ? value : fallback;
+  return Number.isSafeInteger(value) ? value : Number.NaN;
 }
 
 /**
@@ -245,3 +221,4 @@ export function worldFileFromLocation(search = window.location.search): string |
   const file = requested.split('/').pop();
   return file && file.endsWith('.json') ? file : undefined;
 }
+
