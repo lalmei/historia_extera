@@ -66,6 +66,7 @@ nav:
       - Engine integration: dev/integration.md
       - Cosmology and scientific scope: dev/cosmology.md
       - Viewer internals: dev/viewer.md
+      - Campaign account comparisons: dev/historiography.md
       - Determinism: dev/determinism.md
       - Testing: dev/testing.md
       - Makefile: guide/makefile.md
