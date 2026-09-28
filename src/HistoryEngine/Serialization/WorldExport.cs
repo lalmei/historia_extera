@@ -197,7 +197,8 @@ public sealed record WorldExport(
     /// that was on every journey before this one existed.</para>
     /// </remarks>
     // Version 62 records rerun eligibility and the original civilization count in Meta.Generation.
-    public const int CurrentSchemaVersion = 62;
+    // Version 63 adds the recorded cause of each claim acquisition or loss.
+    public const int CurrentSchemaVersion = 63;
 }
 
 public sealed record ExportMeta(
@@ -1258,7 +1259,8 @@ public sealed record ExportClaimTransition(
     ClaimTransitionKind Kind,
     ClaimCarrierKind Carrier,
     EntityId? CarrierId,
-    EntityId? SettlementId);
+    EntityId? SettlementId,
+    string? Cause = null);
 
 /// <summary>
 /// One dated change in how a realm stood to a reading it held.

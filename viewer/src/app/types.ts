@@ -11,7 +11,7 @@
  */
 
 /** The schema the current engine writes. `compat.ts` has the oldest one the viewer reads. */
-export const SCHEMA_VERSION = 62;
+export const SCHEMA_VERSION = 63;
 
 /**
  * Whether an event carries the history or merely records a life.
@@ -1905,6 +1905,8 @@ export interface ClaimTransition {
   carrier: ClaimCarrierKind;
   carrierId?: EntityId;
   settlementId?: EntityId;
+  /** Recorded at the transition; absent before schema 63. */
+  cause?: string;
 }
 
 /**

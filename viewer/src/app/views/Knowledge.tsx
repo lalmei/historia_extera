@@ -469,14 +469,12 @@ function LostPanel({ records, world }: { records: ClaimRecord[]; world: World })
             <p className="mt-0.5 text-xs text-[var(--ink-faint)]">
               {last.realmId ? (
                 <>
-                  <EntityLink world={world} id={last.realmId} /> stopped holding it when{' '}
+                  <EntityLink world={world} id={last.realmId} /> stopped holding it:{' '}
                 </>
               ) : (
-                'stopped being held when '
+                'stopped being held: '
               )}
-              {last.lost?.carrier === 'Text'
-                ? 'the last copy in reach stopped surviving'
-                : 'the person carrying it died'}
+              {last.lost?.cause ?? 'cause not recorded'}
               {record.heldNow.length > 0 &&
                 ` · still held in ${record.heldNow.length} ${
                   record.heldNow.length === 1 ? 'realm' : 'realms'
@@ -871,6 +869,9 @@ function TransitionLine({
           <EntityLink world={world} id={transition.settlementId} />
         </span>
       )}
+      <span className="text-[var(--ink-faint)]">
+        {' · '}{transition.cause ?? 'cause not recorded'}
+      </span>
     </>
   );
 }
