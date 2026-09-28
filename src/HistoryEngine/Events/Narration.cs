@@ -269,7 +269,7 @@ public static class Narration
             "{object} came by what {subject} held[, {data:reading}][, at {location}].");
         Set(EventKind.ClaimLost,
             "{object} no longer held what {subject} said[, {data:reading}]"
-            + "[, having lost {data:carrier}][ {data:cause}].");
+            + "[, because {data:cause}].");
 
         Set(EventKind.DynastyFounded, "{the}{subject} rose[ under {object}][ in {location}].");
         Set(EventKind.DynastyEnded, "{the}{subject} died out[ after {data:years}].");
@@ -555,7 +555,7 @@ public static class Narration
             "[{self:subject}{cap}what {they:self} held was copied into {object}[ at {location}].]");
         SetSelf(EventKind.ClaimLost,
             "[{self:subject}{object} no longer held what {they:self} said]"
-            + "[{self:subject}, having lost {data:carrier}][{self:subject} {data:cause}].");
+            + "[{self:subject}, because {data:cause}].");
         SetSelf(EventKind.DynastyFounded,
             "[{self:object}{cap}raised {the}{subject}[ in {location}].]");
         SetSelf(EventKind.DynastyAscended,

@@ -43,6 +43,7 @@ public sealed class ClaimTransmissionTests
             {
                 Assert.NotNull(change.RealmId);
                 Assert.NotNull(change.CarrierId);
+                Assert.False(string.IsNullOrWhiteSpace(change.Cause));
 
                 ExportFigure claimant = export.Figures.Single(figure => figure.Id == change.ClaimantId);
                 ExportClaim claim = claimant.Claims.Single(item => item.Id == change.ClaimId);
@@ -326,12 +327,14 @@ public sealed class ClaimTransmissionTests
                     continue;
                 }
 
-                // A loss seated on a copy that was still standing that year is a loss for some
-                // other reason — the town left the realm, or was given up — and is not this
-                // rule's business. That stays true when the copy burns later: a fire in 225 did
-                // not take a reading away in 185, and reading the copy's fate rather than its
-                // fate *by then* made this rule fail on the first world that produced the pair.
-                if (copy.LostYear is int gone && gone <= change.Year) burnt++;
+                // Only an explicitly copy-caused loss is evidence of destruction. A border
+                // change must not borrow a fire that happens to the copy decades later.
+                if (change.Cause?.StartsWith("its last local copy was lost", StringComparison.Ordinal) == true)
+                {
+                    Assert.NotNull(copy.LostYear);
+                    Assert.InRange(change.Year, copy.LostYear!.Value, copy.LostYear.Value + 1);
+                    burnt++;
+                }
 
                 // What every loss can be held to, whatever caused it: it is seated on a copy
                 // that had already been made. A realm cannot lose a reading on a book that does

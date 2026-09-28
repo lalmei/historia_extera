@@ -60,6 +60,7 @@ export interface SchemaVerdict {
  * which of the two an old world has.
  */
 export const ADDED_IN: readonly { since: number; feature: string }[] = [
+  { since: 63, feature: 'why a realm acquired or lost a reading' },
   { since: 62, feature: 'recorded generation settings and explicit rerun eligibility' },
   { since: 60, feature: 'the towns and routes a multi-hop journey actually passed through' },
   { since: 59, feature: 'the stages of a working life — bound, made free of a trade, admitted to keep a shop' },

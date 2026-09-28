@@ -163,3 +163,36 @@ No reader may infer rerun eligibility or civilization count from a filename.
 
 The numeric JSON seed remains an exact C# `ulong`. The viewer rejects values outside its
 safe integer range before building a world or offering a rerun.
+
+## Claim transition causes (schema 63)
+
+`claimTransitions[].cause` explains why that realm acquired or lost the reading, in ordinary
+words. It is recorded when the transition is made, not reconstructed from the carrier's
+final fate. An absent cause in an older export means unknown; it does not mean that an
+author died or a book was destroyed.
+
+Losses distinguish author death and migration, a town leaving its realm or being abandoned,
+a destroyed settlement copy, and the original work being lost or moved. The holding tracks
+whether its current exemplar is the original or a copy, so a long-destroyed copy cannot
+explain the later loss of an original at the same address. A dated loss is considered only
+when it has already happened. If several changes coincide between observations, abandonment
+and destruction take precedence over a border change; this describes the observed loss and
+does not invent ordering within the year. Acquisitions distinguish the author's reading,
+the written work, and the availability of a surviving copy. Availability does not assert
+that a new copy was made in the acquisition year: a border can move around an old copy.
+
+The claim page, knowledge overview and loss narration use this cause. The explicit
+copy-loss test now checks the destruction date for copy-caused losses rather than guessing
+causation from a book's eventual fate.
+
+The five-seed 300-year comparison (2, 7, 11, 42, 99) preserved simulation state and all other
+export data. Intentional differences were schema, transition causes, loss-event causes and
+narration, plus one newly generated continuation in seed 11 that quoted the corrected loss
+narration. Existing imported prose is unchanged. The export fingerprint changes; the
+pre-existing golden mismatch recorded in the decision log remains unresolved, so the pin
+has not been refreshed to accept other branches' changes.
+
+Focused validation passed all 20 claim-transmission, causation, export-roundtrip and
+determinism-guard tests. The composed seed-42 fingerprint is now
+`7851133b3e7e2c9c1b554e7e32e5d1a1d6999e6f4a123aa9323a7a5c2b160349`;
+the committed pin remains `eb7f8fcae207ec3931f07692bef400ca0f1e41989b437e6a862d13696faf3c2a`.

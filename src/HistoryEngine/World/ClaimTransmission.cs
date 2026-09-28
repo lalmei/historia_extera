@@ -36,7 +36,8 @@ public sealed record ClaimTransition(
     ClaimTransitionKind Kind,
     ClaimCarrierKind Carrier,
     EntityId CarrierId,
-    EntityId SettlementId);
+    EntityId SettlementId,
+    string? Cause = null);
 
 /// <summary>What a realm currently holds, on what, and what it makes of it.</summary>
 /// <remarks>
@@ -53,6 +54,9 @@ public sealed record ClaimHolding(
     EntityId CarrierId,
     EntityId SettlementId)
 {
+    /// <summary>Whether the selected text exemplar is a settlement copy rather than the original.</summary>
+    public bool IsCopy { get; init; }
+
     /// <summary>What the realm makes of it. Never derived from a verdict.</summary>
     public ClaimStanding Standing { get; init; } = ClaimStanding.Received;
 
@@ -162,7 +166,7 @@ public static class ClaimTransmission
                 // Made by now and not yet burned. A copy destroyed in a sack stops carrying the
                 // reading the year it went, and the record of it having existed stays put.
                 if (!copy.SurvivedTo(year)) continue;
-                Note(world, holders, subject, work.Id, copy.SettlementId, year);
+                Note(world, holders, subject, work.Id, copy.SettlementId, year, isCopy: true);
             }
         }
 
@@ -180,6 +184,7 @@ public static class ClaimTransmission
             // rather than the one they died at.
             EntityId wentFrom = WentFrom(world, held, claimant, year);
 
+            string cause = LossCause(world, held, claimant, year);
             world.ClaimHoldings.RemoveAt(i);
             world.ClaimTransitions.Add(new ClaimTransition(
                 subject,
@@ -188,15 +193,14 @@ public static class ClaimTransmission
                 ClaimTransitionKind.Lost,
                 held.Carrier,
                 held.CarrierId,
-                wentFrom));
+                wentFrom,
+                cause));
 
             DetMap<string, string> lost = Chronicle.Data(
                 ("reading", claim.Reading),
                 ("carrier", held.Carrier == ClaimCarrierKind.Claimant ? "its author" : "the last copy"));
 
-            // Only where something recorded one. A key with nothing behind it reads as a cause
-            // the chronicle knows and declines to give.
-            if (WhatEndedIt(world, held) is { Length: > 0 } cause) lost["cause"] = cause;
+            lost["cause"] = cause;
 
             world.Chronicle.Record(
                 year,
@@ -226,7 +230,8 @@ public static class ClaimTransmission
                 ClaimTransitionKind.Acquired,
                 pair.Value.Carrier,
                 pair.Value.CarrierId,
-                pair.Value.SettlementId));
+                pair.Value.SettlementId,
+                AcquisitionCause(world, pair.Value, claim, year)));
 
             // The realm it was made in is not news; a realm it was carried to is.
             if (pair.Value.Carrier != ClaimCarrierKind.Text) continue;
@@ -275,37 +280,62 @@ public static class ClaimTransmission
         return world.Settlements.Contains(where) ? where : held.SettlementId;
     }
 
-    /// <summary>
-    /// What took the last carrier, in the words the event that took it used.
-    /// </summary>
-    /// <remarks>
-    /// Read back off the thing that went rather than decided here: the copy says it burned in a
-    /// sack, the work's provenance says it was lost in a fire, and an author's death is already
-    /// named by the carrier. Empty when nothing recorded a cause, which the narration drops.
-    /// </remarks>
-    private static string WhatEndedIt(WorldState world, ClaimHolding held)
+    // Describe the selected exemplar while its loss is visible. Never consult its eventual
+    // fate: a surviving copy can leave a realm decades before that copy burns.
+    private static string LossCause(WorldState world, ClaimHolding held, Figure claimant, int year)
     {
-        if (held.Carrier != ClaimCarrierKind.Text || !world.Artifacts.Contains(held.CarrierId))
+        if (held.Carrier == ClaimCarrierKind.Claimant)
         {
-            return string.Empty;
+            return !claimant.IsAlive && claimant.DeathYear <= year
+                ? "its author died"
+                : "its author left the realm";
         }
 
-        Artifact work = world.Artifacts[held.CarrierId];
-
-        if (work.TomeContents is TomeContents contents)
+        if (world.Settlements.Contains(held.SettlementId))
         {
-            foreach (TomeCopy copy in contents.Copies)
+            Settlement place = world.Settlements[held.SettlementId];
+            if (place.AbandonedYear is int abandoned && abandoned <= year)
+                return "the town holding it was abandoned";
+        }
+
+        if (world.Artifacts.Contains(held.CarrierId))
+        {
+            Artifact work = world.Artifacts[held.CarrierId];
+            if (held.IsCopy && work.TomeContents is TomeContents contents)
             {
-                if (copy.SettlementId == held.SettlementId && copy.LostHow is string how) return how;
+                foreach (TomeCopy copy in contents.Copies)
+                {
+                    if (copy.SettlementId == held.SettlementId && copy.LostYear is int lost && lost <= year)
+                        return "its last local copy was lost" + (copy.LostHow is { Length: > 0 } how ? " (" + how + ")" : "");
+                }
+            }
+            else if (work.LostYear is int lost && lost <= year)
+            {
+                return "the original work was lost";
             }
         }
 
-        if (!work.IsExtant && work.Provenance.Count > 0)
-        {
-            return work.Provenance[^1].How;
-        }
+        if (world.Settlements.Contains(held.SettlementId)
+            && world.Settlements[held.SettlementId].CivilizationId != held.RealmId)
+            return "the town holding it left the realm";
 
-        return string.Empty;
+        if (!held.IsCopy && world.Artifacts.Contains(held.CarrierId)
+            && world.Artifacts[held.CarrierId].HolderId != held.SettlementId)
+            return "the original work left the realm";
+
+        return "no surviving carrier remained in the realm";
+    }
+
+    private static string AcquisitionCause(WorldState world, ClaimHolding holding, Claim claim, int year)
+    {
+        if (holding.Carrier == ClaimCarrierKind.Claimant)
+            return claim.Year == year && claim.RealmId == holding.RealmId
+                ? "its author made the reading here"
+                : "its author carried the reading into the realm";
+        if (holding.IsCopy) return "a surviving copy became available in the realm";
+        return world.Artifacts[holding.CarrierId].CreatedYear == year
+            ? "a work carrying the reading was written here"
+            : "the original work became available in the realm";
     }
 
     /// <summary>Records a text-carried holding, if that settlement is somewhere a realm still has.</summary>
@@ -315,7 +345,8 @@ public static class ClaimTransmission
         ClaimRef subject,
         EntityId workId,
         EntityId settlementId,
-        int year)
+        int year,
+        bool isCopy = false)
     {
         if (settlementId.IsNone || !world.Settlements.Contains(settlementId)) return;
 
@@ -327,7 +358,8 @@ public static class ClaimTransmission
         if (holders.ContainsKey(place.CivilizationId)) return;
 
         holders[place.CivilizationId] = new ClaimHolding(
-            subject, place.CivilizationId, year, ClaimCarrierKind.Text, workId, settlementId);
+            subject, place.CivilizationId, year, ClaimCarrierKind.Text, workId, settlementId)
+        { IsCopy = isCopy };
     }
 
     /// <summary>
@@ -346,7 +378,8 @@ public static class ClaimTransmission
         ClaimHolding held = world.ClaimHoldings[index];
         if (held.Carrier == carried.Carrier
             && held.CarrierId == carried.CarrierId
-            && held.SettlementId == carried.SettlementId)
+            && held.SettlementId == carried.SettlementId
+            && held.IsCopy == carried.IsCopy)
         {
             return;
         }
@@ -356,6 +389,7 @@ public static class ClaimTransmission
             Carrier = carried.Carrier,
             CarrierId = carried.CarrierId,
             SettlementId = carried.SettlementId,
+            IsCopy = carried.IsCopy,
         };
     }
 

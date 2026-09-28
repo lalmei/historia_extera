@@ -1223,7 +1223,8 @@ public static class WorldExporter
                 change.Kind,
                 change.Carrier,
                 OrNull(change.CarrierId),
-                OrNull(change.SettlementId)));
+                OrNull(change.SettlementId),
+                change.Cause));
         }
 
         return list;
