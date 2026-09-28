@@ -69,16 +69,21 @@ library if the job was already finishing when it was cancelled.
 
 The library offers three related actions:
 
-- **Run** repeats the reconstructed settings with the engine currently installed. Confirm whether
+- **Run** repeats the recorded settings with the engine currently installed. Confirm whether
   the result replaces the same filename or is saved beside it.
-- **Regenerate** opens the form with the reconstructed settings so you can change them.
+- **Regenerate** opens the form with the recorded settings so you can change them.
 - **Continue** proposes a longer run with the same settings. The engine starts again at year
   1 and writes another file; it does not resume mutable state from the shorter export.
 
-These actions recover only the settings exposed in the form. The initial civilization count
-comes from the generated filename and falls back to 8 when that name is missing. External
-terrain and custom library configuration are not restored. For those worlds, rerun the
-original CLI command or library invocation instead.
+Schema 62 exports record the initial civilization count independently of the filename and
+identify settings the form cannot reproduce. Renaming a supported export keeps its settings.
+Older exports, external terrain, and custom library configuration disable Run and Regenerate;
+the library explains how to rerun the original CLI command or library invocation instead.
+A custom raster resolution also requires the original invocation.
+
+The viewer rejects seeds above 9,007,199,254,740,991 explicitly, including imported exports
+and generator inputs. The CLI still accepts the full unsigned 64-bit range and writes the
+exact seed into JSON. Use that original value with the CLI; do not round it in JavaScript.
 
 With the same engine, terrain, seed, simulation configuration, and system order, the first
 years of a longer run reproduce the shorter history. A seed by itself is not enough if the

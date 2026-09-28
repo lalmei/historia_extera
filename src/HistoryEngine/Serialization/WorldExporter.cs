@@ -54,7 +54,8 @@ public static class WorldExporter
                     EstimatedGameSecondsSimulation:
                         simulationSamples * CountingTerrainSampler.GameSampleCostMs / 1000.0,
                     EstimatedGameSecondsRaster:
-                        rasterSamples * CountingTerrainSampler.GameSampleCostMs / 1000.0)),
+                        rasterSamples * CountingTerrainSampler.GameSampleCostMs / 1000.0),
+                Generation: ExportGenerationRecipe.FromConfig(world.Config)),
             World: BuildWorld(world, raster),
             Regions: BuildRegions(world),
             Cultures: BuildCultures(world),

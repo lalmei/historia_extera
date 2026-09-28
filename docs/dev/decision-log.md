@@ -5601,3 +5601,36 @@ dotnet run --project src/HistoryEngine.Cli -- --seed 42 --years 300 --civs 8 --s
 
 If it changes when you did *not* intend to change simulation behaviour, that is the bug
 the test exists to find.
+
+## Rerun eligibility — issue #195 (28 September 2026)
+
+Schema 62 adds versioned generation eligibility to the export header. It records the
+original initial civilization count and external terrain identity. A default `WorldConfig`
+with only the form's five inputs replaced must equal the actual configuration before a
+viewer rerun is offered. Custom configuration remains identified by `configHash` and is
+explicitly refused; a hash does not restore it. Custom raster resolution is refused too.
+Legacy exports require the original invocation. Filenames never supply missing settings.
+
+The catalog and loaded-export helper share one eligibility check. Query inputs outside the
+safe integer range remain invalid rather than falling back to another seed. The viewer
+rejects unsafe numeric seeds before building a world, while C# continues exporting the
+exact `ulong`. This chooses the issue's explicit-refusal option rather than adding a new
+full-width-seed form and URL contract.
+
+Validation used the composed workspace, including the existing celestial-orientation and
+hardship branches. Seed 42, 300 years, eight civilizations, size 4096, raster 64 matched the
+before-export exactly after removing the new recipe and restoring the old schema number.
+A one-year, three-civilization export renamed to `renamed.json` reran through the live
+endpoint to an identical export. Browser checks verified its form values and Continue
+settings, disabled legacy/custom reruns, and the unsafe-import explanation.
+
+The golden was already failing before this work: committed
+`eb7f8fcae207ec3931f07692bef400ca0f1e41989b437e6a862d13696faf3c2a`, measured
+`69d81f7a61a22ad8f6dac640da84c3594dd08e765eb899f6b6dd1bf71332c9af`.
+The additive recipe changes the composed export fingerprint to
+`f6baf10185311fc933572139582e1f72e9e391895eb010e19aa81ecc8441c408`.
+The committed golden is deliberately left untouched: refreshing it here would also accept
+unresolved baseline drift from outside this session. Reconcile that baseline before
+refreshing the pin. The focused engine run passed 33 tests and failed only that pin.
+Astro check also reports four errors in untouched biography/narration files; the production
+viewer build, viewer tests, and strict documentation build pass.

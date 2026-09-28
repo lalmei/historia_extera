@@ -8,12 +8,17 @@ export interface SavedWorld {
   bytes: number;
   modifiedAt?: string;
   schemaVersion: number | null;
+  seed?: number | null;
+  years?: number | null;
+  initialCivilizations?: number | null;
   /** How the history names itself, when the file header carried it. */
   designation?: string | null;
   /** The world's proper name (planet or moon), when the file header carried it. */
   worldName?: string | null;
   kind?: 'Planet' | 'Moon' | null;
-  /** Settings reconstructed from the file header and, for civs, the filename. */
+  /** Why Run and Regenerate are unavailable. */
+  rerunReason?: string | null;
+  /** Settings verified from a supported generation recipe. */
   params?: {
     seed: number;
     years: number;

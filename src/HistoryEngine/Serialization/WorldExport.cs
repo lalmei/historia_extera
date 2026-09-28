@@ -196,7 +196,8 @@ public sealed record WorldExport(
     /// staying, where they are the whole of it, so a reader already has the number from a field
     /// that was on every journey before this one existed.</para>
     /// </remarks>
-    public const int CurrentSchemaVersion = 61;
+    // Version 62 records rerun eligibility and the original civilization count in Meta.Generation.
+    public const int CurrentSchemaVersion = 62;
 }
 
 public sealed record ExportMeta(
@@ -210,7 +211,8 @@ public sealed record ExportMeta(
     int EndYear,
     int YearsSimulated,
     int EventCount,
-    ExportSampleStats TerrainSampling);
+    ExportSampleStats TerrainSampling,
+    ExportGenerationRecipe? Generation = null);
 
 /// <summary>
 /// What the run cost in terrain samples, split by purpose.
@@ -1517,4 +1519,3 @@ public sealed record ExportSeries(
     string Unit,
     int FromYear,
     IReadOnlyList<double> Values);
-
