@@ -254,6 +254,14 @@ public sealed class SpecializationTests
     /// paragraph above refuses, that a settlement already working ore ought to have herded
     /// instead, so the exclusion now reads the trade as well as the character.</para>
     ///
+    /// <para><b>Ground no trade has been asked about yet.</b> A hamlet below
+    /// <see cref="SettlementTier.Village"/> is never offered a specialization, and a village whose
+    /// field argues for nothing is asked again the following year, so
+    /// <see cref="SettlementSpecialization.None"/> means no choice has been made rather than a
+    /// choice against herding. Seed 7 reached this once later changes moved its late settlement:
+    /// a hamlet of 86 founded in 982 on dry ground, eighteen years before the horizon. The criterion is that dry ground must not go entirely to Farming and Mining; a
+    /// place that has gone to nothing yet cannot show that it did, so it is not counted.</para>
+    ///
     /// <para><b>Why this was not caught when the criterion was written.</b> The assertion is
     /// conditional on geography the world happens to produce, so it is dormant on any seed that
     /// settles no dry ground — and seed 7 settled none, which is why the paragraph above names it
@@ -293,7 +301,8 @@ public sealed class SpecializationTests
                 bool onDry = region.Fertility <= DryFertility
                              && region.Rainfall <= DryRainfall
                              && settlement.Site != SiteCharacter.Mine
-                             && settlement.Specialization != SettlementSpecialization.Mining;
+                             && settlement.Specialization != SettlementSpecialization.Mining
+                             && settlement.Specialization != SettlementSpecialization.None;
 
                 if (onCoast)
                 {
