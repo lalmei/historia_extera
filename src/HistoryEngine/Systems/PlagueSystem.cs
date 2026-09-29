@@ -469,6 +469,7 @@ public sealed class PlagueSystem : ISystem, IEpisodic
 
         var data = Chronicle.Data(("name", outbreak.Name));
         if (lost >= NotableLoss) data["lost"] = lost.ToString(CultureInfo.InvariantCulture);
+        Seasons.Note(data, world, settlement.Id, year);
 
         world.Chronicle.Record(
             year,
@@ -625,6 +626,7 @@ public sealed class PlagueSystem : ISystem, IEpisodic
 
         var data = Chronicle.Data(("name", outbreak.Name));
         if (lost >= NotableLoss) data["lost"] = lost.ToString(CultureInfo.InvariantCulture);
+        Seasons.Note(data, world, origin.Id, year);
 
         world.Chronicle.Record(
             year,

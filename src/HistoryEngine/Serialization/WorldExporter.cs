@@ -908,6 +908,7 @@ public static class WorldExporter
                 DeathYear: figure.DeathYear,
                 DeathCause: figure.DeathCause,
                 DeathDetail: figure.DeathDetail,
+                Epithet: figure.Epithet,
                 BirthSettlementId: OrNull(figure.BirthSettlementId),
                 ResidenceSettlementId: OrNull(figure.ResidenceSettlementId),
                 Residences: BuildResidences(figure),

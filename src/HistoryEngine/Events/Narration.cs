@@ -100,6 +100,9 @@ public static class Narration
         void SetAlt(EventKind kind, int n, string template) =>
             map[kind.ToString() + "." + n.ToString(CultureInfo.InvariantCulture)] = template;
 
+        void SetAltSelf(EventKind kind, int n, string template) =>
+            map[kind.ToString() + "." + n.ToString(CultureInfo.InvariantCulture) + SelfKeySuffix] = template;
+
         void SetKeyed(EventKind kind, string key, string template) =>
             map[kind.ToString() + "." + key] = template;
 
@@ -156,6 +159,14 @@ public static class Narration
         // An execution's data carries why, not what of — see Houses.Die.
         SetKeyed(EventKind.FigureDied, "executed",
             "{subject} was put to death[ as {data:office}][ {data:aged}][, {data:reason}].");
+        // The styled name is plain text rather than a slot: the link is already on {subject}, and a
+        // second link to the same person in one sentence is noise.
+        Set(EventKind.EpithetEarned,
+            "{subject} passed into memory as {data:styled}[, {data:reason}].");
+        SetAlt(EventKind.EpithetEarned, 1,
+            "Later ages called {subject} {data:epithet}[, {data:reason}].");
+        SetAlt(EventKind.EpithetEarned, 2,
+            "{subject} was remembered as {data:styled}[, {data:reason}].");
         Set(EventKind.RulerCrowned,
             "{subject} became {data:title} of {object}[ at {location}][, {data:claim}].");
         SetKeyed(EventKind.RulerCrowned, "elective",
@@ -416,27 +427,28 @@ public static class Narration
             + "So began {the}{location}.");
         Set(EventKind.WarJoined,
             "{subject} entered {the}{object} alongside {location}.");
+        // The season is the ground's own — see Seasons.Name — and absent in the tropics.
         Set(EventKind.BattleFought,
-            "{object} prevailed[ over {data:loser}] at {the}{subject}[ under {data:victor}]"
+            "[{cap}in {data:season}, ]{object} prevailed[ over {data:loser}] at {the}{subject}[ under {data:victor}]"
             + "[, {data:odds}][, at a cost of {data:losses} dead].");
         SetAlt(EventKind.BattleFought, 1,
-            "{object} carried {the}{subject}[ against {data:loser}][ under {data:victor}]"
+            "[{cap}in {data:season}, ]{object} carried {the}{subject}[ against {data:loser}][ under {data:victor}]"
             + "[, {data:odds}][, at a cost of {data:losses} dead].");
         // The loser is required here, not optional: Warfare writes it for every battle, and a
         // line with no one defeated in it is the omission this wording exists to fix.
         SetAlt(EventKind.BattleFought, 2,
-            "{object} defeated {data:loser} at {the}{subject}[ under {data:victor}]"
+            "[{cap}in {data:season}, ]{object} defeated {data:loser} at {the}{subject}[ under {data:victor}]"
             + "[, {data:odds}][, at a cost of {data:losses} dead].");
         Set(EventKind.SettlementSacked,
-            "{subject} was sacked by {object}[ under {data:captain}][, losing {data:lost} people].");
+            "[{cap}in {data:season}, ]{subject} was sacked by {object}[ under {data:captain}][, losing {data:lost} people].");
         Set(EventKind.WarEnded,
             "{the}{subject} ended[ after {data:years}][, {data:outcome}][ for {object}].");
         Set(EventKind.SiegeBegan,
-            "{object} invested {location}. So began {the}{subject}.");
+            "[{cap}in {data:season}, ]{object} invested {location}. So began {the}{subject}.");
         Set(EventKind.SiegeLifted,
             "{the}{subject} was lifted[, {data:cause}].");
         Set(EventKind.SettlementOccupied,
-            "{subject} fell to {object}[ under {data:captain}] and was held under arms.");
+            "[{cap}in {data:season}, ]{subject} fell to {object}[ under {data:captain}] and was held under arms.");
         Set(EventKind.SettlementRestored,
             "{subject} was recovered from {object}[ {data:manner}] and returned to {location}"
             + "[, after {data:years} under occupation].");
@@ -476,9 +488,9 @@ public static class Narration
             "The copy of {subject}[ kept at {location}] did not survive[, {data:cause}].");
 
         Set(EventKind.PlagueBegan,
-            "{the}{data:name} broke out in {subject}[, carrying off {data:lost} people].");
+            "[{cap}in {data:season}, ]{the}{data:name} broke out in {subject}[, carrying off {data:lost} people].");
         Set(EventKind.PlagueSpread,
-            "{the}{data:name} reached {subject}[ from {location}][, carrying off {data:lost} people].");
+            "[{cap}in {data:season}, ]{the}{data:name} reached {subject}[ from {location}][, carrying off {data:lost} people].");
         Set(EventKind.PlagueEnded,
             "{the}{data:name} burned itself out[ after {data:years}][, having killed {data:dead} in all].");
 
@@ -529,9 +541,17 @@ public static class Narration
             + "[{as:suspect}{cap}was named in the death of {subject}[, of {data:cause}].]"
             + "[{not:suspect}{self:extra}{subject} {data:familyVerb}[, of {data:cause}]"
             + "[, and the court named {data:suspect}].]");
+        SetAltSelf(EventKind.FigureDied, 1,
+            "[{self:subject}{cap}breathed {their:self} last[ as {data:office}][ {data:aged}]"
+            + "[, of {data:cause}][, and the court named {data:suspect}].]"
+            + "[{as:suspect}{cap}was named in the death of {subject}[, of {data:cause}].]"
+            + "[{not:suspect}{self:extra}{subject} {data:familyVerb}[, of {data:cause}]"
+            + "[, and the court named {data:suspect}].]");
         SetKeyedSelf(EventKind.FigureDied, "executed",
             "[{self:subject}{cap}was put to death[ as {data:office}][ {data:aged}][, {data:reason}].]"
             + "[{self:extra}{subject} was put to death[, {data:reason}].]");
+        SetSelf(EventKind.EpithetEarned,
+            "Passed into memory as {data:styled}[, {data:reason}].");
         SetSelf(EventKind.RulerCrowned,
             "Became {data:title} of {object}[ at {location}][, {data:claim}].");
         SetKeyedSelf(EventKind.RulerCrowned, "elective",
@@ -539,6 +559,8 @@ public static class Narration
         SetSelf(EventKind.RulerDeposed,
             "Was deposed as {data:title} of {object}[, {data:cause}].");
         SetSelf(EventKind.FigureMarried, "Married {other}[ at {location}].");
+        SetAltSelf(EventKind.FigureMarried, 1,
+            "Was wed to {other}[ at {location}].");
         SetKeyedSelf(EventKind.FigureMarried, "courtship",
             "Married {other}, having courted {them:other}[ at {location}].");
         SetSelf(EventKind.RulerTermEnded,
@@ -556,6 +578,10 @@ public static class Narration
             "Abdicated as {data:title} of {object}[, {data:cause}].");
         SetSelf(EventKind.OfficeGranted,
             "Was made {data:office}[ of {object}][ at {location}][, {data:claim}].");
+        SetAltSelf(EventKind.OfficeGranted, 1,
+            "Was named {data:office}[ of {object}][ at {location}][, {data:claim}].");
+        SetAltSelf(EventKind.OfficeGranted, 2,
+            "Took up the office of {data:office}[ of {object}][ at {location}][, {data:claim}].");
         SetKeyedSelf(EventKind.OfficeGranted, "seated",
             "Was made {data:office} of {object}[, {data:claim}].");
         SetKeyedSelf(EventKind.OfficeGranted, "seated.1",
@@ -564,14 +590,26 @@ public static class Narration
             "Was stripped of the office of {data:office}[ of {object}][, {data:cause}].");
         SetSelf(EventKind.OccupationTaken,
             "Took to {data:occupation}[ at {location}].");
+        SetAltSelf(EventKind.OccupationTaken, 1,
+            "Turned to {data:occupation}[ at {location}].");
+        SetAltSelf(EventKind.OccupationTaken, 2,
+            "Was bred to {data:occupation}[ at {location}].");
         SetSelf(EventKind.CraftTaken,
             "Was set to the trade of {data:craft}[ in {location}].");
+        SetAltSelf(EventKind.CraftTaken, 1,
+            "Entered the trade of {data:craft}[ in {location}].");
         SetSelf(EventKind.CraftAdvanced,
             "Was made a {data:grade}[ in {location}][, {data:claim}].");
         SetSelf(EventKind.RankGranted,
             "Was raised to {data:rank}[ in the army of {object}][, {data:claim}].");
+        SetAltSelf(EventKind.RankGranted, 1,
+            "Rose to {data:rank}[ in the army of {object}][, {data:claim}].");
         SetSelf(EventKind.JourneyMade,
             "Travelled to {location}[, {data:purpose}]"
+            + "[ {the}{extra:hol}][ {the}{extra:rel}][ {extra:civ}]"
+            + "[ along {the}{extra:rte}].");
+        SetAltSelf(EventKind.JourneyMade, 1,
+            "Journeyed to {location}[, {data:purpose}]"
             + "[ {the}{extra:hol}][ {the}{extra:rel}][ {extra:civ}]"
             + "[ along {the}{extra:rte}].");
         // A levy is not a merchant's errand or a pilgrim's vow, and "travelled" undersells being
@@ -659,6 +697,10 @@ public static class Narration
             "[{self:subject}{cap}{their:self} care of {other} ended[, {data:cause}].]"
             + "[{self:object}{cap}{their:self} guardianship under {other} ended[, {data:cause}].]");
         SetSelf(EventKind.FigureMoved, "Moved to {location}[, {data:cause}].");
+        SetAltSelf(EventKind.FigureMoved, 1,
+            "Settled in {location}[, {data:cause}].");
+        SetAltSelf(EventKind.FigureMoved, 2,
+            "Removed to {location}[, {data:cause}].");
         // The same episode from either side. One record, two readings: the aggrieved party fell
         // out with someone, and the other party was fallen out with, and neither page is a
         // separate incident.

@@ -196,3 +196,37 @@ Focused validation passed all 20 claim-transmission, causation, export-roundtrip
 determinism-guard tests. The composed seed-42 fingerprint is now
 `7851133b3e7e2c9c1b554e7e32e5d1a1d6999e6f4a123aa9323a7a5c2b160349`;
 the committed pin remains `eb7f8fcae207ec3931f07692bef400ca0f1e41989b437e6a862d13696faf3c2a`.
+
+## Figure epithets (schema 64)
+
+`figures[].epithet` is the byname posterity gave the figure at death, for example `"the Pious"`.
+It is absent for the living, for most of the dead, and in every export older than 64. It is
+earned from the record when the figure dies, never before, so a reader showing a figure at an
+earlier year must not show it: the viewer shows it only once the selected year has reached
+the death.
+
+Rulers are judged on their record. In order: a fall in battle; murder of the pious; wars won
+with none lost, or lost with none won; a crown worn in childhood; a reign of a year or less;
+age; a reign of forty years or more; a long reign without war. Temper counts only with a deed
+behind it, such as piety with a pilgrimage made, learning with a sky reading or a scribe's
+career, or a fierce temper that went to war. A captain who never ruled is named only for three
+fields commanded and none lost.
+
+Each byname is announced by an `EpithetEarned` event (kind 352) in the year of the death,
+written after the death line. Its data carries `epithet`, `styled` (name and byname together)
+and `reason`, a clause saying why. Entity names elsewhere in the export are unchanged: the
+byname is not part of `name`, so a data name compared against a figure's name (the role tests
+`{as:…}`) still matches.
+
+Data keys added to existing events in the same change, all optional:
+
+| Event | Key | Meaning |
+|---|---|---|
+| `FigureDied` | `aged` | The age as a register gives it: `in infancy`, `as a child of 6`, `at the age of 50`. `age` keeps the number. |
+| `FigureDied` | `reason`, `voice: executed` | Why an execution was carried out. `cause` is then `execution`. |
+| `BattleFought` | `loser`, `odds` | The beaten side's name, and `though outnumbered` or `by weight of numbers` when strengths were far apart. |
+| `BattleFought`, `SiegeBegan`, `SettlementSacked`, `SettlementOccupied`, `PlagueBegan`, `PlagueSpread` | `season` | The local season on that ground (`spring`, `high summer`, `the depth of winter`, …). Absent in the tropics and on non-four-season calendars. |
+| `SettlementPromoted` | `reckoned` | The head count rounded as a chronicler would (`4,000`). `population` keeps the exact figure. |
+| `OfficeGranted` | `voice: seated` | The office is over the town it sits in, so the line names the town once. |
+| `JourneyMade` | `voice`, `years` | The leg opened or closed an undertaking (`pilgrimage`, `tradeopen`, `embassyclose`, …), and the undertaking writes no line of its own for that leg. |
+

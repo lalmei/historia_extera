@@ -11,7 +11,7 @@
  */
 
 /** The schema the current engine writes. `compat.ts` has the oldest one the viewer reads. */
-export const SCHEMA_VERSION = 63;
+export const SCHEMA_VERSION = 64;
 
 /**
  * Whether an event carries the history or merely records a life.
@@ -2306,6 +2306,8 @@ export interface Figure {
   deathCause: DeathCause;
   /** Specific form of the cause when known, such as a named plague or a flood. */
   deathDetail?: string;
+  /** The byname posterity gave them at death — "the Pious". Schema 64+. */
+  epithet?: string;
   birthSettlementId?: EntityId;
   /**
    * Where they actually live, when that is finer than a realm. Set for a governor, who

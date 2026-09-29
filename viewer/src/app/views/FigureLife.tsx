@@ -257,7 +257,14 @@ export function FigureHero({
           <div className="he-label" style={{ color: `color-mix(in srgb, ${tone} 70%, var(--ink-faint))` }}>
             {eyebrow}
           </div>
-          <h1 className="he-headline mt-1.5">{figure.name}</h1>
+          <h1 className="he-headline mt-1.5">
+            {figure.name}
+            {/* Given at the grave, so shown only once the page is read past it: at a year when
+                they still lived, the byname is a verdict nobody had reached yet. */}
+            {figure.epithet && !standing.alive && (
+              <span className="text-[var(--ink-faint)]"> {figure.epithet}</span>
+            )}
+          </h1>
           <div className="mt-2.5 flex flex-wrap items-center gap-2 text-sm">
             <Badge tone={standing.alive ? 'accent' : 'muted'}>
               {standing.alive ? `Living in ${standing.year}` : 'Deceased'}
