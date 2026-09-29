@@ -394,6 +394,11 @@ public sealed class HouseholdSystem : ISystem
         if (PinnedByOffice(candidate)) return null;
         if (Succession.AreCloseKin(world, figure, candidate)) return null;
 
+        // The same-house refusal FindPartner makes and WedCourtships repeats. A lover is not drawn
+        // from other houses the way FindPartner's candidates are, so two distant cousins of one
+        // dynasty who climbed the ladder together reach here with nothing else to stop them.
+        if (!figure.DynastyId.IsNone && figure.DynastyId == candidate.DynastyId) return null;
+
         // The one roll that is not FindPartner's abroad draw and not the parent MarriageChance
         // roll: whether this year's marriage is the one the courtship was climbed for, or whether
         // the house's own needs come first and the political draw below still gets its turn.
