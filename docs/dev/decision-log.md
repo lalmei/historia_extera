@@ -5634,3 +5634,70 @@ unresolved baseline drift from outside this session. Reconcile that baseline bef
 refreshing the pin. The focused engine run passed 33 tests and failed only that pin.
 Astro check also reports four errors in untouched biography/narration files; the production
 viewer build, viewer tests, and strict documentation build pass.
+
+## Narration: one fact per line, and the words a register would use (29 September 2026)
+
+A 400-year world (seed 7, ten civilizations) was read end to end through the export's own
+templates before anything was changed. Variety was not the first problem. The eight commonest
+kinds were 73% of the chronicle and each had one wording, but the worst lines were wrong rather
+than repetitive, and every one came from what the engine put into a template rather than from
+the template.
+
+**A pilgrimage was told three times.** "Undertook a pilgrimage to K", "travelled to K, on
+pilgrimage to the Sanctuary", "completed a pilgrimage to K, after 0 years": one fact, the same
+year, twelve thousand lines. The journey that opens or closes an undertaking now says so in its
+own voice (`JourneyMade.pilgrimage`, `.tradeopen`, `.embassyclose`, …), and the undertaking
+writes no line of its own for that leg. The arc, its steps and its outcome are all still on the
+figure, so only the chronicle lines change. A vow made at a graveside still gets its own line, because it
+happens years before the journey. The events of seed 7 fell from 43,392 to 35,526.
+
+To say "and so kept the vow" honestly, the journey line must know the road's verdict before
+the line is written, but the waylaying must still follow the journey in the chronicle.
+`TravelSystem.Resolve` is split into `Roll`, which draws the hazard and records nothing, and
+the resolution that records. Both use the same streams in the same order, so no draw moved. The
+whole seed-7 world was diffed outside `events`, and only text differed: death details, undertaking
+outcome strings, tome prose, and the event ids that the tomes and holy sites cite.
+
+**Kind-specific voices, not "opened"/"closed".** A pilgrim keeps a vow, a merchant settles a
+trade and an envoy concludes an embassy. A generic voice would have to repeat the errand's
+name to say which, and repeating a name is what the "bound for Shche" fix already removed.
+
+**Voices have numbered wordings.** `Kind.voice.1`, `Kind.voice.1.self`, chosen on the event
+id by the same mix as `Kind.1`. Both `Narration.TemplateFor` and `narrate.ts` changed. The
+grammar did not, so `SyntaxVersion` stays at 4: an older viewer reading a newer file takes a
+voice's first wording, which is still the right sentence.
+
+**Defects fixed at the source, not in the template:**
+
+- *"after 0 years"* (1,752 lines). `Undertakings.Complete` now leaves out a zero span, as
+  every other span in the chronicle already did.
+- *"Governor of Ardagheraun at Ardagheraun"* (723). When an office's seat is the thing it is
+  over, `Offices.Grant` adds the `seated` voice. The seat stays in its slot, because that is
+  what indexes the grant on the town's page.
+- *"died at the age of 41, of for the death of Drusius"*. An execution's detail is a
+  reason, not a cause. It now goes under `reason` with the `executed` voice ("was put to death,
+  for …"), and `Tomes` makes the same distinction.
+- *Failure causes read as pasted fields.* The world line takes the figure page's "because"
+  frame, and the strings were rewritten to fit it. "Death came first" carries no pronoun,
+  because a data string cannot agree with a subject it cannot see.
+
+**What a register would have written.** `Ailments` names an ordinary death by age bracket
+(cradle fevers and croup; spotted fever and throat distemper; fluxes, quinsy and festering
+wounds; palsies, dropsy and failing hearts), with ague on wet ground, the miner's cough by a
+mine and gaol fever in a city. It is flavour on its own stream and decides nothing. Deaths also carry `aged`
+("in infancy", "as a child of 6"); the bare number stays in `age`. Battles now name the loser
+and the odds when the strengths are far apart. Promotions give a rounded head count
+(`reckoned`: "some 4,000", with the exact figure left in `population`). Friendship steps choose
+their verb from how the pair met and whether the actor holds office. Each of these picks its
+words from a fork of its own.
+
+**Tests.** `ChronicleProseTests` reads three seeds for each defect above and for the journey
+fold, and checks that the commonest kinds are not all told the same way. `SkyClaimTests`
+now allows one sky line in eighty rather than one in a hundred: the sky lines are unchanged,
+but a fifth of the denominator is gone.
+
+**Not fixed here.** `HardshipTests.SomeoneWinteringOverTakesNoConsequenceForBeingAtHome`
+fails on the unmodified base (seed 7, fig:573) and is left for its own change. The golden
+fingerprint was already stale on the base: committed `eb7f8fca…`, while the base produces
+`92200a11…`. Following the entry above, it is not refreshed here. With this change, seed 42
+produces `d3a13e8464a9962b1eaff2cf76c1a4dc681c97da5eb5d6934559b44737cf557a`.

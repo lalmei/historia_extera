@@ -52,8 +52,10 @@ namespace HistoryEngine.Events;
 /// <para>A second template per kind, keyed <c>Kind.self</c>, is what a figure's chronicle uses.
 /// The world line names realms; the figure line is the same fact told as something they did.
 /// Kinds without a <c>.self</c> template keep the world wording. Further keys the engine selected
-/// — <c>Kind.elective</c>, <c>Kind.1</c> — are the same fact in another wording. The viewer stays
-/// kind-blind: it looks the key up, it does not choose it.</para>
+/// — <c>Kind.elective</c>, <c>Kind.1</c> — are the same fact in another wording. A voice has
+/// numbered wordings of its own the same way (<c>Kind.elective.1</c>, <c>Kind.elective.1.self</c>),
+/// so a register that covers thousands of events need not say them all in one sentence. The
+/// viewer stays kind-blind: it looks the key up, it does not choose it.</para>
 ///
 /// <para>The optional segment is what keeps prose grammatical when slots are absent. A figure
 /// born before any settlement exists has no birthplace, and <c>"{subject} was born[ in
@@ -116,7 +118,14 @@ public static class Narration
         Set(EventKind.CapitalMoved, "{subject} moved its seat of government to {location}.");
 
         Set(EventKind.SettlementFounded, "{subject} was founded[ by {object}].");
-        Set(EventKind.SettlementPromoted, "{subject} grew into {a}{data:tier}.");
+        // The head count was already on the event and only the sentence left it out. A village
+        // of 180 and a city of 4,000 are the same line otherwise. Rounded, as a chronicler rounds.
+        Set(EventKind.SettlementPromoted,
+            "{subject} grew into {a}{data:tier}[ of some {data:reckoned} souls].");
+        SetAlt(EventKind.SettlementPromoted, 1,
+            "{subject} had become {a}{data:tier}[, some {data:reckoned} strong].");
+        SetAlt(EventKind.SettlementPromoted, 2,
+            "{subject} was reckoned {a}{data:tier}[ of about {data:reckoned} souls].");
         Set(EventKind.SettlementDeclined, "{subject} dwindled to {a}{data:tier}.");
         Set(EventKind.SettlementAbandoned,
             "{subject} was abandoned[ after {data:years}][, its people lost to {data:cause}]"
@@ -132,9 +141,21 @@ public static class Narration
 
         Set(EventKind.FigureBorn,
             "{subject} was born[ to {extra:fig} and {object}][ in {location}].");
+        SetAlt(EventKind.FigureBorn, 1,
+            "{subject} was born[ in {location}][, a {data:child} of {extra:fig} and {object}].");
+        SetAlt(EventKind.FigureBorn, 2,
+            "{subject} came into the world[ in {location}][, {data:child} to {extra:fig} and {object}].");
+        // {data:aged} is the age said the way a register says it — "in infancy", "as a child of
+        // 6", "at the age of 50" — see Ailments.AgePhrase. The bare number stays in {data:age}.
         Set(EventKind.FigureDied,
-            "{subject} died[ as {data:office}][ at the age of {data:age}][, of {data:cause}]"
+            "{subject} died[ as {data:office}][ {data:aged}][, of {data:cause}]"
             + "[, and the court named {data:suspect}].");
+        SetAlt(EventKind.FigureDied, 1,
+            "{subject} breathed {their:subject} last[ as {data:office}][ {data:aged}][, of {data:cause}]"
+            + "[, and the court named {data:suspect}].");
+        // An execution's data carries why, not what of — see Houses.Die.
+        SetKeyed(EventKind.FigureDied, "executed",
+            "{subject} was put to death[ as {data:office}][ {data:aged}][, {data:reason}].");
         Set(EventKind.RulerCrowned,
             "{subject} became {data:title} of {object}[ at {location}][, {data:claim}].");
         SetKeyed(EventKind.RulerCrowned, "elective",
@@ -158,10 +179,25 @@ public static class Narration
 
         Set(EventKind.OfficeGranted,
             "{subject} was made {data:office}[ of {object}][ at {location}][, {data:claim}].");
+        SetAlt(EventKind.OfficeGranted, 1,
+            "{subject} was named {data:office}[ of {object}][ at {location}][, {data:claim}].");
+        SetAlt(EventKind.OfficeGranted, 2,
+            "{subject} took up the office of {data:office}[ of {object}][ at {location}][, {data:claim}].");
+        // The office is over the town it sits in, so the town is said once — see Offices.Grant.
+        SetKeyed(EventKind.OfficeGranted, "seated",
+            "{subject} was made {data:office} of {object}[, {data:claim}].");
+        SetKeyed(EventKind.OfficeGranted, "seated.1",
+            "{subject} was named {data:office} of {object}[, {data:claim}].");
+        SetKeyed(EventKind.OfficeGranted, "seated.2",
+            "{object} received {subject} as its {data:office}[, {data:claim}].");
         Set(EventKind.OfficeRevoked,
             "{subject} was stripped of the office of {data:office}[ of {object}][, {data:cause}].");
         Set(EventKind.OccupationTaken,
             "{subject} took to {data:occupation}[ at {location}].");
+        SetAlt(EventKind.OccupationTaken, 1,
+            "{subject} turned to {data:occupation}[ at {location}].");
+        SetAlt(EventKind.OccupationTaken, 2,
+            "{subject} was bred to {data:occupation}[ at {location}].");
         // Beside the line above it, not instead of it: OccupationTaken fires the same year and
         // says they took to a craft, so this one has to say which without saying "craft" again.
         // The label rather than Crafts.Phrase, because the phrases were written for a person's own
@@ -177,6 +213,8 @@ public static class Narration
             "{subject} was made a {data:grade}[ in {location}][, {data:claim}].");
         Set(EventKind.RankGranted,
             "{subject} was raised to {data:rank}[ in the army of {object}][, {data:claim}].");
+        SetAlt(EventKind.RankGranted, 1,
+            "{subject} rose to {data:rank}[ in the army of {object}][, {data:claim}].");
         // One template, four errands. The reason a journey was made is a holy site for a pilgrim,
         // a monastery for a scribe fetching copies, a faith for a priest on circuit and a realm
         // for a guest, and a trade route may add the road itself. Each clause is gated on the kind
@@ -185,10 +223,70 @@ public static class Narration
             "{subject} travelled to {location}[, {data:purpose}]"
             + "[ {the}{extra:hol}][ {the}{extra:rel}][ {extra:civ}]"
             + "[ along {the}{extra:rte}].");
+        SetAlt(EventKind.JourneyMade, 1,
+            "{subject} journeyed to {location}[, {data:purpose}]"
+            + "[ {the}{extra:hol}][ {the}{extra:rel}][ {extra:civ}]"
+            + "[ along {the}{extra:rte}].");
+        SetAlt(EventKind.JourneyMade, 2,
+            "{subject} made the journey to {location}[, {data:purpose}]"
+            + "[ {the}{extra:hol}][ {the}{extra:rel}][ {extra:civ}]"
+            + "[ along {the}{extra:rte}].");
         SetKeyed(EventKind.JourneyMade, "campaign",
             "{subject} marched to {location} with the host.");
+
+        // The legs that open or close an undertaking say so themselves, and the undertaking
+        // writes no line of its own for them — see Undertakings.JourneyVoice. One family per
+        // errand, because a pilgrim keeps a vow, a merchant settles a trade and an envoy concludes
+        // an embassy, and none of them should have to name the errand twice to say which.
+        SetKeyed(EventKind.JourneyMade, "pilgrimage",
+            "{subject} made the pilgrimage to {location}[ and prayed at {the}{extra:hol}].");
+        SetKeyed(EventKind.JourneyMade, "pilgrimage.1",
+            "{subject} went as a pilgrim to {location}[, to pray at {the}{extra:hol}].");
+        SetKeyed(EventKind.JourneyMade, "pilgrimage.2",
+            "{subject} kept a vow of pilgrimage[ to {the}{extra:hol}] at {location}.");
+        SetKeyed(EventKind.JourneyMade, "pilgrimageopen",
+            "{subject} set out on pilgrimage to {location}[, bound for {the}{extra:hol}].");
+        SetKeyed(EventKind.JourneyMade, "pilgrimageclose",
+            "{subject} made the pilgrimage to {location}[ and prayed at {the}{extra:hol}], "
+            + "keeping {their:subject} vow[ after {data:years}].");
+        SetKeyed(EventKind.JourneyMade, "pilgrimageclose.1",
+            "{subject} came at last as a pilgrim to {location}[, to pray at {the}{extra:hol}]"
+            + ", and so kept {their:subject} vow.");
+        SetKeyed(EventKind.JourneyMade, "tradeopen",
+            "{subject} went to {location} to open a lasting trade[ along {the}{extra:rte}].");
+        SetKeyed(EventKind.JourneyMade, "tradeopen.1",
+            "{subject} first carried goods to {location}[ along {the}{extra:rte}], "
+            + "meaning to make a lasting trade of it.");
+        SetKeyed(EventKind.JourneyMade, "tradeclose",
+            "{subject} travelled once more to {location}[ along {the}{extra:rte}], "
+            + "and the trade was made a lasting one[ after {data:years}].");
+        SetKeyed(EventKind.JourneyMade, "tradeclose.1",
+            "{subject} settled a lasting trade with {location}[ after {data:years}] of journeys"
+            + "[ along {the}{extra:rte}].");
+        SetKeyed(EventKind.JourneyMade, "missionopen",
+            "{subject} began a missionary circuit through {location}[, {data:purpose}]"
+            + "[ {the}{extra:hol}][ {the}{extra:rel}].");
+        SetKeyed(EventKind.JourneyMade, "missionopen.1",
+            "{subject} went out to {location}[, {data:purpose}][ {the}{extra:hol}][ {the}{extra:rel}]"
+            + ", the first stop on a missionary circuit.");
+        SetKeyed(EventKind.JourneyMade, "missionclose",
+            "{subject} travelled to {location}[, {data:purpose}][ {the}{extra:hol}][ {the}{extra:rel}]"
+            + ", and so completed {their:subject} missionary circuit[ after {data:years}].");
+        SetKeyed(EventKind.JourneyMade, "embassyopen",
+            "{subject} went to {location} on an embassy[ to {extra:civ}].");
+        SetKeyed(EventKind.JourneyMade, "embassyopen.1",
+            "{subject} was received at {location}[ as envoy to {extra:civ}].");
+        SetKeyed(EventKind.JourneyMade, "embassyclose",
+            "{subject} went again to {location}[ as a guest of {extra:civ}], "
+            + "and so concluded {their:subject} embassy[ after {data:years}].");
+        SetKeyed(EventKind.JourneyMade, "embassyclose.1",
+            "{subject} concluded {their:subject} embassy[ to {extra:civ}] at {location}"
+            + "[ after {data:years}].");
+
         Set(EventKind.JourneyWaylaid,
             "{subject} came to grief[ on the way to {location}][, {data:cause}].");
+        SetAlt(EventKind.JourneyWaylaid, 1,
+            "Misfortune met {subject}[ on the road to {location}][, {data:cause}].");
         Set(EventKind.FigureWounded,
             "{subject} was {data:severity} wounded at {the}{object}[, {data:injury}].");
         Set(EventKind.UndertakingStarted,
@@ -201,15 +299,32 @@ public static class Narration
         // Shche, bound for Shche": the same town named twice in one sentence. The plain line
         // above still serves the one undertaking whose objective names a person rather than a
         // place — a sworn revenge — where {location} is the only place the battlefield is said.
-        SetKeyed(EventKind.UndertakingStarted, "journey", "{subject} undertook {data:objective}.");
+        // Since journeys say their own openings, the one journey-kind undertaking that still
+        // starts on a line of its own is a vow made at a graveside — see ConsiderBereavementVow.
+        SetKeyed(EventKind.UndertakingStarted, "journey", "{subject} vowed {data:objective}.");
+        SetKeyed(EventKind.UndertakingStarted, "journey.1", "{subject} swore to make {data:objective}.");
+        SetKeyed(EventKind.UndertakingStarted, "revenge",
+            "{subject} swore {data:objective}[ after the defeat at {location}].");
         Set(EventKind.UndertakingCompleted,
             "{subject} completed {data:objective}[ at {location}][, after {data:years}].");
         SetKeyed(EventKind.UndertakingCompleted, "journey",
             "{subject} completed {data:objective}[, after {data:years}].");
+        SetKeyed(EventKind.UndertakingCompleted, "revenge",
+            "{subject} had {data:objective}[ at {location}][, after {data:years}].");
+        SetKeyed(EventKind.UndertakingCompleted, "revenge.1",
+            "{subject} took {data:objective}[ at {location}][, after {data:years}].");
+        // Framed on "because", the frame the figure page already used, so every cause is written
+        // once as a clause that reads after it.
         Set(EventKind.UndertakingFailed,
-            "{subject}'s undertaking, {data:objective}, failed[ at {location}][, {data:cause}].");
+            "{subject} could not complete {data:objective}[ at {location}][, because {data:cause}].");
+        SetAlt(EventKind.UndertakingFailed, 1,
+            "{subject} never completed {data:objective}[ at {location}][, because {data:cause}].");
         SetKeyed(EventKind.UndertakingFailed, "journey",
-            "{subject}'s undertaking, {data:objective}, failed[, {data:cause}].");
+            "{subject} could not complete {data:objective}[, because {data:cause}].");
+        SetKeyed(EventKind.UndertakingFailed, "journey.1",
+            "{subject} never completed {data:objective}[, because {data:cause}].");
+        SetKeyed(EventKind.UndertakingFailed, "revenge",
+            "{subject} was denied {data:objective}[ at {location}][, because {data:cause}].");
         Set(EventKind.ConspiratorJoined,
             "{subject} drew {object} into a conspiracy against {extra:fig}.");
         Set(EventKind.ConspiracyExposed,
@@ -222,6 +337,8 @@ public static class Narration
         Set(EventKind.GuardianshipEnded,
             "The guardianship of {object} by {subject} ended[, {data:cause}].");
         Set(EventKind.FigureMoved, "{subject} moved to {location}[, {data:cause}].");
+        SetAlt(EventKind.FigureMoved, 1, "{subject} settled in {location}[, {data:cause}].");
+        SetAlt(EventKind.FigureMoved, 2, "{subject} removed to {location}[, {data:cause}].");
         // A quarrel names both parties in every line it writes. The one thing a reader of a
         // personal dispute always wants is who it was with, and it is never the location.
         Set(EventKind.DisputeOpened,
@@ -300,8 +417,16 @@ public static class Narration
         Set(EventKind.WarJoined,
             "{subject} entered {the}{object} alongside {location}.");
         Set(EventKind.BattleFought,
-            "{object} prevailed at {the}{subject}[ under {data:victor}]"
-            + "[, at a cost of {data:losses} dead].");
+            "{object} prevailed[ over {data:loser}] at {the}{subject}[ under {data:victor}]"
+            + "[, {data:odds}][, at a cost of {data:losses} dead].");
+        SetAlt(EventKind.BattleFought, 1,
+            "{object} carried {the}{subject}[ against {data:loser}][ under {data:victor}]"
+            + "[, {data:odds}][, at a cost of {data:losses} dead].");
+        // The loser is required here, not optional: Warfare writes it for every battle, and a
+        // line with no one defeated in it is the omission this wording exists to fix.
+        SetAlt(EventKind.BattleFought, 2,
+            "{object} defeated {data:loser} at {the}{subject}[ under {data:victor}]"
+            + "[, {data:odds}][, at a cost of {data:losses} dead].");
         Set(EventKind.SettlementSacked,
             "{subject} was sacked by {object}[ under {data:captain}][, losing {data:lost} people].");
         Set(EventKind.WarEnded,
@@ -399,11 +524,14 @@ public static class Narration
             + "[{self:object}{extra:fig} bore a {data:child}, {subject}[, at {location}].]"
             + "[{self:extra}{cap}bore {them:object} a {data:child}, {subject}[, at {location}].]");
         SetSelf(EventKind.FigureDied,
-            "[{self:subject}{cap}died[ as {data:office}][ at the age of {data:age}]"
+            "[{self:subject}{cap}died[ as {data:office}][ {data:aged}]"
             + "[, of {data:cause}][, and the court named {data:suspect}].]"
             + "[{as:suspect}{cap}was named in the death of {subject}[, of {data:cause}].]"
             + "[{not:suspect}{self:extra}{subject} {data:familyVerb}[, of {data:cause}]"
             + "[, and the court named {data:suspect}].]");
+        SetKeyedSelf(EventKind.FigureDied, "executed",
+            "[{self:subject}{cap}was put to death[ as {data:office}][ {data:aged}][, {data:reason}].]"
+            + "[{self:extra}{subject} was put to death[, {data:reason}].]");
         SetSelf(EventKind.RulerCrowned,
             "Became {data:title} of {object}[ at {location}][, {data:claim}].");
         SetKeyedSelf(EventKind.RulerCrowned, "elective",
@@ -428,6 +556,10 @@ public static class Narration
             "Abdicated as {data:title} of {object}[, {data:cause}].");
         SetSelf(EventKind.OfficeGranted,
             "Was made {data:office}[ of {object}][ at {location}][, {data:claim}].");
+        SetKeyedSelf(EventKind.OfficeGranted, "seated",
+            "Was made {data:office} of {object}[, {data:claim}].");
+        SetKeyedSelf(EventKind.OfficeGranted, "seated.1",
+            "Was named {data:office} of {object}[, {data:claim}].");
         SetSelf(EventKind.OfficeRevoked,
             "Was stripped of the office of {data:office}[ of {object}][, {data:cause}].");
         SetSelf(EventKind.OccupationTaken,
@@ -446,6 +578,31 @@ public static class Narration
         // called up. Keyed on the same voice a coronation already uses to pick its own wording —
         // see Houses.cs for the elective case this mechanism was built for.
         SetKeyedSelf(EventKind.JourneyMade, "campaign", "Marched to {location} with the host.");
+        SetKeyedSelf(EventKind.JourneyMade, "pilgrimage",
+            "Made the pilgrimage to {location}[ and prayed at {the}{extra:hol}].");
+        SetKeyedSelf(EventKind.JourneyMade, "pilgrimage.1",
+            "Went as a pilgrim to {location}[, to pray at {the}{extra:hol}].");
+        SetKeyedSelf(EventKind.JourneyMade, "pilgrimageopen",
+            "Set out on pilgrimage to {location}[, bound for {the}{extra:hol}].");
+        SetKeyedSelf(EventKind.JourneyMade, "pilgrimageclose",
+            "Made the pilgrimage to {location}[ and prayed at {the}{extra:hol}], "
+            + "keeping {their:self} vow[ after {data:years}].");
+        SetKeyedSelf(EventKind.JourneyMade, "tradeopen",
+            "Went to {location} to open a lasting trade[ along {the}{extra:rte}].");
+        SetKeyedSelf(EventKind.JourneyMade, "tradeclose",
+            "Travelled once more to {location}[ along {the}{extra:rte}], "
+            + "and made the trade a lasting one[ after {data:years}].");
+        SetKeyedSelf(EventKind.JourneyMade, "missionopen",
+            "Began a missionary circuit through {location}[, {data:purpose}]"
+            + "[ {the}{extra:hol}][ {the}{extra:rel}].");
+        SetKeyedSelf(EventKind.JourneyMade, "missionclose",
+            "Travelled to {location}[, {data:purpose}][ {the}{extra:hol}][ {the}{extra:rel}]"
+            + ", and so completed {their:self} missionary circuit[ after {data:years}].");
+        SetKeyedSelf(EventKind.JourneyMade, "embassyopen",
+            "Went to {location} on an embassy[ to {extra:civ}].");
+        SetKeyedSelf(EventKind.JourneyMade, "embassyclose",
+            "Went again to {location}[ as a guest of {extra:civ}], "
+            + "and so concluded {their:self} embassy[ after {data:years}].");
         SetSelf(EventKind.JourneyWaylaid,
             "Came to grief[ on the way to {location}][, {data:cause}].");
         SetSelf(EventKind.FigureWounded,
@@ -456,8 +613,11 @@ public static class Narration
         // Same fix as the world line above, and the same reason: for the four journey kinds the
         // objective already says where, so {location} would only repeat it.
         SetKeyedSelf(EventKind.UndertakingStarted, "journey",
-            "[{self:subject}{cap}undertook {data:objective}.]"
-            + "[{self:object}{subject} undertook {data:objective}.]");
+            "[{self:subject}{cap}vowed {data:objective}.]"
+            + "[{self:object}{subject} vowed {data:objective}.]");
+        SetKeyedSelf(EventKind.UndertakingStarted, "revenge",
+            "[{self:subject}{cap}swore {data:objective}[ after the defeat at {location}].]"
+            + "[{self:object}{subject} swore {data:objective}.]");
         SetSelf(EventKind.UndertakingCompleted,
             "[{self:subject}{cap}completed {data:objective}[ at {location}][, after {data:years}].]"
             + "[{self:object}{subject} completed {data:objective}[ at {location}].]"
@@ -470,6 +630,13 @@ public static class Narration
             "[{self:subject}{cap}could not complete {data:objective}[ at {location}][, because {data:cause}].]"
             + "[{self:object}{subject} could not complete {data:objective}[, because {data:cause}].]"
             + "[{self:extra}{cap}was implicated when {subject} failed to complete {data:objective}.]");
+        SetKeyedSelf(EventKind.UndertakingCompleted, "revenge",
+            "[{self:subject}{cap}had {data:objective}[ at {location}][, after {data:years}].]"
+            + "[{self:object}{subject} had {data:objective}[ at {location}].]"
+            + "[{self:extra}{cap}helped {subject} to {data:objective}.]");
+        SetKeyedSelf(EventKind.UndertakingFailed, "revenge",
+            "[{self:subject}{cap}was denied {data:objective}[ at {location}][, because {data:cause}].]"
+            + "[{self:object}{subject} was denied {data:objective}[, because {data:cause}].]");
         SetKeyedSelf(EventKind.UndertakingFailed, "journey",
             "[{self:subject}{cap}could not complete {data:objective}[, because {data:cause}].]"
             + "[{self:object}{subject} could not complete {data:objective}[, because {data:cause}].]"
@@ -578,12 +745,13 @@ public static class Narration
         // event the way a coronation's subject owns theirs. See TemplateFor(HistoryEvent, EntityId,
         // string?) for where the role argument is read.
         SetSelf(EventKind.BattleFought,
-            "[{as:victor}{cap}prevailed at {the}{subject}[, at a cost of {data:losses} dead].]"
+            "[{as:victor}{cap}prevailed[ over {data:loser}] at {the}{subject}[, {data:odds}]"
+            + "[, at a cost of {data:losses} dead].]"
             + "[{not:victor}{cap}was at {the}{subject}, which {object} won"
             + "[, at a cost of {data:losses} dead].]");
         SetKeyedSelf(EventKind.BattleFought, "commanded",
-            "[{as:victor}{cap}commanded the host that carried {the}{subject}"
-            + "[, at a cost of {data:losses} dead].]"
+            "[{as:victor}{cap}commanded the host that carried {the}{subject}[ against {data:loser}]"
+            + "[, {data:odds}][, at a cost of {data:losses} dead].]"
             + "[{not:victor}{cap}commanded at {the}{subject}, which {object} won"
             + "[, at a cost of {data:losses} dead].]");
         SetKeyedSelf(EventKind.BattleFought, "fought",
@@ -690,38 +858,34 @@ public static class Narration
             return roleSelf;
         }
 
-        if (!string.IsNullOrEmpty(voice))
+        if (!string.IsNullOrEmpty(voice) && self
+            && TemplatesByKind.ContainsKey(kind + "." + voice + SelfKeySuffix))
         {
-            if (self && TryTemplate(kind + "." + voice + SelfKeySuffix, out string? voicedSelf))
-            {
-                return voicedSelf;
-            }
+            return Variant(entry.Id, NumberedKeys(kind + "." + voice, SelfKeySuffix));
         }
 
         if (self && TemplatesByKind.ContainsKey(kind + SelfKeySuffix))
         {
-            IReadOnlyList<string> selfKeys = NumberedKeys(kind, SelfKeySuffix);
-            if (selfKeys.Count > 1)
-            {
-                return TemplatesByKind[selfKeys[VariantIndex(entry.Id, selfKeys.Count)]];
-            }
-
-            return TemplatesByKind[kind + SelfKeySuffix];
+            return Variant(entry.Id, NumberedKeys(kind, SelfKeySuffix));
         }
 
-        if (!string.IsNullOrEmpty(voice) && TryTemplate(kind + "." + voice, out string? voiced))
+        if (!string.IsNullOrEmpty(voice) && TemplatesByKind.ContainsKey(kind + "." + voice))
         {
-            return voiced;
+            return Variant(entry.Id, NumberedKeys(kind + "." + voice, string.Empty));
         }
 
         IReadOnlyList<string> keys = NumberedKeys(kind, string.Empty);
         if (keys.Count > 1)
         {
-            return TemplatesByKind[keys[VariantIndex(entry.Id, keys.Count)]];
+            return Variant(entry.Id, keys);
         }
 
         return TemplateFor(entry.Kind);
     }
+
+    /// <summary>One of a family of wordings, chosen by event id so engine and viewer agree.</summary>
+    private static string Variant(int eventId, IReadOnlyList<string> keys) =>
+        TemplatesByKind[keys[VariantIndex(eventId, keys.Count)]];
 
     /// <summary>Every kind with no template. Should always be empty — asserted by <c>NarrationTests</c>.</summary>
     public static IReadOnlyList<EventKind> MissingTemplates()

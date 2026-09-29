@@ -1378,9 +1378,12 @@ public static class Tomes
 
         if (figure.DeathYear is int death && death <= year)
         {
-            born += " " + Subject(figure) + " died in "
-                    + death.ToString(CultureInfo.InvariantCulture) + ", of "
-                    + (figure.DeathDetail ?? Houses.CauseLabel(figure.DeathCause)) + ".";
+            string when = death.ToString(CultureInfo.InvariantCulture);
+            born += figure.DeathCause == DeathCause.Execution
+                ? " " + Subject(figure) + " was put to death in " + when
+                  + (figure.DeathDetail is { } reason ? ", " + reason : string.Empty) + "."
+                : " " + Subject(figure) + " died in " + when + ", of "
+                  + (figure.DeathDetail ?? Houses.CauseLabel(figure.DeathCause)) + ".";
         }
 
         sections.Add(Section("Origins", born, origins));

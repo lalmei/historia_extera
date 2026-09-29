@@ -164,10 +164,11 @@ public sealed class NarrationTests
     {
         var withAge = new HistoryEvent(
             0, 80, EventKind.FigureDied, EntityId.Figure(2), default, default,
-            Data: Chronicle.Data(("age", "71"), ("cause", "old age")));
+            Data: Chronicle.Data(("age", "71"), ("aged", "at the age of 71"), ("cause", "old age")));
 
+        // Even ids pick the first of a kind's two wordings; this test is about the segments.
         var withoutAnything = new HistoryEvent(
-            1, 80, EventKind.FigureDied, EntityId.Figure(2), default, default);
+            2, 80, EventKind.FigureDied, EntityId.Figure(2), default, default);
 
         Assert.Equal("fig:2 died at the age of 71, of old age.", Narration.Render(withAge, Name));
         Assert.Equal("fig:2 died.", Narration.Render(withoutAnything, Name));
@@ -194,6 +195,7 @@ public sealed class NarrationTests
             Extra: new[] { spouse, hand },
             Data: Chronicle.Data(
                 ("age", "42"),
+                ("aged", "at the age of 42"),
                 ("cause", "a knife in the dark"),
                 ("familyVerb", "was slain"),
                 ("suspect", "fig:8")));
@@ -568,8 +570,9 @@ public sealed class NarrationTests
 
         // The same template, an errand with no holy site in it: every clause whose kind is absent
         // drops, and the line stays grammatical.
+        // Id 6 selects the first of the journey line's three wordings, as id 0 does above.
         var trade = new HistoryEvent(
-            Id: 1,
+            Id: 6,
             Year: 12,
             Kind: EventKind.JourneyMade,
             Subject: EntityId.Figure(1),
@@ -606,30 +609,33 @@ public sealed class NarrationTests
     }
 
     /// <summary>
-    /// An embassy's objective already names its destination (see Undertakings.Objective), so the
-    /// "journey" voice must not repeat it in {location}. This is the exact bug reported against
-    /// the old template: "undertook an embassy to Shche, bound for Shche" — the same town said
-    /// twice in one sentence.
+    /// A journey undertaking's objective already names its destination (see
+    /// Undertakings.Objective), so the "journey" voice must not repeat it in {location}. This is
+    /// the exact bug reported against the old template: "undertook an embassy to Shche, bound for
+    /// Shche" — the same town said twice in one sentence. Since journeys now say their own
+    /// openings, the one such undertaking that starts on a line of its own is a graveside vow.
     /// </summary>
     [Fact]
     public void AJourneyUndertakingNamesItsDestinationOnlyOnce()
     {
-        EntityId envoy = EntityId.Figure(1);
+        EntityId mourner = EntityId.Figure(1);
         var started = new HistoryEvent(
             Id: 0,
             Year: 12,
             Kind: EventKind.UndertakingStarted,
-            Subject: envoy,
+            Subject: mourner,
             Object: default,
             Location: EntityId.Settlement(3),
-            Data: Chronicle.Data(("objective", "an embassy to set:3"), ("voice", "journey")));
+            Data: Chronicle.Data(
+                ("objective", "a pilgrimage to set:3 in memory of fig:2"), ("voice", "journey")));
 
-        Assert.Equal("fig:1 undertook an embassy to set:3.", Narration.Render(started, Name));
-        Assert.Equal("Undertook an embassy to set:3.", Narration.Render(started, Name, envoy));
+        Assert.Equal(
+            "fig:1 vowed a pilgrimage to set:3 in memory of fig:2.", Narration.Render(started, Name));
+        Assert.Equal(
+            "Vowed a pilgrimage to set:3 in memory of fig:2.", Narration.Render(started, Name, mourner));
 
-        // The plain (unvoiced) template is untouched: it still serves the undertaking kinds
-        // whose objective names a person rather than a place — see the Revenge case below —
-        // so {location} still earns its place there.
+        // The plain (unvoiced) template is untouched, so {location} still earns its place for an
+        // objective that does not carry one.
         var plain = started with { Data = Chronicle.Data(("objective", "an embassy to set:3")) };
         Assert.Equal(
             "fig:1 undertook an embassy to set:3, bound for set:3.",
@@ -661,7 +667,7 @@ public sealed class NarrationTests
             Narration.Render(completed, Name));
 
         var failed = new HistoryEvent(
-            Id: 1,
+            Id: 2,
             Year: 30,
             Kind: EventKind.UndertakingFailed,
             Subject: trader,
@@ -669,11 +675,12 @@ public sealed class NarrationTests
             Location: EntityId.Settlement(9),
             Data: Chronicle.Data(
                 ("objective", "a lasting trade venture with set:9"),
-                ("cause", "its deadline passed"),
+                ("cause", "the years allowed for it ran out"),
                 ("voice", "journey")));
 
         Assert.Equal(
-            "fig:4's undertaking, a lasting trade venture with set:9, failed, its deadline passed.",
+            "fig:4 could not complete a lasting trade venture with set:9, "
+            + "because the years allowed for it ran out.",
             Narration.Render(failed, Name));
     }
 
@@ -819,6 +826,69 @@ public sealed class NarrationTests
 
         Assert.Equal("fig:3 was chosen as Queen of civ:1 at set:2.", Narration.Render(crowned, Name));
         Assert.Equal("Was chosen as Queen of civ:1 at set:2.", Narration.Render(crowned, Name, EntityId.Figure(3)));
+    }
+
+    /// <summary>
+    /// A voice has numbered wordings of its own, chosen on the event id the same way a kind's are,
+    /// and the viewer mirrors the rule — see narrate.test.ts.
+    /// </summary>
+    [Fact]
+    public void AVoiceCarriesNumberedWordingsOfItsOwn()
+    {
+        var grant = new HistoryEvent(
+            0, 40, EventKind.OfficeGranted, EntityId.Figure(3), EntityId.Settlement(2),
+            EntityId.Settlement(2),
+            Data: Chronicle.Data(
+                ("office", "Governor"),
+                ("claim", "by the king's mandate"),
+                (Narration.VoiceDataKey, "seated")));
+
+        // Ids 0, 1 and 3 select the first, second and third of three wordings.
+        Assert.Equal(
+            "fig:3 was made Governor of set:2, by the king's mandate.",
+            Narration.Render(grant, Name));
+        Assert.Equal(
+            "fig:3 was named Governor of set:2, by the king's mandate.",
+            Narration.Render(grant with { Id = 1 }, Name));
+        Assert.Equal(
+            "set:2 received fig:3 as its Governor, by the king's mandate.",
+            Narration.Render(grant with { Id = 3 }, Name));
+
+        // And never names the seat twice, whichever wording is drawn.
+        for (int id = 0; id < 6; id++)
+        {
+            string prose = Narration.Render(grant with { Id = id }, Name);
+            Assert.Equal(prose.IndexOf("set:2", StringComparison.Ordinal),
+                prose.LastIndexOf("set:2", StringComparison.Ordinal));
+        }
+    }
+
+    /// <summary>
+    /// An execution's detail is why, not what of. In the cause slot it read "died at the age of
+    /// 41, of for the death of fig:9"; its own voice says what the realm did.
+    /// </summary>
+    [Fact]
+    public void AnExecutionSaysWhyRatherThanWhatOf()
+    {
+        var executed = new HistoryEvent(
+            0, 90, EventKind.FigureDied, EntityId.Figure(2), default, default,
+            Extra: new[] { EntityId.Figure(5) },
+            Data: Chronicle.Data(
+                ("aged", "at the age of 41"),
+                ("cause", "execution"),
+                ("reason", "for the death of fig:9"),
+                ("familyVerb", "was slain"),
+                (Narration.VoiceDataKey, "executed")));
+
+        Assert.Equal(
+            "fig:2 was put to death at the age of 41, for the death of fig:9.",
+            Narration.Render(executed, Name));
+        Assert.Equal(
+            "Was put to death at the age of 41, for the death of fig:9.",
+            Narration.Render(executed, Name, EntityId.Figure(2)));
+        Assert.Equal(
+            "fig:2 was put to death, for the death of fig:9.",
+            Narration.Render(executed, Name, EntityId.Figure(5)));
     }
 
     [Fact]
