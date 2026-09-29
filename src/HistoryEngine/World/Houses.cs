@@ -739,6 +739,8 @@ public static class Houses
                 ? Significance.Notable
                 : Significance.Routine);
 
+        Epithets.Consider(world, figure, year);
+
         LifeStories.Bereave(world, figure, bereaved, year, cause);
         Upbringings.OnDeath(world, figure, year);
 

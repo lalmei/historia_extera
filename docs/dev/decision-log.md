@@ -5701,3 +5701,43 @@ fails on the unmodified base (seed 7, fig:573) and is left for its own change. T
 fingerprint was already stale on the base: committed `eb7f8fca…`, while the base produces
 `92200a11…`. Following the entry above, it is not refreshed here. With this change, seed 42
 produces `d3a13e8464a9962b1eaff2cf76c1a4dc681c97da5eb5d6934559b44737cf557a`.
+
+## Bynames, local seasons, and a figure's own words (29 September 2026)
+
+Follows the entry above. Three additions, all flavour: none of them feeds a decision, and
+each chooses its words from a hash or a fork of its own.
+
+**Epithets, earned at the grave.** `Epithets.Judge` reads a finished life and returns a
+byname and the reason for it, or nothing. Schema 64 exports it as `figures[].epithet`, and an
+`EpithetEarned` line (kind 352) follows the death: "Passed into memory as Ertashtu the
+Victorious, for two wars won and none lost." Deeds come before temper. The first draft
+named from temper alone ("the Wise, for learning"), which gave bynames to 131 of 192 dead
+rulers in seed 7, most of them for things nobody could have seen. Temper now needs a deed behind it: piety needs a pilgrimage and
+learning needs a sky reading or a scribe's career. That brought seed 7 to 109 of 192, and every
+reason names something in the record. The viewer shows the byname beside the name only once
+the page is read at or past the death year. A king in his twenties was not yet anybody's "the Old".
+
+The byname is deliberately kept out of `name`. The role tests (`{as:victor}`) compare a
+name written into data against the reader's name, and a byname appended after the fact would
+make every line written before the death stop recognising its own subject.
+
+**Seasons belong to the ground.** `Seasons.Name` reads the same latitude wave as
+`Seasons.Warmth`. The first quarter is winter in the north and summer in the south. A winter
+below the campaign floor is "the depth of winter", and a high latitude has "high summer". The
+tropics get no season name, because wet and dry are a rainfall question this world does not
+model, and saying nothing is better than borrowing a northern winter. Only lines written by
+seasonal systems carry a season (battles, sieges, sacks, occupations, plague). Annual systems
+stamp day 0, and naming a season for them would present the clock's default as a fact.
+
+**A figure's own page varies too.** `.self` lines now take numbered wordings the way world
+lines do (`Kind.1.self`), for moves, occupations, offices, ranks, marriages, crafts, journeys
+and deaths.
+
+**Found while checking the page in the browser.** An artifact made with no patron named its
+owner as both the object and an `extra`, so the owner's page read "Had Reliquary of Kolophone
+made at Kolophone.Came into Reliquary of Kolophone at Kolophone." Both role branches fired and
+ran together with no space between them. `Treasures` now leaves the keeper out of `extra` whenever they are
+already the object.
+
+Seed 42 now produces `d307608e3686046faf32ceb30b93dbe52741378835754e0204d46c5a0f4028c9`. The
+committed pin is still left alone, for the reason given in the entry above.

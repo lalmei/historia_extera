@@ -1,4 +1,5 @@
 using HistoryEngine.Core;
+using HistoryEngine.Entities;
 
 namespace HistoryEngine.World;
 
@@ -77,6 +78,71 @@ public static class Seasons
     /// <summary>Whether an army would take the field on this ground in this season.</summary>
     public static bool Campaigning(Region region, int season, int seasonsPerYear, int worldSize) =>
         Warmth(region, season, seasonsPerYear, worldSize) >= CampaignFloor;
+
+    /// <summary>
+    /// Below this distance from the equator (0 to 1), the year has no winter worth the name.
+    /// </summary>
+    private const double TropicBand = 0.25;
+
+    /// <summary>
+    /// What the people on this ground called this part of the year: "spring", "high summer", "the
+    /// depth of winter". Null where there is no such name to give.
+    /// </summary>
+    /// <remarks>
+    /// <para>From the same wave <see cref="Warmth"/> uses, and for the same reason: the name belongs
+    /// to the ground. The first quarter of the year is winter in the north and summer in the south,
+    /// and a sack in "winter" on the far side of the equator would be a sack in the heat.</para>
+    /// <para><b>Null in the tropics and for any calendar that is not four seasons.</b> A tropical
+    /// town has no winter, and the dry and wet seasons are a rainfall question this world does not
+    /// model. A five-season calendar has no ordinary names at all. In both cases the chronicle says
+    /// nothing, which is better than a season borrowed from somewhere else.</para>
+    /// </remarks>
+    public static string? Name(Region region, int season, int seasonsPerYear, int worldSize)
+    {
+        if (seasonsPerYear != 4 || worldSize <= 0) return null;
+
+        double fromEquator = DetMath.Clamp01(
+            Math.Abs(((double)region.CenterZ / worldSize) - 0.5) * 2.0);
+        if (fromEquator < TropicBand) return null;
+
+        bool north = region.CenterZ < worldSize / 2;
+        int local = ((season % 4) + (north ? 0 : 2)) % 4;
+        double warmth = Warmth(region, season, seasonsPerYear, worldSize);
+
+        return local switch
+        {
+            0 => warmth < CampaignFloor ? "the depth of winter" : "winter",
+            1 => "spring",
+            2 => fromEquator >= 0.6 ? "high summer" : "summer",
+            _ => "autumn",
+        };
+    }
+
+    /// <summary>
+    /// The season a line written now should name for this place, or null.
+    /// </summary>
+    /// <param name="place">A region, or a settlement, whose region is used.</param>
+    /// <param name="year">The year the line is written in. A line about another year has no day.</param>
+    public static string? Phrase(WorldState world, EntityId place, int year)
+    {
+        if (world.Now.Year != year) return null;
+
+        EntityId regionId = place.Kind == EntityKind.Settlement && world.Settlements.Contains(place)
+            ? world.Settlements[place].RegionId
+            : place;
+        if (regionId.Kind != EntityKind.Region || !world.Regions.Contains(regionId)) return null;
+
+        Calendar calendar = world.Config.Calendar;
+        int season = world.Now.Day / calendar.DaysPerSeason;
+
+        return Name(world.Regions[regionId], season, calendar.SeasonsPerYear, world.Config.WorldSize);
+    }
+
+    /// <summary>Adds the local season to a line's data, when there is one to name.</summary>
+    public static void Note(DetMap<string, string> data, WorldState world, EntityId place, int year)
+    {
+        if (Phrase(world, place, year) is { } season) data["season"] = season;
+    }
 
     /// <summary>
     /// How many of the year's seasons this ground is open in. Zero for what never thaws.

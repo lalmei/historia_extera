@@ -255,6 +255,11 @@ public enum EventKind
     /// </remarks>
     CraftAdvanced = 351,
 
+    /// <summary>Posterity's byname for someone just buried: the Conqueror, the Pious, the Child.</summary>
+    /// <remarks>Written in the year of the death, after it, and only when the record earns one —
+    /// see <c>Epithets</c>.</remarks>
+    EpithetEarned = 352,
+
     // ---- Territory (400) ----
     // Claims are written so ownership can be replayed year by year; they are marked Routine
     // so the timeline is not a run of "extended its reach". Cessions and releases stay on

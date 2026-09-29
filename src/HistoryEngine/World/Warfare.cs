@@ -320,7 +320,7 @@ public static class Warfare
                 obj: battle.AttackerId,
                 location: battle.SettlementId,
                 extra: Participants(war, battle),
-                data: Chronicle.Data(("days", duration.ToString(CultureInfo.InvariantCulture))));
+                data: SiegeData(world, battle, duration, year));
 
             return battle;
         }
@@ -507,6 +507,8 @@ public static class Warfare
             record["odds"] = odds;
         }
 
+        Seasons.Note(record, world, field.Id, at.Year);
+
         // The winning commander was already in the event's references and had been since sieges
         // learned to keep one — it was only the sentence that left them out, so every battle in
         // the history was won by a realm and by nobody. Named only when they led in person; an
@@ -579,6 +581,7 @@ public static class Warfare
 
         var data = new DetMap<string, string>();
         world.NamePerson(data, "captain", battle.AttackerCommanderId);
+        Seasons.Note(data, world, contested.Id, year);
 
         world.Chronicle.Record(
             year,
@@ -949,6 +952,8 @@ public static class Warfare
         target.Fortunes.TownSacked();
 
         List<Figure> fallen = ResidentCasualties(world, battle, target);
+        DetMap<string, string> sacking = Sacking(world, battle, lost);
+        Seasons.Note(sacking, world, target.Id, year);
 
         world.Chronicle.Record(
             year,
@@ -957,7 +962,7 @@ public static class Warfare
             obj: sacker.Id,
             location: target.RegionId,
             extra: Sacked(war, battle, owner, fallen),
-            data: Sacking(world, battle, lost));
+            data: sacking);
 
         // The cause precedes its named casualties, as a disaster's does.
         foreach (Figure figure in fallen)
@@ -1480,6 +1485,14 @@ public static class Warfare
             : (n % 10) switch { 1 => "st", 2 => "nd", 3 => "rd", _ => "th" };
 
         return n.ToString(CultureInfo.InvariantCulture) + suffix + " ";
+    }
+
+    private static DetMap<string, string> SiegeData(
+        WorldState world, Battle battle, int duration, int year)
+    {
+        var data = Chronicle.Data(("days", duration.ToString(CultureInfo.InvariantCulture)));
+        Seasons.Note(data, world, battle.SettlementId, year);
+        return data;
     }
 
     /// <summary>
