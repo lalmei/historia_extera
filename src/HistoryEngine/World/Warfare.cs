@@ -493,6 +493,20 @@ public static class Warfare
             record["losses"] = battle.TotalLosses.ToString(CultureInfo.InvariantCulture);
         }
 
+        // A battle has a loser, and the line used to leave them out: every field in the history was
+        // won by one realm against nobody. The odds are what the strengths already say — a win
+        // against heavier numbers is the one a chronicle remembers, and a crushing weight of
+        // numbers is why another was never in doubt.
+        bool attackerWon = battle.VictorId == battle.AttackerId;
+        EntityId beaten = attackerWon ? battle.DefenderId : battle.AttackerId;
+        if (!beaten.IsNone) record["loser"] = world.NameOf(beaten);
+        if (Odds(
+                attackerWon ? battle.AttackerStrength : battle.DefenderStrength,
+                attackerWon ? battle.DefenderStrength : battle.AttackerStrength) is { } odds)
+        {
+            record["odds"] = odds;
+        }
+
         // The winning commander was already in the event's references and had been since sieges
         // learned to keep one — it was only the sentence that left them out, so every battle in
         // the history was won by a realm and by nobody. Named only when they led in person; an
@@ -1466,6 +1480,17 @@ public static class Warfare
             : (n % 10) switch { 1 => "st", 2 => "nd", 3 => "rd", _ => "th" };
 
         return n.ToString(CultureInfo.InvariantCulture) + suffix + " ";
+    }
+
+    /// <summary>
+    /// How the numbers stood, when they stood far enough apart to be worth a clause.
+    /// </summary>
+    internal static string? Odds(int victorStrength, int loserStrength)
+    {
+        if (victorStrength <= 0 || loserStrength <= 0) return null;
+        if (victorStrength * 5 < loserStrength * 4) return "though outnumbered";
+        if (victorStrength >= loserStrength * 2) return "by weight of numbers";
+        return null;
     }
 
     public static string CauseLabel(CasusBelli cause) => cause switch

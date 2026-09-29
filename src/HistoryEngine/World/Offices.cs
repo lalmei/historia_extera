@@ -312,14 +312,24 @@ public static class Offices
         // and there are as many of them as there are marriages into a crown. The appointments
         // that carry political weight are the ones a ruler had to decide: marshals, governors,
         // high priests. Those stay.
+        EntityId over = Subject(kind, civilization, scope);
+        EntityId seat = Seat(world, civilization, kind, scope);
+        var grant = Chronicle.Data(("office", title), ("claim", claim));
+
+        // A governor is made governor of a town at that town, so the line named it twice —
+        // "Governor of Ardagheraun at Ardagheraun", seven hundred times in a 400-year world. The
+        // seat stays in its slot, because that is what puts the grant on the town's own page; the
+        // voice only picks the wording that does not say it again.
+        if (!seat.IsNone && seat == over) grant[Narration.VoiceDataKey] = "seated";
+
         world.Chronicle.Record(
             year,
             EventKind.OfficeGranted,
             holder.Id,
-            obj: Subject(kind, civilization, scope),
-            location: Seat(world, civilization, kind, scope),
+            obj: over,
+            location: seat,
             extra: Sidelight(kind, civilization, scope),
-            data: Chronicle.Data(("office", title), ("claim", claim)),
+            data: grant,
             significance: kind == OfficeKind.Consort
                 ? Significance.Routine
                 : Significance.Notable);

@@ -198,7 +198,22 @@ public sealed class SettlementLifecycleSystem : ISystem
             location: settlement.RegionId,
             data: Chronicle.Data(
                 ("tier", SettlementTiers.Label(tier)),
-                ("population", settlement.Population.ToString(CultureInfo.InvariantCulture))));
+                ("population", settlement.Population.ToString(CultureInfo.InvariantCulture)),
+                ("reckoned", Reckoned(settlement.Population))));
+    }
+
+    /// <summary>
+    /// A head count the way a chronicler gives one: "some 4,000", not "some 4007".
+    /// </summary>
+    /// <remarks>
+    /// The exact figure stays in <c>population</c>. Nobody in the world being described counted
+    /// to the soul, and a round number is also the one a reader can hold on to.
+    /// </remarks>
+    internal static string Reckoned(int population)
+    {
+        int step = population < 1000 ? 10 : 100;
+        int rounded = Math.Max(step, (population + (step / 2)) / step * step);
+        return rounded.ToString("N0", CultureInfo.InvariantCulture);
     }
 
     private static void MaybeFortify(

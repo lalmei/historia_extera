@@ -495,12 +495,31 @@ public sealed class TravelSystem : ISystem
         // quietly filing a craftsman's road as a diplomatic embassy), so this exclusion is
         // load-bearing: a wander carries no via, and routing one into PrepareJourney would not
         // fall back to embassy any more — it would crash the tick.
+        bool opened = false;
         FigureUndertaking? undertaking = kind == JourneyKind.Wandering
             ? null
-            : Undertakings.PrepareJourney(world, figure, journey, year);
+            : Undertakings.PrepareJourney(world, figure, journey, year, out opened);
+
+        // The road is rolled before the journey line is written and applied after it. Rolling
+        // first is what lets the line say truthfully that this leg kept a vow or settled a trade;
+        // applying after keeps the chronicle's order — the journey, then what befell it on the way.
+        RoadRoll road = Roll(world, figure, journey, year);
+        bool completes = undertaking is not null
+            && Undertakings.WouldComplete(undertaking, road.Mishap);
+        string? voice = undertaking is null
+            ? null
+            : Undertakings.JourneyVoice(undertaking, opened, completes);
 
         var extra = new List<EntityId> { from };
         if (!via.IsNone) extra.Add(via);
+
+        var data = Chronicle.Data(("purpose", purpose), ("kind", kind.ToString()));
+        if (voice is not null)
+        {
+            data[Narration.VoiceDataKey] = voice;
+            int span = year - undertaking!.StartYear;
+            if (completes && span > 0) data["years"] = Chronicle.Years(span);
+        }
 
         world.Chronicle.Record(
             year,
@@ -508,14 +527,15 @@ public sealed class TravelSystem : ISystem
             figure.Id,
             location: to,
             extra: extra.ToArray(),
-            data: Chronicle.Data(("purpose", purpose), ("kind", kind.ToString())),
+            data: data,
             significance: Significance.Routine);
 
-        Resolve(world, figure, journey, year);
+        Resolve(world, figure, journey, year, road);
         MaybeStay(world, figure, journey, year);
         if (undertaking is not null)
         {
-            Undertakings.NoteJourney(world, figure, undertaking, journey, year);
+            Undertakings.NoteJourney(
+                world, figure, undertaking, journey, year, narrated: voice is not null && completes);
         }
     }
 
@@ -670,7 +690,17 @@ public sealed class TravelSystem : ISystem
     /// says nothing when a journey has to change roads along the way, which described almost every
     /// long trip once the route network could be searched past one hop.</para>
     /// </remarks>
-    internal static void Resolve(WorldState world, Figure figure, Journey journey, int year)
+    internal static void Resolve(WorldState world, Figure figure, Journey journey, int year) =>
+        Resolve(world, figure, journey, year, Roll(world, figure, journey, year));
+
+    /// <summary>The road's verdict on one journey, decided before any of it is written down.</summary>
+    /// <param name="Road">The stream the hazard was drawn from; its later draws decide the rest.</param>
+    internal readonly record struct RoadRoll(IRng Road, Leg? Leg, bool Afloat, bool Mishap);
+
+    /// <summary>
+    /// Draws whether a journey goes wrong, and on which leg, without recording anything.
+    /// </summary>
+    internal static RoadRoll Roll(WorldState world, Figure figure, Journey journey, int year)
     {
         // Forked from the root by traveller and year rather than drawn from the stream that chose
         // the destination, so that adding a holy site or a trade route — either of which changes
@@ -687,8 +717,17 @@ public sealed class TravelSystem : ISystem
         bool afloat = leg is { } chosen && chosen.Afloat;
 
         double hazard = Hazard(world, figure, journey, afloat);
-        if (!road.Chance(hazard)) return;
+        return new RoadRoll(road, leg, afloat, road.Chance(hazard));
+    }
 
+    private static void Resolve(
+        WorldState world, Figure figure, Journey journey, int year, RoadRoll roll)
+    {
+        if (!roll.Mishap) return;
+
+        IRng road = roll.Road;
+        Leg? leg = roll.Leg;
+        bool afloat = roll.Afloat;
         Mishap mishap = WhatHappened(world, journey, leg, afloat, road);
 
         journey.Outcome = JourneyOutcome.Waylaid;

@@ -315,8 +315,71 @@ public static class Affinities
             obj: other.Id,
             location: affinity.PlaceId,
             data: Chronicle.Data(
-                ("act", StageVerb(affinity.Stage))),
+                ("act", ActPhrase(world, affinity, actor, year))),
             significance: Significance.Routine);
+    }
+
+    /// <summary>
+    /// The words for one step of a friendship, from the stage it reached, how it began and who
+    /// did it.
+    /// </summary>
+    /// <remarks>
+    /// <para>A bare transitive phrase, like <see cref="StageVerb"/>, because the templates supply
+    /// both parties around it — and so never a possessive, which would have to agree with a
+    /// subject the phrase cannot see. Four verbs carried nearly three thousand lines in a 400-year
+    /// world, so a reader met "confided in" on every other page; the stage still decides the kind
+    /// of act, and the circumstances decide which one. A good turn from someone holding office is
+    /// the kind only office can do. Two who met in the line of battle become comrades rather than
+    /// neighbours.</para>
+    /// <para>Its own stream, keyed on the pair and the stage, so the choice of words draws nothing
+    /// from a stream any decision is made on.</para>
+    /// </remarks>
+    private static string ActPhrase(WorldState world, FigureAffinity affinity, Figure actor, int year)
+    {
+        IRng words = world.Root
+            .Fork("affinity-words", affinity.OpenerId.ToDiscriminator())
+            .Fork("with", affinity.FriendId.ToDiscriminator())
+            .Fork("stage", (int)affinity.Stage);
+
+        bool placed = actor.Offices.Exists(office => office.ToYear is null);
+        string[] choices = affinity.Stage switch
+        {
+            AffinityStage.Kindness when placed => new[]
+            {
+                "spoke up for", "stood surety for", "found a place for", "put in a word for",
+            },
+            AffinityStage.Kindness when affinity.Origin == AffinityOrigin.SharedCampaign => new[]
+            {
+                "carried to safety", "shared rations with", "stood by", "stepped in to help",
+            },
+            AffinityStage.Kindness => new[]
+            {
+                "stepped in to help", "lent money to", "took in", "nursed", "did a good turn for",
+            },
+            AffinityStage.Confidence when affinity.Origin == AffinityOrigin.SharedService => new[]
+            {
+                "confided in", "came to rely on", "took counsel with",
+            },
+            AffinityStage.Confidence => new[]
+            {
+                "confided in", "came to trust", "shared a secret with", "sought the counsel of",
+            },
+            AffinityStage.Friendship when affinity.Origin == AffinityOrigin.SharedCampaign => new[]
+            {
+                "became comrades-in-arms with", "swore friendship with", "befriended",
+            },
+            AffinityStage.Friendship => new[]
+            {
+                "befriended", "became fast friends with", "grew close to", "swore friendship with",
+            },
+            AffinityStage.Lover => new[]
+            {
+                "fell in love with", "was smitten with", "fell for",
+            },
+            _ => new[] { StageVerb(affinity.Stage) },
+        };
+
+        return choices[words.NextInt(choices.Length)];
     }
 
     // -----------------------------------------------------------------------

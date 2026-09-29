@@ -27,7 +27,7 @@ public static class Undertakings
         if (active is null) return null;
         if (!ValidDestination(world, active, home))
         {
-            Fail(world, figure, active, year, "its destination was no longer available");
+            Fail(world, figure, active, year, "the way there was closed");
             return null;
         }
 
@@ -73,10 +73,16 @@ public static class Undertakings
     }
 
     /// <summary>Begins an arc before its first journey is written.</summary>
+    /// <param name="opened">
+    /// True when this journey is the one that began the arc. The arc then writes no line of its
+    /// own: the journey line says it, because it is the same fact in the same year — see
+    /// <see cref="JourneyVoice"/>.
+    /// </param>
     public static FigureUndertaking PrepareJourney(
-        WorldState world, Figure figure, Journey journey, int year)
+        WorldState world, Figure figure, Journey journey, int year, out bool opened)
     {
         FigureUndertaking? existing = Match(figure, journey);
+        opened = existing is null;
         if (existing is not null) return existing;
 
         // Wandering never reaches here — TravelSystem.Record skips PrepareJourney entirely for
@@ -114,12 +120,62 @@ public static class Undertakings
             MemoryKind.Ambition,
             journey.ViaId.IsNone ? journey.ToSettlementId : journey.ViaId,
             EventKind.JourneyMade,
-            year + (kind == UndertakingKind.TradeVenture ? 8 : 6));
+            year + (kind == UndertakingKind.TradeVenture ? 8 : 6),
+            record: false);
+    }
+
+    /// <summary>
+    /// Whether this leg would finish the arc, asked before the journey line is written.
+    /// </summary>
+    /// <remarks>
+    /// The same test <see cref="NoteJourney"/> applies afterwards, less the road: the caller has
+    /// already rolled the road and passes whether the traveller came through it.
+    /// </remarks>
+    public static bool WouldComplete(FigureUndertaking undertaking, bool waylaid) =>
+        !waylaid
+        && undertaking.State == UndertakingState.Active
+        && undertaking.Progress + 1 >= undertaking.RequiredProgress;
+
+    /// <summary>
+    /// The voice a journey line takes when it opens or closes an arc, or null for a middle leg.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>One fact, one line.</b> A pilgrimage used to write three lines in the same year —
+    /// "undertook a pilgrimage to K", "travelled to K, on pilgrimage to the Sanctuary", "completed
+    /// a pilgrimage to K, after 0 years" — and a 400-year world carried twelve thousand of them.
+    /// The arc's opening and its ending are what the journey that did them was for, so the journey
+    /// line says so, and the arc writes nothing of its own on those legs.</para>
+    /// <para>Kind-specific rather than a generic "opened"/"closed", because the words differ: a
+    /// pilgrim keeps a vow, a merchant settles a trade and an envoy concludes an embassy, and a
+    /// generic line would have to repeat the errand's name to say which.</para>
+    /// </remarks>
+    public static string? JourneyVoice(FigureUndertaking undertaking, bool opened, bool completes)
+    {
+        string? stem = undertaking.Kind switch
+        {
+            UndertakingKind.Pilgrimage => "pilgrimage",
+            UndertakingKind.TradeVenture => "trade",
+            UndertakingKind.MissionaryCircuit => "mission",
+            UndertakingKind.Embassy => "embassy",
+            _ => null,
+        };
+        if (stem is null) return null;
+
+        if (opened && completes) return stem;
+        if (opened) return stem + "open";
+        if (completes) return stem + "close";
+        return null;
     }
 
     /// <summary>Records the journey as one causal step, then settles the arc if it reached an end.</summary>
+    /// <param name="narrated">True when the journey line already said the arc was completed.</param>
     public static void NoteJourney(
-        WorldState world, Figure figure, FigureUndertaking undertaking, Journey journey, int year)
+        WorldState world,
+        Figure figure,
+        FigureUndertaking undertaking,
+        Journey journey,
+        int year,
+        bool narrated = false)
     {
         AddStep(
             world,
@@ -166,7 +222,7 @@ public static class Undertakings
 
         if (undertaking.Progress < undertaking.RequiredProgress) return;
 
-        Complete(world, figure, undertaking, year);
+        Complete(world, figure, undertaking, year, record: !narrated);
     }
 
     /// <summary>A bereavement may become a vow whose pilgrimage is attempted in a later travel year.</summary>
@@ -243,13 +299,22 @@ public static class Undertakings
             item.State == UndertakingState.Active && IsJourney(item.Kind));
 
     public static void Complete(
-        WorldState world, Figure figure, FigureUndertaking undertaking, int year)
+        WorldState world, Figure figure, FigureUndertaking undertaking, int year, bool record = true)
     {
         if (undertaking.State != UndertakingState.Active) return;
 
         undertaking.State = UndertakingState.Succeeded;
         undertaking.EndYear = year;
         undertaking.Outcome = "achieved its objective";
+
+        if (!record) return;
+
+        // Omitted rather than written as "0 years", the convention every other span in the
+        // chronicle follows: the template's optional clause then drops instead of reading
+        // "completed a pilgrimage, after 0 years".
+        var extra = new List<(string, string)>();
+        int span = year - undertaking.StartYear;
+        if (span > 0) extra.Add(("years", Chronicle.Years(span)));
 
         world.Chronicle.Record(
             year,
@@ -263,7 +328,7 @@ public static class Undertakings
             data: Chronicle.Data(UndertakingData(
                 undertaking.Kind,
                 undertaking.Objective,
-                ("years", Chronicle.Years(year - undertaking.StartYear)))),
+                extra.ToArray())),
             significance: Significance.Routine);
     }
 
@@ -322,7 +387,7 @@ public static class Undertakings
         foreach (FigureUndertaking undertaking in figure.Undertakings)
         {
             if (undertaking.State != UndertakingState.Active) continue;
-            Abandon(world, figure, undertaking, year, "their death ended it");
+            Abandon(world, figure, undertaking, year, "death came first");
         }
     }
 
@@ -347,7 +412,7 @@ public static class Undertakings
             {
                 if (undertaking.State != UndertakingState.Active) continue;
                 if (year <= undertaking.DeadlineYear) continue;
-                Fail(world, figure, undertaking, year, "its deadline passed");
+                Fail(world, figure, undertaking, year, "the years allowed for it ran out");
             }
         }
     }
@@ -470,7 +535,8 @@ public static class Undertakings
         EventKind motiveSource,
         int deadline,
         EntityId sponsor = default,
-        OfficeKind? requiredOffice = null)
+        OfficeKind? requiredOffice = null,
+        bool record = true)
     {
         int active = figure.Undertakings.Count(item => item.State == UndertakingState.Active);
         if (active >= MaxActive)
@@ -494,6 +560,8 @@ public static class Undertakings
             sponsor,
             requiredOffice);
         figure.Undertakings.Add(undertaking);
+
+        if (!record) return undertaking;
 
         world.Chronicle.Record(
             year,
@@ -529,6 +597,9 @@ public static class Undertakings
     {
         var pairs = new List<(string, string)> { ("kind", kind.ToString()), ("objective", objective) };
         if (IsJourney(kind)) pairs.Add((Narration.VoiceDataKey, "journey"));
+
+        // Revenge is had or denied, never "completed"; its own voice lets it say so.
+        if (kind == UndertakingKind.Revenge) pairs.Add((Narration.VoiceDataKey, "revenge"));
         pairs.AddRange(extra);
         return pairs.ToArray();
     }

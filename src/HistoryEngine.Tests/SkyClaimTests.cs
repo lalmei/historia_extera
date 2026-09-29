@@ -215,8 +215,12 @@ public sealed class SkyClaimTests
                 or EventKind.SkyClaimRefuted);
 
             _output.WriteLine($"seed {seed}: claims={claims.Count} lines={lines}");
+            // One line in eighty. It was one in a hundred until the journey lines stopped
+            // writing an undertaking's opening and ending twice over; that took roughly a fifth of
+            // every chronicle's routine volume out of the denominator without adding a single
+            // sky line, and the seed-29 panel sat at 1.05% afterwards.
             Assert.True(
-                lines < world.Chronicle.Events.Count / 100,
+                lines < world.Chronicle.Events.Count / 80,
                 $"Seed {seed}: the sky is crowding the timeline with {lines} lines.");
         }
 

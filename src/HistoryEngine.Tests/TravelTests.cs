@@ -467,7 +467,8 @@ public sealed class TravelTests
     /// The second leg of the same embassy reads as a continuation of the first, not as a
     /// different kind of trip — see NextJourney's Embassy case in Undertakings.cs, which was
     /// changed from "on an embassy to" (a phrase that never appeared on the very first leg) to
-    /// the same "guest" wording TryVisit used, prefixed with "again".
+    /// the same "guest" wording TryVisit used, prefixed with "again". The leg that finishes it
+    /// now carries the embassy's conclusion in its own line (see Undertakings.JourneyVoice).
     /// </summary>
     [Fact]
     public void ARepeatedEmbassyLegReadsAsTheSameKindOfVisitAsTheFirst()
@@ -483,9 +484,20 @@ public sealed class TravelTests
                 if (entry.Kind != EventKind.JourneyMade) continue;
                 if (entry.DataValue("purpose") != "again as a guest of") continue;
 
+                // A later leg never reads as a first arrival. The leg that concludes the embassy
+                // says so in its own voice; any leg between says it went again.
                 string prose = world.Narrate(entry);
-                Assert.Contains("again as a guest of", prose);
-                Assert.DoesNotContain("embassy", prose);
+                Assert.DoesNotContain("on an embassy", prose);
+                Assert.DoesNotContain("as envoy", prose);
+                if (entry.DataValue(Narration.VoiceDataKey) is null)
+                {
+                    Assert.Contains("again as a guest of", prose);
+                }
+                else
+                {
+                    Assert.Contains("concluded", prose);
+                }
+
                 found = true;
             }
         }

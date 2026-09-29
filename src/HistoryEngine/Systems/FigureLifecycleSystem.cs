@@ -42,7 +42,13 @@ public sealed class FigureLifecycleSystem : ISystem
             int age = figure.AgeIn(year);
             if (age < 0 || !rng.Chance(AnnualMortality(age))) continue;
 
-            Houses.Die(world, figure, year, CauseAt(age));
+            DeathCause cause = CauseAt(age);
+            Houses.Die(
+                world,
+                figure,
+                year,
+                cause,
+                cause == DeathCause.Illness ? Ailments.For(world, figure, year) : null);
         }
     }
 

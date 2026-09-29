@@ -697,10 +697,22 @@ public static class Houses
         bool governed = figure.Offices.Count > 0;
         EntityId realm = governed ? figure.CivilizationId : EntityId.None;
 
+        int age = figure.AgeIn(year);
         var obituary = Chronicle.Data(
-            ("age", figure.AgeIn(year).ToString(CultureInfo.InvariantCulture)),
-            ("cause", detail ?? CauseLabel(cause)),
+            ("age", age.ToString(CultureInfo.InvariantCulture)),
+            ("aged", Ailments.AgePhrase(age)),
+            ("cause", cause == DeathCause.Execution ? CauseLabel(cause) : detail ?? CauseLabel(cause)),
             ("familyVerb", FamilyDeathVerb(cause)));
+
+        // An execution's detail is why, not what of: "for the death of Drusius". Put in the cause
+        // slot it read "died at the age of 41, of for the death of Drusius". The reason keeps its
+        // own key and the voice picks a line that says what a realm did, rather than what a body
+        // succumbed to.
+        if (cause == DeathCause.Execution)
+        {
+            obituary[Narration.VoiceDataKey] = "executed";
+            if (detail is not null) obituary["reason"] = detail;
+        }
 
         // What they were when they died, so that the deaths kept in the chronicle explain
         // themselves. "Thorgill died at the age of 78" is a line a reader skips; "Thorgill,

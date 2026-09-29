@@ -34,8 +34,8 @@ import { kindOf, type EntityId, type HistoryEvent, type Sex } from './types.ts';
  *
  * A `Kind.self` template, when present, is the same fact told from that figure's
  * point of view. Numbered keys (`Kind.1`) and a `voice` data field (`Kind.elective`)
- * are other wordings of the same fact, selected by the engine. The viewer only looks
- * them up.
+ * are other wordings of the same fact, selected by the engine; a voice may carry numbered
+ * wordings of its own (`Kind.elective.1`). The viewer only looks them up.
  *
  * `meta.narrationSyntaxVersion` guards against the grammar changing under us.
  */
@@ -151,21 +151,26 @@ export function templateFor(
   }
 
   if (voice && self && templates[`${kind}.${voice}${SELF_KEY_SUFFIX}`]) {
-    return templates[`${kind}.${voice}${SELF_KEY_SUFFIX}`];
+    return variant(event.id, numberedKeys(`${kind}.${voice}`, SELF_KEY_SUFFIX, templates), templates);
   }
 
   if (self && templates[`${kind}${SELF_KEY_SUFFIX}`]) {
-    const keys = numberedKeys(kind, SELF_KEY_SUFFIX, templates);
-    if (keys.length > 1) return templates[keys[variantIndex(event.id, keys.length)]];
-    return templates[`${kind}${SELF_KEY_SUFFIX}`];
+    return variant(event.id, numberedKeys(kind, SELF_KEY_SUFFIX, templates), templates);
   }
 
-  if (voice && templates[`${kind}.${voice}`]) return templates[`${kind}.${voice}`];
+  if (voice && templates[`${kind}.${voice}`]) {
+    return variant(event.id, numberedKeys(`${kind}.${voice}`, '', templates), templates);
+  }
 
   const keys = numberedKeys(kind, '', templates);
   if (keys.length > 1) return templates[keys[variantIndex(event.id, keys.length)]];
 
   return templates[kind] ?? templates.Unknown ?? 'Something happened.';
+}
+
+/** One of a family of wordings, chosen by event id exactly as `Narration.Variant` chooses it. */
+function variant(eventId: number, keys: string[], templates: Record<string, string>): string {
+  return templates[keys[variantIndex(eventId, keys.length)]];
 }
 
 export function variantIndex(eventId: number, count: number): number {

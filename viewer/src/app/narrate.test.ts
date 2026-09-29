@@ -95,6 +95,33 @@ test('a voice key selects a factual register without a kind switch', () => {
   assert.equal(narrateText(crowned, templates, nameOf, 'fig:3'), 'Was chosen as Queen of civ:1.');
 });
 
+test('a voice carries numbered wordings of its own, forked on the event id', () => {
+  const templates = {
+    OfficeGranted: '{subject} was made {data:office} of {object} at {location}.',
+    'OfficeGranted.seated': '{subject} was made {data:office} of {object}.',
+    'OfficeGranted.seated.1': '{subject} was named {data:office} of {object}.',
+    'OfficeGranted.seated.2': '{object} received {subject} as its {data:office}.',
+    'OfficeGranted.seated.self': 'Was made {data:office} of {object}.',
+    'OfficeGranted.seated.1.self': 'Was named {data:office} of {object}.',
+  };
+  const nameOf = (id: string) => id;
+  const grant = (id: number) =>
+    event({
+      id,
+      kind: 'OfficeGranted',
+      subject: 'fig:3',
+      object: 'set:2',
+      location: 'set:2',
+      data: { office: 'Governor', voice: 'seated' },
+    });
+
+  // Ids 0, 1 and 3 select the first, second and third — the same picks as NarrationTests.
+  assert.equal(narrateText(grant(0), templates, nameOf), 'fig:3 was made Governor of set:2.');
+  assert.equal(narrateText(grant(1), templates, nameOf), 'fig:3 was named Governor of set:2.');
+  assert.equal(narrateText(grant(3), templates, nameOf), 'set:2 received fig:3 as its Governor.');
+  assert.equal(narrateText(grant(1), templates, nameOf, 'fig:3'), 'Was named Governor of set:2.');
+});
+
 test('a campaign role picks a role-keyed self line ahead of voice', () => {
   const templates = {
     BattleFought: '{object} prevailed at {the}{subject}.',
