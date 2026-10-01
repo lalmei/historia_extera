@@ -245,9 +245,15 @@ public sealed class ArtifactSystem : ISystem
         // known for what it wrote, not for how much it commissioned.
         double jewelOverTome = DetMath.Lerp(0.65, 0.30, values.Learning);
 
+        // A blade is iron work, and iron work needs a forge the place could hold (#254). A town
+        // with neither ore nor fuel by ground or road makes something else rather than a weapon
+        // nobody in it could have made — the armourer asks for the same metal, so the smith's gate
+        // is the whole question.
+        bool forge = Crafts.Supports(world, settlement, Craft.Smith);
+
         return settlement.Specialization switch
         {
-            SettlementSpecialization.Mining => rng.Chance(0.55) ? ArtifactKind.Weapon : ArtifactKind.Jewel,
+            SettlementSpecialization.Mining => forge && rng.Chance(0.55) ? ArtifactKind.Weapon : ArtifactKind.Jewel,
             SettlementSpecialization.Crafts => rng.Chance(jewelOverTome) ? ArtifactKind.Jewel : ArtifactKind.Tome,
             SettlementSpecialization.Trade => rng.Chance(jewelOverTome) ? ArtifactKind.Jewel : ArtifactKind.Tome,
             _ when devout && rng.Chance(0.35) => ArtifactKind.Relic,
@@ -258,7 +264,8 @@ public sealed class ArtifactSystem : ISystem
             // Everywhere else spreads across the three things any town can produce. Falling
             // through to a single kind made half the objects in the world books, because most
             // settlements farm and farming has no craft of its own.
-            _ => Ordinary[rng.NextInt(Ordinary.Length)],
+            _ when forge => Ordinary[rng.NextInt(Ordinary.Length)],
+            _ => Unforged[rng.NextInt(Unforged.Length)],
         };
     }
 
@@ -268,5 +275,12 @@ public sealed class ArtifactSystem : ISystem
         ArtifactKind.Tome,
         ArtifactKind.Jewel,
         ArtifactKind.Weapon,
+    };
+
+    /// <summary>The same, in a town with no forge.</summary>
+    private static readonly ArtifactKind[] Unforged =
+    {
+        ArtifactKind.Tome,
+        ArtifactKind.Jewel,
     };
 }
