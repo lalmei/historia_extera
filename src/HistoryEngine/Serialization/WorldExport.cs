@@ -198,7 +198,8 @@ public sealed record WorldExport(
     /// </remarks>
     // Version 62 records rerun eligibility and the original civilization count in Meta.Generation.
     // Version 63 adds the recorded cause of each claim acquisition or loss.
-    public const int CurrentSchemaVersion = 63;
+    // Version 64 adds a figure's Epithet, the byname given at death (see World.Epithets).
+    public const int CurrentSchemaVersion = 64;
 }
 
 public sealed record ExportMeta(
@@ -932,6 +933,7 @@ public sealed record ExportFigure(
     int? DeathYear,
     DeathCause DeathCause,
     string? DeathDetail,
+    string? Epithet,
     EntityId? BirthSettlementId,
     EntityId? ResidenceSettlementId,
     IReadOnlyList<ExportResidence> Residences,

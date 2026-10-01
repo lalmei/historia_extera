@@ -369,6 +369,12 @@ public sealed class Figure
     /// </remarks>
     public string? DeathDetail { get; set; }
 
+    /// <summary>
+    /// The byname posterity gave them — "the Pious" — or null. Set at death, never before: a byname
+    /// is a verdict on a whole life. See <c>World.Epithets</c>.
+    /// </summary>
+    public string? Epithet { get; set; }
+
     public bool IsAlive => DeathYear is null;
 
     /// <summary>

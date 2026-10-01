@@ -90,13 +90,18 @@ public static class Treasures
             ? world.Figures[creatorId].Name
             : null;
 
+        EntityId madeFor = patronId.IsNone ? owner : patronId;
+
         world.Chronicle.Record(
             year,
             EventKind.ArtifactCreated,
             id,
-            obj: patronId.IsNone ? owner : patronId,
+            obj: madeFor,
             location: settlement.Id,
-            extra: owner.IsNone || owner == patronId ? null : new[] { owner },
+            // The keeper only when they are not already the object. With no patron the owner is the
+            // object, and naming them twice made a figure's page say both "Had it made" and "Came
+            // into it" in one breath, run together as one line.
+            extra: owner.IsNone || owner == madeFor ? null : new[] { owner },
             data: maker is null
                 ? Chronicle.Data(("kind", ArtifactKinds.Label(kind)))
                 : Chronicle.Data(("kind", ArtifactKinds.Label(kind)), ("maker", maker)));
