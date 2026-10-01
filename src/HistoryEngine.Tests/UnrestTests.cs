@@ -105,11 +105,20 @@ public sealed class UnrestTests
     /// histories secede and not a suppression of secession: the rule stated at the top holds,
     /// the path is carried, and this is a resample. The tail was 112, 113, 150 and 175 and is
     /// now 69, 149, 225 and 547 — the last of which secedes three times over.
+    ///
+    /// <b>Resampled a ninth time when the smith's metal began to travel (#254)</b>, which changes
+    /// which towns hold a forge and so who is bound to which trade from the first generation on.
+    /// Measured over the wide net the entry above asked for: 15 of 960 seeds, <b>1.56%</b>, and 5
+    /// of the first 320. That is inside the range the eight earlier readings span, and the path is
+    /// carried, so this is a resample. It is also below the 2.40% the same 960 seeds gave last
+    /// time; 15 against 23 is not a separable difference at these counts, but it is the reading to
+    /// compare the next wide scan with. The tail was 69, 149, 225 and 547 and is now 91, 145, 189
+    /// and 215.
     /// </remarks>
     private static readonly ulong[] RareSeeds =
     {
         2, 7, 11, 42, 99, 123, 777, 2024, 3, 5, 13, 17, 19, 23, 29, 31, 37, 41, 47, 53, 61, 71,
-        69, 149, 225, 547,
+        91, 145, 189, 215,
     };
 
     /// <summary>

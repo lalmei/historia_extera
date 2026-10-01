@@ -324,17 +324,10 @@ public static class Crafts
         Region region = world.Regions[settlement.RegionId];
         SettlementSpecialization trade = settlement.Specialization;
 
-        bool ore = region.GeologicActivity >= Specializations.OreThreshold
-                   || trade == SettlementSpecialization.Mining
-                   || Reaches(world, settlement, SettlementSpecialization.Mining);
+        bool ore = IsOreGround(world, settlement)
+                   || Reaches(world, settlement, other => IsOreGround(world, other));
 
-        bool timber = region.Rainfall >= TimberRainfall
-                      && region.Temperature > 0.20
-                      && region.Biome is Biome.TemperateForest
-                          or Biome.Taiga
-                          or Biome.TropicalForest
-                          or Biome.Grassland
-                          or Biome.Wetland;
+        bool timber = HasTimber(region);
 
         bool pastoral = trade == SettlementSpecialization.Pastoral
                         || Reaches(world, settlement, SettlementSpecialization.Pastoral);
@@ -350,8 +343,12 @@ public static class Crafts
             IsCapital: settlement.IsCapital,
 
             // Ore is worth nothing without fuel to work it, which is why the metal chain asks for
-            // both and why an ore region with no wood is not an ironworking region.
-            Metal: ore && timber,
+            // both and why an ore region with no wood and no road to any is not an ironworking
+            // region. Either half may arrive by route (#254): iron travelled as bar and charcoal as
+            // sacks, and asking for both under the same town left the smith in 145 settlements of
+            // 247 across the panel — behind the weaver, the carpenter and the mason in a world
+            // where the village forge was the one trade nearly every place had.
+            Metal: ore && (timber || Reaches(world, settlement, other => HasTimber(world.Regions[other.RegionId]))),
             Stone: region.Ruggedness >= StoneRuggedness
                    || region.GeologicActivity >= 0.35
                    || region.MeanHeight > 500.0,
@@ -459,7 +456,11 @@ public static class Crafts
     };
 
     /// <summary>Whether a settlement of the given trade is one route away.</summary>
-    private static bool Reaches(WorldState world, Settlement settlement, SettlementSpecialization trade)
+    private static bool Reaches(WorldState world, Settlement settlement, SettlementSpecialization trade) =>
+        Reaches(world, settlement, other => other.Specialization == trade);
+
+    /// <summary>Whether a settlement one route away answers yes.</summary>
+    private static bool Reaches(WorldState world, Settlement settlement, Func<Settlement, bool> supplies)
     {
         // One hop, deliberately. Two would make every connected town supply every material in the
         // world, which is the opposite of what a gate is for.
@@ -467,15 +468,34 @@ public static class Crafts
 
         foreach (TradeRoute route in TradeRoutes.From(world, settlement.Id))
         {
-            EntityId otherId = route.SettlementAId == settlement.Id
-                ? route.SettlementBId
-                : route.SettlementAId;
+            EntityId otherId = route.Other(settlement.Id);
             if (!world.Settlements.Contains(otherId)) continue;
-            if (world.Settlements[otherId].Specialization == trade) return true;
+            if (supplies(world.Settlements[otherId])) return true;
         }
 
         return false;
     }
+
+    /// <summary>Whether iron comes out of the ground this settlement stands on.</summary>
+    /// <remarks>
+    /// The ground or the trade, and the trade separately because a mine camp can stand on a
+    /// realm's errand rather than on the geology that <see cref="Specializations.OreThreshold"/>
+    /// reads. Either is a place iron leaves by road — the route carries the metal because one of
+    /// its ends produces it, which is all a route without cargo can say (#254).
+    /// </remarks>
+    private static bool IsOreGround(WorldState world, Settlement settlement) =>
+        settlement.Specialization == SettlementSpecialization.Mining
+        || world.Regions[settlement.RegionId].GeologicActivity >= Specializations.OreThreshold;
+
+    /// <summary>Whether this settlement's own region grows wood worth working or burning.</summary>
+    private static bool HasTimber(Region region) =>
+        region.Rainfall >= TimberRainfall
+        && region.Temperature > 0.20
+        && region.Biome is Biome.TemperateForest
+            or Biome.Taiga
+            or Biome.TropicalForest
+            or Biome.Grassland
+            or Biome.Wetland;
 
     private static void PullToward(
         WorldState world, EntityId parentId, double independence, double[] weights)
