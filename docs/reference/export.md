@@ -118,6 +118,14 @@ applied to a container an older export predates.
 `WorldExporter.ToJson` writes compact JSON by default. `--pretty` changes whitespace, so it
 is not the byte-canonical form.
 
+A world file may be stored gzipped. `WorldFile.Write` compresses when the path ends `.gz`, and
+the dev server's generator writes `world-*.json.gz` for the library — a world is the same few
+hundred strings repeated, so gzip keeps about a tenth of it. Compression belongs to the file, not
+the document: the schema version is unchanged, the fingerprint is taken over the inflated JSON,
+and every reader (`WorldFile.Read`, the dev server, the viewer) detects gzip by its magic bytes
+rather than its name. The dev server sends a gzipped world with `Content-Encoding: gzip`; a
+static host that does not is still read, because the viewer inflates what it is given.
+
 `WorldExporter.Fingerprint` hashes canonical JSON after clearing the engine version, schema
 version, and narration syntax version. Those values describe the file contract rather than
 the simulated history. Adding exported facts still changes the fingerprint even if the

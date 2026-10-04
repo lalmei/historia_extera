@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { copyFile, mkdir, open, readdir, rename, stat, unlink } from 'node:fs/promises';
 import path from 'node:path';
+import { createGunzip } from 'node:zlib';
 import { rerunSettings, MISSING_RECIPE } from '../src/app/rerun.mjs';
 
 /**
@@ -36,6 +37,12 @@ const WORLD_FILES = `${WORLD_CATALOG}/files/`;
 
 /** Where the viewer asks for a world file, and what `?world=` points at. */
 const WORLDS = '/worlds/';
+
+/**
+ * What a world file may be called: the plain export, or the gzipped form the generator writes.
+ * The engine picks gzip from the `.gz` suffix; see `WorldFile` in the engine.
+ */
+const WORLD_EXTENSIONS = ['.json.gz', '.json'];
 
 /** Where the CLI lives during repository development. */
 const CLI_PROJECT = 'src/HistoryEngine.Cli';
@@ -265,7 +272,7 @@ function generatorEndpoint() {
 
         const boundary = params.eastWestPeriodic ? '-ewp' : '';
         const name =
-          `world-s${params.seed}-y${params.years}-c${params.civs}-z${params.size}${boundary}.json`;
+          `world-s${params.seed}-y${params.years}-c${params.civs}-z${params.size}${boundary}.json.gz`;
         const output = path.join(worldDir, name);
 
         const generatorArgs = [
@@ -361,7 +368,7 @@ function generatorEndpoint() {
 
         // basename, so nothing addresses its way out of the directory.
         const name = path.basename(decodeURIComponent(pathname.slice(WORLDS.length)));
-        if (!name.endsWith('.json')) return next();
+        if (!isWorldFileName(name)) return next();
 
         const file = path.join(worldDir, name);
 
@@ -376,6 +383,9 @@ function generatorEndpoint() {
 
         res.statusCode = 200;
         res.setHeader('content-type', 'application/json; charset=utf-8');
+        // The bytes go out as they sit on disk and the browser inflates them, so the viewer's
+        // `response.json()` reads a gzipped world exactly as it reads a plain one.
+        if (name.endsWith('.gz')) res.setHeader('content-encoding', 'gzip');
         res.setHeader('content-length', String(size));
         // Regenerating a seed rewrites the same name in place, and a cached copy of the
         // previous run is the one thing that would make this feature look broken.
@@ -436,7 +446,7 @@ async function listWorlds(worldDir) {
 
   const worlds = await Promise.all(
     entries
-      .filter((entry) => entry.isFile() && entry.name.endsWith('.json'))
+      .filter((entry) => entry.isFile() && isWorldFileName(entry.name))
       .map(async (entry) => inspectWorld(path.join(worldDir, entry.name), entry.name)),
   );
 
@@ -504,47 +514,83 @@ async function inspectWorld(file, name) {
  * @param {string} file
  */
 export async function readWorldHeader(file) {
+  const header = await readLeadingText(file, 32 * 1024);
+
+  // Cut before the raster so a number inside the base64 cannot be mistaken for
+  // width or years. The fields we want are all declared before it.
+  const rasterAt = header.search(/"raster"\s*:/);
+  const prefix = rasterAt === -1 ? header : header.slice(0, rasterAt);
+
+  const schemaVersion = readIntField(prefix, 'schemaVersion');
+  if (schemaVersion === null) throw new Error('schemaVersion is missing from the file header');
+
+  // Meta precedes world in the export contract. Parse the complete object, including
+  // nested recipe fields, instead of matching similarly named keys inside strings.
+  const worldAt = prefix.search(/,\s*"world"\s*:/);
+  const meta = worldAt < 0 ? null : JSON.parse(prefix.slice(0, worldAt) + '}').meta;
+  const rerun = rerunSettings(meta, {
+    width: readIntField(prefix, 'width'),
+    height: readIntField(prefix, 'height'),
+    eastWestPeriodic: readBoolField(prefix, 'eastWestPeriodic'),
+  });
+  return {
+    rerun,
+    schemaVersion,
+    seed: Number.isSafeInteger(meta?.seed) ? meta.seed : null,
+    initialCivilizations: Number.isSafeInteger(meta?.generation?.initialCivilizations)
+      ? meta.generation.initialCivilizations : null,
+    years: readIntField(prefix, 'yearsSimulated'),
+    size: readIntField(prefix, 'width'),
+    eastWestPeriodic: readBoolField(prefix, 'eastWestPeriodic'),
+    engineVersion: readStringField(prefix, 'engineVersion'),
+    designation: readStringField(prefix, 'designation'),
+    worldName: readWorldName(prefix),
+    kind: readWorldKind(prefix),
+  };
+}
+
+/**
+ * The first `limit` bytes of a world's JSON, inflating as far as needed when it is gzipped.
+ *
+ * Inflate is sequential, so a gzipped header costs only the compressed bytes in front of it —
+ * the stream is destroyed as soon as enough text is in hand, and the chronicle is never touched.
+ *
+ * @param {string} file
+ * @param {number} limit
+ */
+async function readLeadingText(file, limit) {
   const handle = await open(file, 'r');
-
+  /** @type {Buffer} */
+  let leading;
   try {
-    const buffer = Buffer.alloc(32 * 1024);
+    const buffer = Buffer.alloc(limit);
     const { bytesRead } = await handle.read(buffer, 0, buffer.length, 0);
-    const header = buffer.toString('utf8', 0, bytesRead);
-
-    // Cut before the raster so a number inside the base64 cannot be mistaken for
-    // width or years. The fields we want are all declared before it.
-    const rasterAt = header.search(/"raster"\s*:/);
-    const prefix = rasterAt === -1 ? header : header.slice(0, rasterAt);
-
-    const schemaVersion = readIntField(prefix, 'schemaVersion');
-    if (schemaVersion === null) throw new Error('schemaVersion is missing from the file header');
-
-    // Meta precedes world in the export contract. Parse the complete object, including
-    // nested recipe fields, instead of matching similarly named keys inside strings.
-    const worldAt = prefix.search(/,\s*"world"\s*:/);
-    const meta = worldAt < 0 ? null : JSON.parse(prefix.slice(0, worldAt) + '}').meta;
-    const rerun = rerunSettings(meta, {
-      width: readIntField(prefix, 'width'),
-      height: readIntField(prefix, 'height'),
-      eastWestPeriodic: readBoolField(prefix, 'eastWestPeriodic'),
-    });
-    return {
-      rerun,
-      schemaVersion,
-      seed: Number.isSafeInteger(meta?.seed) ? meta.seed : null,
-      initialCivilizations: Number.isSafeInteger(meta?.generation?.initialCivilizations)
-        ? meta.generation.initialCivilizations : null,
-      years: readIntField(prefix, 'yearsSimulated'),
-      size: readIntField(prefix, 'width'),
-      eastWestPeriodic: readBoolField(prefix, 'eastWestPeriodic'),
-      engineVersion: readStringField(prefix, 'engineVersion'),
-      designation: readStringField(prefix, 'designation'),
-      worldName: readWorldName(prefix),
-      kind: readWorldKind(prefix),
-    };
+    leading = buffer.subarray(0, bytesRead);
   } finally {
     await handle.close();
   }
+
+  if (!(leading[0] === 0x1f && leading[1] === 0x8b)) return leading.toString('utf8');
+
+  /** @type {Buffer[]} */
+  const chunks = [];
+  let length = 0;
+  const stream = createReadStream(file).pipe(createGunzip());
+  try {
+    for await (const chunk of stream) {
+      chunks.push(chunk);
+      length += chunk.length;
+      if (length >= limit) break;
+    }
+  } finally {
+    stream.destroy();
+  }
+  return Buffer.concat(chunks).subarray(0, limit).toString('utf8');
+}
+
+/** @param {string} name */
+function isWorldFileName(name) {
+  return WORLD_EXTENSIONS.some((extension) => name.endsWith(extension));
 }
 
 /**
@@ -616,7 +662,7 @@ function worldName(encoded) {
     throw new Error('world name is not valid URL text');
   }
 
-  if (name.length === 0 || name !== path.basename(name) || !name.endsWith('.json')) {
+  if (name.length === 0 || name !== path.basename(name) || !isWorldFileName(name)) {
     throw new Error('world name must be one JSON filename');
   }
 
@@ -670,7 +716,8 @@ async function worldFile(worldDir, name) {
 async function trashWorld(trashDir, name, source) {
   await mkdir(trashDir, { recursive: true });
 
-  const extension = path.extname(name);
+  // `.json.gz` as one extension, so a trashed world keeps a name that still says what it is.
+  const extension = WORLD_EXTENSIONS.find((suffix) => name.endsWith(suffix)) ?? path.extname(name);
   const stem = name.slice(0, -extension.length);
   const trashedName = `${stem}-${Date.now()}-${randomUUID().slice(0, 8)}${extension}`;
 

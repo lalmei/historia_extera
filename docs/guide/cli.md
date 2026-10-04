@@ -19,7 +19,7 @@ Use `--help` for the usage text compiled into the current checkout.
 | `--size <n>` | `4096` | Side length of the square world in abstract units. |
 | `--east-west-periodic` | off | Join east and west while leaving north and south bounded. |
 | `--raster <n>` | `256` | Resolution per axis of the map raster in the export. |
-| `--out <path>` | `viewer/public/worlds/world.json` | Output JSON path. Parent directories are created. |
+| `--out <path>` | `viewer/public/worlds/world.json` | Output JSON path. Parent directories are created. A path ending `.gz` is written gzipped. |
 | `--pretty` | off | Indent JSON. Pretty output is not the canonical byte form. |
 | `--sample <n>` | `12` | Print that many narrated events after the summary; zero disables samples. |
 | `--fingerprint` | off | Print only the export SHA-256 digest and write no world file. |

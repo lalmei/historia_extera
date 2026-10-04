@@ -104,9 +104,9 @@ internal static class Program
 
         string? directory = Path.GetDirectoryName(Path.GetFullPath(options.Output));
         if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
-        File.WriteAllText(options.Output, json);
+        long written = WorldFile.Write(options.Output, json);
 
-        PrintSummary(run, export, json.Length, options.Output);
+        PrintSummary(run, export, json.Length, written, options.Output);
 
         if (options.SampleEvents > 0) PrintSampleEvents(run, options.SampleEvents);
 
@@ -142,7 +142,8 @@ internal static class Program
         return 0;
     }
 
-    private static void PrintSummary(HistoryRun run, WorldExport export, int jsonLength, string path)
+    private static void PrintSummary(
+        HistoryRun run, WorldExport export, int jsonLength, long fileBytes, string path)
     {
         WorldState world = run.World;
 
@@ -240,6 +241,11 @@ internal static class Program
         Console.WriteLine("── Output ───────────────────────────────");
         Console.WriteLine($"  elapsed        {run.Elapsed.TotalMilliseconds:N0} ms");
         Console.WriteLine($"  size           {jsonLength / 1024.0 / 1024.0:F2} MB");
+        if (WorldFile.IsCompressed(path))
+        {
+            Console.WriteLine($"  on disk        {fileBytes / 1024.0 / 1024.0:F2} MB (gzip)");
+        }
+
         Console.WriteLine($"  written        {path}");
     }
 
@@ -307,7 +313,8 @@ internal static class Program
         Console.WriteLine("  --east-west-periodic");
         Console.WriteLine("                    join the east and west edges for terrain and simulation");
         Console.WriteLine("  --raster <n>      map raster resolution per axis (default 256)");
-        Console.WriteLine("  --out <path>      output file (default viewer/public/worlds/world.json)");
+        Console.WriteLine("  --out <path>      output file (default viewer/public/worlds/world.json);");
+        Console.WriteLine("                    a path ending .gz is written gzipped");
         Console.WriteLine("  --pretty          indent the JSON (not the canonical form)");
         Console.WriteLine("  --sample <n>      print n narrated events (default 12, 0 to disable)");
         Console.WriteLine("  --fingerprint     print only the export digest, write nothing");

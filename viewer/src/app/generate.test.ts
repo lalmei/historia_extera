@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { gzipSync } from 'node:zlib';
 import { paramsFromExport, paramsFromSearch } from './generate.ts';
 import { normalizeExport } from './compat.ts';
 import type { WorldExport } from './types.ts';
@@ -75,5 +76,19 @@ test('catalog reads the same recipe for compact and pretty renamed files and ref
       await writeFile(file, JSON.stringify(data, null, spacing));
       assert.match((await readWorldHeader(file)).rerun.reason!, /safe integer range/);
     }
+  } finally { await rm(folder, { recursive: true, force: true }); }
+});
+
+test('catalog reads the header of a gzipped world without inflating the rest', async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), 'historia-gzip-'));
+  try {
+    const data = fixture();
+    // A long tail after the header, so the reader has to stop rather than run to the end.
+    const text = JSON.stringify({ ...data, events: Array.from({ length: 50_000 }, (_, i) => i) });
+    const file = path.join(folder, 'world-s42-y300-c3-z4096.json.gz');
+    await writeFile(file, gzipSync(text));
+    const header = await readWorldHeader(file);
+    assert.equal(header.schemaVersion, 62);
+    assert.deepEqual(header.rerun.params, paramsFromExport(data));
   } finally { await rm(folder, { recursive: true, force: true }); }
 });

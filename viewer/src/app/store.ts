@@ -25,6 +25,7 @@ import {
   type War,
   type WorldExport,
 } from './types.ts';
+import { readWorldJson } from './worldBody.ts';
 
 /**
  * The loaded world, plus the lookup maps the views need.
@@ -95,7 +96,7 @@ export async function loadWorld(url: string): Promise<World> {
     );
   }
 
-  const data = (await response.json()) as WorldExport;
+  const data = (await readWorldJson(response)) as WorldExport;
 
   // Refuse a file whose shape we cannot vouch for — a wrong chronicle is still worse than a
   // refused one. An older export inside the supported range is a different case: it is a
