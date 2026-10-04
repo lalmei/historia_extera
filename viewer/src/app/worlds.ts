@@ -1,3 +1,5 @@
+import { worldBodyStream } from './worldBody.ts';
+
 const WORLD_CATALOG = '/api/worlds';
 const WORLD_FILES = `${WORLD_CATALOG}/files`;
 
@@ -310,9 +312,8 @@ function worldUrl(worldPath: string): string {
 async function readPrefix(url: string, limit: number): Promise<string> {
   const response = await fetch(url);
   if (!response.ok) throw new Error(`could not read ${url}`);
-  if (!response.body) return response.text().then((text) => text.slice(0, limit));
 
-  const reader = response.body.getReader();
+  const reader = (await worldBodyStream(response)).getReader();
   const decoder = new TextDecoder();
   let text = '';
   try {
@@ -341,11 +342,10 @@ async function extractJsonKeys(
 ): Promise<Record<string, unknown>> {
   const response = await fetch(url);
   if (!response.ok) throw new Error(`could not read ${url}`);
-  if (!response.body) throw new Error(`no body for ${url}`);
 
   const wanted = new Set(keep);
   const found: Record<string, unknown> = {};
-  const reader = response.body.getReader();
+  const reader = (await worldBodyStream(response)).getReader();
   const decoder = new TextDecoder();
   let acc = '';
 

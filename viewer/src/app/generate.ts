@@ -10,6 +10,7 @@
 
 import type { WorldExport } from './types.ts';
 import { rerunSettings } from './rerun.mjs';
+import { isWorldFileName } from './worldBody.ts';
 
 export const CAN_GENERATE: boolean = import.meta.env?.DEV ?? false;
 
@@ -148,7 +149,7 @@ export function randomSeed(): number {
  */
 export function worldFileName(params: RunParams): string {
   const boundary = params.eastWestPeriodic ? '-ewp' : '';
-  return `world-s${params.seed}-y${params.years}-c${params.civs}-z${params.size}${boundary}.json`;
+  return `world-s${params.seed}-y${params.years}-c${params.civs}-z${params.size}${boundary}.json.gz`;
 }
 
 /** Only a recorded, supported recipe can populate a rerun. Filenames are labels. */
@@ -219,6 +220,6 @@ export function worldFileFromLocation(search = window.location.search): string |
   const requested = new URLSearchParams(search).get('world')?.trim();
   if (!requested) return undefined;
   const file = requested.split('/').pop();
-  return file && file.endsWith('.json') ? file : undefined;
+  return file && isWorldFileName(file) ? file : undefined;
 }
 

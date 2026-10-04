@@ -1,11 +1,12 @@
 // Usage: node tools/measure_historiography.mjs path/to/world.json [...]
 import { readFileSync } from 'node:fs';
+import { gunzipSync } from 'node:zlib';
 import { buildWorld } from '../viewer/src/app/store.ts';
 import { readHistoriography } from '../viewer/src/app/historiography.ts';
 
 if (process.argv.length < 3) throw new Error('Provide one or more exported world paths.');
 for (const file of process.argv.slice(2)) {
-  const world = buildWorld(JSON.parse(readFileSync(file, 'utf8')));
+  const world = buildWorld(JSON.parse(readWorldText(file)));
   const all = readHistoriography(world);
   const surviving = all.filter((account) => account.survives);
   const incomplete = surviving.filter((account) => {
@@ -23,4 +24,10 @@ for (const file of process.argv.slice(2)) {
       laterEvents: account.versions.at(-1).later.length, warEnd: account.war.endYear,
     })),
   }));
+}
+
+/** A world file as JSON text; the generator's library writes `*.json.gz`. */
+function readWorldText(file) {
+  const bytes = readFileSync(file);
+  return (bytes[0] === 0x1f && bytes[1] === 0x8b ? gunzipSync(bytes) : bytes).toString('utf8');
 }
