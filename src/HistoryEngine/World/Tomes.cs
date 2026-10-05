@@ -1802,6 +1802,8 @@ public static class Tomes
                 => "It was made as a visible sign of its ruler's authority.",
             ArtifactKind.Weapon
                 => "It was fashioned as a weapon for war and defence.",
+            ArtifactKind.Armor
+                => "It was made as harness for a lord who expected to fight in it.",
             ArtifactKind.Relic when !artifact.ReligionId.IsNone
                 => "It was made for veneration by followers of the "
                    + world.NameOf(artifact.ReligionId) + ".",
