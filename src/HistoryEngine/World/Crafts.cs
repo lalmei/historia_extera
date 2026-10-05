@@ -319,24 +319,24 @@ public static class Crafts
         bool Wealth,
         bool Connected);
 
-    internal static Supply SupplyAt(WorldState world, Settlement settlement)
+    internal static Supply SupplyAt(WorldState world, Settlement settlement, RouteNeighbours? routes = null)
     {
         Region region = world.Regions[settlement.RegionId];
         SettlementSpecialization trade = settlement.Specialization;
 
         bool ore = IsOreGround(world, settlement)
-                   || Reaches(world, settlement, other => IsOreGround(world, other));
+                   || Reaches(world, settlement, other => IsOreGround(world, other), routes);
 
         bool timber = HasTimber(region);
 
         bool pastoral = trade == SettlementSpecialization.Pastoral
-                        || Reaches(world, settlement, SettlementSpecialization.Pastoral);
+                        || Reaches(world, settlement, SettlementSpecialization.Pastoral, routes);
 
         bool farming = trade == SettlementSpecialization.Farming
                        || region.Fertility >= GrainFertility
-                       || Reaches(world, settlement, SettlementSpecialization.Farming);
+                       || Reaches(world, settlement, SettlementSpecialization.Farming, routes);
 
-        int degree = TradeRoutes.Degree(world, settlement.Id);
+        int degree = routes?.From(settlement.Id).Count ?? TradeRoutes.Degree(world, settlement.Id);
 
         return new Supply(
             Tier: settlement.Tier,
@@ -348,7 +348,7 @@ public static class Crafts
             // sacks, and asking for both under the same town left the smith in 145 settlements of
             // 247 across the panel — behind the weaver, the carpenter and the mason in a world
             // where the village forge was the one trade nearly every place had.
-            Metal: ore && (timber || Reaches(world, settlement, other => HasTimber(world.Regions[other.RegionId]))),
+            Metal: ore && (timber || Reaches(world, settlement, other => HasTimber(world.Regions[other.RegionId]), routes)),
             Stone: region.Ruggedness >= StoneRuggedness
                    || region.GeologicActivity >= 0.35
                    || region.MeanHeight > 500.0,
@@ -456,15 +456,32 @@ public static class Crafts
     };
 
     /// <summary>Whether a settlement of the given trade is one route away.</summary>
-    private static bool Reaches(WorldState world, Settlement settlement, SettlementSpecialization trade) =>
-        Reaches(world, settlement, other => other.Specialization == trade);
+    private static bool Reaches(
+        WorldState world, Settlement settlement, SettlementSpecialization trade, RouteNeighbours? routes) =>
+        Reaches(world, settlement, other => other.Specialization == trade, routes);
 
     /// <summary>Whether a settlement one route away answers yes.</summary>
-    private static bool Reaches(WorldState world, Settlement settlement, Func<Settlement, bool> supplies)
+    /// <remarks>
+    /// Walks the route table unless the caller surveyed it already — see <see cref="RouteNeighbours"/>.
+    /// Either way the answer is the same, since it only asks whether any neighbour supplies.
+    /// </remarks>
+    private static bool Reaches(
+        WorldState world, Settlement settlement, Func<Settlement, bool> supplies, RouteNeighbours? routes)
     {
         // One hop, deliberately. Two would make every connected town supply every material in the
         // world, which is the opposite of what a gate is for.
         _ = SupplyHops;
+
+        if (routes is not null)
+        {
+            foreach (EntityId otherId in routes.From(settlement.Id))
+            {
+                if (!world.Settlements.Contains(otherId)) continue;
+                if (supplies(world.Settlements[otherId])) return true;
+            }
+
+            return false;
+        }
 
         foreach (TradeRoute route in TradeRoutes.From(world, settlement.Id))
         {
@@ -474,6 +491,28 @@ public static class Crafts
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// The share of a settlement's required crafts its supply cannot hold, from 0 to 1 (#253).
+    /// </summary>
+    /// <remarks>
+    /// Zero for a trade that requires nothing, and for one whose every craft the place could keep.
+    /// See <see cref="Specializations.RequiredCrafts"/> for why the supply is the question.
+    /// </remarks>
+    public static double Shortfall(WorldState world, Settlement settlement, RouteNeighbours? routes = null)
+    {
+        Craft[] required = Specializations.RequiredCrafts(settlement.Specialization);
+        if (required.Length == 0) return 0.0;
+
+        Supply supply = SupplyAt(world, settlement, routes);
+        int missing = 0;
+        foreach (Craft craft in required)
+        {
+            if (Weight(craft, supply) <= 0.0) missing++;
+        }
+
+        return (double)missing / required.Length;
     }
 
     /// <summary>Whether iron comes out of the ground this settlement stands on.</summary>

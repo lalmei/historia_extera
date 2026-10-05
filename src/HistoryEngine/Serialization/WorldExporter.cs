@@ -600,6 +600,7 @@ public static class WorldExporter
         // settlement: each per-settlement query walks a whole table of its own.
         TradeTraffic traffic = TradeRoutes.TrafficBySettlement(world);
         Hinterland hinterland = Hinterland.Survey(world);
+        RouteNeighbours routes = RouteNeighbours.Survey(world);
 
         foreach (Settlement settlement in world.Settlements)
         {
@@ -625,7 +626,7 @@ public static class WorldExporter
                 ConvertedYear: settlement.ConvertedYear,
                 Site: settlement.Site,
                 Fortunes: Snapshot(settlement.Fortunes),
-                Support: SupportOf(world, settlement, traffic, hinterland)));
+                Support: SupportOf(world, settlement, traffic, hinterland, routes)));
         }
 
         return list;
@@ -640,7 +641,8 @@ public static class WorldExporter
     /// from the year it emptied.
     /// </remarks>
     private static ExportSupport? SupportOf(
-        WorldState world, Settlement settlement, TradeTraffic traffic, Hinterland hinterland)
+        WorldState world, Settlement settlement, TradeTraffic traffic, Hinterland hinterland,
+        RouteNeighbours routes)
     {
         if (!settlement.IsActive) return null;
         if (!world.Civilizations.Contains(settlement.CivilizationId)) return null;
@@ -656,7 +658,8 @@ public static class WorldExporter
             region,
             world.Harvest.QualityAt(region, world.EndYear),
             traffic.At(settlement.Id),
-            hinterland.ShareFor(world, settlement));
+            hinterland.ShareFor(world, settlement),
+            Crafts.Shortfall(world, settlement, routes));
 
         return new ExportSupport(
             Capacity: (int)Math.Round(support.Capacity),

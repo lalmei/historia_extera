@@ -128,6 +128,10 @@ public sealed class PopulationSystem : ISystem
         // quietly hand the world's first realm the best land.
         Hinterland hinterland = Hinterland.Survey(world);
 
+        // And the routes once more, indexed by town, for the craft each trade stands on: the supply
+        // question walks a settlement's neighbours several times, and the table only once here.
+        RouteNeighbours routes = RouteNeighbours.Survey(world);
+
         foreach (Civilization civilization in world.ActiveCivilizations())
         {
             Culture culture = world.CultureOf(civilization);
@@ -146,7 +150,8 @@ public sealed class PopulationSystem : ISystem
                     region,
                     harvest,
                     traffic.At(settlement.Id),
-                    hinterland.ShareFor(world, settlement));
+                    hinterland.ShareFor(world, settlement),
+                    Crafts.Shortfall(world, settlement, routes));
 
                 // Logistic: approaches zero at capacity, negative beyond it, and steeper on the
                 // way down than up.
@@ -195,6 +200,9 @@ public sealed class PopulationSystem : ISystem
     /// <para><paramref name="landShare"/> is the fraction of the surrounding country this
     /// settlement feeds itself from rather than a neighbour — see <see cref="Hinterland"/>. One
     /// means nothing else is near enough to compete.</para>
+    ///
+    /// <para><paramref name="craftShortfall"/> is the share of the settlement's required crafts it
+    /// cannot hold — see <see cref="Crafts.Shortfall"/>. Zero leaves the trade's yield whole.</para>
     /// </remarks>
     public static double CapacityOf(
         WorldState world,
@@ -204,9 +212,11 @@ public sealed class PopulationSystem : ISystem
         Region region,
         double harvest,
         double routeTraffic,
-        double landShare) =>
-        SupportFor(world, civilization, culture, settlement, region, harvest, routeTraffic, landShare)
-            .Capacity;
+        double landShare,
+        double craftShortfall) =>
+        SupportFor(
+            world, civilization, culture, settlement, region, harvest, routeTraffic, landShare,
+            craftShortfall).Capacity;
 
     /// <summary>
     /// The same calculation as <see cref="CapacityOf"/>, itemised.
@@ -229,7 +239,8 @@ public sealed class PopulationSystem : ISystem
         Region region,
         double harvest,
         double routeTraffic,
-        double landShare)
+        double landShare,
+        double craftShortfall)
     {
         SettlementSpecialization specialization = settlement.Specialization;
 
@@ -243,6 +254,12 @@ public sealed class PopulationSystem : ISystem
         double fromTrade = routeTraffic * Specializations.ImportReliance(specialization);
 
         double fromSite = Specializations.SiteCapacity(specialization);
+
+        // A trade nobody can practise does not yield in full (#253). The two terms the trade earns
+        // take the drag; the land does not, because the fields feed a place whatever it is known for.
+        double practised = 1.0 - (Specializations.CraftShortfallPenalty * craftShortfall);
+        fromTrade *= practised;
+        fromSite *= practised;
 
         // A poor year bites in proportion to how exposed the settlement's trade is to it.
         double sensitivity = Specializations.HarvestSensitivity(specialization);

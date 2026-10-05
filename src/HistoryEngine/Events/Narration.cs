@@ -120,7 +120,7 @@ public static class Narration
             "{subject} came to an end[ after {data:years}][, {data:cause}][ by {object}].");
         Set(EventKind.CapitalMoved, "{subject} moved its seat of government to {location}.");
 
-        Set(EventKind.SettlementFounded, "{subject} was founded[ by {object}].");
+        Set(EventKind.SettlementFounded, "{subject} was founded[ by {object}][, with {data:crafts} among the settlers].");
         // The head count was already on the event and only the sentence left it out. A village
         // of 180 and a city of 4,000 are the same line otherwise. Rounded, as a chronicler rounds.
         Set(EventKind.SettlementPromoted,

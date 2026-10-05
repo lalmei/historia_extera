@@ -5602,6 +5602,70 @@ dotnet run --project src/HistoryEngine.Cli -- --seed 42 --years 300 --civs 8 --s
 If it changes when you did *not* intend to change simulation behaviour, that is the bug
 the test exists to find.
 
+## Craft requirements: a trade stands on the crafts it cannot run without — issue #253 (4 October 2026)
+
+**A trade was free.** `SpecializationSystem` picked a town's trade from terrain and culture, and the
+curves in `Specializations` then paid out whether or not anybody there could work it.
+`Specializations.RequiredCrafts` now names the crafts each trade needs: mining needs smiths and
+charcoal burners, trade needs coopers, a craft town needs weavers, and a garrison needs smiths.
+
+**Held means supplied, not recorded.** A craft is held where `Crafts.Supports` says the place could
+keep it: iron and fuel by ground or road, wood for the burner, timber and a road for the cooper.
+Recorded guildsmen are too thin a sample to answer the question, since before the levy only 4 of
+49 objects could name a maker. Reading the supply also means crafts are lost the way a place
+actually lost them: when the road that fed the forge closed. They come back when it reopens.
+The test for that cuts and restores a mine's routes.
+
+**A drag, not a veto.** `Crafts.Shortfall` is the share of required crafts a place cannot hold.
+`PopulationSystem.SupportFor` scales the trade's own two terms, `SiteCapacity` and
+`ImportReliance`, by `1 − 0.40 × shortfall`. The land term is never touched, because the fields
+feed a town whatever it is known for.
+
+**Only crafts with no tier floor.** Every required craft is one a village may hold, so a
+shortfall is never just a village being small. A port's shipwright and a market's wheelwright
+both want a town, and asking them of a trade chosen at village tier would drag every port until
+it had already grown without them.
+
+**Empty lists, on purpose.** Farming feeds itself. Herding and fishing are still the rarest
+trades after the #275 rebalance (23 and 48 of 859 settlements across the panel at 1000 years),
+and a requirement would push them back toward the absence that issue was about. A shrine stands on its pilgrims.
+
+**Founding parties carry crafts.** A party sent for ore (`SiteCharacter.Mine`) records the
+crafts its purpose needs on the founding event (`data.crafts`, "smiths and colliers"). The
+template reads "…was founded, with smiths and colliers among the settlers". Whether the place
+can keep them is the supply's question every year after. Founding is a recorded fact here and
+adds no separate failure chance; the drag does that work once the trade is chosen.
+
+**Cost.** The supply gate walks a settlement's routes several times. The yearly pass surveys
+them once into `RouteNeighbours`, indexed by dense settlement index; a test checks it answers
+exactly what the route table does.
+
+**Calibration.** This is a calibration change. Five-seed panel (2, 7, 11, 42, 99), standard
+worlds, on top of #254 and #255, before → after:
+
+| Trade, 1000y | settlements | survived | mean population |
+|---|---|---|---|
+| Trade | 80 → 80 | 67.5% → 75.0% | 3,748 → 2,993 |
+| Military | 40 → 31 | 60.0% → 41.9% | 1,384 → 1,296 |
+| Mining | 107 → 103 | 82.2% → 78.6% | 1,616 → 1,541 |
+| Crafts | 34 → 41 | 73.5% → 82.9% | 3,098 → 3,298 |
+| Farming | 377 → 369 | 45.6% → 43.9% | 2,012 → 2,038 |
+| World population | | | 992,609 → 930,922 (−6.2%) |
+
+At 300 years the world holds 492,173 → 476,436 people (−3.2%), and the mean trade town falls
+from 3,663 to 2,908. The cooper is the trade town's whole list, so a market on treeless ground
+loses two fifths of what its roads bring. Trade-town survival rose rather than fell; the
+mechanism has not been isolated from the run-to-run divergence a changed history brings. The
+garrison loses the most survival, and its only requirement is the smith. Both are reported, not
+tuned: the penalty is one number, and moving it toward a target is a decision for the next pass
+rather than this one.
+
+`MortalityTests` was resampled: the four Poisoning witnesses lost theirs to the changed
+histories, while a 60-seed sweep shows the rate unmoved (14 Poisoning deaths before and after).
+
+Seed 42 now produces `c38ccac25f9aa59d86a253f9bedf6afc4492d70b55aff355e78f86637f690f73`.
+
+
 ## Rerun eligibility — issue #195 (28 September 2026)
 
 Schema 62 adds versioned generation eligibility to the export header. It records the

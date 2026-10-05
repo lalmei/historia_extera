@@ -187,7 +187,7 @@
     "CivilizationFounded": "{subject} was founded[, with its seat at {location}].",
     "CivilizationFell": "{subject} came to an end[ after {data:years}][, {data:cause}][ by {object}].",
     "CapitalMoved": "{subject} moved its seat of government to {location}.",
-    "SettlementFounded": "{subject} was founded[ by {object}].",
+    "SettlementFounded": "{subject} was founded[ by {object}][, with {data:crafts} among the settlers].",
     "SettlementPromoted": "{subject} grew into {a}{data:tier}[ of some {data:reckoned} souls].",
     "SettlementPromoted.1": "{subject} had become {a}{data:tier}[, some {data:reckoned} strong].",
     "SettlementPromoted.2": "{subject} was reckoned {a}{data:tier}[ of about {data:reckoned} souls].",

@@ -56,8 +56,15 @@ public sealed class MortalityTests
     /// comfortably inside the 3–20% band below, and Battle, Accident, Execution, Childbirth,
     /// Plague and Disaster all still appear alongside Assassination and Poisoning — nothing here
     /// was picked for the murder causes alone.</para>
+    ///
+    /// <para><b>Resampled again for #253</b>, the same way and for the same reason. Craft
+    /// requirements moved every history, and none of 33, 38, 47 or 52 rolled a Poisoning any more.
+    /// A 60-seed sweep found the rate unmoved: 14 Poisoning deaths in 13 seeds before the change
+    /// and 14 in 12 after, 12 and 12 Assassinations, exceptional deaths 12.7% and 12.6%. Seeds 6,
+    /// 11 and 27 each carry a Poisoning on their own, so the cause still has three independent
+    /// witnesses; 12 and 33 are kept from the previous panel for continuity.</para>
     /// </remarks>
-    private static readonly ulong[] Seeds = { 12, 33, 38, 47, 52 };
+    private static readonly ulong[] Seeds = { 6, 11, 12, 27, 33 };
 
     /// <summary>
     /// Variety is a model outcome, not an excuse to turn a court chronicle into a casualty list.
