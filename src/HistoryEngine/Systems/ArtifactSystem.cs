@@ -110,7 +110,7 @@ public sealed class ArtifactSystem : ISystem
                 (int books, int objects) = Treasures.HoldingsOf(world, settlement.Id);
                 if (objects >= TreasuryLimit && books >= Tomes.LibraryLimit) continue;
 
-                ArtifactKind kind = Choose(world, settlement, civilization, values, rng);
+                ArtifactKind kind = Choose(world, settlement, civilization, values, year, rng);
 
                 // Asked after the choice rather than before it, because which cap applies is not
                 // known until the place has said what it would make.
@@ -221,6 +221,7 @@ public sealed class ArtifactSystem : ISystem
         Settlement settlement,
         Civilization civilization,
         CultureValues values,
+        int year,
         IRng rng)
     {
         bool devout = !settlement.ReligionId.IsNone && world.Religions.Contains(settlement.ReligionId);
@@ -251,7 +252,15 @@ public sealed class ArtifactSystem : ISystem
         // is the whole question.
         bool forge = Crafts.Supports(world, settlement, Craft.Smith);
 
-        return settlement.Specialization switch
+        // Harness is the armourer's alone (#255), and the armourer's gate is the smith's metal in a
+        // town big enough to keep a second guild. Where that holds, part of what would have been a
+        // blade is a harness instead — split out of the iron work rather than added beside it, so
+        // armour takes from the forge's share and never from the goldsmith's.
+        double armour = Crafts.Supports(world, settlement, Craft.Armourer)
+            ? ArmourShare(world, civilization, values, year)
+            : 0.0;
+
+        ArtifactKind kind = settlement.Specialization switch
         {
             SettlementSpecialization.Mining => forge && rng.Chance(0.55) ? ArtifactKind.Weapon : ArtifactKind.Jewel,
             SettlementSpecialization.Crafts => rng.Chance(jewelOverTome) ? ArtifactKind.Jewel : ArtifactKind.Tome,
@@ -267,6 +276,52 @@ public sealed class ArtifactSystem : ISystem
             _ when forge => Ordinary[rng.NextInt(Ordinary.Length)],
             _ => Unforged[rng.NextInt(Unforged.Length)],
         };
+
+        // Drawn only for iron work in an armourer's town, so every other place keeps the stream it
+        // had and the change stays confined to the decisions it is about.
+        return kind == ArtifactKind.Weapon && armour > 0.0 && rng.Chance(armour)
+            ? ArtifactKind.Armor
+            : kind;
+    }
+
+    /// <summary>How long after a war a realm is still a customer for harness.</summary>
+    private const int ArmourMemoryYears = 20;
+
+    /// <summary>
+    /// Of the iron work an armourer's town makes, the share that is armour.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Armour has a customer, and the customer is a realm that fights.</b> A sword is
+    /// kept by anyone who can afford one; a harness is ordered by a lord who expects to need it.
+    /// So the share follows the realm's aggression, and rises again for a realm that has been at
+    /// war within <see cref="ArmourMemoryYears"/> years — the order book an armourer kept was the
+    /// last campaign's losses.</para>
+    ///
+    /// <para><b>Held under a half.</b> A peaceable realm still orders a little, and the most
+    /// warlike realm fresh from a war orders harness for a little over half of its iron work —
+    /// so across a world the blade stays the commoner thing, which is what the treasury cap would
+    /// otherwise let armour take from it.</para>
+    /// </remarks>
+    private static double ArmourShare(
+        WorldState world, Civilization civilization, CultureValues values, int year)
+    {
+        double share = DetMath.Lerp(0.12, 0.40, values.Aggression);
+        return FoughtLately(world, civilization.Id, year) ? share + 0.15 : share;
+    }
+
+    /// <summary>Whether a realm is at war, or was within <see cref="ArmourMemoryYears"/>.</summary>
+    private static bool FoughtLately(WorldState world, EntityId civilizationId, int year)
+    {
+        foreach (War war in world.Wars)
+        {
+            if (war.EndYear is int ended && year - ended > ArmourMemoryYears) continue;
+            if (war.Attackers.Contains(civilizationId) || war.Defenders.Contains(civilizationId))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>What a town with no particular character makes. Fixed order, for reproducibility.</summary>

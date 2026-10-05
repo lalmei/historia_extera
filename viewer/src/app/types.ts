@@ -1037,7 +1037,8 @@ export interface HolySite {
   description?: HolySiteDescription;
 }
 
-export type ArtifactKind = 'Regalia' | 'Weapon' | 'Relic' | 'Tome' | 'Idol' | 'Jewel';
+/** `Armor` is produced from #255 on; older exports simply never contain it. */
+export type ArtifactKind = 'Regalia' | 'Weapon' | 'Relic' | 'Tome' | 'Idol' | 'Jewel' | 'Armor';
 
 export const ARTIFACT_LABELS: Record<ArtifactKind, string> = {
   Regalia: 'Regalia',
@@ -1046,6 +1047,7 @@ export const ARTIFACT_LABELS: Record<ArtifactKind, string> = {
   Tome: 'Book',
   Idol: 'Idol',
   Jewel: 'Jewel',
+  Armor: 'Armour',
 };
 
 export type TomeContentKind =
