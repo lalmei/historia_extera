@@ -1,3 +1,5 @@
+import { useLanguage } from '../i18n/LanguageProvider';
+import { translateIn } from '../i18n/translations.ts';
 import { useEffect, useRef, useState } from 'react';
 import type { ExportGalaxy } from '../types';
 import { renderNightSky, SKY_HEIGHT, SKY_WIDTH } from '../nightSky';
@@ -9,6 +11,7 @@ import { renderNightSky, SKY_HEIGHT, SKY_WIDTH } from '../nightSky';
  * them. What the band does over a night is said next to the orientation instead.
  */
 export function NightSky({ galaxy, seed }: { galaxy: ExportGalaxy; seed: number }) {
+  const { language } = useLanguage();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [caption, setCaption] = useState('');
 
@@ -48,19 +51,27 @@ export function NightSky({ galaxy, seed }: { galaxy: ExportGalaxy; seed: number 
           height={SKY_HEIGHT}
           className="block h-auto w-full bg-[#070b14]"
           role="img"
-          aria-label="Night sky from this world in galactic coordinates"
+          aria-label={translateIn(language, 'inline', "Night sky from this world in galactic coordinates")}
         />
         <div className="pointer-events-none absolute inset-0">
           <span className="absolute left-1/2 top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[rgba(255,240,214,0.75)]" />
           <span className="absolute left-1/2 top-1/2 h-px w-14 translate-y-[-0.5px] bg-[rgba(255,240,214,0.5)]" />
           <div className="absolute left-[calc(50%+3.75rem)] top-1/2 -translate-y-1/2 rounded bg-[rgba(4,6,12,0.62)] px-2 py-1">
-            <div className="he-label text-[rgba(255,240,214,0.95)]">Galactic centre</div>
+            <div className="he-label text-[rgba(255,240,214,0.95)]">{translateIn(language, 'inline', "Galactic centre")}</div>
           </div>
         </div>
       </div>
       <p className="mt-2 text-xs text-[var(--ink-faint)]">
-        {caption || 'Galactic longitude −180° to +180° · nucleus at 0° · latitude +90° (top) to −90°'}
+        {nightSkyCaption(language, caption)}
       </p>
     </div>
   );
 }
+
+/** Translate only known captions; preserve any custom or newer source wording. */
+function nightSkyCaption(language: string, caption: string): string {
+  const source = caption || DEFAULT_SKY_CAPTION;
+  return translateIn(language, 'skyCaptions', source);
+}
+
+const DEFAULT_SKY_CAPTION = "Galactic longitude −180° to +180° · nucleus at 0° · latitude +90° (top) to −90°";

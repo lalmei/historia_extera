@@ -1,3 +1,5 @@
+import { useLanguage } from '../i18n/LanguageProvider';
+import { translateIn } from '../i18n/translations.ts';
 import { useEffect, useState } from 'react';
 import { href } from '../router';
 import type { World } from '../store';
@@ -125,6 +127,9 @@ function navIsActive(itemPath: string, activePath: string): boolean {
  * indexes. The choice is remembered.
  */
 export function WorldNav({ world, activePath }: { world: World; activePath: string }) {
+  const { language } = useLanguage();
+  const tr = (value: string) => worldNavText(language, value);
+  const numberLocale = language === 'fr' ? 'fr-FR' : undefined;
   const [collapsed, setCollapsed] = useState(readCollapsed);
   const { meta } = world.export;
   const { designation, kind, name } = world.export.world;
@@ -163,18 +168,18 @@ export function WorldNav({ world, activePath }: { world: World; activePath: stri
         {!collapsed && (
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium">
-              {name || designation || 'Untitled world'}
+              {name || designation || tr('Untitled world')}
             </p>
             {kind && (
-              <p className="he-label mt-0.5">{WORLD_KIND_LABELS[kind]}</p>
+              <p className="he-label mt-0.5">{tr(WORLD_KIND_LABELS[kind])}</p>
             )}
           </div>
         )}
         <button
           type="button"
           onClick={toggle}
-          title={collapsed ? 'Expand index' : 'Collapse index'}
-          aria-label={collapsed ? 'Expand index' : 'Collapse index'}
+          title={tr(collapsed ? 'Expand index' : 'Collapse index')}
+          aria-label={tr(collapsed ? 'Expand index' : 'Collapse index')}
           aria-expanded={!collapsed}
           className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded text-[var(--ink-faint)] transition-colors hover:text-[var(--primary)]"
         >
@@ -182,10 +187,10 @@ export function WorldNav({ world, activePath }: { world: World; activePath: stri
         </button>
       </div>
 
-      <nav className="min-h-0 flex-1 overflow-y-auto py-2" aria-label="World index">
+      <nav className="min-h-0 flex-1 overflow-y-auto py-2" aria-label={tr('World index')}>
         {NAV_GROUPS.map((group) => (
           <div key={group.label} className={collapsed ? 'px-1' : 'px-2'}>
-            {!collapsed && <div className="he-label px-2 pt-3 pb-1">{group.label}</div>}
+            {!collapsed && <div className="he-label px-2 pt-3 pb-1">{tr(group.label)}</div>}
             <ul className="space-y-0.5">
               {group.items.map((item) => {
                 const active = navIsActive(item.path, activePath);
@@ -193,7 +198,8 @@ export function WorldNav({ world, activePath }: { world: World; activePath: stri
                   <li key={item.path}>
                     <a
                       href={href(item.path)}
-                      title={item.label}
+                      title={tr(item.label)}
+                      aria-label={tr(item.label)}
                       aria-current={active ? 'page' : undefined}
                       className={`flex items-center rounded-sm text-sm transition-colors ${
                         collapsed ? 'justify-center px-0 py-2' : 'gap-2.5 px-2 py-1.5'
@@ -204,7 +210,7 @@ export function WorldNav({ world, activePath }: { world: World; activePath: stri
                       }`}
                     >
                       <item.Icon className="h-4 w-4 shrink-0" />
-                      {!collapsed && <span className="truncate">{item.label}</span>}
+                      {!collapsed && <span className="truncate">{tr(item.label)}</span>}
                     </a>
                   </li>
                 );
@@ -216,13 +222,18 @@ export function WorldNav({ world, activePath }: { world: World; activePath: stri
 
       {!collapsed && (
         <div className="he-data border-t border-[var(--rule)] px-3 py-2.5 text-[11px] text-[var(--ink-faint)]">
-          seed {meta.seed}
+          {tr('seed')} {meta.seed}
           <br />
-          years {meta.startYear}–{meta.endYear} · {meta.eventCount.toLocaleString()} events
+          {tr('years')} {meta.startYear}–{meta.endYear} · {meta.eventCount.toLocaleString(numberLocale)} {tr('events')}
           <br />
-          schema v{world.export.schemaVersion} · {meta.engineVersion}
+          {tr('schema')} v{world.export.schemaVersion} · {meta.engineVersion}
         </div>
       )}
     </aside>
   );
+}
+
+/** Display labels only: route paths, React keys and world data remain unchanged. */
+function worldNavText(language: string, value: string): string {
+  return translateIn(language, 'worldNav', value);
 }

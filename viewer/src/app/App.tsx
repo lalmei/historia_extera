@@ -5,6 +5,7 @@ import { CosmologyPage } from './components/CosmologyPanel';
 import { SiteFooter, SiteNav, generateHref, readingHref } from './components/SiteChrome';
 import { WorldNav } from './components/WorldNav';
 import { loadWorld, type World } from './store';
+import { LanguageProvider } from './i18n/LanguageProvider';
 import {
   kindOf,
   type Artifact,
@@ -85,7 +86,7 @@ function currentWorldQuery(): string {
   return 'worlds/world.json';
 }
 
-export default function App() {
+function AppContent() {
   const [world, setWorld] = useState<World | null>(null);
   const [error, setError] = useState<string | null>(null);
   const route = useRoute();
@@ -340,5 +341,13 @@ function NotFound({ id }: { id: string }) {
         Back to the overview
       </a>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <LanguageProvider>
+      <AppContent />
+    </LanguageProvider>
   );
 }

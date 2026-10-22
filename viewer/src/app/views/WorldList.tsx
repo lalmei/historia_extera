@@ -2,6 +2,8 @@ import type React from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { IconChevronRight, IconPlay, IconRefresh, IconTrash } from '../components/icons';
 import { generateHref } from '../components/SiteChrome';
+import { useLanguage } from '../i18n/LanguageProvider';
+import { translateIn } from '../i18n/translations.ts';
 import {
   POLL_MS,
   cancelRun,
@@ -13,8 +15,9 @@ import {
   type RunParams,
 } from '../generate';
 import { SynthesisModal } from './NewWorld';
-import { schemaVerdict, type SchemaVerdict } from '../compat';
+import { MIN_SCHEMA_VERSION, schemaVerdict, type SchemaVerdict } from '../compat';
 import { BIOME_ORDER, FLAG_COAST, type Biome } from '../types';
+import { SCHEMA_VERSION } from '../types';
 import {
   displayNameOf,
   listWorlds,
@@ -26,6 +29,9 @@ import {
 } from '../worlds';
 
 export function WorldList({ query = '' }: { query?: string }) {
+  const { language } = useLanguage();
+  const tr = (key: string, values?: Readonly<Record<string, string | number | undefined>>) =>
+    translateIn(language, 'library', key, values);
   const [worlds, setWorlds] = useState<SavedWorld[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -117,16 +123,21 @@ export function WorldList({ query = '' }: { query?: string }) {
     // The generator names its output from the settings, so an older export whose filename
     // predates the size suffix is reproduced beside itself rather than over itself. Say which.
     const output = worldFileName(params);
-    const fate =
-      output === world.name
-        ? `This replaces ${world.name} on disk.`
-        : `This writes ${output}; ${world.name} stays on disk.`;
+    const fate = tr(
+      output === world.name ? 'rerun.replace' : 'rerun.newFile',
+      { output, name: world.name },
+    );
 
     const confirmed = window.confirm(
-      `Run ${displayNameOf(world)} again?\n\n` +
-        `Seed ${params.seed}, ${params.years.toLocaleString()} years, ${params.civs} ` +
-        `civilization${params.civs === 1 ? '' : 's'}, ${params.size.toLocaleString()} units — ` +
-        `through the engine as it stands now.\n\n${fate}`,
+    tr('rerun.confirm', {
+      name: displayNameOf(world),
+      seed: params.seed,
+      years: params.years.toLocaleString(language === 'fr' ? 'fr-FR' : undefined),
+      civs: params.civs,
+      civilizationWord: tr(params.civs === 1 ? 'rerun.civilization.one' : 'rerun.civilization.other'),
+      size: params.size.toLocaleString(language === 'fr' ? 'fr-FR' : undefined),
+      fate,
+    }),
     );
     if (!confirmed) return;
 
@@ -150,19 +161,19 @@ export function WorldList({ query = '' }: { query?: string }) {
     } finally {
       setRun(null);
       setOpening(false);
-      setNotice('Synthesis aborted.');
+      setNotice(tr('status.aborted'));
     }
   }
 
   function dismissFailed() {
-    setActionError(run?.error ?? 'The generator failed');
+    setActionError(run?.error ?? translateIn(language, 'generator.modal', 'error'));
     setRun(null);
     setOpening(false);
   }
 
   async function remove(world: SavedWorld) {
     const confirmed = window.confirm(
-      `Permanently delete ${world.name}?\n\nThis cannot be undone. The file will not be moved to trash.`,
+      tr('error.deleteConfirm', { name: world.name }),
     );
     if (!confirmed) return;
 
@@ -173,7 +184,7 @@ export function WorldList({ query = '' }: { query?: string }) {
     try {
       const deleted = await deleteWorld(world.name, true);
       setWorlds((current) => current?.filter((item) => item.name !== world.name) ?? null);
-      setNotice(`${deleted.name} permanently deleted`);
+      setNotice(tr('status.deleted', { name: deleted.name }));
     } catch (cause) {
       setActionError(cause instanceof Error ? cause.message : String(cause));
     } finally {
@@ -190,31 +201,31 @@ export function WorldList({ query = '' }: { query?: string }) {
       )}
       {actionError && (
         <p aria-live="assertive" className="mb-3 text-sm text-[var(--error)]">
-          Could not delete world: {actionError}
+          {tr('error.action', { error: actionError })}
         </p>
       )}
 
       {error ? (
-        <p className="text-sm text-[var(--error)]">Could not list worlds: {error}</p>
+        <p className="text-sm text-[var(--error)]">{tr('error.list', { error })}</p>
       ) : worlds === null ? (
-        <p className="text-sm text-[var(--ink-faint)]">Looking for earlier exports…</p>
+        <p className="text-sm text-[var(--ink-faint)]">{tr('loading.worlds')}</p>
       ) : worlds.length === 0 ? (
         <EmptyLibrary />
       ) : visible.length === 0 ? (
         <p className="border border-[var(--rule)] px-4 py-10 text-center text-sm text-[var(--ink-faint)]">
-          No worlds match “{query.trim()}”.
+          {tr('searchEmpty', { query: query.trim() })}
         </p>
       ) : (
         <div className="overflow-x-auto border border-[var(--rule)]">
           <table className="w-full min-w-[64rem] border-collapse text-left text-sm">
             <thead>
               <tr>
-                <th className="he-label px-5 pt-4 pb-3">World</th>
-                <th className="he-label px-5 pt-4 pb-3">Exported</th>
-                <th className="he-label px-5 pt-4 pb-3">Seed hash</th>
-                <th className="he-label px-5 pt-4 pb-3">Sim years</th>
-                <th className="he-label px-5 pt-4 pb-3">Civilizations</th>
-                <th className="he-label px-5 pt-4 pb-3 text-right">Directives</th>
+                <th className="he-label px-5 pt-4 pb-3">{tr('columns.world')}</th>
+                <th className="he-label px-5 pt-4 pb-3">{tr('columns.exported')}</th>
+                <th className="he-label px-5 pt-4 pb-3">{tr('columns.seed')}</th>
+                <th className="he-label px-5 pt-4 pb-3">{tr('columns.years')}</th>
+                <th className="he-label px-5 pt-4 pb-3">{tr('columns.civilizations')}</th>
+                <th className="he-label px-5 pt-4 pb-3 text-right">{tr('columns.actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -251,13 +262,14 @@ function messageOf(cause: unknown): string {
 }
 
 function EmptyLibrary() {
+  const { language } = useLanguage();
   return (
     <div className="border border-[var(--rule)] px-4 py-12 text-center">
       <p className="text-sm text-[var(--ink-faint)]">
-        No generated worlds yet. The first completed run will appear here.
+        {translateIn(language, 'library', 'empty.message')}
       </p>
       <a href={generateHref()} className="he-btn-primary mt-4 inline-block px-3 py-1.5 text-sm font-medium">
-        Generate a world
+        {translateIn(language, 'library', 'empty.button')}
       </a>
     </div>
   );
@@ -278,6 +290,9 @@ function WorldRow({
   onRerun: () => void;
   onDelete: () => void;
 }) {
+  const { language } = useLanguage();
+  const tr = (key: string, values?: Readonly<Record<string, string | number | undefined>>) =>
+    translateIn(language, 'library', key, values);
   const [expanded, setExpanded] = useState(false);
   const [expansion, setExpansion] = useState<{
     preview: WorldPreview;
@@ -293,10 +308,10 @@ function WorldRow({
   const title = displayNameOf(world);
   const openUrl = verdict.readable ? viewerUrl(world.world) : undefined;
   const openHint = verdict.readable
-    ? `Open ${title}`
+    ? tr('actions.open', { name: title })
     : verdict.state === 'unreadable'
-      ? (world.error ?? verdict.summary)
-      : verdict.summary;
+      ? (world.error ?? schemaSummary(verdict, language))
+      : schemaSummary(verdict, language);
 
   const toggle = () => setExpanded((current) => !current);
 
@@ -334,7 +349,7 @@ function WorldRow({
             <button
               type="button"
               aria-expanded={expanded}
-              aria-label={expanded ? `Collapse ${title}` : `Expand ${title}`}
+              aria-label={tr(expanded ? 'actions.collapse' : 'actions.expand', { name: title })}
               // The row toggles too, so without stopping here the chevron toggled twice and
               // therefore never at all — which left the compatibility detail below reachable
               // only by clicking somewhere other than the control that says it opens it.
@@ -386,8 +401,8 @@ function WorldRow({
               onClick={onRerun}
               label={
                 params
-                  ? `Run ${title} again through the current engine`
-                  : (world.rerunReason ?? 'No generation recipe. Use the original CLI command.')
+                  ? tr('actions.run', { name: title })
+                    : translateRerunReason(world.rerunReason, language)
               }
             >
               <IconPlay className="h-4 w-4" />
@@ -397,8 +412,8 @@ function WorldRow({
               disabled={!params || runDisabled}
               label={
                 params
-                  ? `Open ${title}'s settings in the generator`
-                  : (world.rerunReason ?? 'No generation recipe. Use the original CLI command.')
+                  ? tr('actions.settings', { name: title })
+                  : translateRerunReason(world.rerunReason, language)
               }
             >
               <IconRefresh className="h-4 w-4" />
@@ -406,7 +421,7 @@ function WorldRow({
             <IconAction
               disabled={deleteDisabled}
               destructive
-              label={deleting ? 'Deleting…' : `Permanently delete ${title}`}
+              label={deleting ? tr('actions.deleting') : tr('actions.delete', { name: title })}
               onClick={onDelete}
             >
               <IconTrash className="h-4 w-4" />
@@ -426,42 +441,44 @@ function WorldRow({
               <dl className="grid w-full max-w-sm shrink-0 grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm lg:w-72">
                 {world.designation && (
                   <>
-                    <dt className="text-[var(--ink-faint)]">Designation</dt>
+                    <dt className="text-[var(--ink-faint)]">{tr('details.designation')}</dt>
                     <dd>{world.designation}</dd>
                   </>
                 )}
-                <dt className="text-[var(--ink-faint)]">Kind</dt>
+                <dt className="text-[var(--ink-faint)]">{tr('details.kind')}</dt>
                 <dd>{world.kind ?? '—'}</dd>
-                <dt className="text-[var(--ink-faint)]">Extent</dt>
+                <dt className="text-[var(--ink-faint)]">{tr('details.extent')}</dt>
                 <dd>
                   {params
-                    ? `${params.size.toLocaleString()} × ${params.size.toLocaleString()} units`
+                    ? tr('details.units', {
+                      size: params.size.toLocaleString(language === 'fr' ? 'fr-FR' : undefined),
+                    })
                     : '—'}
-                  {params?.eastWestPeriodic ? ' · east/west joined' : ''}
+                  {params?.eastWestPeriodic ? tr('details.joined') : ''}
                 </dd>
-                <dt className="text-[var(--ink-faint)]">Engine</dt>
+                <dt className="text-[var(--ink-faint)]">{tr('details.engine')}</dt>
                 <dd className="he-data">
                   {world.engineVersion ?? '—'}
-                  {world.schemaVersion !== null ? ` · schema v${world.schemaVersion}` : ''}
+                  {world.schemaVersion !== null ? tr('details.schema', { version: world.schemaVersion }) : ''}
                 </dd>
-                <dt className="text-[var(--ink-faint)]">Reads</dt>
+                <dt className="text-[var(--ink-faint)]">{tr('details.reads')}</dt>
                 <dd>
-                  <p className="text-[var(--ink-soft)]">{verdict.summary}</p>
+                  <p className="text-[var(--ink-soft)]">{schemaSummary(verdict, language)}</p>
                   {verdict.missing.length > 0 && (
                     <ul className="mt-1.5 list-disc space-y-0.5 pl-4 text-xs text-[var(--ink-faint)]">
                       {verdict.missing.map((feature) => (
-                        <li key={feature}>{feature}</li>
+                        <li key={feature}>{translateIn(language, 'library.features', feature)}</li>
                       ))}
                     </ul>
                   )}
                 </dd>
                 {!params && (
                   <>
-                    <dt className="text-[var(--ink-faint)]">Rerun</dt>
-                    <dd>{world.rerunReason ?? 'No generation recipe. Use the original CLI command.'}</dd>
+                    <dt className="text-[var(--ink-faint)]">{tr('details.rerun')}</dt>
+                    <dd>{translateRerunReason(world.rerunReason, language)}</dd>
                   </>
                 )}
-                <dt className="text-[var(--ink-faint)]">File</dt>
+                <dt className="text-[var(--ink-faint)]">{tr('details.file')}</dt>
                 <dd className="he-data min-w-0">
                   <span className="block truncate" title={world.name}>
                     {world.name}
@@ -470,10 +487,10 @@ function WorldRow({
                 </dd>
                 {openUrl && (
                   <>
-                    <dt className="text-[var(--ink-faint)]">Read</dt>
+                    <dt className="text-[var(--ink-faint)]">{tr('details.read')}</dt>
                     <dd>
                       <a href={openUrl} className="text-[var(--primary)] hover:underline">
-                        Open chronicle
+                        {tr('actions.openChronicle')}
                       </a>
                     </dd>
                   </>
@@ -502,16 +519,19 @@ function WorldRow({
  * the place the eye already is.
  */
 function SchemaChip({ verdict }: { verdict: SchemaVerdict }) {
+  const { language } = useLanguage();
+  const tr = (key: string, values?: Readonly<Record<string, string | number | undefined>>) =>
+    translateIn(language, 'library', key, values);
   if (verdict.state === 'current') return null;
 
   const label =
     verdict.state === 'older'
-      ? `schema v${verdict.version} · older engine`
+      ? tr('schema.older', { version: verdict.version ?? '' })
       : verdict.state === 'too-new'
-        ? `schema v${verdict.version} · newer engine`
+        ? tr('schema.newer', { version: verdict.version ?? '' })
         : verdict.state === 'too-old'
-          ? `schema v${verdict.version} · too old to read`
-          : 'unreadable export';
+          ? tr('schema.tooOld', { version: verdict.version ?? '' })
+          : tr('schema.unreadable');
 
   const tone =
     verdict.state === 'older'
@@ -555,15 +575,18 @@ function EndStatePanel({
   loading: boolean;
   error: boolean;
 }) {
+  const { language } = useLanguage();
+  const tr = (key: string, values?: Readonly<Record<string, string | number | undefined>>) =>
+    translateIn(language, 'library', key, values);
   if (error) {
     return (
-      <p className="min-w-0 flex-1 text-sm text-[var(--ink-faint)]">Could not read the end of this history.</p>
+      <p className="min-w-0 flex-1 text-sm text-[var(--ink-faint)]">{tr('loading.endStateError')}</p>
     );
   }
 
   if (loading || !endState) {
     return (
-      <p className="min-w-0 flex-1 text-sm text-[var(--ink-faint)]">Reading how it ended…</p>
+      <p className="min-w-0 flex-1 text-sm text-[var(--ink-faint)]">{tr('loading.endState')}</p>
     );
   }
 
@@ -583,41 +606,41 @@ function EndStatePanel({
 
   const stats: { label: string; value: string }[] = [
     {
-      label: 'Civilizations',
+      label: tr('endState.civilizations'),
       value: `${standing.length} / ${endState.civilizations.length}`,
     },
     {
-      label: 'Settlements',
-      value: `${inhabited.length} · ${cities.length} ${cities.length === 1 ? 'city' : 'cities'}`,
+      label: tr('endState.settlements'),
+      value: `${inhabited.length} · ${tr(cities.length === 1 ? 'endState.city' : 'endState.cities', { count: cities.length })}`,
     },
     {
-      label: 'Houses',
+      label: tr('endState.houses'),
       value: `${extant.length} / ${endState.dynasties.length}`,
     },
     {
-      label: 'Wars',
+      label: tr('endState.wars'),
       value: `${openWars.length} / ${endState.wars.length}`,
     },
     {
-      label: 'Trade',
+      label: tr('endState.trade'),
       value: `${activeRoutes.length} / ${endState.tradeRoutes.length}`,
     },
     {
-      label: 'Faiths',
+      label: tr('endState.faiths'),
       value: `${livingFaiths.length} / ${endState.religions.length}`,
     },
-    { label: 'Battles', value: endState.battles.toLocaleString() },
-    { label: 'Artifacts', value: endState.artifacts.toLocaleString() },
-    { label: 'Holy sites', value: endState.holySites.toLocaleString() },
+    { label: tr('endState.battles'), value: endState.battles.toLocaleString(language === 'fr' ? 'fr-FR' : undefined) },
+    { label: tr('endState.artifacts'), value: endState.artifacts.toLocaleString(language === 'fr' ? 'fr-FR' : undefined) },
+    { label: tr('endState.holySites'), value: endState.holySites.toLocaleString(language === 'fr' ? 'fr-FR' : undefined) },
   ];
 
   if (eventCount != null) {
-    stats.unshift({ label: 'Events', value: eventCount.toLocaleString() });
+    stats.unshift({ label: tr('endState.events'), value: eventCount.toLocaleString(language === 'fr' ? 'fr-FR' : undefined) });
   }
 
   return (
     <div className="min-w-0 flex-1">
-      <div className="he-label mb-2">At year’s end</div>
+      <div className="he-label mb-2">{tr('endState.yearEnd')}</div>
       <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm sm:grid-cols-3">
         {stats.map((stat) => (
           <div key={stat.label}>
@@ -653,6 +676,7 @@ function WorldThumb({
   loading: boolean;
   error: boolean;
 }) {
+  const { language } = useLanguage();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
@@ -664,12 +688,12 @@ function WorldThumb({
     <div className="relative h-32 w-32 shrink-0 overflow-hidden border border-[var(--rule)] bg-[var(--canvas)]">
       {loading && (
         <p className="absolute inset-0 flex items-center justify-center p-2 text-center text-[11px] text-[var(--ink-faint)]">
-          Reading terrain…
+          {translateIn(language, 'library', 'loading.terrain')}
         </p>
       )}
       {error && (
         <p className="absolute inset-0 flex items-center justify-center p-2 text-center text-[11px] text-[var(--ink-faint)]">
-          No map preview
+          {translateIn(language, 'library', 'loading.terrainError')}
         </p>
       )}
       <canvas
@@ -800,4 +824,34 @@ function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function translateRerunReason(reason: string | null | undefined, language: string): string {
+  const key = 'details.noRecipe';
+  const fallback = 'No generation recipe. Use the original CLI command.';
+  if (!reason || reason === fallback) return translateIn(language, 'library', key);
+  return reason;
+}
+
+function schemaSummary(verdict: SchemaVerdict, language: string): string {
+  const tr = (key: string, values?: Readonly<Record<string, string | number | undefined>>) =>
+    translateIn(language, 'library.schemaSummary', key, values);
+  switch (verdict.state) {
+    case 'current':
+      return tr('current', { version: verdict.version ?? '' });
+    case 'older':
+      return tr('older', {
+        version: verdict.version ?? '',
+        count: verdict.missing.length,
+        additions: translateIn(language, 'library', verdict.missing.length === 1
+          ? 'schemaSummary.addition.one'
+          : 'schemaSummary.addition.other', { count: verdict.missing.length }),
+      });
+    case 'too-new':
+      return tr('tooNew', { version: verdict.version ?? '', max: SCHEMA_VERSION });
+    case 'too-old':
+      return tr('tooOld', { version: verdict.version ?? '', min: MIN_SCHEMA_VERSION });
+    case 'unreadable':
+      return tr('unreadable');
+  }
 }

@@ -1,8 +1,10 @@
+import { useLanguage } from '../i18n/LanguageProvider';
 import type React from 'react';
 import { useMemo, useState } from 'react';
 import { href } from '../router';
 import type { World } from '../store';
 import { KIND_LABELS, kindOf, type EntityId } from '../types';
+import { translateIn } from '../i18n/translations.ts';
 
 /**
  * A cross-link to any entity.
@@ -20,6 +22,8 @@ export function EntityLink({
   id: EntityId | undefined;
   className?: string;
 }) {
+  const { language } = useLanguage();
+  const tr = (value: string) => commonText(language, value);
   if (!id) return <span className="text-[var(--ink-faint)]">—</span>;
 
   const known = world.byId.has(id);
@@ -27,7 +31,7 @@ export function EntityLink({
 
   if (!known) {
     return (
-      <span className="text-[var(--ink-faint)]" title={`${id} is not in this world file`}>
+      <span className="text-[var(--ink-faint)]" title={translateIn(language, 'inline', "{v0} is not in this world file", { v0: id })}>
         {label}
       </span>
     );
@@ -36,7 +40,7 @@ export function EntityLink({
   return (
     <a
       href={href(`/${id}`)}
-      title={`${KIND_LABELS[kindOf(id)] ?? 'Entity'} ${id}`}
+      title={`${tr(KIND_LABELS[kindOf(id)] ?? 'Entity')} ${id}`}
       className={`underline decoration-[var(--rule)] decoration-1 underline-offset-2 transition-colors hover:text-[var(--accent)] hover:decoration-[var(--accent)] ${className}`}
     >
       {label}
@@ -53,6 +57,8 @@ export function Panel({
   children: React.ReactNode;
   actions?: React.ReactNode;
 }) {
+  const { language } = useLanguage();
+  const tr = (value: string) => commonText(language, value);
   // The header appears for either a title or controls. Requiring a title to show `actions` is
   // how the map's whole control strip — layer, overlays, what the dots mean — stayed invisible
   // from the milestone that added it: the props were passed, the component silently dropped them.
@@ -60,7 +66,7 @@ export function Panel({
     <section className="rounded-lg border border-[var(--rule)] bg-[var(--panel)]">
       {(title || actions) && (
         <header className="flex flex-wrap items-baseline justify-between gap-4 border-b border-[var(--rule)] px-4 py-2.5">
-          {title ? <h2 className="he-label">{title}</h2> : <span />}
+          {title ? <h2 className="he-label">{tr(title)}</h2> : <span />}
           {actions}
         </header>
       )}
@@ -86,6 +92,19 @@ export function NotInThisExport({
   since?: number;
   version: number | null;
 }) {
+  const { language } = useLanguage();
+  const tr = (value: string) => commonText(language, value);
+  if (language === 'fr') {
+    return (
+      <p className="text-sm text-[var(--ink-faint)]">
+        Les informations suivantes ne figurent pas dans cet export : {tr(what)}
+        {version === null ? '' : ` (schéma v${version})`}.
+        {since !== undefined && <> Leur enregistrement est disponible à partir du schéma v{since}.</>}
+        {' '}Relancez la génération avec le moteur actuel pour les inclure.
+      </p>
+    );
+  }
+
   return (
     <p className="text-sm text-[var(--ink-faint)]">
       {what} {what.endsWith('s') ? 'are' : 'is'} not in this export
@@ -107,18 +126,22 @@ export function Stat({
   value: React.ReactNode;
   hint?: string;
 }) {
+  const { language } = useLanguage();
+  const tr = (value: string) => commonText(language, value);
   return (
-    <div title={hint}>
-      <div className="he-label">{label}</div>
+    <div title={hint === undefined ? undefined : tr(hint)}>
+      <div className="he-label">{tr(label)}</div>
       <div className="he-data mt-1 text-lg text-[var(--ink)]">{value}</div>
     </div>
   );
 }
 
 export function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  const { language } = useLanguage();
+  const tr = (value: string) => commonText(language, value);
   return (
     <div className="flex gap-3 border-b border-[var(--rule)] py-1.5 last:border-0">
-      <dt className="w-40 shrink-0 text-sm text-[var(--ink-faint)]">{label}</dt>
+      <dt className="w-40 shrink-0 text-sm text-[var(--ink-faint)]">{tr(label)}</dt>
       <dd className="min-w-0 text-sm">{children}</dd>
     </div>
   );
@@ -173,20 +196,22 @@ export interface Dial {
  * between the two is the thing the eye lands on.
  */
 export function Dials({ dials }: { dials: Dial[] }) {
+  const { language } = useLanguage();
+  const tr = (value: string) => commonText(language, value);
   // A dial the export never recorded is left out rather than drawn at zero.
   const measured = dials.filter(
     (dial): dial is Dial & { value: number } => Number.isFinite(dial.value),
   );
 
   if (measured.length === 0) {
-    return <p className="text-sm text-[var(--ink-faint)]">Not recorded in this export.</p>;
+    return <p className="text-sm text-[var(--ink-faint)]">{tr('Not recorded in this export.')}</p>;
   }
 
   return (
     <dl className="space-y-2">
       {measured.map((dial) => (
-        <div key={dial.label} className="flex items-center gap-3" title={dial.hint}>
-          <dt className="w-28 shrink-0 text-sm text-[var(--ink-faint)]">{dial.label}</dt>
+        <div key={dial.label} className="flex items-center gap-3" title={dial.hint === undefined ? undefined : tr(dial.hint)}>
+          <dt className="w-28 shrink-0 text-sm text-[var(--ink-faint)]">{tr(dial.label)}</dt>
           <dd className="flex min-w-0 flex-1 items-center gap-2">
             <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--rule)]">
               <div
@@ -201,11 +226,11 @@ export function Dials({ dials }: { dials: Dial[] }) {
               )}
             </div>
             <span className="he-data w-9 shrink-0 text-right text-[var(--ink-faint)]">
-              {dial.value.toFixed(2)}
+              {language === 'fr' ? dial.value.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : dial.value.toFixed(2)}
             </span>
             {dial.against !== undefined && (
               <span className="he-data w-11 shrink-0 text-right text-[var(--ink-faint)]">
-                {signed(dial.value - dial.against)}
+                {signed(dial.value - dial.against, language)}
               </span>
             )}
           </dd>
@@ -220,9 +245,12 @@ function clamp01(value: number): number {
 }
 
 /** `+0.14`, `−0.03`, `·` for a gap too small to mean anything. */
-function signed(delta: number): string {
+function signed(delta: number, language: string = 'en'): string {
   if (Math.abs(delta) < 0.005) return '·';
-  return `${delta > 0 ? '+' : '−'}${Math.abs(delta).toFixed(2)}`;
+  const amount = language === 'fr'
+    ? Math.abs(delta).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : Math.abs(delta).toFixed(2);
+  return `${delta > 0 ? '+' : '−'}${amount}`;
 }
 
 export function PageTitle({
@@ -300,6 +328,10 @@ export function DataTable<T>({
   emptyMessage?: string;
   pageSize?: number;
 }) {
+  const { language } = useLanguage();
+  const tr = (value: string) => commonText(language, value);
+  const fr = language === 'fr';
+  const numberLocale = fr ? 'fr-FR' : undefined;
   const [query, setQuery] = useState('');
   const [chosen, setChosen] = useState<Record<string, string>>({});
   const [sortKey, setSortKey] = useState(initialSort?.key ?? columns[0]?.key);
@@ -355,7 +387,8 @@ export function DataTable<T>({
             setQuery(event.target.value);
             setLimit(pageSize);
           }}
-          placeholder={placeholder}
+          placeholder={tr(placeholder)}
+          aria-label={tr(placeholder)}
           className="w-full max-w-xs rounded border border-[var(--rule)] bg-[var(--input)] px-2.5 py-1.5 text-sm outline-none focus:border-[var(--primary)]"
         />
 
@@ -377,17 +410,18 @@ export function DataTable<T>({
                 setChosen({ ...chosen, [facet.key]: event.target.value });
                 setLimit(pageSize);
               }}
-              title={facet.label}
+              title={tr(facet.label)}
+              aria-label={tr(facet.label)}
               className={`rounded border bg-[var(--input)] px-1.5 py-1.5 text-xs ${
                 chosen[facet.key]
                   ? 'border-[var(--primary)] text-[var(--primary)]'
                   : 'border-[var(--rule)]'
               }`}
             >
-              <option value="">{facet.label}: any</option>
+              <option value="">{tr(facet.label)}{translateIn(language, 'inline', ": any")}</option>
               {facet.options.map((option) => (
                 <option key={option.value} value={option.value}>
-                  {option.label} ({pool.filter(option.match).length.toLocaleString()})
+                  {facetOptionText(language, facet.key, option.value, option.label)} ({pool.filter(option.match).length.toLocaleString(numberLocale)})
                 </option>
               ))}
             </select>
@@ -404,13 +438,13 @@ export function DataTable<T>({
             }}
             className="text-xs text-[var(--ink-faint)] hover:text-[var(--accent)]"
           >
-            clear
+            {translateIn(language, 'inline', "clear")}
           </button>
         )}
 
         <span className="ml-auto text-xs tabular-nums text-[var(--ink-faint)]">
-          {filtered.length.toLocaleString()}
-          {filtered.length !== rows.length && ` of ${rows.length.toLocaleString()}`}
+          {filtered.length.toLocaleString(numberLocale)}
+          {filtered.length !== rows.length && `${translateIn(language, 'inline', " of  [components/common.tsx:447]")}${rows.length.toLocaleString(numberLocale)}`}
         </span>
       </div>
 
@@ -422,6 +456,9 @@ export function DataTable<T>({
               {columns.map((column) => (
                 <th
                   key={column.key}
+                  aria-sort={column.sort
+                    ? (sortKey === column.key ? (descending ? 'descending' : 'ascending') : 'none')
+                    : undefined}
                   className={`he-label py-2 pr-4 text-left ${
                     column.align === 'right' ? 'text-right' : ''
                   }`}
@@ -438,11 +475,11 @@ export function DataTable<T>({
                       }}
                       className="inline-flex items-center gap-1 hover:text-[var(--accent)]"
                     >
-                      {column.header}
+                      {tr(column.header)}
                       {sortKey === column.key && <span>{descending ? '▾' : '▴'}</span>}
                     </button>
                   ) : (
-                    column.header
+                    tr(column.header)
                   )}
                 </th>
               ))}
@@ -469,7 +506,7 @@ export function DataTable<T>({
       </div>
 
       {filtered.length === 0 && (
-        <p className="py-6 text-center text-sm text-[var(--ink-faint)]">{emptyMessage}</p>
+        <p className="py-6 text-center text-sm text-[var(--ink-faint)]">{tr(emptyMessage)}</p>
       )}
 
       {filtered.length > limit && (
@@ -478,7 +515,7 @@ export function DataTable<T>({
           onClick={() => setLimit(limit + pageSize * 4)}
           className="mt-3 w-full rounded border border-[var(--rule)] py-1.5 text-sm text-[var(--ink-soft)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
         >
-          Show more ({(filtered.length - limit).toLocaleString()} remaining)
+          {translateIn(language, 'inline', "Show more ({e0} remaining)", { e0: (filtered.length - limit).toLocaleString(), f0: (filtered.length - limit).toLocaleString(numberLocale) })}
         </button>
       )}
     </div>
@@ -488,3 +525,44 @@ export function DataTable<T>({
 export function yearRange(from: number, to?: number): string {
   return to === undefined ? `${from} –` : `${from} – ${to}`;
 }
+
+/** Exact display-label lookup only: unknown strings are preserved verbatim. */
+function commonText(language: string, value: string): string {
+  return translateIn(language, 'common', value);
+}
+
+/** Entity-name facets keep their original labels, even if a name resembles a UI word. */
+function facetOptionText(
+  language: string,
+  facetKey: string,
+  optionValue: string,
+  label: string,
+): string {
+  if (!SEMANTIC_FACETS.has(facetKey)) return label;
+  if (/^[a-z]+:\d+$/.test(optionValue)) return label;
+  return commonText(language, label);
+}
+
+const SEMANTIC_FACETS = new Set<string>([
+  "status",
+  "fate",
+  "life",
+  "significance",
+  "occupation",
+  "craft",
+  "origin",
+  "kind",
+  "type",
+  "tier",
+  "trade",
+  "mode",
+  "setting",
+  "tradition",
+  "dedication",
+  "cause",
+  "outcome",
+  "side",
+  "rank",
+  "government",
+  "succession"
+]);

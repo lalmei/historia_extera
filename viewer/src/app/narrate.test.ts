@@ -54,7 +54,8 @@ test('pronouns follow the named figure\'s sex', () => {
   const templates = { Unknown: '{they:subject} took {them:object}.' };
   const nameOf = (id: string) => id;
   const entry = event({ subject: 'fig:7', object: 'fig:4' });
-  const sexOf = (id: string) => (id === 'fig:7' ? 'Female' : 'Male') as const;
+  const sexOf = (id: string): 'Female' | 'Male' =>
+    id === 'fig:7' ? 'Female' : 'Male';
 
   assert.equal(narrateText(entry, templates, nameOf, undefined, sexOf), 'she took him.');
   assert.equal(narrateText(entry, templates, nameOf), 'they took them.');

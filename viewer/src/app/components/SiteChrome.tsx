@@ -1,5 +1,8 @@
+import { translateIn } from '../i18n/translations.ts';
 import type React from 'react';
 import { IconHelp, IconSearch, IconSettings } from './icons';
+import { useLanguage } from '../i18n/LanguageProvider';
+import { LanguageSelector } from '../i18n/LanguageSelector';
 
 /** Matches `WorldExporter.EngineVersion` — the number the footer is for. */
 export const ENGINE_VERSION = '0.9.2';
@@ -54,6 +57,7 @@ export function SiteNav({
   search?: { value: string; onChange: (value: string) => void };
   readingHref?: string;
 }) {
+  const { language, t } = useLanguage();
   const chronicle = reading ?? readingHref();
   return (
     <header className="shrink-0 border-b border-[var(--rule)]">
@@ -63,16 +67,20 @@ export function SiteNav({
           Historia Extera
         </a>
 
-        <nav className="flex h-full items-stretch gap-6 text-sm">
+        <nav
+          className="flex h-full items-stretch gap-6 text-sm"
+          aria-label={translateIn(language, 'inline', "Main navigation")}
+        >
           <NavLink href={worldsHref()} active={active === 'worlds'}>
-            Worlds
+            {t('nav.worlds')}
           </NavLink>
           <NavLink href={chronicle} active={active === 'reading'}>
-            Reading
+            {t('nav.reading')}
           </NavLink>
         </nav>
 
         <div className="ml-auto flex items-center gap-2">
+          <LanguageSelector />
           {search && (
             <label className="relative">
               <span className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-[var(--ink-faint)]">
@@ -82,7 +90,8 @@ export function SiteNav({
                 type="search"
                 value={search.value}
                 onChange={(event) => search.onChange(event.target.value)}
-                placeholder="Search archives..."
+                placeholder={t('nav.search')}
+                aria-label={t('nav.search')}
                 className="w-44 rounded border border-[var(--rule)] bg-[var(--input)] py-1.5 pr-3 pl-8 text-sm outline-none focus:border-[var(--primary)] sm:w-56"
               />
             </label>
@@ -91,15 +100,16 @@ export function SiteNav({
           <button
             type="button"
             disabled
-            title="No settings on this page"
+            title={t('nav.noSettings')}
+            aria-label={t('nav.noSettings')}
             className="inline-flex h-8 w-8 items-center justify-center rounded text-[var(--ink-faint)]"
           >
             <IconSettings className="h-4 w-4" />
           </button>
           <a
             href={DOCS}
-            title="Documentation"
-            aria-label="Documentation"
+            title={t('common.documentation')}
+            aria-label={t('common.documentation')}
             className="inline-flex h-8 w-8 items-center justify-center rounded text-[var(--ink-faint)] transition-colors hover:text-[var(--primary)]"
           >
             <IconHelp className="h-4 w-4" />
@@ -122,6 +132,7 @@ function NavLink({
   return (
     <a
       href={href}
+      aria-current={active ? 'page' : undefined}
       className={`inline-flex items-center border-b-2 px-0.5 transition-colors ${
         active
           ? 'border-[var(--primary)] font-medium text-[var(--ink)]'
@@ -134,6 +145,7 @@ function NavLink({
 }
 
 export function SiteFooter({ fluid = false }: { fluid?: boolean }) {
+  const { language, t } = useLanguage();
   return (
     <footer className="mt-auto shrink-0 border-t border-[var(--rule)] bg-[var(--surface-container-low)]">
       <div
@@ -141,19 +153,22 @@ export function SiteFooter({ fluid = false }: { fluid?: boolean }) {
           fluid ? 'max-w-none md:px-6' : 'max-w-6xl md:px-10'
         }`}
       >
-        <span>Historia Extera Engine v{ENGINE_VERSION}</span>
-        <nav className="flex flex-wrap gap-5">
+        <span>{t('footer.engine')} v{ENGINE_VERSION}</span>
+        <nav
+          className="flex flex-wrap gap-5"
+          aria-label={translateIn(language, 'inline', "Useful links")}
+        >
           <a href={DOCS} className="transition-colors hover:text-[var(--primary)]">
-            Documentation
+            {t('common.documentation')}
           </a>
           <a href={CLI} className="transition-colors hover:text-[var(--primary)]">
-            API Reference
+            {t('footer.api')}
           </a>
           <a href={SUPPORT} className="transition-colors hover:text-[var(--primary)]">
-            Support
+            {t('footer.support')}
           </a>
           <a href={SOURCE} className="transition-colors hover:text-[var(--primary)]">
-            Source · AGPL-3.0
+            {t('footer.source')}
           </a>
         </nav>
       </div>

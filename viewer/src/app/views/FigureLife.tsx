@@ -1,3 +1,6 @@
+import { translateIn } from '../i18n/translations.ts';
+import { useLanguage } from '../i18n/LanguageProvider';
+import { loreLabel } from '../i18n/lore.ts';
 import { useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import {
   buildConstellation,
@@ -109,6 +112,7 @@ export function FigureSigil({
   recordEnd: number;
   size?: number;
 }) {
+  const { language } = useLanguage();
   const span = Math.max(1, recordEnd - recordStart);
   const start = Math.min(1, Math.max(0, (fromYear - recordStart) / span));
   const end = Math.min(1, Math.max(0, (toYear - recordStart) / span));
@@ -122,7 +126,7 @@ export function FigureSigil({
       width={size}
       height={size}
       role="img"
-      aria-label={`${name}, ${fromYear} to ${toYear}`}
+      aria-label={translateIn(language, 'inline', "{v0}, {v1} to {v2}", { v0: name, v1: fromYear, v2: toYear })}
       className="shrink-0"
     >
       <rect
@@ -200,39 +204,40 @@ export function FigureHero({
   significance?: string;
   place?: string;
 }) {
+  const { language } = useLanguage();
   const tone = toneFor(cultureId ?? figure.cultureId);
   const chips: { key: string; icon: ReactNode; fact: ReactNode; note: string; tone: string }[] = [
     {
       key: 'position',
       icon: figure.titles.length > 0 ? <IconCrown /> : <IconSwords />,
-      fact: standing.position ?? 'No position on record',
-      note: standing.position ? (place ?? 'place unrecorded') : 'nothing the record names',
+      fact: standing.position ? loreLabel(language, standing.position) : (translateIn(language, 'inline', "No position on record")),
+      note: standing.position ? (place ?? (translateIn(language, 'inline', "place unrecorded"))) : (translateIn(language, 'inline', "nothing the record names")),
       tone: figure.titles.length > 0 ? 'var(--tone-office)' : 'var(--tone-craft)',
     },
     {
       key: 'household',
       icon: <IconPeople />,
-      fact: sentenceCase(standing.household),
+      fact: sentenceCase(loreLabel(language, standing.household)),
       note:
         standing.childCount === 0
-          ? 'no children'
-          : `${standing.childCount} ${standing.childCount === 1 ? 'child' : 'children'}`,
+          ? (translateIn(language, 'inline', "no children"))
+          : (translateIn(language, 'inline', "{e0} {e1} [views/FigureLife.tsx:225]", { e0: standing.childCount, e1: standing.childCount === 1 ? 'child' : 'children', f0: standing.childCount, f1: standing.childCount === 1 ? 'enfant' : 'enfants' })),
       tone: 'var(--tone-kin)',
     },
     {
       key: 'closest',
       icon: <IconPerson />,
-      fact: standing.closest ? <EntityLink world={world} id={standing.closest.id} /> : 'Nobody',
-      note: standing.closest ? standing.closest.reading : 'stands close on record',
+      fact: standing.closest ? <EntityLink world={world} id={standing.closest.id} /> : (translateIn(language, 'inline', "Nobody")),
+      note: standing.closest ? loreLabel(language, standing.closest.reading) : (translateIn(language, 'inline', "stands close on record")),
       tone: 'var(--tone-faith)',
     },
     {
       key: 'interpretation',
       icon: <IconStar />,
       fact: standing.interpretationTheme
-        ? THEME_LABELS[standing.interpretationTheme]
-        : 'Even',
-      note: standing.interpretationTheme ? 'shapes the reading' : 'no strong theme yet',
+        ? loreLabel(language, THEME_LABELS[standing.interpretationTheme])
+        : (translateIn(language, 'inline', "Even")),
+      note: standing.interpretationTheme ? (translateIn(language, 'inline', "shapes the reading")) : (translateIn(language, 'inline', "no strong theme yet")),
       tone: 'var(--tone-learning)',
     },
   ];
@@ -260,14 +265,14 @@ export function FigureHero({
           <h1 className="he-headline mt-1.5">{figure.name}</h1>
           <div className="mt-2.5 flex flex-wrap items-center gap-2 text-sm">
             <Badge tone={standing.alive ? 'accent' : 'muted'}>
-              {standing.alive ? `Living in ${standing.year}` : 'Deceased'}
+              {standing.alive ? (translateIn(language, 'inline', "Living in {v0}", { v0: standing.year })) : (translateIn(language, 'inline', "Deceased"))}
             </Badge>
-            {significance && significance !== 'Ordinary' && <Badge tone="neutral">{significance}</Badge>}
+            {significance && significance !== 'Ordinary' && <Badge tone="neutral">{loreLabel(language, significance)}</Badge>}
             <span className="he-data text-[var(--ink-faint)]">
               {figure.deathYear === undefined
-                ? `b. ${figure.birthYear}`
+                ? (translateIn(language, 'inline', "b. {v0}", { v0: figure.birthYear }))
                 : `${figure.birthYear}–${figure.deathYear}`}
-              {' · aged '}
+              {translateIn(language, 'inline', " · aged ")}
               {standing.age}
             </span>
           </div>
@@ -321,6 +326,7 @@ export function LifeArcStrip({
   scale: 'age' | 'year';
   onSelectYear: (year: number) => void;
 }) {
+  const { language } = useLanguage();
   const trackRef = useRef<HTMLDivElement>(null);
   const reading = (year: number) => (scale === 'age' ? year - birthYear : year);
   const span = Math.max(1, arc.lastYear - arc.firstYear);
@@ -370,12 +376,14 @@ export function LifeArcStrip({
           ref={trackRef}
           role="slider"
           tabIndex={0}
-          aria-label="Year of this life"
+          aria-label={translateIn(language, 'inline', "Year of this life")}
           aria-valuemin={reading(arc.firstYear)}
           aria-valuemax={reading(arc.lastYear)}
           aria-valuenow={reading(clamp(selectedYear))}
           aria-valuetext={
-            scale === 'age' ? `aged ${reading(clamp(selectedYear))}` : `year ${clamp(selectedYear)}`
+            translateIn(language, 'figureLife', scale === 'age' ? 'ageValue' : 'yearValue', {
+              value: reading(clamp(selectedYear)),
+            })
           }
           onClick={(event) => pickYear(event.clientX)}
           onKeyDown={onKeyDown}
@@ -385,9 +393,16 @@ export function LifeArcStrip({
             {arc.density.map(({ year, weight, count, notable }) => (
               <span
                 key={year}
-                title={`${scale === 'age' ? `Aged ${reading(year)}` : `${year}`} — ${count} recorded event${count === 1 ? '' : 's'}${
-                  notable > 0 ? `, ${notable} notable` : ''
-                }`}
+                title={translateIn(language, 'figureLife', 'recordedEvents', {
+                  year: translateIn(language, 'figureLife', scale === 'age' ? 'ageValue' : 'yearValue', {
+                    value: reading(year),
+                  }),
+                  count,
+                  plural: count === 1 ? '' : 's',
+                  notable: notable > 0
+                    ? translateIn(language, 'figureLife', 'notableEvents', { count: notable })
+                    : '',
+                })}
                 className="absolute bottom-0 bg-[var(--accent-soft)]"
                 style={{
                   left: `${at(year)}%`,
@@ -461,17 +476,15 @@ export function LifeArcStrip({
       </ol>
 
       <p className="mt-3 text-xs leading-relaxed text-[var(--ink-faint)]">
-        The whole life, retrospectively — the panels below show only what was known in the year
-        selected. Bar height is how much the chronicle recorded in that year, counting what it
-        marked notable for three; the number beside each turn is the {scale === 'age' ? 'age' : 'year'} it
-        happened at, and its colour is what the turn was about. Click anywhere on the strip — or focus it
-        and use the arrow keys — to move the year.
+        {translateIn(language, 'figureLife', 'arcCaption', {
+          measure: translateIn(language, 'figureLife', scale === 'age' ? 'ageNoun' : 'yearNoun'),
+        })}
         {arc.busiestYear !== undefined && (
           <>
             {' '}
-            Their busiest year was{' '}
+            {translateIn(language, 'inline', "Their busiest year was ")}
             <strong className="text-[var(--ink-soft)]">
-              {scale === 'age' ? `age ${reading(arc.busiestYear)}` : arc.busiestYear}
+              {scale === 'age' ? (translateIn(language, 'inline', "age {v0}", { v0: reading(arc.busiestYear) })) : arc.busiestYear}
             </strong>
             .
           </>
@@ -480,13 +493,13 @@ export function LifeArcStrip({
 
       <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[0.7rem] text-[var(--ink-faint)]">
         {TONE_LEGEND.map((entry) => (
-          <li key={entry.label} className="flex items-center gap-1.5">
+          <li key={loreLabel(language, entry.label)} className="flex items-center gap-1.5">
             <span
               aria-hidden
               className="inline-block h-1.5 w-1.5 rounded-full"
               style={{ background: entry.tone }}
             />
-            {entry.label}
+            {loreLabel(language, entry.label)}
           </li>
         ))}
       </ul>
@@ -512,15 +525,16 @@ export function LifeArcPanel({
   selectedYear: number;
   onSelectYear: (year: number) => void;
 }) {
+  const { language } = useLanguage();
   const [scale, setScale] = useState<'age' | 'year'>('age');
 
   return (
     <Panel
-      title="Life arc"
+      title={translateIn(language, 'inline', "Life arc")}
       actions={
         <div
           role="group"
-          aria-label="Life arc scale"
+          aria-label={translateIn(language, 'inline', "Life arc scale")}
           className="flex overflow-hidden rounded border border-[var(--rule)]"
         >
           {(['age', 'year'] as const).map((option) => (
@@ -535,7 +549,7 @@ export function LifeArcPanel({
                   : 'text-[var(--ink-soft)] hover:text-[var(--primary)]'
               }`}
             >
-              {option}
+              {translateIn(language, 'figureLife', `scale.${option}`)}
             </button>
           ))}
         </div>
@@ -583,6 +597,7 @@ export function StandingReadout({
   place?: string;
   onSelectYear: (year: number) => void;
 }) {
+  const { language } = useLanguage();
   const standing = useMemo(() => standingAt(figure, year, ctx), [figure, year, ctx]);
   const sentence = useMemo(
     () => standingSentence(figure, standing, ctx, place),
@@ -593,11 +608,11 @@ export function StandingReadout({
     <div>
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <span className="he-data text-lg text-[var(--ink)]">
-          Age {standing.age} · Year {standing.year}
+          {translateIn(language, 'inline', "Age")} {standing.age} · {translateIn(language, 'inline', "Year")} {standing.year}
         </span>
         {!standing.alive && (
           <span className="text-xs text-[var(--ink-faint)]">
-            after their death in {figure.deathYear}
+            {translateIn(language, 'inline', "after their death in")} {figure.deathYear}
           </span>
         )}
       </div>
@@ -663,12 +678,13 @@ export function RelationshipConstellation({
   year: number;
   ctx: LifeContext;
 }) {
+  const { language } = useLanguage();
   const nodes = useMemo(() => buildConstellation(figure, year, ctx), [figure, year, ctx]);
 
   if (nodes.length === 0) {
     return (
       <p className="text-sm text-[var(--ink-faint)]">
-        Nobody living stood in a recorded relationship with them in {year}.
+        {translateIn(language, 'inline', "Nobody living stood in a recorded relationship with them in {v0}.", { v0: year })}
       </p>
     );
   }
@@ -691,7 +707,7 @@ export function RelationshipConstellation({
       <svg
         viewBox={`0 0 ${size} ${size}`}
         role="img"
-        aria-label={`${nodes.length} relationships around ${figure.name} in ${year}`}
+        aria-label={translateIn(language, 'inline', "{v0} relationships around {v1} in {v2}", { v0: nodes.length, v1: figure.name, v2: year })}
         className="h-[260px] w-[260px] shrink-0"
       >
         {placed.map((node) => (
@@ -731,16 +747,14 @@ export function RelationshipConstellation({
               <span className="min-w-0">
                 <EntityLink world={world} id={node.id} />
                 <span className="ml-2 text-xs text-[var(--ink-faint)]">
-                  {node.roles.slice(0, 2).join(', ').toLowerCase()} · {node.reading}
+                  {node.roles.slice(0, 2).map((role) => loreLabel(language, role)).join(', ').toLowerCase()} · {loreLabel(language, node.reading)}
                 </span>
               </span>
             </li>
           ))}
         </ul>
         <p className="mt-3 text-xs leading-relaxed text-[var(--ink-faint)]">
-          Line weight is how much the bond carries; solid is kin, dashed a companion, dotted a
-          rivalry. Only people living in {year} are drawn — move the year and watch the lines go
-          out.
+          {translateIn(language, 'figureLife', 'constellationCaption', { year })}
         </p>
       </div>
     </div>
@@ -768,6 +782,7 @@ export function KnownForPanel({
   ctx: LifeContext;
   artifactCount: number;
 }) {
+  const { language } = useLanguage();
   const lines = useMemo(
     () => knownFor(figure, events, throughYear, ctx),
     [figure, events, throughYear, ctx],
@@ -781,7 +796,7 @@ export function KnownForPanel({
     <div>
       {lines.length === 0 ? (
         <p className="text-sm text-[var(--ink-faint)]">
-          Nothing beyond a birth is recorded of them by {throughYear}.
+          {translateIn(language, 'inline', "Nothing beyond a birth is recorded of them by {v0}.", { v0: throughYear })}
         </p>
       ) : (
         <ul className="space-y-1 text-sm">
@@ -797,8 +812,8 @@ export function KnownForPanel({
 
       <div className="mt-4 border-t border-[var(--rule)] pt-3">
         <div className="flex items-baseline justify-between gap-3">
-          <span className="he-label">Historical significance</span>
-          <span className="text-xs text-[var(--ink-soft)]">{significance.band}</span>
+          <span className="he-label">{translateIn(language, 'inline', "Historical significance")}</span>
+          <span className="text-xs text-[var(--ink-soft)]">{loreLabel(language, significance.band)}</span>
         </div>
         <div
           className="relative mt-2 h-1 rounded bg-[var(--rule)]"
@@ -806,7 +821,7 @@ export function KnownForPanel({
           aria-valuemin={0}
           aria-valuemax={1}
           aria-valuenow={Number(significance.score.toFixed(2))}
-          aria-label="Historical significance"
+          aria-label={translateIn(language, 'inline', "Historical significance")}
         >
           <span
             className="absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--primary)]"
@@ -814,13 +829,12 @@ export function KnownForPanel({
           />
         </div>
         <div className="mt-1 flex justify-between text-[0.7rem] text-[var(--ink-faint)]">
-          <span>Ordinary</span>
-          <span>Influential</span>
+          <span>{translateIn(language, 'inline', "Ordinary")}</span>
+          <span>{translateIn(language, 'inline', "Influential")}</span>
         </div>
         <p className="mt-2 text-xs leading-relaxed text-[var(--ink-faint)]">
-          How much of the recorded history runs through this person, not how good a person they
-          were. Most lives sit near the left, which is what makes the right worth finding.
-          {significance.reasons.length > 0 && <> Counted here: {significance.reasons.join(', ')}.</>}
+          {translateIn(language, 'figureLife', 'significanceCaption')}
+          {significance.reasons.length > 0 && <> {translateIn(language, 'inline', "Counted here: ")}{significance.reasons.join(', ')}.</>}
         </p>
       </div>
     </div>
@@ -843,12 +857,13 @@ export function RipplesPanel({
   figure: Figure;
   ctx: LifeContext;
 }) {
+  const { language } = useLanguage();
   const ripples = useMemo(() => ripplesAfter(figure, ctx), [figure, ctx]);
 
   if (ripples.length === 0) {
     return (
       <p className="text-sm text-[var(--ink-faint)]">
-        The record follows nothing past their death.
+        {translateIn(language, 'inline', "The record follows nothing past their death.")}
       </p>
     );
   }
