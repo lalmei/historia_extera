@@ -1,3 +1,6 @@
+import { useLanguage } from '../i18n/LanguageProvider';
+import { getNarrationCoverage, getNarrationTemplates } from '../i18n/narration.ts';
+import { translateIn } from '../i18n/translations.ts';
 import { Fragment, useMemo, useState } from 'react';
 import { narrate, separateStitchedEvents, stitchYears, unnarrated } from '../narrate';
 import { figureOf, type World } from '../store';
@@ -41,17 +44,22 @@ export function NarratedEvent({
   event: HistoryEvent;
   viewpoint?: string;
 }) {
+  const { language } = useLanguage();
+  const templates = useMemo(
+    () => getNarrationTemplates(world.export.narration, language),
+    [world, language],
+  );
   const parts = useMemo(
     () =>
       narrate(
         event,
-        world.export.narration,
+        templates,
         world.nameOf,
         viewpoint,
         (id) => figureOf(world, id)?.sex,
         campaignRoleOf(world, viewpoint, event),
       ),
-    [event, world, viewpoint],
+    [event, world, viewpoint, templates],
   );
 
   return (
@@ -100,6 +108,18 @@ export function EventList({
   /** When set, events are told as something this figure did. */
   viewpoint?: string;
 }) {
+  const { language, t } = useLanguage();
+  const fr = language === 'fr';
+  const numberLocale = fr ? 'fr-FR' : undefined;
+  const untranslatedKinds = useMemo(() => {
+    if (language === 'en') return [];
+    const translated = new Set(
+      getNarrationCoverage(world.export.narration, language).translatedKinds,
+    );
+    return [...new Set(events.map((event) => event.kind))]
+      .filter((eventKind) => !translated.has(eventKind))
+      .sort();
+  }, [world, events, language]);
   const [kind, setKind] = useState<string>('all');
   const [limit, setLimit] = useState(pageSize);
   const [showRecord, setShowRecord] = useState(false);
@@ -141,17 +161,29 @@ export function EventList({
   const separateEvents = separateStitchedEvents(viewpoint);
 
   if (events.length === 0) {
-    return <p className="text-sm text-[var(--ink-faint)]">{emptyMessage}</p>;
+    return <p className="text-sm text-[var(--ink-faint)]">{fr && emptyMessage === 'No events recorded.' ? 'Aucun événement consigné.' : emptyMessage}</p>;
   }
 
   return (
     <div>
+      {language !== 'en' && untranslatedKinds.length > 0 && (
+        <details className="mb-3 rounded border border-[var(--rule)] px-3 py-2 text-xs text-[var(--ink-faint)]">
+          <summary className="cursor-pointer">
+            {t('narration.untranslatedSummary', { count: untranslatedKinds.length })}
+          </summary>
+          <p className="mt-2">
+            {t('narration.untranslatedIntro', {
+              kinds: untranslatedKinds.map((eventKind) => humanise(eventKind, language)).join(', '),
+            })}
+          </p>
+        </details>
+      )}
       {showFilters && (
         <div className="mb-3 flex flex-wrap items-center gap-1.5">
           {kinds.length > 1 && (
             <>
               <FilterChip
-                label="All"
+                label={translateIn(language, 'inline', "All")}
                 count={spine.length}
                 active={kind === 'all'}
                 onClick={() => {
@@ -162,7 +194,7 @@ export function EventList({
               {kinds.map(([name, count]) => (
                 <FilterChip
                   key={name}
-                  label={humanise(name)}
+                  label={humanise(name, language)}
                   count={count}
                   active={kind === name}
                   onClick={() => {
@@ -185,7 +217,7 @@ export function EventList({
                 setKind('all');
                 setLimit(pageSize);
               }}
-              title="Ordinary births, deaths, marriages and consort appointments — true, and not the history"
+              title={translateIn(language, 'inline', "Ordinary births, deaths, marriages and consort appointments — true, and not the history")}
               className={`rounded border px-2 py-0.5 text-xs transition-colors ${
                 showRegister
                   ? 'border-[var(--primary)] text-[var(--primary)]'
@@ -193,8 +225,8 @@ export function EventList({
               }`}
             >
               {showRegister
-                ? 'Hide the register'
-                : `The register (${registerCount.toLocaleString()})`}
+                ? (translateIn(language, 'inline', "Hide the register"))
+                : (translateIn(language, 'inline', "The register ({e0})", { e0: registerCount.toLocaleString(), f0: registerCount.toLocaleString(numberLocale) }))}
             </button>
           )}
 
@@ -203,14 +235,14 @@ export function EventList({
           <button
             type="button"
             onClick={() => setShowRecord(!showRecord)}
-            title="Show what each event carries that its narration does not print"
+            title={translateIn(language, 'inline', "Show what each event carries that its narration does not print")}
             className={`ml-auto rounded border px-2 py-0.5 text-xs transition-colors ${
               showRecord
                 ? 'border-[var(--primary)] text-[var(--primary)]'
                 : 'border-[var(--rule)] text-[var(--ink-soft)] hover:border-[var(--primary)]'
             }`}
           >
-            {showRecord ? 'Hide the record' : 'The record'}
+            {translateIn(language, 'eventList', showRecord ? 'hideRecord' : 'showRecord')}
           </button>
         </div>
       )}
@@ -231,7 +263,7 @@ export function EventList({
                   ? 'w-11 text-left text-[var(--primary)]'
                   : 'w-14 text-right text-[var(--ink-faint)]'
               }`}
-              title={`Year ${group[0].year}`}
+              title={translateIn(language, 'inline', "Year {v0}", { v0: group[0].year })}
             >
               {group[0].year}
             </span>
@@ -261,7 +293,7 @@ export function EventList({
           onClick={() => setLimit(limit + pageSize * 4)}
           className="he-btn-secondary mt-3 w-full py-1.5 text-sm"
         >
-          Show more ({(filtered.length - limit).toLocaleString()} remaining)
+          {translateIn(language, 'inline', "Show more ({e0} remaining)", { e0: (filtered.length - limit).toLocaleString(), f0: (filtered.length - limit).toLocaleString(numberLocale) })}
         </button>
       )}
     </div>
@@ -286,17 +318,22 @@ function EventRecord({
   event: HistoryEvent;
   viewpoint?: string;
 }) {
+  const { language } = useLanguage();
+  const templates = useMemo(
+    () => getNarrationTemplates(world.export.narration, language),
+    [world, language],
+  );
   const { data, extra } = useMemo(
     () =>
       unnarrated(
         event,
-        world.export.narration,
+        templates,
         world.nameOf,
         viewpoint,
         (id) => figureOf(world, id)?.sex,
         campaignRoleOf(world, viewpoint, event),
       ),
-    [event, world, viewpoint],
+    [event, world, viewpoint, templates],
   );
 
   if (data.length === 0 && extra.length === 0) return null;
@@ -305,7 +342,7 @@ function EventRecord({
     <span className="mt-0.5 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-xs text-[var(--ink-faint)]">
       {data.map(([key, value]) => (
         <span key={key}>
-          <span className="tracking-wide uppercase">{key}</span> {value}
+          <span className="tracking-wide uppercase" title={key}>{translateIn(language, 'recordLabels', key)}</span> {value}
         </span>
       ))}
       {extra.map((id) => (
@@ -326,6 +363,7 @@ function FilterChip({
   active: boolean;
   onClick: () => void;
 }) {
+  const { language } = useLanguage();
   return (
     <button
       type="button"
@@ -337,13 +375,15 @@ function FilterChip({
       }`}
     >
       {label}
-      <span className="he-data ml-1.5 opacity-60">{count.toLocaleString()}</span>
+      <span className="he-data ml-1.5 opacity-60">{count.toLocaleString(language === 'fr' ? 'fr-FR' : undefined)}</span>
     </button>
   );
 }
 
 /** `SettlementFounded` → `Settlement founded`. */
-export function humanise(kind: string): string {
+export function humanise(kind: string, language: string = 'en'): string {
+  const translated = translateIn(language, 'eventLabels', kind);
+  if (translated !== kind) return translated;
   const spaced = kind.replace(/([a-z])([A-Z])/g, '$1 $2');
   return spaced.charAt(0).toUpperCase() + spaced.slice(1).toLowerCase();
 }

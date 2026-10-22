@@ -1,8 +1,9 @@
+import { translateIn, type Language } from './i18n/translations.ts';
+import { loreLabel, frCount, standingSentenceFr } from './i18n/lore.ts';
 import { CAMPAIGN_ROLE_LABELS, CRAFT_LABELS, OCCUPATION_LABELS } from './types.ts';
 import {
   interpretationSentenceParts,
   primaryInterpretationTheme,
-  THEME_LABELS,
   type BiographyTheme,
 } from './biographyInterpret.ts';
 import type {
@@ -374,6 +375,8 @@ function references(event: HistoryEvent, id: EntityId): boolean {
 
 /** What these derivations need from the world, without importing the store into a pure module. */
 export interface LifeContext {
+  /** Display language only; omitted means the historical English rendering. */
+  language?: Language;
   /** The last year the record covers. */
   endYear: number;
   figureOf: (id: EntityId) => Figure | undefined;
@@ -462,6 +465,7 @@ export function buildLifeArc(
   ctx: LifeContext,
   limit = 9,
 ): LifeArc {
+  const fr = ctx.language === 'fr';
   const lastYear = figure.deathYear ?? ctx.endYear;
   const age = (year: number) => year - figure.birthYear;
   const moments: LifeMoment[] = [];
@@ -474,8 +478,8 @@ export function buildLifeArc(
     key: 'birth',
     year: figure.birthYear,
     kind: 'Birth',
-    label: 'Born',
-    detail: `Born in ${figure.birthYear}`,
+    label: translateIn(ctx.language, 'inline', "Born"),
+    detail: translateIn(ctx.language, 'inline', "Born in {v0}", { v0: figure.birthYear }),
     aboutId: figure.birthSettlementId,
     score: 1000,
   });
@@ -488,8 +492,8 @@ export function buildLifeArc(
         key: 'trade',
         year: tookUpTrade.year,
         kind: 'Trade',
-        label: trade,
-        detail: `Took to ${(tookUpTrade.data?.occupation ?? trade).toLowerCase()} in ${tookUpTrade.year}`,
+        label: loreLabel(ctx.language, trade),
+        detail: translateIn(ctx.language, 'inline', "Took to {e0} in {e1}", { e0: (tookUpTrade.data?.occupation ?? trade).toLowerCase(), e1: tookUpTrade.year, f0: loreLabel('fr', trade), f1: tookUpTrade.year }),
         score: 60,
       });
     }
@@ -505,8 +509,8 @@ export function buildLifeArc(
       key: `office:${firstTitle.fromYear}`,
       year: firstTitle.fromYear,
       kind: 'Office',
-      label: firstTitle.title,
-      detail: `Made ${firstTitle.title} in ${firstTitle.fromYear}`,
+      label: loreLabel(ctx.language, firstTitle.title),
+      detail: translateIn(ctx.language, 'inline', "Made {e0} in {e1}", { e0: firstTitle.title, e1: firstTitle.fromYear, f0: loreLabel('fr', firstTitle.title), f1: firstTitle.fromYear }),
       aboutId: firstTitle.scopeId ?? firstTitle.civilizationId,
       score: 75 + (OFFICE_STANDING[firstTitle.kind] ?? 0),
     });
@@ -516,8 +520,8 @@ export function buildLifeArc(
       key: `office:${highestTitle.fromYear}`,
       year: highestTitle.fromYear,
       kind: 'Office',
-      label: highestTitle.title,
-      detail: `Raised to ${highestTitle.title} in ${highestTitle.fromYear}`,
+      label: loreLabel(ctx.language, highestTitle.title),
+      detail: translateIn(ctx.language, 'inline', "Raised to {e0} in {e1}", { e0: highestTitle.title, e1: highestTitle.fromYear, f0: loreLabel('fr', highestTitle.title), f1: highestTitle.fromYear }),
       aboutId: highestTitle.scopeId ?? highestTitle.civilizationId,
       score: 85 + (OFFICE_STANDING[highestTitle.kind] ?? 0),
     });
@@ -531,8 +535,8 @@ export function buildLifeArc(
       key: `rank:${topRank.year}`,
       year: topRank.year,
       kind: 'Rank',
-      label: topRank.title,
-      detail: `Raised to ${topRank.title} in ${topRank.year}${topRank.claim ? `, ${topRank.claim}` : ''}`,
+      label: loreLabel(ctx.language, topRank.title),
+      detail: translateIn(ctx.language, 'inline', "Raised to {e0} in {e1}{e2}", { e0: topRank.title, e1: topRank.year, e2: topRank.claim ? `, ${topRank.claim}` : '', f0: loreLabel('fr', topRank.title), f1: topRank.year, f2: topRank.claim ? ` — ${topRank.claim}` : '' }),
       aboutId: topRank.civilizationId,
       score: 68 + (RANK_STANDING[topRank.rank] ?? 0),
     });
@@ -546,8 +550,8 @@ export function buildLifeArc(
       key: `marriage:${marriage.otherId}`,
       year: marriage.sinceYear,
       kind: 'Marriage',
-      label: index === 0 ? 'Marriage' : 'Remarriage',
-      detail: `Married ${ctx.nameOf(marriage.otherId)} in ${marriage.sinceYear}`,
+      label: fr ? (index === 0 ? 'Mariage' : 'Remariage') : (index === 0 ? 'Marriage' : 'Remarriage'),
+      detail: translateIn(ctx.language, 'inline', "Married {v0} in {v1}", { v0: ctx.nameOf(marriage.otherId), v1: marriage.sinceYear }),
       aboutId: marriage.otherId,
       score: 80 - index * 4,
     });
@@ -564,11 +568,11 @@ export function buildLifeArc(
       kind: 'Children',
       // Dated to the first child, and labelled as the first of them: a chip reading "7 children"
       // that moves the year to a house with one in it is a small lie about the same fact.
-      label: children.length === 1 ? 'A child' : `First of ${children.length}`,
+      label: fr ? (children.length === 1 ? 'Un enfant' : `Premier de ${children.length}`) : (children.length === 1 ? 'A child' : `First of ${children.length}`),
       detail:
         children.length === 1
-          ? `${children[0].name} born in ${children[0].birthYear}`
-          : `${children.length} children, from ${children[0].birthYear} to ${children.at(-1)!.birthYear}`,
+          ? (translateIn(ctx.language, 'inline', "{v0} born in {v1}", { v0: children[0].name, v1: children[0].birthYear }))
+          : (translateIn(ctx.language, 'inline', "{v0} children, from {v1} to {v2}", { v0: children.length, v1: children[0].birthYear, v2: children.at(-1)!.birthYear })),
       aboutId: children[0].id,
       score: 78,
     });
@@ -582,10 +586,10 @@ export function buildLifeArc(
       key: `loss:${worstLoss.year}:${worstLoss.aboutId ?? ''}`,
       year: worstLoss.year,
       kind: 'Loss',
-      label: 'Loss',
+      label: translateIn(ctx.language, 'inline', "Loss"),
       detail: worstLoss.aboutId
-        ? `Lost ${ctx.nameOf(worstLoss.aboutId)} in ${worstLoss.year}`
-        : `Bereaved in ${worstLoss.year}`,
+        ? (translateIn(ctx.language, 'inline', "Lost {v0} in {v1}", { v0: ctx.nameOf(worstLoss.aboutId), v1: worstLoss.year }))
+        : (translateIn(ctx.language, 'inline', "Bereaved in {v0}", { v0: worstLoss.year })),
       aboutId: worstLoss.aboutId,
       score: 72,
     });
@@ -603,8 +607,8 @@ export function buildLifeArc(
       key: `friendship:${affinity.id}`,
       year: affinity.startYear,
       kind: 'Friendship',
-      label: 'Friendship',
-      detail: `${ctx.nameOf(affinity.otherId)}, from ${affinity.startYear}${years > 0 ? ` — ${counted(years, 'year')}` : ''}`,
+      label: translateIn(ctx.language, 'inline', "Friendship"),
+      detail: translateIn(ctx.language, 'inline', "{e0}, from {e1}{e2}", { e0: ctx.nameOf(affinity.otherId), e1: affinity.startYear, e2: years > 0 ? ` — ${counted(years, 'year')}` : '', f0: ctx.nameOf(affinity.otherId), f1: affinity.startYear, f2: years > 0 ? ` — ${frCount(years, 'an')}` : '' }),
       aboutId: affinity.otherId,
       score: 66,
     });
@@ -618,8 +622,8 @@ export function buildLifeArc(
       key: `wound:${worstWound.year}`,
       year: worstWound.year,
       kind: 'Wound',
-      label: worstWound.permanent ? 'Maimed' : 'Wounded',
-      detail: `${worstWound.detail} in ${worstWound.year}`,
+      label: fr ? (worstWound.permanent ? 'Mutilation' : 'Blessure') : (worstWound.permanent ? 'Maimed' : 'Wounded'),
+      detail: translateIn(ctx.language, 'inline', "{v0} in {v1}", { v0: worstWound.detail, v1: worstWound.year }),
       aboutId: worstWound.causeId,
       score: 64 + (worstWound.permanent ? 6 : 0),
     });
@@ -634,7 +638,7 @@ export function buildLifeArc(
       key: `campaign:${subject}`,
       year: notableCampaign.year,
       kind: 'Campaign',
-      label: CAMPAIGN_ROLE_LABELS[notableCampaign.role],
+      label: loreLabel(ctx.language, CAMPAIGN_ROLE_LABELS[notableCampaign.role]),
       detail: `${ctx.nameOf(subject)}, ${notableCampaign.year}`,
       aboutId: subject,
       score: 62 + notableCampaign.renownGained,
@@ -646,8 +650,8 @@ export function buildLifeArc(
       key: 'death',
       year: figure.deathYear,
       kind: 'Death',
-      label: 'Died',
-      detail: `Died in ${figure.deathYear}, aged ${figure.deathYear - figure.birthYear}`,
+      label: translateIn(ctx.language, 'inline', "Died"),
+      detail: translateIn(ctx.language, 'inline', "Died in {v0}, aged {v1}", { v0: figure.deathYear, v1: figure.deathYear - figure.birthYear }),
       score: 1000,
     });
   }
@@ -705,6 +709,7 @@ export interface LifeVantage {
  * is death. A reader who drags between them is doing the comparison the temporal model exists for.
  */
 export function lifeVantages(figure: Figure, arc: LifeArc, ctx: LifeContext): LifeVantage[] {
+  const fr = ctx.language === 'fr';
   const vantages: LifeVantage[] = [];
   const entryYear = arc.moments.find(
     (moment) => moment.kind === 'Trade' || moment.kind === 'Rank' || moment.kind === 'Office',
@@ -715,9 +720,9 @@ export function lifeVantages(figure: Figure, arc: LifeArc, ctx: LifeContext): Li
   if (youth !== undefined && youth > figure.birthYear) {
     vantages.push({
       key: 'Youth',
-      label: 'At youth',
+      label: translateIn(ctx.language, 'inline', "At youth"),
       year: youth,
-      hint: entryYear ? 'The year adult life began' : 'Sixteen years old',
+      hint: fr ? (entryYear ? 'L’année du début de la vie adulte' : 'À seize ans') : (entryYear ? 'The year adult life began' : 'Sixteen years old'),
     });
   }
 
@@ -729,27 +734,27 @@ export function lifeVantages(figure: Figure, arc: LifeArc, ctx: LifeContext): Li
   ) {
     vantages.push({
       key: 'Peak',
-      label: 'At height',
+      label: translateIn(ctx.language, 'inline', "At height"),
       year: peak,
       hint: highestOffice(figure)
-        ? `The year they first became ${highestOffice(figure)!.title}`
-        : 'The year the record has most to say about them',
+        ? (translateIn(ctx.language, 'inline', "The year they first became {e0}", { e0: highestOffice(figure)!.title, f0: loreLabel('fr', highestOffice(figure)!.title) }))
+        : (translateIn(ctx.language, 'inline', "The year the record has most to say about them")),
     });
   }
 
   if (figure.deathYear !== undefined) {
     vantages.push({
       key: 'Death',
-      label: 'At death',
+      label: translateIn(ctx.language, 'inline', "At death"),
       year: figure.deathYear,
-      hint: `Aged ${figure.deathYear - figure.birthYear}`,
+      hint: translateIn(ctx.language, 'inline', "Aged {v0}", { v0: figure.deathYear - figure.birthYear }),
     });
   } else {
     vantages.push({
       key: 'Latest',
-      label: 'Last year',
+      label: translateIn(ctx.language, 'inline', "Last year"),
       year: ctx.endYear,
-      hint: 'Still living where the record ends',
+      hint: translateIn(ctx.language, 'inline', "Still living where the record ends"),
     });
   }
 
@@ -817,7 +822,7 @@ export function standingAt(figure: Figure, requestedYear: number, ctx: LifeConte
     position: office?.title ?? rank?.title ?? trade,
     household,
     childCount,
-    closest: closest ? { id: closest.otherId, reading: relationshipReading(closest) } : undefined,
+    closest: closest ? { id: closest.otherId, reading: relationshipReading(closest, ctx.language) } : undefined,
     interpretationTheme: primaryInterpretationTheme(figure, year),
     activeMemories: figure.memories.filter((memory) => visibleMemoryAt(memory, year)).length,
   };
@@ -848,6 +853,10 @@ export function standingSentence(
   ctx: LifeContext,
   place?: string,
 ): StandingPart[] {
+  if (ctx.language === 'fr') {
+    const interpretationParts = interpretationSentenceParts(figure, standing.year, ctx, 3);
+    return standingSentenceFr(figure, standing, ctx, place, interpretationParts);
+  }
   const parts: StandingPart[] = [];
   const text = (value: string) => parts.push({ type: 'text', text: value });
   const pronoun = PRONOUNS[figure.sex] ?? { subject: 'They', object: 'them' };
@@ -986,7 +995,7 @@ export function buildConstellation(
     tie: tieOf(bond),
     strength: Math.min(1, relationshipImportance(bond) / peak),
     roles: bond.kinds,
-    reading: relationshipReading(bond),
+    reading: relationshipReading(bond, ctx.language),
   }));
 }
 
@@ -1084,8 +1093,8 @@ export function knownFor(
       90,
       'service',
       years >= 2
-        ? `${counted(years, 'year')} under arms`
-        : `Took to arms in ${Math.min(...service)}`,
+        ? (translateIn(ctx.language, 'inline', "{e0} under arms", { e0: counted(years, 'year'), f0: frCount(years, 'an') }))
+        : (translateIn(ctx.language, 'inline', "Took to arms in {v0}", { v0: Math.min(...service) })),
     );
   }
 
@@ -1096,22 +1105,22 @@ export function knownFor(
       88,
       'offices',
       distinct.size === 1
-        ? `${offices[0].title} of `
-        : `Held ${counted(distinct.size, 'office')}, latterly in `,
+        ? (translateIn(ctx.language, 'inline', "{e0} of ", { e0: offices[0].title, f0: loreLabel('fr', offices[0].title) }))
+        : (translateIn(ctx.language, 'inline', "Held {e0}, latterly in ", { e0: counted(distinct.size, 'office'), f0: frCount(distinct.size, 'fonction'), f1: distinct.size === 1 ? 'exercée' : 'exercées' })),
       offices.at(-1)!.civilizationId,
     );
   }
 
   const accessions = accessionsLivedUnder(figure, throughYear, ctx);
   if (accessions >= 2) {
-    push(70, 'rulers', `Lived under ${counted(accessions, 'ruler')}`);
+    push(70, 'rulers', (translateIn(ctx.language, 'inline', "Lived under {e0}", { e0: counted(accessions, 'ruler'), f0: frCount(accessions, 'souverain') })));
   }
 
   const children = figure.childIds
     .map((id) => ctx.figureOf(id))
     .filter((child): child is Figure => child !== undefined && child.birthYear <= throughYear);
   if (children.length > 0) {
-    push(84, 'children', `Raised ${counted(children.length, 'child', 'children')}`);
+    push(84, 'children', (translateIn(ctx.language, 'inline', "Raised {e0}", { e0: counted(children.length, 'child', 'children'), f0: frCount(children.length, 'enfant') })));
   }
 
   const closeKin = [
@@ -1128,7 +1137,7 @@ export function knownFor(
         kin.deathYear <= Math.min(throughYear, figure.deathYear ?? throughYear),
     );
   if (closeKin.length > 0) {
-    push(80, 'outlived', `Outlived ${counted(closeKin.length, 'close relative')}`);
+    push(80, 'outlived', (translateIn(ctx.language, 'inline', "Outlived {e0}", { e0: counted(closeKin.length, 'close relative'), f0: frCount(closeKin.length, 'proche') })));
   }
 
   const friendship = (figure.affinities ?? [])
@@ -1142,9 +1151,9 @@ export function knownFor(
     push(
       76,
       'friendship',
-      'Friendship with ',
+      (translateIn(ctx.language, 'inline', "Friendship with ")),
       friendship.affinity.otherId,
-      ` lasted ${counted(friendship.years, 'year')}`,
+      (translateIn(ctx.language, 'inline', " lasted {e0}", { e0: counted(friendship.years, 'year'), f0: frCount(friendship.years, 'an') })),
     );
   }
 
@@ -1152,7 +1161,7 @@ export function knownFor(
     (campaign) => campaign.year <= throughYear && campaign.battleId !== undefined,
   );
   if (battles.length > 0) {
-    push(72, 'battles', `Stood in ${counted(battles.length, 'engagement')}`);
+    push(72, 'battles', (translateIn(ctx.language, 'inline', "Stood in {e0}", { e0: counted(battles.length, 'engagement'), f0: frCount(battles.length, 'engagement') })));
   }
 
   const wounds = figure.injuries.filter((injury) => injury.year <= throughYear);
@@ -1160,14 +1169,14 @@ export function knownFor(
     push(
       68,
       'wounds',
-      `Wounded ${counted(wounds.length, 'time')}${wounds.some((wound) => wound.permanent) ? ', one of them for good' : ''}`,
+      (translateIn(ctx.language, 'inline', "Wounded {e0}{e1}", { e0: counted(wounds.length, 'time'), e1: wounds.some((wound) => wound.permanent) ? ', one of them for good' : '', f0: frCount(wounds.length, 'blessure'), f1: wounds.some((wound) => wound.permanent) ? ', dont une aux séquelles permanentes' : '' })),
     );
   }
 
   const journeys = figure.journeys.filter((journey) => journey.year <= throughYear);
   if (journeys.length >= 3) {
     const places = new Set(journeys.map((journey) => journey.toSettlementId));
-    push(60, 'journeys', `Travelled to ${counted(places.size, 'town')}`);
+    push(60, 'journeys', (translateIn(ctx.language, 'inline', "Travelled to {e0}", { e0: counted(places.size, 'town'), f0: frCount(places.size, 'ville') })));
   }
 
   const claims = figure.claims.filter((claim) => claim.year <= throughYear);
@@ -1179,8 +1188,8 @@ export function knownFor(
       64,
       'sky',
       borneOut > 0
-        ? `Read the sky, and was borne out ${counted(borneOut, 'time')}`
-        : `Set down ${counted(claims.length, 'reading')} of the sky`,
+        ? (translateIn(ctx.language, 'inline', "Read the sky, and was borne out {e0}", { e0: counted(borneOut, 'time'), f0: frCount(borneOut, 'interprétation'), f1: borneOut === 1 ? 'confirmée' : 'confirmées' }))
+        : (translateIn(ctx.language, 'inline', "Set down {e0} of the sky", { e0: counted(claims.length, 'reading'), f0: frCount(claims.length, 'interprétation'), f1: claims.length === 1 ? 'consignée' : 'consignées' })),
     );
   }
 
@@ -1188,7 +1197,7 @@ export function knownFor(
     (event) => event.year <= throughYear && event.subject !== figure.id,
   ).length;
   if (mentions >= 12) {
-    push(56, 'mentions', `Named in ${counted(mentions, "other person's record", "other people's records")}`);
+    push(56, 'mentions', (translateIn(ctx.language, 'inline', "Named in {e0}", { e0: counted(mentions, "other person's record", "other people's records"), f0: frCount(mentions, 'autre personne', 'autres personnes') })));
   }
 
   return lines
@@ -1229,6 +1238,7 @@ export function historicalSignificance(
   ctx: LifeContext,
   artifactCount = 0,
 ): Significance {
+  const fr = ctx.language === 'fr';
   const contributions: { weight: number; reason: string }[] = [];
   const contribute = (weight: number, reason: string) => {
     if (weight > 0) contributions.push({ weight, reason });
@@ -1239,57 +1249,57 @@ export function historicalSignificance(
     (sum, title) => sum + (OFFICE_STANDING[title.kind] ?? 1) * 1.6,
     0,
   );
-  contribute(officeWeight, offices.length === 1 ? `${offices[0].title}` : `${offices.length} offices held`);
+  contribute(officeWeight, offices.length === 1 ? loreLabel(ctx.language, offices[0].title) : (translateIn(ctx.language, 'inline', "{v0} offices held", { v0: offices.length })));
 
   const commands = figure.campaigns.filter(
     (campaign) => campaign.year <= throughYear && campaign.role === 'Commanded',
   );
-  contribute(commands.length * 2.4, `${counted(commands.length, 'command')} in the field`);
+  contribute(commands.length * 2.4, (translateIn(ctx.language, 'inline', "{e0} in the field", { e0: counted(commands.length, 'command'), f0: frCount(commands.length, 'commandement') })));
 
   const battles = figure.campaigns.filter(
     (campaign) => campaign.year <= throughYear && campaign.battleId !== undefined,
   );
-  contribute(battles.length * 0.9, `${counted(battles.length, 'engagement')}`);
+  contribute(battles.length * 0.9, (fr ? frCount(battles.length, 'engagement') : `${counted(battles.length, 'engagement')}`));
 
   const topRank = figure.service
     .filter((step) => step.year <= throughYear)
     .reduce((best, step) => Math.max(best, RANK_STANDING[step.rank] ?? 0), 0);
-  contribute(topRank * 0.8, topRank >= 4 ? 'raised high in the army' : 'served in the army');
+  contribute(topRank * 0.8, fr ? (topRank >= 4 ? 'hautes responsabilités militaires' : 'service dans l’armée') : (topRank >= 4 ? 'raised high in the army' : 'served in the army'));
 
-  contribute(artifactCount * 2.2, `${counted(artifactCount, 'treasure')} held`);
+  contribute(artifactCount * 2.2, (translateIn(ctx.language, 'inline', "{e0} held", { e0: counted(artifactCount, 'treasure'), f0: frCount(artifactCount, 'trésor') })));
 
   const plots = figure.plots.filter((plot) => plot.startYear <= throughYear);
-  contribute(plots.length * 2.6, `${counted(plots.length, 'conspiracy', 'conspiracies')}`);
+  contribute(plots.length * 2.6, (fr ? frCount(plots.length, 'complot') : `${counted(plots.length, 'conspiracy', 'conspiracies')}`));
 
   const undertakings = figure.undertakings.filter(
     (undertaking) => undertaking.startYear <= throughYear,
   );
-  contribute(undertakings.length * 1.2, `${counted(undertakings.length, 'undertaking')}`);
+  contribute(undertakings.length * 1.2, (fr ? frCount(undertakings.length, 'entreprise') : `${counted(undertakings.length, 'undertaking')}`));
 
   const rulersKnown = figure.bonds.filter(
     (bond) =>
       visibleBondAt(bond, throughYear) &&
       (ctx.figureOf(bond.otherId)?.titles ?? []).some((title) => title.kind === 'Ruler'),
   );
-  contribute(rulersKnown.length * 1.5, `known to ${counted(rulersKnown.length, 'ruler')}`);
+  contribute(rulersKnown.length * 1.5, (translateIn(ctx.language, 'inline', "known to {e0}", { e0: counted(rulersKnown.length, 'ruler'), f0: frCount(rulersKnown.length, 'souverain') })));
 
   const descendants = figure.childIds
     .map((id) => ctx.figureOf(id))
     .filter((child): child is Figure => child !== undefined && child.birthYear <= throughYear);
-  contribute(descendants.length * 0.4, `${counted(descendants.length, 'child', 'children')}`);
+  contribute(descendants.length * 0.4, (fr ? frCount(descendants.length, 'enfant') : `${counted(descendants.length, 'child', 'children')}`));
 
   const journeys = figure.journeys.filter((journey) => journey.year <= throughYear);
-  contribute(journeys.length * 0.25, `${counted(journeys.length, 'journey')}`);
+  contribute(journeys.length * 0.25, (fr ? frCount(journeys.length, 'voyage') : `${counted(journeys.length, 'journey')}`));
 
   const claims = figure.claims.filter((claim) => claim.year <= throughYear);
-  contribute(claims.length * 1.4, `${counted(claims.length, 'reading')} of the sky`);
+  contribute(claims.length * 1.4, (translateIn(ctx.language, 'inline', "{e0} of the sky", { e0: counted(claims.length, 'reading'), f0: frCount(claims.length, 'interprétation') })));
 
   // Being written into somebody else's year is the one measure here that no single system
   // produces: it is the history noticing them.
   const mentions = events.filter(
     (event) => event.year <= throughYear && event.subject !== figure.id,
   ).length;
-  contribute(mentions * 0.14, `named in ${counted(mentions, 'other record')}`);
+  contribute(mentions * 0.14, (translateIn(ctx.language, 'inline', "named in {e0}", { e0: counted(mentions, 'other record'), f0: frCount(mentions, 'autre récit', 'autres récits') })));
 
   const total = contributions.reduce((sum, entry) => sum + entry.weight, 0);
   // Saturating rather than linear: the difference between a king and a general should be small,
@@ -1348,7 +1358,7 @@ export function ripplesAfter(figure: Figure, ctx: LifeContext, limit = 5): Rippl
       `line:${child.id}`,
       '',
       child.id,
-      ` continued the line — ${counted(child.childIds.length, 'child', 'children')}`,
+      (translateIn(ctx.language, 'inline', " continued the line — {e0}", { e0: counted(child.childIds.length, 'child', 'children'), f0: frCount(child.childIds.length, 'enfant') })),
     );
   }
 
@@ -1357,10 +1367,10 @@ export function ripplesAfter(figure: Figure, ctx: LifeContext, limit = 5): Rippl
     push(
       70,
       'survived',
-      `Outlived by ${counted(survivors.length, 'child', 'children')}`,
+      (translateIn(ctx.language, 'inline', "Outlived by {e0}", { e0: counted(survivors.length, 'child', 'children'), f0: frCount(survivors.length, 'enfant'), f1: survivors.length === 1 ? 'a' : 'ont' })),
       undefined,
       survivors.some((child) => child.deathYear === undefined)
-        ? ', of whom the record loses none'
+        ? (translateIn(ctx.language, 'inline', ", of whom the record loses none"))
         : '',
     );
   }
@@ -1382,8 +1392,8 @@ export function ripplesAfter(figure: Figure, ctx: LifeContext, limit = 5): Rippl
       '',
       carried.affinity.otherId,
       carriedTo === undefined
-        ? ' carried their friendship past the end of the record'
-        : ` carried their friendship ${counted(carriedTo - death, 'year')} longer, to their own death`,
+        ? (translateIn(ctx.language, 'inline', " carried their friendship past the end of the record"))
+        : (translateIn(ctx.language, 'inline', " carried their friendship {e0} longer, to their own death", { e0: counted(carriedTo - death, 'year'), f0: frCount(carriedTo - death, 'an') })),
     );
   }
 
@@ -1402,7 +1412,7 @@ export function ripplesAfter(figure: Figure, ctx: LifeContext, limit = 5): Rippl
     push(
       86,
       'descendants',
-      `Descendants stood in ${counted(laterIds.size, 'later recorded event')}`,
+      (translateIn(ctx.language, 'inline', "Descendants stood in {e0}", { e0: counted(laterIds.size, 'later recorded event'), f0: frCount(laterIds.size, 'événement ultérieur consigné', 'événements ultérieurs consignés') })),
     );
   }
 
@@ -1420,7 +1430,7 @@ export function ripplesAfter(figure: Figure, ctx: LifeContext, limit = 5): Rippl
         'successor',
         '',
         successor.subject,
-        ` took the seat in ${ctx.nameOf(seat.civilizationId)}, in ${successor.year}`,
+        (translateIn(ctx.language, 'inline', " took the seat in {v0}, in {v1}", { v0: ctx.nameOf(seat.civilizationId), v1: successor.year })),
       );
     }
   }
@@ -1488,15 +1498,15 @@ function tieOf(bond: FigureBond): ConstellationTie {
 }
 
 /** How a bond reads in a few words: the strongest feeling in it, or the last thing that moved it. */
-export function relationshipReading(bond: FigureBond): string {
-  if (bond.grievance >= 0.65) return 'a bitter grievance';
-  if (bond.fear >= 0.55) return 'feared';
-  if (bond.trust <= -0.45) return 'deeply distrusted';
-  if (bond.obligation >= 0.55) return 'bound by duty';
-  if (bond.trust >= 0.55) return 'deeply trusted';
-  if (bond.affection >= 0.45) return 'held dear';
-  if (bond.affection <= -0.35) return 'disliked';
-  return bond.lastCause.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
+export function relationshipReading(bond: FigureBond, language: Language = 'en'): string {
+  if (bond.grievance >= 0.65) return loreLabel(language, 'a bitter grievance');
+  if (bond.fear >= 0.55) return loreLabel(language, 'feared');
+  if (bond.trust <= -0.45) return loreLabel(language, 'deeply distrusted');
+  if (bond.obligation >= 0.55) return loreLabel(language, 'bound by duty');
+  if (bond.trust >= 0.55) return loreLabel(language, 'deeply trusted');
+  if (bond.affection >= 0.45) return loreLabel(language, 'held dear');
+  if (bond.affection <= -0.35) return loreLabel(language, 'disliked');
+  return loreLabel(language, bond.lastCause.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase());
 }
 
 /**

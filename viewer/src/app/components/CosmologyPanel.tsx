@@ -1,3 +1,5 @@
+import { useLanguage } from '../i18n/LanguageProvider';
+import { translateIn } from '../i18n/translations.ts';
 import { useState, type ReactNode } from 'react';
 import type {
   CompanionRole,
@@ -28,6 +30,8 @@ import { NightSky } from './NightSky';
  * away at the bottom so they stop competing with the picture.
  */
 export function CosmologyPage({ world }: { world: World }) {
+  const { language } = useLanguage();
+  const tr = (value: string) => cosmologyText(language, value);
   const { designation, name, kind, cosmology } = world.export.world;
   const beginning = world.export.events.find((event) => event.kind === 'WorldCreated');
   const seed = world.export.meta.seed;
@@ -35,12 +39,9 @@ export function CosmologyPage({ world }: { world: World }) {
   if (!cosmology) {
     return (
       <div className="space-y-5">
-        <PageTitle eyebrow={designation || name} title="Cosmology" />
-        <Panel title="Cosmology">
-          <p className="text-sm text-[var(--ink-soft)]">
-            This export predates stellar-system physics — regenerate the world to see habitable-zone
-            diagnostics.
-          </p>
+        <PageTitle eyebrow={designation || name} title={tr("Cosmology")} />
+        <Panel title={tr("Cosmology")}>
+          <p className="text-sm text-[var(--ink-soft)]">{tr("This export predates stellar-system physics — regenerate the world to see habitable-zone diagnostics.")}</p>
         </Panel>
       </div>
     );
@@ -53,11 +54,11 @@ export function CosmologyPage({ world }: { world: World }) {
     <div className="space-y-5">
       <PageTitle
         eyebrow={designation || name}
-        title="Cosmology"
+        title={tr("Cosmology")}
         meta={
           <span className="text-[var(--ink-faint)]">
-            {c.galaxy ? `${morphologyLabel(c.galaxy.morphology)} galaxy · ` : ''}
-            {starLabel(c.starClass)} · {kind === 'Moon' ? 'habitable moon' : 'habitable planet'}
+            {c.galaxy ? (translateIn(language, 'inline', "{v0} galaxy · ", { v0: tr(morphologyLabel(c.galaxy.morphology)) })) : ''}
+            {tr(starLabel(c.starClass))} · {kind === 'Moon' ? tr('habitable moon') : tr('habitable planet')}
           </span>
         }
       />
@@ -69,7 +70,7 @@ export function CosmologyPage({ world }: { world: World }) {
       {c.galaxy && (
         <div className="grid gap-5 lg:grid-cols-5">
           <div className="lg:col-span-3">
-            <Panel title={`Night sky from ${name}`}>
+            <Panel title={(translateIn(language, 'inline', "Night sky from {v0}", { v0: name }))}>
               <NightSky galaxy={c.galaxy} seed={seed ?? 0} />
             </Panel>
           </div>
@@ -123,47 +124,49 @@ function VitalSigns({
   kind: WorldKind;
   starAgeGyr?: string;
 }) {
+  const { language } = useLanguage();
+  const tr = (value: string) => cosmologyText(language, value);
   const tiles: { value: string; label: string; note?: string }[] = [
     {
-      value: `${c.starClass}-type`,
-      label: 'Host star',
+      value: (translateIn(language, 'inline', "{v0}-type", { v0: c.starClass })),
+      label: tr('Host star'),
       note: `${c.starMassSolar.toFixed(2)} M☉ · ${c.luminositySolar.toFixed(2)} L☉`,
     },
     {
       value: `${c.worldRadiusEarth.toFixed(2)} R⊕`,
-      label: kind === 'Moon' ? 'Moon radius' : 'Planet radius',
+      label: kind === 'Moon' ? tr('Moon radius') : tr('Planet radius'),
       note: `${Math.round(c.worldRadiusEarth * EARTH_KM).toLocaleString()} km`,
     },
     {
       value: `${c.worldMassEarth.toFixed(2)} M⊕`,
-      label: kind === 'Moon' ? 'Moon mass' : 'Planet mass',
-      note: `${c.meanDensityEarth != null ? `${c.meanDensityEarth.toFixed(2)} ρ⊕` : 'density unrecorded'}`,
+      label: kind === 'Moon' ? tr('Moon mass') : tr('Planet mass'),
+      note: `${c.meanDensityEarth != null ? `${c.meanDensityEarth.toFixed(2)} ρ⊕` : tr('density unrecorded')}`,
     },
     {
       value: `${c.surfaceGravityG.toFixed(2)} g`,
-      label: 'Surface gravity',
-      note: `escape ${c.escapeVelocityKmS.toFixed(1)} km/s`,
+      label: tr('Surface gravity'),
+      note: (translateIn(language, 'inline', "escape {v0} km/s", { v0: c.escapeVelocityKmS.toFixed(1) })),
     },
     {
       value: `${Math.round(c.surfaceTempK)} K`,
-      label: 'Surface temp',
+      label: tr('Surface temp'),
       note: `${(c.surfaceTempK - 273.15).toFixed(0)} °C`,
     },
     {
       value: `${c.orbitalDistanceAu.toFixed(2)} AU`,
-      label: kind === 'Moon' ? 'Parent orbit' : 'Orbital distance',
-      note: `HZ ${c.habitableZoneInnerAu.toFixed(2)}–${c.habitableZoneOuterAu.toFixed(2)} AU`,
+      label: kind === 'Moon' ? tr('Parent orbit') : tr('Orbital distance'),
+      note: (translateIn(language, 'inline', "HZ {v0}–{v1} AU", { v0: c.habitableZoneInnerAu.toFixed(2), v1: c.habitableZoneOuterAu.toFixed(2) })),
     },
     starAgeGyr
       ? {
           value: `${starAgeGyr} Gyr`,
-          label: 'System age',
-          note: `of ${c.starLifespanGyr.toFixed(1)} Gyr on the main sequence`,
+          label: tr('System age'),
+          note: (translateIn(language, 'inline', "of {v0} Gyr on the main sequence", { v0: c.starLifespanGyr.toFixed(1) })),
         }
       : {
           value: `${c.starLifespanGyr.toFixed(1)} Gyr`,
-          label: 'Stellar lifespan',
-          note: 'main sequence',
+          label: tr('Stellar lifespan'),
+          note: tr('main sequence'),
         },
   ];
 
@@ -200,6 +203,8 @@ function SystemSection({
   name: string;
   systemName?: string;
 }) {
+  const { language } = useLanguage();
+  const tr = (value: string) => cosmologyText(language, value);
   const [mode, setMode] = useState<'system' | 'zone'>('system');
   const companions = c.companions ?? [];
   const comets = c.comets ?? [];
@@ -207,38 +212,34 @@ function SystemSection({
   const planetCount = companions.length + (kind === 'Planet' ? 1 : 0);
 
   const facts = [
-    { value: starLabel(c.starClass), label: `${c.starMassSolar.toFixed(2)} M☉` },
-    { value: `${planetCount} planets`, label: `${companions.filter((b) => b.appearance).length} giants` },
-    { value: `${moonCount} ${moonCount === 1 ? 'moon' : 'moons'}`, label: 'in the system' },
-    { value: `${comets.length} comets`, label: 'tracked' },
+    { value: tr(starLabel(c.starClass)), label: `${c.starMassSolar.toFixed(2)} M☉` },
+    { value: (translateIn(language, 'inline', "{e0} planets", { e0: planetCount, f0: planetCount, f1: planetCount > 1 ? 's' : '' })), label: (translateIn(language, 'inline', "{v0} giants", { v0: companions.filter((b) => b.appearance).length })) },
+    { value: (translateIn(language, 'inline', "{e0} {e1} [components/CosmologyPanel.tsx:217]", { e0: moonCount, e1: moonCount === 1 ? 'moon' : 'moons', f0: moonCount, f1: moonCount > 1 ? 's' : '' })), label: tr('in the system') },
+    { value: (translateIn(language, 'inline', "{e0} comets", { e0: comets.length, f0: comets.length, f1: comets.length > 1 ? 's' : '' })), label: tr('tracked') },
     {
       value: c.snowLineAu != null ? `${c.snowLineAu.toFixed(2)} AU` : '—',
-      label: 'snow line',
+      label: tr('snow line'),
     },
     {
       value: `${c.orbitalDistanceAu.toFixed(2)} AU`,
-      label: kind === 'Moon' ? `${name}'s parent` : name,
+      label: kind === 'Moon' ? (translateIn(language, 'inline', "{v0}'s parent", { v0: name })) : name,
     },
   ];
 
   return (
     <Panel
-      title={systemName ? `The ${systemName} system` : 'The host system'}
+      title={systemName ? (translateIn(language, 'inline', "The {v0} system", { v0: systemName })) : tr('The host system')}
       actions={
         <div className="flex gap-1">
-          <ViewToggle active={mode === 'system'} onClick={() => setMode('system')}>
-            Full system
-          </ViewToggle>
-          <ViewToggle active={mode === 'zone'} onClick={() => setMode('zone')}>
-            Habitable zone
-          </ViewToggle>
+          <ViewToggle active={mode === 'system'} onClick={() => setMode('system')}>{tr("Full system")}</ViewToggle>
+          <ViewToggle active={mode === 'zone'} onClick={() => setMode('zone')}>{tr("Habitable zone")}</ViewToggle>
         </div>
       }
     >
       <p className="mb-3 text-sm text-[var(--ink-soft)]">
         {kind === 'Moon'
-          ? 'A tidally locked habitable moon orbiting a gas giant inside the star’s liquid-water zone. An outer shepherd giant beyond the snow line keeps leftover rock from raining inward.'
-          : 'A standalone planet inside the host star’s liquid-water habitable zone. A shepherd giant beyond the snow line clears leftover planetesimals so the world is not late-bombarded for gigayears.'}
+          ? tr('A tidally locked habitable moon orbiting a gas giant inside the star’s liquid-water zone. An outer shepherd giant beyond the snow line keeps leftover rock from raining inward.')
+          : tr('A standalone planet inside the host star’s liquid-water habitable zone. A shepherd giant beyond the snow line clears leftover planetesimals so the world is not late-bombarded for gigayears.')}
       </p>
 
       <SystemView
@@ -252,8 +253,8 @@ function SystemSection({
 
       <p className="mt-2 text-xs text-[var(--ink-faint)]">
         {mode === 'system'
-          ? 'Fitted to the outermost planet · comet orbits run off the frame · icons are markers, not radii'
-          : `Fitted to the liquid-water belt around this ${starLabel(c.starClass)}`}
+          ? tr('Fitted to the outermost planet · comet orbits run off the frame · icons are markers, not radii')
+          : (translateIn(language, 'inline', "Fitted to the liquid-water belt around this {v0}", { v0: tr(starLabel(c.starClass)) }))}
       </p>
 
       <div className="mt-4 grid grid-cols-2 gap-3 border-t border-[var(--rule)] pt-3 sm:grid-cols-3 lg:grid-cols-6">
@@ -268,9 +269,7 @@ function SystemSection({
       </div>
 
       <details className="mt-3 text-xs text-[var(--ink-soft)]">
-        <summary className="cursor-pointer list-none text-[var(--ink-faint)] [&::-webkit-details-marker]:hidden">
-          ▸ What the marks mean
-        </summary>
+        <summary className="cursor-pointer list-none text-[var(--ink-faint)] [&::-webkit-details-marker]:hidden">{tr("▸ What the marks mean")}</summary>
         <MapKey cosmology={c} kind={kind} name={name} />
       </details>
     </Panel>
@@ -312,54 +311,52 @@ function GalaxyCard({
   name: string;
   orientation?: ExportCosmology['orientation'];
 }) {
+  const { language } = useLanguage();
+  const tr = (value: string) => cosmologyText(language, value);
   const [mode, setMode] = useState<'face' | 'edge'>('face');
   const loc = galaxy.location;
 
   return (
     <Panel
-      title="Our place in the galaxy"
+      title={tr("Our place in the galaxy")}
       actions={
         <div className="flex gap-1">
-          <ViewToggle active={mode === 'face'} onClick={() => setMode('face')}>
-            Face-on
-          </ViewToggle>
-          <ViewToggle active={mode === 'edge'} onClick={() => setMode('edge')}>
-            Edge-on
-          </ViewToggle>
+          <ViewToggle active={mode === 'face'} onClick={() => setMode('face')}>{tr("Face-on")}</ViewToggle>
+          <ViewToggle active={mode === 'edge'} onClick={() => setMode('edge')}>{tr("Edge-on")}</ViewToggle>
         </div>
       }
     >
       <GalaxyView galaxy={galaxy} mode={mode} />
       <p className="mt-2 text-xs text-[var(--ink-faint)]">
         {mode === 'face'
-          ? `Gold ring is the habitable annulus; the mark is ${name}`
-          : 'Height against galactocentric radius · same mark'}
+          ? (translateIn(language, 'inline', "Gold ring is the habitable annulus; the mark is {v0}", { v0: name }))
+          : tr('Height against galactocentric radius · same mark')}
       </p>
       <dl className="mt-3 space-y-1.5 border-t border-[var(--rule)] pt-3 text-sm">
         <Diag
-          label="Galaxy type"
-          value={`${morphologyLabel(galaxy.morphology)}${galaxy.spiralArmCount > 0 ? `, ${galaxy.spiralArmCount} arms` : ''}`}
+          label={tr("Galaxy type")}
+          value={(translateIn(language, 'inline', "{e0}{e1}", { e0: tr(morphologyLabel(galaxy.morphology)), e1: galaxy.spiralArmCount > 0 ? `, ${galaxy.spiralArmCount} arms` : '', f0: tr(morphologyLabel(galaxy.morphology)), f1: galaxy.spiralArmCount > 0 ? `, ${galaxy.spiralArmCount} bras` : '' }))}
         />
-        <Diag label="Galactic radius" value={`${loc.galactocentricRadiusKpc.toFixed(1)} kpc from centre`} />
-        <Diag label="Height off the plane" value={`${loc.heightPc.toFixed(0)} pc`} />
+        <Diag label={tr("Galactic radius")} value={(translateIn(language, 'inline', "{v0} kpc from centre", { v0: loc.galactocentricRadiusKpc.toFixed(1) }))} />
+        <Diag label={tr("Height off the plane")} value={`${loc.heightPc.toFixed(0)} pc`} />
         <Diag
-          label="Metallicity"
+          label={tr("Metallicity")}
           value={`[Fe/H] ${loc.metallicityFeH >= 0 ? '+' : ''}${loc.metallicityFeH.toFixed(2)}`}
         />
         <Diag
-          label="Position"
+          label={tr("Position")}
           value={
             galaxy.morphology === 'Elliptical'
-              ? 'old spheroid'
+              ? tr('old spheroid')
               : loc.inSpiralArm
-                ? 'inside a spiral arm'
-                : 'between the arms'
+                ? tr('inside a spiral arm')
+                : tr('between the arms')
           }
         />
         {orientation && (
           <Diag
-            label="Celestial pole"
-            value={`${orientation.poleTiltFromGalacticPoleDeg.toFixed(0)}° from the galactic pole · ${bandMotion(orientation.poleTiltFromGalacticPoleDeg)}`}
+            label={tr("Celestial pole")}
+            value={(translateIn(language, 'inline', "{v0}° from the galactic pole · {v1}", { v0: orientation.poleTiltFromGalacticPoleDeg.toFixed(0), v1: tr(bandMotion(orientation.poleTiltFromGalacticPoleDeg)) }))}
           />
         )}
       </dl>
@@ -394,6 +391,8 @@ function CosmicTimeline({
   startYear: number;
   metallicityFeH?: number;
 }) {
+  const { language } = useLanguage();
+  const tr = (value: string) => cosmologyText(language, value);
   const [selected, setSelected] = useState(0);
 
   if (
@@ -412,8 +411,8 @@ function CosmicTimeline({
 
   const iron =
     metallicityFeH == null
-      ? 'metal-rich gas'
-      : `gas at [Fe/H] ${metallicityFeH >= 0 ? '+' : ''}${metallicityFeH.toFixed(2)}`;
+      ? tr('metal-rich gas')
+      : (translateIn(language, 'inline', "gas at [Fe/H] {v0}{v1}", { v0: metallicityFeH >= 0 ? '+' : '', v1: metallicityFeH.toFixed(2) }));
   const universe = Number(data.universeAgeGyr);
   const remaining = Number(data.starRemainingGyr);
   const since = (lookbackGyr: string) => universe - Number(lookbackGyr);
@@ -422,60 +421,60 @@ function CosmicTimeline({
     {
       key: 'universe',
       t: 0,
-      tick: `${data.universeAgeGyr} Gya`,
-      tag: 'Universe',
-      title: 'The universe began',
+      tick: (translateIn(language, 'inline', "{v0} Gya", { v0: data.universeAgeGyr })),
+      tag: tr('Universe'),
+      title: tr('The universe began'),
       detail:
-        'Hydrogen and helium came first; the iron and rock needed by this world did not yet exist.',
+        tr('Hydrogen and helium came first; the iron and rock needed by this world did not yet exist.'),
     },
     {
       key: 'galaxy',
       t: since(data.galaxyAgeGyr),
-      tick: `${data.galaxyAgeGyr} Gya`,
-      tag: 'Galaxy',
-      title: 'The host galaxy began assembling',
-      detail: 'Its first stars formed from nearly pristine gas while the galaxy was still growing.',
+      tick: (translateIn(language, 'inline', "{v0} Gya", { v0: data.galaxyAgeGyr })),
+      tag: tr('Galaxy'),
+      title: tr('The host galaxy began assembling'),
+      detail: tr('Its first stars formed from nearly pristine gas while the galaxy was still growing.'),
     },
     {
       key: 'enrichment',
       t: since(data.stellarEnrichmentGyr),
-      tick: `${data.stellarEnrichmentGyr} Gya`,
-      tag: 'Enrichment',
-      title: 'Earlier stellar generations lived and died',
-      detail: `Massive-star explosions and delayed Type Ia supernovae enriched ${iron}, supplying the iron and other heavy elements used by the later system.`,
+      tick: (translateIn(language, 'inline', "{v0} Gya", { v0: data.stellarEnrichmentGyr })),
+      tag: tr('Enrichment'),
+      title: tr('Earlier stellar generations lived and died'),
+      detail: (translateIn(language, 'inline', "Massive-star explosions and delayed Type Ia supernovae enriched {v0}, supplying the iron and other heavy elements used by the later system.", { v0: iron })),
     },
     {
       key: 'star',
       t: since(data.starAgeGyr),
-      tick: `${data.starAgeGyr} Gya`,
-      tag: 'Star',
-      title: 'The host star and its disk formed',
+      tick: (translateIn(language, 'inline', "{v0} Gya", { v0: data.starAgeGyr })),
+      tag: tr('Star'),
+      title: tr('The host star and its disk formed'),
       detail:
-        'A metal-enriched molecular cloud collapsed into the star and a surrounding protoplanetary disk.',
+        tr('A metal-enriched molecular cloud collapsed into the star and a surrounding protoplanetary disk.'),
     },
     {
       key: 'world',
       t: since(data.worldAgeGyr),
-      tick: `${data.worldAgeGyr} Gya`,
-      tag: 'World',
-      title: 'The history world assembled',
-      detail: `Its last large accretion followed the star by about ${data.worldFormationDelayMyr} million years.`,
+      tick: (translateIn(language, 'inline', "{v0} Gya", { v0: data.worldAgeGyr })),
+      tag: tr('World'),
+      title: tr('The history world assembled'),
+      detail: (translateIn(language, 'inline', "Its last large accretion followed the star by about {v0} million years.", { v0: data.worldFormationDelayMyr })),
     },
     {
       key: 'history',
       t: universe,
-      tick: `Year ${startYear}`,
-      tag: 'History',
-      title: 'Recorded history began',
+      tick: (translateIn(language, 'inline', "Year {v0}", { v0: startYear })),
+      tag: tr('History'),
+      title: tr('Recorded history began'),
       detail:
-        "This is the Chronicle's first year, not the physical creation date of the galaxy, system, or world.",
+        tr("This is the Chronicle's first year, not the physical creation date of the galaxy, system, or world."),
     },
     {
       key: 'future',
       t: universe + remaining,
       tick: `+${data.starRemainingGyr} Gyr`,
-      tag: 'Ahead',
-      title: `The host star becomes a ${data.starNextStage}`,
+      tag: tr('Ahead'),
+      title: (translateIn(language, 'inline', "The host star becomes a {e0}", { e0: data.starNextStage, f0: tr(data.starNextStage) })),
       detail: data.stellarFuture,
       future: true,
     },
@@ -493,10 +492,9 @@ function CosmicTimeline({
   const active = milestones[Math.min(selected, milestones.length - 1)];
 
   return (
-    <Panel title="Cosmic timeline">
+    <Panel title={tr("Cosmic timeline")}>
       <p className="mb-5 text-sm text-[var(--ink-soft)]">
-        From the Big Bang to the year the Chronicle opens. Lookback dates are measured from Year{' '}
-        {startYear}.
+        {translateIn(language, 'cosmology', 'Cosmic timeline description', { year: startYear })}
       </p>
 
       <div className="overflow-x-auto pb-1">
@@ -569,13 +567,13 @@ function CosmicTimeline({
         </div>
         <div className="flex shrink-0 gap-1">
           <StepButton
-            label="Previous moment"
+            label={tr("Previous moment")}
             onClick={() => setSelected((i) => (i - 1 + milestones.length) % milestones.length)}
           >
             ‹
           </StepButton>
           <StepButton
-            label="Next moment"
+            label={tr("Next moment")}
             onClick={() => setSelected((i) => (i + 1) % milestones.length)}
           >
             ›
@@ -643,6 +641,8 @@ function SizeComparison({
   kind: WorldKind;
   name: string;
 }) {
+  const { language } = useLanguage();
+  const tr = (value: string) => cosmologyText(language, value);
   const [metric, setMetric] = useState<'radius' | 'mass'>('radius');
   const moons = c.moons ?? [];
   const homeMoons = c.homeMoons ?? [];
@@ -656,7 +656,7 @@ function SizeComparison({
   const bodies: SizedBody[] = [
     ...(c.companions ?? []).map((body) => ({
       key: `comp-${body.role}-${body.semiMajorAxisAu}`,
-      label: shortCompanionLabel(body.role),
+      label: tr(shortCompanionLabel(body.role)),
       radiusEarth: body.radiusEarth,
       massEarth: body.massEarth,
       detail: `${body.semiMajorAxisAu.toFixed(2)} AU`,
@@ -666,7 +666,7 @@ function SizeComparison({
       ? [
           {
             key: 'parent',
-            label: 'Parent giant',
+            label: tr('Parent giant'),
             radiusEarth: parentRadius,
             massEarth: c.parentGiantMassEarth,
             detail: `${c.orbitalDistanceAu.toFixed(2)} AU`,
@@ -681,36 +681,36 @@ function SizeComparison({
             label: name,
             radiusEarth: c.worldRadiusEarth,
             massEarth: c.worldMassEarth,
-            detail: 'this world',
+            detail: tr('this world'),
             color: '#4ade80',
           },
         ]
       : []),
     ...moons.map((moon) => ({
       key: `moon-${moon.index}`,
-      label: moon.habitable ? name : `Moon ${moon.name ?? moon.index}`,
+      label: moon.habitable ? name : (translateIn(language, 'inline', "Moon {v0}", { v0: moon.name ?? moon.index })),
       radiusEarth: moon.radiusEarth,
       massEarth: moon.massEarth,
-      detail: moon.habitable ? 'this world' : 'of the parent',
+      detail: moon.habitable ? tr('this world') : tr('of the parent'),
       color: moon.habitable ? '#4ade80' : '#94a3b8',
     })),
     ...homeMoons.map((moon) => ({
       key: `home-moon-${moon.index}`,
-      label: `Moon ${moon.name ?? moon.index}`,
+      label: (translateIn(language, 'inline', "Moon {v0}", { v0: moon.name ?? moon.index })),
       radiusEarth: moon.radiusEarth,
       massEarth: moon.massEarth,
-      detail: `of ${name}`,
+      detail: (translateIn(language, 'inline', "of {v0}", { v0: name })),
       color: '#94a3b8',
     })),
     ...(comets.length > 0
       ? [
           {
             key: 'comets',
-            label: `Comets ×${comets.length}`,
+            label: (translateIn(language, 'inline', "Comets ×{v0}", { v0: comets.length })),
             radiusEarth:
               Math.max(...comets.map((comet) => comet.nucleusRadiusKm)) / EARTH_KM,
             massEarth: Math.max(...comets.map((comet) => comet.massEarth)),
-            detail: `largest ${Math.max(...comets.map((comet) => comet.nucleusRadiusKm)).toFixed(1)} km`,
+            detail: (translateIn(language, 'inline', "largest {v0} km", { v0: Math.max(...comets.map((comet) => comet.nucleusRadiusKm)).toFixed(1) })),
             color: '#cbd5e1',
           },
         ]
@@ -732,15 +732,11 @@ function SizeComparison({
 
   return (
     <Panel
-      title="Size and mass, to scale"
+      title={tr("Size and mass, to scale")}
       actions={
         <div className="flex gap-1">
-          <ViewToggle active={metric === 'radius'} onClick={() => setMetric('radius')}>
-            Radius
-          </ViewToggle>
-          <ViewToggle active={metric === 'mass'} onClick={() => setMetric('mass')}>
-            Mass
-          </ViewToggle>
+          <ViewToggle active={metric === 'radius'} onClick={() => setMetric('radius')}>{tr("Radius")}</ViewToggle>
+          <ViewToggle active={metric === 'mass'} onClick={() => setMetric('mass')}>{tr("Mass")}</ViewToggle>
         </div>
       }
     >
@@ -748,7 +744,7 @@ function SizeComparison({
         viewBox={`0 0 ${width} ${height}`}
         className="w-full rounded-md border border-[var(--rule)] bg-[var(--canvas)]"
         role="img"
-        aria-label={`Every body of the system compared by ${metric}`}
+        aria-label={(translateIn(language, 'inline', "Every body of the system compared by {e0}", { e0: metric, f0: metric === 'radius' ? 'le rayon' : 'la masse' }))}
       >
         <defs>
           <radialGradient id="size-star" cx="50%" cy="100%" r="60%">
@@ -758,7 +754,7 @@ function SizeComparison({
         </defs>
         <circle cx={width / 2} cy={26 - starPx} r={starPx} fill="url(#size-star)" opacity="0.92" />
         <text x={12} y={18} fontSize="11" fill="#3b2a08" fontWeight="600">
-          {starLabel(c.starClass)} · {(c.starRadiusSolar ?? 1).toFixed(2)} R☉
+          {tr(starLabel(c.starClass))} · {(c.starRadiusSolar ?? 1).toFixed(2)} R☉
         </text>
         <line
           x1={0}
@@ -804,11 +800,11 @@ function SizeComparison({
       </svg>
       <p className="mt-2 text-xs text-[var(--ink-faint)]">
         {metric === 'radius'
-          ? 'Discs share one radius scale and one baseline.'
-          : 'Disc area follows mass on one scale and one baseline.'}{' '}
-        The star is drawn at that same scale — its full disc would be {starWidths.toFixed(0)}× the
-        width of this strip. Bodies smaller than a pixel are drawn as a dot; hover for exact
-        figures.
+          ? tr('Discs share one radius scale and one baseline.')
+          : tr('Disc area follows mass on one scale and one baseline.')}{' '}
+        {translateIn(language, 'cosmology', 'Star scale description', {
+          width: starWidths.toFixed(0),
+        })}
       </p>
     </Panel>
   );
@@ -823,34 +819,36 @@ function metricOf(body: SizedBody, metric: 'radius' | 'mass'): number {
  * next to a bar is read in a glance where "1.44 M⊕" is read as an abstraction.
  */
 function EarthComparison({ cosmology: c }: { cosmology: ExportCosmology }) {
+  const { language } = useLanguage();
+  const tr = (value: string) => cosmologyText(language, value);
   const rows = [
-    { label: 'Mass', value: `${c.worldMassEarth.toFixed(2)} M⊕`, ratio: c.worldMassEarth, earth: '1.00 M⊕' },
+    { label: tr('Mass'), value: `${c.worldMassEarth.toFixed(2)} M⊕`, ratio: c.worldMassEarth, earth: '1.00 M⊕' },
     {
-      label: 'Radius',
+      label: tr('Radius'),
       value: `${c.worldRadiusEarth.toFixed(2)} R⊕`,
       ratio: c.worldRadiusEarth,
       earth: '1.00 R⊕',
     },
     {
-      label: 'Gravity',
+      label: tr('Gravity'),
       value: `${c.surfaceGravityG.toFixed(2)} g`,
       ratio: c.surfaceGravityG,
       earth: '1.00 g',
     },
     {
-      label: 'Surface temp',
+      label: tr('Surface temp'),
       value: `${Math.round(c.surfaceTempK)} K`,
       ratio: c.surfaceTempK / 288,
       earth: '288 K',
     },
     {
-      label: 'Year length',
+      label: tr('Year length'),
       value: `${Math.round(c.orbitalPeriodDays)} d`,
       ratio: c.orbitalPeriodDays / 365.25,
       earth: '365 d',
     },
     {
-      label: 'Escape velocity',
+      label: tr('Escape velocity'),
       value: `${c.escapeVelocityKmS.toFixed(1)} km/s`,
       ratio: c.escapeVelocityKmS / 11.19,
       earth: '11.2 km/s',
@@ -858,7 +856,7 @@ function EarthComparison({ cosmology: c }: { cosmology: ExportCosmology }) {
   ];
 
   return (
-    <Panel title="Compared to Earth">
+    <Panel title={tr("Compared to Earth")}>
       <ul className="space-y-3">
         {rows.map((row) => (
           <li key={row.label}>
@@ -870,7 +868,7 @@ function EarthComparison({ cosmology: c }: { cosmology: ExportCosmology }) {
               </span>
             </div>
             <EarthBar ratio={row.ratio} />
-            <div className="mt-1 text-[11px] text-[var(--ink-faint)]">Earth {row.earth}</div>
+            <div className="mt-1 text-[11px] text-[var(--ink-faint)]">{translateIn(language, 'inline', "Earth")} {row.earth}</div>
           </li>
         ))}
       </ul>
@@ -906,8 +904,10 @@ function WhyThisWorldWorks({
   checks: ExportCosmologyCheck[];
   isHabitable: boolean;
 }) {
+  const { language } = useLanguage();
+  const tr = (value: string) => cosmologyText(language, value);
   return (
-    <Panel title="Why this world works">
+    <Panel title={tr("Why this world works")}>
       <ul className="space-y-2 text-sm">
         {checks.map((check) => (
           <li key={check.label} className="flex gap-2">
@@ -918,16 +918,16 @@ function WhyThisWorldWorks({
               {check.passed ? '✓' : '✗'}
             </span>
             <span className={check.passed ? 'text-[var(--ink-soft)]' : 'text-[var(--error)]'}>
-              {plainCheck(check)}
+              {tr(plainCheck(check))}
             </span>
           </li>
         ))}
       </ul>
       <p className="mt-3 border-t border-[var(--rule)] pt-3 text-xs text-[var(--ink-faint)]">
         {isHabitable
-          ? 'Every check passed: liquid surface water is physically plausible here. '
-          : 'At least one check failed — this world is outside the plausible band. '}
-        The figure behind each one is in the generation engine below.
+          ? tr('Every check passed: liquid surface water is physically plausible here. ')
+          : tr('At least one check failed — this world is outside the plausible band. ')}
+        {translateIn(language, 'inline', "The figure behind each one is in the generation engine below.")}
       </p>
     </Panel>
   );
@@ -998,6 +998,8 @@ function ScientificDetails({
   kind: WorldKind;
   name: string;
 }) {
+  const { language } = useLanguage();
+  const tr = (value: string) => cosmologyText(language, value);
   const moons = c.moons ?? [];
   const homeMoons = c.homeMoons ?? [];
   const comets = c.comets ?? [];
@@ -1006,75 +1008,75 @@ function ScientificDetails({
 
   return (
     <Disclosure
-      title="Scientific details"
-      hint="Stellar properties, planetary parameters, orbital mechanics, comets"
+      title={tr("Scientific details")}
+      hint={tr("Stellar properties, planetary parameters, orbital mechanics, comets")}
     >
       <div className="grid gap-6 lg:grid-cols-2">
-        <DetailGroup title="Stellar properties">
-          <Diag label="Spectral class" value={starLabel(c.starClass)} />
-          <Diag label="Mass / radius" value={`${c.starMassSolar.toFixed(2)} M☉ · ${(c.starRadiusSolar ?? 1).toFixed(2)} R☉`} />
-          <Diag label="Luminosity" value={`${c.luminositySolar.toFixed(3)} L☉`} />
-          <Diag label="Main-sequence lifespan" value={`${c.starLifespanGyr.toFixed(1)} Gyr`} />
+        <DetailGroup title={tr("Stellar properties")}>
+          <Diag label={tr("Spectral class")} value={tr(starLabel(c.starClass))} />
+          <Diag label={tr("Mass / radius")} value={`${c.starMassSolar.toFixed(2)} M☉ · ${(c.starRadiusSolar ?? 1).toFixed(2)} R☉`} />
+          <Diag label={tr("Luminosity")} value={`${c.luminositySolar.toFixed(3)} L☉`} />
+          <Diag label={tr("Main-sequence lifespan")} value={`${c.starLifespanGyr.toFixed(1)} Gyr`} />
           <Diag
-            label="Habitable zone"
+            label={tr("Habitable zone")}
             value={`${c.habitableZoneInnerAu.toFixed(2)}–${c.habitableZoneOuterAu.toFixed(2)} AU`}
           />
-          {c.snowLineAu != null && <Diag label="Snow line" value={`${c.snowLineAu.toFixed(2)} AU`} />}
+          {c.snowLineAu != null && <Diag label={tr("Snow line")} value={`${c.snowLineAu.toFixed(2)} AU`} />}
         </DetailGroup>
 
-        <DetailGroup title={`Planetary parameters · ${name}`}>
+        <DetailGroup title={(translateIn(language, 'inline', "Planetary parameters · {v0}", { v0: name }))}>
           <Diag
-            label="Mass / radius"
+            label={tr("Mass / radius")}
             value={`${c.worldMassEarth.toFixed(2)} M⊕ · ${c.worldRadiusEarth.toFixed(2)} R⊕`}
           />
           {c.meanDensityEarth != null && (
             <Diag
-              label="Density / iron"
-              value={`${c.meanDensityEarth.toFixed(2)} ρ⊕ · ${(c.bulkIronMassFraction * 100).toFixed(0)}% iron · core ${(c.coreMassFraction * 100).toFixed(0)}%`}
+              label={tr("Density / iron")}
+              value={(translateIn(language, 'inline', "{v0} ρ⊕ · {v1}% iron · core {v2}%", { v0: c.meanDensityEarth.toFixed(2), v1: (c.bulkIronMassFraction * 100).toFixed(0), v2: (c.coreMassFraction * 100).toFixed(0) }))}
             />
           )}
-          <Diag label="Surface gravity" value={`${c.surfaceGravityG.toFixed(2)} g`} />
-          <Diag label="Escape velocity" value={`${c.escapeVelocityKmS.toFixed(1)} km/s`} />
-          <Diag label="Bond albedo" value={c.bondAlbedo.toFixed(2)} />
-          <Diag label="Greenhouse warming" value={`+${c.greenhouseDeltaC.toFixed(0)} °C`} />
+          <Diag label={tr("Surface gravity")} value={`${c.surfaceGravityG.toFixed(2)} g`} />
+          <Diag label={tr("Escape velocity")} value={`${c.escapeVelocityKmS.toFixed(1)} km/s`} />
+          <Diag label={tr("Bond albedo")} value={c.bondAlbedo.toFixed(2)} />
+          <Diag label={tr("Greenhouse warming")} value={`+${c.greenhouseDeltaC.toFixed(0)} °C`} />
           <Diag
-            label="Equilibrium temp (no air)"
+            label={tr(tr("Equilibrium temp (no air)"))}
             value={`${(c.equilibriumTempK - 273.15).toFixed(0)} °C (${c.equilibriumTempK.toFixed(0)} K)`}
           />
           <Diag
-            label="Surface temp"
+            label={tr("Surface temp")}
             value={`${(c.surfaceTempK - 273.15).toFixed(0)} °C (${c.surfaceTempK.toFixed(0)} K)`}
           />
         </DetailGroup>
 
-        <DetailGroup title="Orbital mechanics">
+        <DetailGroup title={tr("Orbital mechanics")}>
           <Diag
-            label={kind === 'Moon' ? 'Parent distance to star' : 'Distance to star'}
+            label={kind === 'Moon' ? tr('Parent distance to star') : tr('Distance to star')}
             value={`${c.orbitalDistanceAu.toFixed(3)} AU`}
           />
           <Diag
-            label={kind === 'Moon' ? 'Parent year' : 'Year length'}
-            value={`${Math.round(c.orbitalPeriodDays)} Earth days`}
+            label={kind === 'Moon' ? tr('Parent year') : tr('Year length')}
+            value={(translateIn(language, 'inline', "{v0} Earth days", { v0: Math.round(c.orbitalPeriodDays) }))}
           />
           {kind === 'Moon' && moonOrbitR != null && (
-            <Diag label="Distance to parent" value={formatMoonOrbit(moonOrbitR)} />
+            <Diag label={tr("Distance to parent")} value={formatMoonOrbit(moonOrbitR)} />
           )}
           {kind === 'Moon' && c.rocheLimitEarthRadii != null && (
-            <Diag label="Roche limit" value={`${c.rocheLimitEarthRadii.toFixed(1)} R⊕`} />
+            <Diag label={tr("Roche limit")} value={`${c.rocheLimitEarthRadii.toFixed(1)} R⊕`} />
           )}
           {kind === 'Moon' && c.moonDayLengthDays != null && (
-            <Diag label="Tidal day length" value={`${c.moonDayLengthDays.toFixed(1)} Earth days`} />
+            <Diag label={tr("Tidal day length")} value={(translateIn(language, 'inline', "{v0} Earth days", { v0: c.moonDayLengthDays.toFixed(1) }))} />
           )}
           {kind === 'Moon' && c.parentGiantMassEarth != null && (
-            <Diag label="Parent giant mass" value={`${c.parentGiantMassEarth.toFixed(0)} M⊕`} />
+            <Diag label={tr("Parent giant mass")} value={`${c.parentGiantMassEarth.toFixed(0)} M⊕`} />
           )}
           {(c.companions ?? []).map((body) => (
             <Diag
               key={`${body.role}-${body.semiMajorAxisAu}`}
-              label={body.roleLabel ?? COMPANION_ROLE_LABELS[body.role] ?? body.role}
+              label={tr(body.roleLabel ?? COMPANION_ROLE_LABELS[body.role] ?? body.role)}
               value={`${body.semiMajorAxisAu.toFixed(2)} AU · ${Math.round(body.orbitalPeriodDays)} d · ${body.massEarth.toFixed(body.role === 'InnerRocky' ? 2 : 0)} M⊕${
-                (body.moons?.length ?? 0) > 0 ? ` · ${body.moons.length} moons` : ''
-              }${body.appearance?.ring ? ' · ringed' : ''}`}
+                (body.moons?.length ?? 0) > 0 ? (translateIn(language, 'inline', " · {v0} moons", { v0: body.moons.length })) : ''
+              }${body.appearance?.ring ? (translateIn(language, 'inline', " · ringed")) : ''}`}
             />
           ))}
           {moons
@@ -1082,34 +1084,34 @@ function ScientificDetails({
             .map((moon) => (
               <Diag
                 key={`moon-${moon.index}`}
-                label={`Moon ${moon.index} of parent`}
+                label={(translateIn(language, 'inline', "Moon {v0} of parent", { v0: moon.index }))}
                 value={`${formatMoonOrbit(moon.orbitalDistanceEarthRadii)} · ${moon.massEarth.toFixed(2)} M⊕ · ${moon.dayLengthDays.toFixed(1)} d`}
               />
             ))}
           {homeMoons.map((moon) => (
             <Diag
               key={`home-moon-${moon.index}`}
-              label={`Moon ${moon.name ?? moon.index}`}
-              value={`${formatMoonOrbit(moon.orbitalDistanceEarthRadii)} · ${formatMassEarth(moon.massEarth)} · month ${moon.dayLengthDays.toFixed(1)} d`}
+              label={(translateIn(language, 'inline', "Moon {v0}", { v0: moon.name ?? moon.index }))}
+              value={(translateIn(language, 'inline', "{v0} · {v1} · month {v2} d", { v0: formatMoonOrbit(moon.orbitalDistanceEarthRadii), v1: formatMassEarth(moon.massEarth), v2: moon.dayLengthDays.toFixed(1) }))}
             />
           ))}
           {c.orientation && (
             <Diag
-              label="Celestial pole"
-              value={`${c.orientation.poleTiltFromGalacticPoleDeg.toFixed(0)}° from the galactic pole · ${bandMotion(c.orientation.poleTiltFromGalacticPoleDeg)}`}
+              label={tr("Celestial pole")}
+              value={(translateIn(language, 'inline', "{v0}° from the galactic pole · {v1}", { v0: c.orientation.poleTiltFromGalacticPoleDeg.toFixed(0), v1: tr(bandMotion(c.orientation.poleTiltFromGalacticPoleDeg)) }))}
             />
           )}
         </DetailGroup>
 
-        <DetailGroup title={comets.length > 0 ? `Comets · ${comets.length} tracked` : 'Comets'}>
+        <DetailGroup title={comets.length > 0 ? (translateIn(language, 'inline', "Comets · {v0} tracked", { v0: comets.length })) : tr('Comets')}>
           {comets.length === 0 ? (
-            <p className="text-sm text-[var(--ink-faint)]">No comets were recorded for this system.</p>
+            <p className="text-sm text-[var(--ink-faint)]">{tr("No comets were recorded for this system.")}</p>
           ) : (
             comets.map((comet) => (
               <Diag
                 key={`comet-${comet.index}`}
-                label={`Comet ${comet.index}`}
-                value={`q ${comet.perihelionAu.toFixed(2)} AU · Q ${comet.aphelionAu.toFixed(1)} AU · ${formatCometPeriod(comet.orbitalPeriodDays)} · ${comet.nucleusRadiusKm.toFixed(1)} km`}
+                label={(translateIn(language, 'inline', "Comet {v0}", { v0: comet.index }))}
+                value={`q ${comet.perihelionAu.toFixed(2)} AU · Q ${comet.aphelionAu.toFixed(1)} AU · ${formatCometPeriod(comet.orbitalPeriodDays, language)} · ${comet.nucleusRadiusKm.toFixed(1)} km`}
               />
             ))
           )}
@@ -1121,15 +1123,14 @@ function ScientificDetails({
 
 /** The engine's own working: what it checked, against what threshold, and what it measured. */
 function GenerationDetails({ cosmology: c }: { cosmology: ExportCosmology }) {
+  const { language } = useLanguage();
+  const tr = (value: string) => cosmologyText(language, value);
   return (
     <Disclosure
-      title="Generation and consistency engine"
-      hint="Constraints, assumptions, and validation checks"
+      title={tr("Generation and consistency engine")}
+      hint={tr("Constraints, assumptions, and validation checks")}
     >
-      <p className="mb-3 text-sm text-[var(--ink-soft)]">
-        Each check is a constraint the generator had to satisfy before this system was accepted.
-        The figure in brackets is the threshold; the figure before it is what this system measured.
-      </p>
+      <p className="mb-3 text-sm text-[var(--ink-soft)]">{tr("Each check is a constraint the generator had to satisfy before this system was accepted. The figure in brackets is the threshold; the figure before it is what this system measured.")}</p>
       <ul className="space-y-1.5 text-xs">
         {c.checks.map((check) => (
           <li
@@ -1140,15 +1141,13 @@ function GenerationDetails({ cosmology: c }: { cosmology: ExportCosmology }) {
                 : 'bg-[color-mix(in_srgb,var(--error)_12%,transparent)] text-[var(--error)]'
             }`}
           >
-            {check.passed ? '✓' : '✗'} <span className="font-semibold">{check.label}</span> ·{' '}
+            {check.passed ? '✓' : '✗'} <span className="font-semibold">{tr(check.label)}</span> ·{' '}
             {check.detail}
           </li>
         ))}
       </ul>
       {c.isHabitable && (
-        <p className="mt-3 text-xs font-semibold text-[var(--primary)]">
-          All checks passed — liquid surface water is physically plausible.
-        </p>
+        <p className="mt-3 text-xs font-semibold text-[var(--primary)]">{tr("All checks passed — liquid surface water is physically plausible.")}</p>
       )}
     </Disclosure>
   );
@@ -1169,9 +1168,11 @@ function PlanetFaces({
   kind: WorldKind;
   name: string;
 }) {
+  const { language } = useLanguage();
+  const tr = (value: string) => cosmologyText(language, value);
   const cards: PlanetCard[] = (c.companions ?? []).map((body) => ({
     key: `${body.role}-${body.semiMajorAxisAu}`,
-    label: body.roleLabel ?? COMPANION_ROLE_LABELS[body.role] ?? body.role,
+    label: tr(body.roleLabel ?? COMPANION_ROLE_LABELS[body.role] ?? body.role),
     semiMajorAxisAu: body.semiMajorAxisAu,
     massEarth: body.massEarth,
     radiusEarth: body.radiusEarth,
@@ -1201,7 +1202,7 @@ function PlanetFaces({
   cards.sort((a, b) => a.semiMajorAxisAu - b.semiMajorAxisAu);
 
   return (
-    <Panel title="The planets">
+    <Panel title={tr("The planets")}>
       <div className="grid items-start gap-3 md:grid-cols-2 xl:grid-cols-3">
         {cards.map((card) => (
           <PlanetFace key={card.key} card={card} />
@@ -1225,6 +1226,8 @@ interface PlanetCard {
 }
 
 function PlanetFace({ card }: { card: PlanetCard }) {
+  const { language } = useLanguage();
+  const tr = (value: string) => cosmologyText(language, value);
   const face = card.appearance;
   return (
     <div
@@ -1236,9 +1239,9 @@ function PlanetFace({ card }: { card: PlanetCard }) {
     >
       <div className="flex items-baseline justify-between gap-2">
         <span className="text-sm font-semibold">
-          {card.label}
+          {card.home ? card.label : tr(card.label)}
           {card.home && (
-            <span className="ml-2 text-xs font-normal text-[var(--ink-faint)]">this world</span>
+            <span className="ml-2 text-xs font-normal text-[var(--ink-faint)]">{tr("this world")}</span>
           )}
         </span>
         <span className="text-xs text-[var(--ink-faint)]">
@@ -1249,45 +1252,45 @@ function PlanetFace({ card }: { card: PlanetCard }) {
         {face ? <BandedDisc appearance={face} /> : <RockyDisc card={card} />}
         <dl className="flex-1 space-y-1 text-xs text-[var(--ink-soft)]">
           <FaceRow
-            label="Orbit"
-            value={`${card.semiMajorAxisAu.toFixed(3)} AU · ${formatCometPeriod(card.orbitalPeriodDays)}`}
+            label={tr("Orbit")}
+            value={`${card.semiMajorAxisAu.toFixed(3)} AU · ${formatCometPeriod(card.orbitalPeriodDays, language)}`}
           />
           <FaceRow
-            label="Bulk"
+            label={tr("Bulk")}
             value={`${card.radiusEarth.toFixed(2)} R⊕ · ${formatMassEarth(card.massEarth)}`}
           />
           {face && (
             <>
               <FaceRow
-                label="Spin"
-                value={`${face.rotationPeriodHours.toFixed(1)} h${face.retrograde ? ', retrograde' : ''} · ${face.bandCount} bands`}
+                label={tr("Spin")}
+                value={(translateIn(language, 'inline', "{e0} h{e1} · {e2} bands", { e0: face.rotationPeriodHours.toFixed(1), e1: face.retrograde ? ', retrograde' : '', e2: face.bandCount, f0: face.rotationPeriodHours.toFixed(1), f1: face.retrograde ? ', rétrograde' : '', f2: face.bandCount }))}
               />
-              <FaceRow label="Tilt" value={`${face.obliquityDeg.toFixed(0)}° obliquity`} />
+              <FaceRow label={tr("Tilt")} value={(translateIn(language, 'inline', "{v0}° obliquity", { v0: face.obliquityDeg.toFixed(0) }))} />
               {face.ring ? (
                 <FaceRow
-                  label="Rings"
-                  value={`${face.ring.compositionLabel}, ${face.ring.innerRadiusPlanetRadii.toFixed(2)}–${face.ring.outerRadiusPlanetRadii.toFixed(2)} R${face.ring.divisionRadiusPlanetRadii > face.ring.innerRadiusPlanetRadii ? ', divided' : ''} · ${(face.ringOpenness * 100).toFixed(0)}% open`}
+                  label={tr("Rings")}
+                  value={(translateIn(language, 'inline', "{e0}, {e1}–{e2} R{e3} · {e4}% open", { e0: face.ring.compositionLabel, e1: face.ring.innerRadiusPlanetRadii.toFixed(2), e2: face.ring.outerRadiusPlanetRadii.toFixed(2), e3: face.ring.divisionRadiusPlanetRadii > face.ring.innerRadiusPlanetRadii ? ', divided' : '', e4: (face.ringOpenness * 100).toFixed(0), f0: tr(face.ring.compositionLabel), f1: face.ring.innerRadiusPlanetRadii.toFixed(2), f2: face.ring.outerRadiusPlanetRadii.toFixed(2), f3: face.ring.divisionRadiusPlanetRadii > face.ring.innerRadiusPlanetRadii ? ', divisés' : '', f4: (face.ringOpenness * 100).toFixed(0) }))}
                 />
               ) : (
-                <FaceRow label="Rings" value="none held" />
+                <FaceRow label={tr("Rings")} value={tr("none held")} />
               )}
               {face.ringBrightnessBoostMagnitudes < -0.01 && (
                 <FaceRow
-                  label="Ring light"
-                  value={`${face.ringBrightnessBoostMagnitudes.toFixed(2)} mag brighter`}
+                  label={tr("Ring light")}
+                  value={(translateIn(language, 'inline', "{v0} mag brighter", { v0: face.ringBrightnessBoostMagnitudes.toFixed(2) }))}
                 />
               )}
               {face.storm && (
                 <FaceRow
-                  label="Storm"
-                  value={`${face.storm.name}, ${Math.abs(face.storm.latitudeDeg).toFixed(0)}°${face.storm.latitudeDeg >= 0 ? 'N' : 'S'}, standing ${Math.round(face.storm.ageYears)} years`}
+                  label={tr("Storm")}
+                  value={(translateIn(language, 'inline', "{v0}, {v1}°{v2}, standing {v3} years", { v0: face.storm.name, v1: Math.abs(face.storm.latitudeDeg).toFixed(0), v2: face.storm.latitudeDeg >= 0 ? 'N' : 'S', v3: Math.round(face.storm.ageYears) }))}
                 />
               )}
             </>
           )}
           <FaceRow
-            label="Moons"
-            value={card.moons.length === 0 ? 'none' : card.moons.join(', ')}
+            label={tr("Moons")}
+            value={card.moons.length === 0 ? (translateIn(language, 'inline', "none")) : card.moons.join(', ')}
           />
         </dl>
       </div>
@@ -1412,11 +1415,22 @@ function formatMassEarth(massEarth: number, solar?: number): string {
   return `${exp.replace('e', '×10^')} M⊕`;
 }
 
-function formatCometPeriod(days: number): string {
+function formatCometPeriod(days: number, language: string = 'en'): string {
   const years = days / 365.25;
-  if (years >= 100) return `${Math.round(years).toLocaleString()} yr`;
-  if (years >= 2) return `${years.toFixed(1)} yr`;
-  return `${Math.round(days)} d`;
+  const locale = language;
+  if (years >= 100) {
+    return translateIn(language, 'cosmology', 'cometPeriod.centuries', {
+      count: Math.round(years).toLocaleString(locale),
+    });
+  }
+  if (years >= 2) {
+    return translateIn(language, 'cosmology', 'cometPeriod.years', {
+      count: years.toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
+    });
+  }
+  return translateIn(language, 'cosmology', 'cometPeriod.days', {
+    count: Math.round(days).toLocaleString(locale),
+  });
 }
 
 /** Earth radii plus kilometres — moons sit tens of thousands of km out, not AU. */
@@ -1449,6 +1463,8 @@ function GalaxyView({ galaxy, mode }: { galaxy: ExportGalaxy; mode: 'face' | 'ed
 }
 
 function GalaxyFace({ galaxy }: { galaxy: ExportGalaxy }) {
+  const { language } = useLanguage();
+  const tr = (value: string) => cosmologyText(language, value);
   const size = 560;
   const cx = 280;
   const cy = 280;
@@ -1463,7 +1479,7 @@ function GalaxyFace({ galaxy }: { galaxy: ExportGalaxy }) {
       viewBox={`0 0 ${size} ${size}`}
       className="h-72 w-full rounded-md border border-[var(--rule)] bg-[var(--canvas)]"
       role="img"
-      aria-label="Face-on host galaxy"
+      aria-label={tr("Face-on host galaxy")}
     >
       <circle cx={cx} cy={cy} r={r(GALAXY_DISK_KPC)} fill="none" stroke="var(--outline-variant)" />
       <circle
@@ -1538,6 +1554,8 @@ function GalaxyFace({ galaxy }: { galaxy: ExportGalaxy }) {
 }
 
 function GalaxyEdge({ galaxy }: { galaxy: ExportGalaxy }) {
+  const { language } = useLanguage();
+  const tr = (value: string) => cosmologyText(language, value);
   const width = 400;
   const height = 280;
   const padX = 16;
@@ -1564,7 +1582,7 @@ function GalaxyEdge({ galaxy }: { galaxy: ExportGalaxy }) {
       viewBox={`0 0 ${width} ${height}`}
       className="h-72 w-full rounded-md border border-[var(--rule)] bg-[var(--canvas)]"
       role="img"
-      aria-label="Edge-on host galaxy"
+      aria-label={tr("Edge-on host galaxy")}
     >
       <rect
         x={padX}
@@ -1664,6 +1682,8 @@ function SystemView({
   /** A canvas shaped for a full-width panel rather than a half-column card. */
   wide?: boolean;
 }) {
+  const { language } = useLanguage();
+  const tr = (value: string) => cosmologyText(language, value);
   const companions = c.companions ?? [];
   const comets = c.comets ?? [];
   const width = wide ? 960 : 480;
@@ -1705,8 +1725,8 @@ function SystemView({
       role="img"
       aria-label={
         mode === 'zone'
-          ? `Habitable zone of ${name}`
-          : `Full system around ${starLabel(c.starClass)}`
+          ? (translateIn(language, 'inline', "Habitable zone of {v0}", { v0: name }))
+          : (translateIn(language, 'inline', "Full system around {v0}", { v0: tr(starLabel(c.starClass)) }))
       }
     >
       <PaintDefs uid={uid} star={star} />
@@ -1795,7 +1815,7 @@ function SystemView({
           y={worldY}
           radius={worldR}
           name={name}
-          note="habitable"
+          note={tr("habitable")}
           labelAngle={angle}
         />
       )}
@@ -1812,36 +1832,38 @@ function MapKey({
   kind: WorldKind;
   name: string;
 }) {
+  const { language } = useLanguage();
+  const tr = (value: string) => cosmologyText(language, value);
   const items = [
-    { color: '#ef4444', label: `Inner HZ ${c.habitableZoneInnerAu.toFixed(2)} AU` },
-    { color: '#60a5fa', label: `Outer HZ ${c.habitableZoneOuterAu.toFixed(2)} AU` },
+    { color: '#ef4444', label: (translateIn(language, 'inline', "Inner HZ {v0} AU", { v0: c.habitableZoneInnerAu.toFixed(2) })) },
+    { color: '#60a5fa', label: (translateIn(language, 'inline', "Outer HZ {v0} AU", { v0: c.habitableZoneOuterAu.toFixed(2) })) },
     ...(kind === 'Moon'
       ? [
           {
             color: '#d4b483',
-            label: `Parent giant · ${c.orbitalDistanceAu.toFixed(2)} AU from star`,
+            label: (translateIn(language, 'inline', "Parent giant · {v0} AU from star", { v0: c.orbitalDistanceAu.toFixed(2) })),
           },
           ...(c.moons ?? []).map((moon) => ({
             color: moon.habitable ? '#86efac' : '#94a3b8',
-            label: `${moon.habitable ? name : `Moon ${moon.index}`} · ${formatMoonOrbit(moon.orbitalDistanceEarthRadii)} from parent`,
+            label: (translateIn(language, 'inline', "{e0} · {e1} from parent", { e0: moon.habitable ? name : `Moon ${moon.index}`, e1: formatMoonOrbit(moon.orbitalDistanceEarthRadii), f0: moon.habitable ? name : `Lune ${moon.index}`, f1: formatMoonOrbit(moon.orbitalDistanceEarthRadii) })),
           })),
         ]
       : [
           {
             color: '#86efac',
-            label: `${name} · ${c.orbitalDistanceAu.toFixed(2)} AU from star`,
+            label: (translateIn(language, 'inline', "{v0} · {v1} AU from star", { v0: name, v1: c.orbitalDistanceAu.toFixed(2) })),
           },
         ]),
     ...(c.snowLineAu != null
-      ? [{ color: '#94a3b8', label: `Snow line ${c.snowLineAu.toFixed(2)} AU` }]
+      ? [{ color: '#94a3b8', label: (translateIn(language, 'inline', "Snow line {v0} AU", { v0: c.snowLineAu.toFixed(2) })) }]
       : []),
     ...(c.companions ?? []).filter((body) => body.role !== 'HostGiant').map((body) => ({
       color: companionColor(body.role),
-      label: `${COMPANION_ROLE_LABELS[body.role] ?? body.role} · ${body.semiMajorAxisAu.toFixed(2)} AU from star`,
+      label: (translateIn(language, 'inline', "{e0} · {e1} AU from star", { e0: COMPANION_ROLE_LABELS[body.role] ?? body.role, e1: body.semiMajorAxisAu.toFixed(2), f0: tr(COMPANION_ROLE_LABELS[body.role] ?? body.role), f1: body.semiMajorAxisAu.toFixed(2) })),
     })),
     ...(c.comets ?? []).map((comet) => ({
       color: '#cbd5e1',
-      label: `Comet ${comet.index} · q ${comet.perihelionAu.toFixed(2)} AU · ${formatCometPeriod(comet.orbitalPeriodDays)}`,
+      label: (translateIn(language, 'inline', "Comet {v0} · q {v1} AU · {v2}", { v0: comet.index, v1: comet.perihelionAu.toFixed(2), v2: formatCometPeriod(comet.orbitalPeriodDays, language) })),
     })),
   ];
 
@@ -2182,6 +2204,8 @@ function CompanionBody({
   angle: number;
   labeled: boolean;
 }) {
+  const { language } = useLanguage();
+  const tr = (value: string) => cosmologyText(language, value);
   const x = cx + Math.cos(angle) * radius;
   const y = cy + Math.sin(angle) * radius;
   const size =
@@ -2224,7 +2248,7 @@ function CompanionBody({
       )}
       {labeled && (
         <text x={x} y={y + size + 12} textAnchor="middle" fill="var(--ink-soft)" fontSize="9">
-          {shortCompanionLabel(body.role)}
+          {tr(shortCompanionLabel(body.role))}
         </text>
       )}
     </g>
@@ -2338,4 +2362,9 @@ function starLook(starClass: StarSpectralClass, size: number) {
     default:
       return { core: '#fffce8', mid: '#ffd166', edge: '#ca8a04', glow: '#facc15', size };
   }
+}
+
+/** Exact translations for presentation strings; unknown source wording is retained. */
+function cosmologyText(language: string, value: string): string {
+  return translateIn(language, 'cosmology', value);
 }

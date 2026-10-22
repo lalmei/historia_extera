@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react';
+import { useLanguage } from '../i18n/LanguageProvider';
+import { translateIn } from '../i18n/translations.ts';
 import { discoverFigures, SIGNIFICANCE_BANDS } from '../discovery';
 import { EventList, humanise } from '../components/EventList';
 import {
@@ -41,7 +43,14 @@ import {
   warsOf,
 } from './EntityPages';
 
+function useListsTranslations() {
+  const { language } = useLanguage();
+  return (key: string, values?: Readonly<Record<string, string | number | undefined>>) =>
+    translateIn(language, 'lists', key, values);
+}
+
 export function TradeRouteList({ world }: { world: World }) {
+  const tr = useListsTranslations();
   const { tradeRoutes } = world.export;
   const active = tradeRoutes.filter((route) => route.endedYear === undefined);
   const prosperous = active.filter((route) => route.status === 'Prosperous');
@@ -49,16 +58,16 @@ export function TradeRouteList({ world }: { world: World }) {
 
   return (
     <div className="space-y-5">
-      <PageTitle eyebrow="Index" title="Trade routes" />
+      <PageTitle eyebrow={tr('index')} title={tr('tradeRoutes')} />
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Stat label="Active" value={active.length} />
-        <Stat label="Recorded" value={tradeRoutes.length} />
-        <Stat label="Prosperous" value={prosperous.length} />
-        <Stat label="Overland" value={overland.length} hint="Candidates for future roads" />
+        <Stat label={tr('active')} value={active.length} />
+        <Stat label={tr('recorded')} value={tradeRoutes.length} />
+        <Stat label={tr('prosperous')} value={prosperous.length} />
+        <Stat label={tr('overland')} value={overland.length} hint={tr('futureRoads')} />
       </div>
 
-      <Panel title="Routes">
+      <Panel title={tr('routes')}>
         <TradeRouteTable world={world} routes={tradeRoutes} />
       </Panel>
     </div>
@@ -73,6 +82,7 @@ export function TradeRouteList({ world }: { world: World }) {
  * that is a thing you sort a column by rather than click through twenty pages for.
  */
 export function WarList({ world }: { world: World }) {
+  const tr = useListsTranslations();
   const { wars, battles } = world.export;
   const settled = wars.filter((war) => war.endYear !== undefined);
   const decided = settled.filter((war) => war.outcome !== 'Stalemate');
@@ -80,24 +90,24 @@ export function WarList({ world }: { world: World }) {
 
   return (
     <div className="space-y-5">
-      <PageTitle eyebrow="Index" title="Wars" />
+      <PageTitle eyebrow={tr('index')} title={tr('wars')} />
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Stat label="Wars" value={wars.length} />
+        <Stat label={tr('wars')} value={wars.length} />
         <Stat
-          label="Decided"
+          label={tr('decided')}
           value={`${decided.length} / ${settled.length}`}
-          hint="The rest were fought to exhaustion"
+          hint={tr('foughtToExhaustion')}
         />
-        <Stat label="Battles" value={battles.length} />
-        <Stat label="Dead" value={dead.toLocaleString()} hint="In battle, across every war" />
+        <Stat label={tr('battles')} value={battles.length} />
+        <Stat label={tr('dead')} value={dead.toLocaleString()} hint={tr('battleDeaths')} />
       </div>
 
-      <Panel title="Wars">
+      <Panel title={tr('wars')}>
         <WarTable world={world} wars={wars} />
       </Panel>
 
-      <Panel title="Battles">
+      <Panel title={tr('battles')}>
         <BattleTable world={world} battles={battles} />
       </Panel>
     </div>
@@ -105,42 +115,44 @@ export function WarList({ world }: { world: World }) {
 }
 
 export function CivilizationList({ world }: { world: World }) {
+  const tr = useListsTranslations();
+  const { language } = useLanguage();
   const columns: Column<Civilization>[] = [
     {
       key: 'name',
-      header: 'Civilization',
+      header: tr('civilization'),
       cell: (civ) => <EntityLink world={world} id={civ.id} />,
       sort: (civ) => civ.name,
     },
     {
       key: 'culture',
-      header: 'Culture',
+      header: tr('culture'),
       cell: (civ) => <EntityLink world={world} id={civ.cultureId} />,
       sort: (civ) => world.nameOf(civ.cultureId),
     },
     {
       key: 'capital',
-      header: 'Capital',
+      header: tr('capital'),
       cell: (civ) => <EntityLink world={world} id={civ.capitalId} />,
       sort: (civ) => (civ.capitalId ? world.nameOf(civ.capitalId) : ''),
     },
     {
       key: 'population',
-      header: 'Population',
+      header: tr('population'),
       cell: (civ) => civ.population.toLocaleString(),
       sort: (civ) => civ.population,
       align: 'right',
     },
     {
       key: 'settlements',
-      header: 'Settlements',
+      header: tr('settlements'),
       cell: (civ) => civ.settlementIds.length,
       sort: (civ) => civ.settlementIds.length,
       align: 'right',
     },
     {
       key: 'span',
-      header: 'Span',
+      header: tr('span'),
       cell: (civ) => (
         <span className={civ.endedYear !== undefined ? 'text-[var(--ink-faint)]' : ''}>
           {yearRange(civ.foundedYear, civ.endedYear)}
@@ -155,20 +167,20 @@ export function CivilizationList({ world }: { world: World }) {
   const facets: Facet<Civilization>[] = [
     {
       key: 'status',
-      label: 'Status',
+      label: tr('status'),
       options: [
-        { value: 'standing', label: 'Standing', match: (civ) => civ.endedYear === undefined },
-        { value: 'fallen', label: 'Fallen', match: (civ) => civ.endedYear !== undefined },
-        { value: 'war', label: 'Fought a war', match: (civ) => warsOf(world, civ.id).length > 0 },
+        { value: 'standing', label: tr('standing'), match: (civ) => civ.endedYear === undefined },
+        { value: 'fallen', label: tr('fallen'), match: (civ) => civ.endedYear !== undefined },
+        { value: 'war', label: tr('foughtWar'), match: (civ) => warsOf(world, civ.id).length > 0 },
       ],
     },
     {
       key: 'government',
-      label: 'Government',
+      label: tr('government'),
       options: distinct(world.export.cultures.map((culture) => culture.government)).map(
         (government) => ({
           value: government,
-          label: government,
+          label: translateIn(language, 'lore', government),
           match: (civ: Civilization) => governmentOf(civ) === government,
         }),
       ),
@@ -177,14 +189,14 @@ export function CivilizationList({ world }: { world: World }) {
 
   return (
     <div>
-      <PageTitle eyebrow="Index" title="Civilizations" />
+      <PageTitle eyebrow={tr('index')} title={tr('civilizations')} />
       <Panel>
         <DataTable
           rows={world.export.civilizations}
           columns={columns}
           facets={facets}
           searchText={(civ) => `${civ.name} ${world.nameOf(civ.cultureId)}`}
-          placeholder="Search civilizations…"
+          placeholder={tr('searchCivilizations')}
           initialSort={{ key: 'population', descending: true }}
         />
       </Panel>
@@ -269,6 +281,7 @@ function plagueHistories(events: HistoryEvent[]): PlagueHistory[] {
 }
 
 export function PlagueList({ world }: { world: World }) {
+  const tr = useListsTranslations();
   const events = world.export.events.filter((event) => PLAGUE_KINDS.has(event.kind));
   const histories = plagueHistories(events);
   const dead = histories.reduce((sum, plague) => sum + plague.dead, 0);
@@ -282,39 +295,39 @@ export function PlagueList({ world }: { world: World }) {
   const columns: Column<PlagueHistory>[] = [
     {
       key: 'name',
-      header: 'Plague',
+      header: tr('plague'),
       cell: (plague) => plague.name,
       sort: (plague) => plague.name,
     },
     {
       key: 'origin',
-      header: 'Began in',
+      header: tr('beganIn'),
       cell: (plague) => <EntityLink world={world} id={plague.originId} />,
       sort: (plague) => (plague.originId ? world.nameOf(plague.originId) : ''),
     },
     {
       key: 'realm',
-      header: 'Realm',
+      header: tr('realm'),
       cell: (plague) => <EntityLink world={world} id={plague.civilizationId} />,
       sort: (plague) =>
         plague.civilizationId ? world.nameOf(plague.civilizationId) : '',
     },
     {
       key: 'span',
-      header: 'Span',
+      header: tr('span'),
       cell: (plague) => yearRange(plague.beganYear, plague.endedYear),
       sort: (plague) => plague.beganYear,
     },
     {
       key: 'reached',
-      header: 'Reached',
+      header: tr('reached'),
       cell: (plague) => (plague.endedYear === undefined ? '—' : plague.reached),
       sort: (plague) => plague.reached,
       align: 'right',
     },
     {
       key: 'dead',
-      header: 'Dead',
+      header: tr('dead'),
       cell: (plague) =>
         plague.endedYear === undefined ? '—' : plague.dead.toLocaleString(),
       sort: (plague) => plague.dead,
@@ -330,15 +343,15 @@ export function PlagueList({ world }: { world: World }) {
   const facets: Facet<PlagueHistory>[] = [
     {
       key: 'status',
-      label: 'Status',
+      label: tr('status'),
       options: [
-        { value: 'ended', label: 'Burned out', match: (plague) => plague.endedYear !== undefined },
-        { value: 'active', label: 'Still burning', match: (plague) => plague.endedYear === undefined },
+        { value: 'ended', label: tr('burnedOut'), match: (plague) => plague.endedYear !== undefined },
+        { value: 'active', label: tr('stillBurning'), match: (plague) => plague.endedYear === undefined },
       ],
     },
     {
       key: 'realm',
-      label: 'Origin realm',
+      label: tr('originRealm'),
       options: realmIds.map((id) => ({
         value: id,
         label: world.nameOf(id),
@@ -349,16 +362,16 @@ export function PlagueList({ world }: { world: World }) {
 
   return (
     <div className="space-y-5">
-      <PageTitle eyebrow="Calamities" title="Plagues" />
+      <PageTitle eyebrow={tr('calamities')} title={tr('plagues')} />
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Stat label="Outbreaks" value={histories.length} />
-        <Stat label="Dead" value={dead.toLocaleString()} hint="Reported when each plague ended" />
-        <Stat label="Places afflicted" value={afflicted.size} hint="Distinct settlements" />
-        <Stat label="Widest reach" value={widest} hint="Recorded settlement bouts in one outbreak" />
+        <Stat label={tr('outbreaks')} value={histories.length} />
+        <Stat label={tr('dead')} value={dead.toLocaleString()} hint={tr('reportedAtEnd')} />
+        <Stat label={tr('placesAfflicted')} value={afflicted.size} hint={tr('distinctSettlements')} />
+        <Stat label={tr('widestReach')} value={widest} hint={tr('settlementBouts')} />
       </div>
 
-      <Panel title="Outbreaks">
+      <Panel title={tr('outbreaks')}>
         <DataTable
           rows={histories}
           columns={columns}
@@ -371,20 +384,22 @@ export function PlagueList({ world }: { world: World }) {
               plague.regionId ? world.nameOf(plague.regionId) : '',
             ].join(' ')
           }
-          placeholder="Search plagues and origins…"
+          placeholder={tr('searchPlagues')}
           initialSort={{ key: 'span' }}
-          emptyMessage="No plague was recorded in this world."
+          emptyMessage={tr('noPlagues')}
         />
       </Panel>
 
-      <Panel title="Plague chronicle">
-        <EventList world={world} events={events} emptyMessage="No plague was recorded." />
+      <Panel title={tr('plagueChronicle')}>
+        <EventList world={world} events={events} emptyMessage={tr('noPlagueEvent')} />
       </Panel>
     </div>
   );
 }
 
 export function DisasterList({ world }: { world: World }) {
+  const tr = useListsTranslations();
+  const { language } = useLanguage();
   const events = world.export.events.filter((event) => event.kind === 'DisasterStruck');
   const dead = events.reduce((sum, event) => sum + eventNumber(event, 'lost'), 0);
   const struck = new Set(events.flatMap((event) => (event.subject ? [event.subject] : [])));
@@ -397,38 +412,38 @@ export function DisasterList({ world }: { world: World }) {
   const columns: Column<HistoryEvent>[] = [
     {
       key: 'year',
-      header: 'Year',
+      header: tr('year'),
       cell: (event) => event.year,
       sort: (event) => event.year,
       align: 'right',
     },
     {
       key: 'kind',
-      header: 'Disaster',
-      cell: (event) => event.data?.kind ?? 'calamity',
+      header: tr('disaster'),
+      cell: (event) => translateIn(language, 'lore', event.data?.kind ?? 'calamity'),
       sort: (event) => event.data?.kind ?? '',
     },
     {
       key: 'settlement',
-      header: 'Settlement',
+      header: tr('settlement'),
       cell: (event) => <EntityLink world={world} id={event.subject} />,
       sort: (event) => (event.subject ? world.nameOf(event.subject) : ''),
     },
     {
       key: 'realm',
-      header: 'Realm',
+      header: tr('realm'),
       cell: (event) => <EntityLink world={world} id={event.object} />,
       sort: (event) => (event.object ? world.nameOf(event.object) : ''),
     },
     {
       key: 'region',
-      header: 'Region',
+      header: tr('region'),
       cell: (event) => <EntityLink world={world} id={event.location} />,
       sort: (event) => (event.location ? world.nameOf(event.location) : ''),
     },
     {
       key: 'dead',
-      header: 'Dead',
+      header: tr('dead'),
       cell: (event) => eventNumber(event, 'lost').toLocaleString(),
       sort: (event) => eventNumber(event, 'lost'),
       align: 'right',
@@ -442,16 +457,16 @@ export function DisasterList({ world }: { world: World }) {
   const facets: Facet<HistoryEvent>[] = [
     {
       key: 'kind',
-      label: 'Disaster',
+      label: tr('disaster'),
       options: kinds.map((kind) => ({
         value: kind,
-        label: kind,
+        label: translateIn(language, 'lore', kind),
         match: (event) => (event.data?.kind ?? 'calamity') === kind,
       })),
     },
     {
       key: 'realm',
-      label: 'Realm',
+      label: tr('realm'),
       options: realmIds.map((id) => ({
         value: id,
         label: world.nameOf(id),
@@ -462,20 +477,20 @@ export function DisasterList({ world }: { world: World }) {
 
   return (
     <div className="space-y-5">
-      <PageTitle eyebrow="Calamities" title="Disasters" />
+      <PageTitle eyebrow={tr('calamities')} title={tr('disasters')} />
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Stat label="Disasters" value={events.length} />
-        <Stat label="Dead" value={dead.toLocaleString()} />
-        <Stat label="Places struck" value={struck.size} hint="Distinct settlements" />
+        <Stat label={tr('disasters')} value={events.length} />
+        <Stat label={tr('dead')} value={dead.toLocaleString()} />
+        <Stat label={tr('placesStruck')} value={struck.size} hint={tr('distinctSettlements')} />
         <Stat
-          label="Worst toll"
+          label={tr('worstToll')}
           value={worst ? eventNumber(worst, 'lost').toLocaleString() : '—'}
           hint={worst?.subject ? world.nameOf(worst.subject) : undefined}
         />
       </div>
 
-      <Panel title="Recorded disasters">
+      <Panel title={tr('recordedDisasters')}>
         <DataTable
           rows={events}
           columns={columns}
@@ -488,9 +503,9 @@ export function DisasterList({ world }: { world: World }) {
               event.location ? world.nameOf(event.location) : '',
             ].join(' ')
           }
-          placeholder="Search disasters and places…"
+          placeholder={tr('searchDisasters')}
           initialSort={{ key: 'year', descending: true }}
-          emptyMessage="No disaster was recorded in this world."
+          emptyMessage={tr('noDisasters')}
         />
       </Panel>
     </div>
@@ -498,6 +513,8 @@ export function DisasterList({ world }: { world: World }) {
 }
 
 export function ReligionList({ world }: { world: World }) {
+  const tr = useListsTranslations();
+  const { language } = useLanguage();
   const { religions } = world.export;
   const followed = religions.filter((faith) => faith.endedYear === undefined);
   const offshoots = religions.filter((faith) => faith.parentId !== undefined);
@@ -510,57 +527,57 @@ export function ReligionList({ world }: { world: World }) {
   const columns: Column<Religion>[] = [
     {
       key: 'name',
-      header: 'Faith',
+      header: tr('faith'),
       cell: (faith) => (
         <span className="flex items-center gap-1.5">
           <EntityLink world={world} id={faith.id} />
-          {faith.parentId && <Badge tone="muted">offshoot</Badge>}
+          {faith.parentId && <Badge tone="muted">{tr('offshoot')}</Badge>}
         </span>
       ),
       sort: (faith) => faith.name,
     },
     {
       key: 'origin',
-      header: 'First preached',
+      header: tr('firstPreached'),
       cell: (faith) => <EntityLink world={world} id={faith.originSettlementId} />,
       sort: (faith) => world.nameOf(faith.originSettlementId),
     },
     {
       key: 'following',
-      header: 'Settlements',
+      header: tr('settlements'),
       cell: (faith) => following(faith),
       sort: following,
       align: 'right',
     },
     {
       key: 'peak',
-      header: 'At its height',
+      header: tr('atItsHeight'),
       cell: (faith) => faith.peakSettlements,
       sort: (faith) => faith.peakSettlements,
       align: 'right',
     },
     {
       key: 'deity',
-      header: 'Gods',
-      cell: (faith) => DEITY_LABELS[faith.character.deity],
+      header: tr('gods'),
+      cell: (faith) => translateIn(language, 'lore', DEITY_LABELS[faith.character.deity]),
       sort: (faith) => faith.character.deity,
     },
     {
       key: 'authority',
-      header: 'Church',
-      cell: (faith) => AUTHORITY_LABELS[faith.character.authority],
+      header: tr('church'),
+      cell: (faith) => translateIn(language, 'lore', AUTHORITY_LABELS[faith.character.authority]),
       sort: (faith) => faith.character.authority,
     },
     {
       key: 'fervour',
-      header: 'Fervour',
+      header: tr('fervour'),
       cell: (faith) => faith.fervour.toFixed(2),
       sort: (faith) => faith.fervour,
       align: 'right',
     },
     {
       key: 'span',
-      header: 'Span',
+      header: tr('span'),
       cell: (faith) => (
         <span className={faith.endedYear !== undefined ? 'text-[var(--ink-faint)]' : ''}>
           {yearRange(faith.foundedYear, faith.endedYear)}
@@ -573,59 +590,59 @@ export function ReligionList({ world }: { world: World }) {
   const facets: Facet<Religion>[] = [
     {
       key: 'status',
-      label: 'Status',
+      label: tr('status'),
       options: [
-        { value: 'living', label: 'Still followed', match: (f) => f.endedYear === undefined },
-        { value: 'gone', label: 'Forgotten', match: (f) => f.endedYear !== undefined },
-        { value: 'state', label: 'A realm’s faith', match: (f) =>
+        { value: 'living', label: tr('stillFollowed'), match: (f) => f.endedYear === undefined },
+        { value: 'gone', label: tr('forgotten'), match: (f) => f.endedYear !== undefined },
+        { value: 'state', label: tr('realmFaith'), match: (f) =>
           world.export.civilizations.some((civ) => civ.stateReligionId === f.id) },
       ],
     },
     {
       key: 'origin',
-      label: 'Origin',
+      label: tr('origin'),
       options: [
-        { value: 'root', label: 'Preached new', match: (f) => f.parentId === undefined },
-        { value: 'schism', label: 'Broke from another', match: (f) => f.parentId !== undefined },
+        { value: 'root', label: tr('preachedNew'), match: (f) => f.parentId === undefined },
+        { value: 'schism', label: tr('brokeFromAnother'), match: (f) => f.parentId !== undefined },
       ],
     },
     {
       key: 'deity',
-      label: 'Gods',
+      label: tr('gods'),
       options: [
-        { value: 'mono', label: 'Monotheistic', match: (f) => f.character.deity === 'Monotheistic' },
-        { value: 'poly', label: 'Polytheistic', match: (f) => f.character.deity === 'Polytheistic' },
-        { value: 'pan', label: 'Pantheistic', match: (f) => f.character.deity === 'Pantheistic' },
-        { value: 'anim', label: 'Animistic', match: (f) => f.character.deity === 'Animistic' },
+        { value: 'mono', label: tr('monotheistic'), match: (f) => f.character.deity === 'Monotheistic' },
+        { value: 'poly', label: tr('polytheistic'), match: (f) => f.character.deity === 'Polytheistic' },
+        { value: 'pan', label: tr('pantheistic'), match: (f) => f.character.deity === 'Pantheistic' },
+        { value: 'anim', label: tr('animistic'), match: (f) => f.character.deity === 'Animistic' },
       ],
     },
     {
       key: 'church',
-      label: 'Church',
+      label: tr('church'),
       options: [
-        { value: 'hier', label: 'Hierarchical', match: (f) => f.character.authority === 'Hierarchical' },
-        { value: 'dec', label: 'Decentralized', match: (f) => f.character.authority === 'Decentralized' },
-        { value: 'mon', label: 'Monastic', match: (f) => f.character.authority === 'Monastic' },
+        { value: 'hier', label: tr('hierarchical'), match: (f) => f.character.authority === 'Hierarchical' },
+        { value: 'dec', label: tr('decentralized'), match: (f) => f.character.authority === 'Decentralized' },
+        { value: 'mon', label: tr('monastic'), match: (f) => f.character.authority === 'Monastic' },
       ],
     },
   ];
 
   return (
     <div className="space-y-5">
-      <PageTitle eyebrow="Index" title="Faiths" />
+      <PageTitle eyebrow={tr('index')} title={tr('faiths')} />
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Stat label="Faiths" value={religions.length} hint="Ever preached" />
-        <Stat label="Still followed" value={followed.length} />
-        <Stat label="Schisms" value={offshoots.length} hint="Broke from another faith" />
+        <Stat label={tr('faiths')} value={religions.length} hint={tr('everPreached')} />
+        <Stat label={tr('stillFollowed')} value={followed.length} />
+        <Stat label={tr('schisms')} value={offshoots.length} hint={tr('brokeFromAnotherFaith')} />
         <Stat
-          label="Converted"
+          label={tr('converted')}
           value={
             world.export.settlements.filter(
               (s) => s.religionId !== undefined && s.abandonedYear === undefined,
             ).length
           }
-          hint="Settlements following anything at all"
+          hint={tr('settlementsFollowingFaith')}
         />
       </div>
 
@@ -637,9 +654,9 @@ export function ReligionList({ world }: { world: World }) {
           searchText={(faith) =>
             `${faith.name} ${faith.character.deity} ${faith.character.authority} ${faith.character.dogma}`
           }
-          placeholder="Search faiths…"
+          placeholder={tr('searchFaiths')}
           initialSort={{ key: 'peak', descending: true }}
-          emptyMessage="No faith was ever preached in this world."
+          emptyMessage={tr('noFaiths')}
         />
       </Panel>
     </div>
@@ -647,19 +664,20 @@ export function ReligionList({ world }: { world: World }) {
 }
 
 export function HolySiteList({ world }: { world: World }) {
+  const tr = useListsTranslations();
   const { holySites } = world.export;
   const independent = holySites.filter((site) => site.settlementId === undefined);
 
   return (
     <div className="space-y-5">
-      <PageTitle eyebrow="Index" title="Holy sites" />
+      <PageTitle eyebrow={tr('index')} title={tr('holySites')} />
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Stat label="Holy sites" value={holySites.length} hint="Ever established" />
-        <Stat label="Independent" value={independent.length} hint="Outside settlements" />
-        <Stat label="In settlements" value={holySites.length - independent.length} />
+        <Stat label={tr('holySites')} value={holySites.length} hint={tr('everEstablished')} />
+        <Stat label={tr('independent')} value={independent.length} hint={tr('outsideSettlements')} />
+        <Stat label={tr('inSettlements')} value={holySites.length - independent.length} />
         <Stat
-          label="Traditions"
+          label={tr('traditions')}
           value={
             new Set(
               holySites
@@ -667,7 +685,7 @@ export function HolySiteList({ world }: { world: World }) {
                 .filter((tradition) => tradition !== undefined),
             ).size
           }
-          hint="Architectural families"
+          hint={tr('architecturalFamilies')}
         />
       </div>
 
@@ -679,22 +697,23 @@ export function HolySiteList({ world }: { world: World }) {
 }
 
 export function ArtifactList({ world }: { world: World }) {
+  const tr = useListsTranslations();
   const { artifacts } = world.export;
   const held = artifacts.filter((a) => a.lostYear === undefined);
   const travelled = artifacts.filter((a) => a.provenance.length > 1);
 
   return (
     <div className="space-y-5">
-      <PageTitle eyebrow="Index" title="Artifacts" />
+      <PageTitle eyebrow={tr('index')} title={tr('artifacts')} />
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Stat label="Made" value={artifacts.length} />
-        <Stat label="Still held" value={held.length} />
-        <Stat label="Changed hands" value={travelled.length} hint="Looted, or lost with a town" />
+        <Stat label={tr('made')} value={artifacts.length} />
+        <Stat label={tr('stillHeld')} value={held.length} />
+        <Stat label={tr('changedHands')} value={travelled.length} hint={tr('lootedOrLost')} />
         <Stat
-          label="Sacred"
+          label={tr('sacred')}
           value={artifacts.filter((a) => a.religionId !== undefined).length}
-          hint="Relics and idols of a faith"
+          hint={tr('faithRelics')}
         />
       </div>
 
@@ -706,9 +725,10 @@ export function ArtifactList({ world }: { world: World }) {
 }
 
 export function SettlementList({ world }: { world: World }) {
+  const tr = useListsTranslations();
   return (
     <div className="space-y-5">
-      <PageTitle eyebrow="Index" title="Settlements" />
+      <PageTitle eyebrow={tr('index')} title={tr('settlements')} />
       <SettlementHierarchy world={world} />
       <Panel>
         <SettlementTable world={world} settlements={world.export.settlements} />
@@ -739,6 +759,8 @@ const TIER_FLOORS: { tier: SettlementTier; from: number; to?: number }[] = [
  * and mixing them makes both harder to read.
  */
 function SettlementHierarchy({ world }: { world: World }) {
+  const tr = useListsTranslations();
+  const { language } = useLanguage();
   const standing = world.export.settlements.filter((one) => one.abandonedYear === undefined);
   if (standing.length === 0) return null;
 
@@ -751,7 +773,7 @@ function SettlementHierarchy({ world }: { world: World }) {
   const abandoned = world.export.settlements.length - standing.length;
 
   return (
-    <Panel title="The hierarchy">
+    <Panel title={tr('hierarchy')}>
       <div className="space-y-2">
         {TIER_FLOORS.map((band) => {
           const count = counts.get(band.tier) ?? 0;
@@ -759,7 +781,9 @@ function SettlementHierarchy({ world }: { world: World }) {
 
           return (
             <div key={band.tier} className="flex items-center gap-3">
-              <div className="w-16 shrink-0 text-sm text-[var(--ink-faint)]">{band.tier}</div>
+              <div className="w-16 shrink-0 text-sm text-[var(--ink-faint)]">
+                {translateIn(language, 'lore', band.tier)}
+              </div>
               <div className="w-24 shrink-0 text-xs tabular-nums text-[var(--ink-faint)]">
                 {band.to === undefined
                   ? `${band.from.toLocaleString()}+`
@@ -779,46 +803,45 @@ function SettlementHierarchy({ world }: { world: World }) {
         })}
       </div>
       <p className="mt-3 text-xs text-[var(--ink-faint)]">
-        {standing.length.toLocaleString()} standing
-        {abandoned > 0 && <> · {abandoned.toLocaleString()} abandoned</>} · a hierarchy narrows
-        toward the top, and a world of mostly cities means something is feeding them that the land
-        and the roads did not.
+        {tr('standingSettlements', { count: standing.length.toLocaleString() })}
+        {abandoned > 0 && <> · {tr('abandonedSettlements', { count: abandoned.toLocaleString() })}</>} · {tr('hierarchyExplanation')}
       </p>
     </Panel>
   );
 }
 
 export function DynastyList({ world }: { world: World }) {
+  const tr = useListsTranslations();
   const columns: Column<Dynasty>[] = [
     {
       key: 'name',
-      header: 'House',
+      header: tr('house'),
       cell: (house) => <EntityLink world={world} id={house.id} />,
       sort: (house) => house.name,
     },
     {
       key: 'origin',
-      header: 'Rose in',
+      header: tr('roseIn'),
       cell: (house) => <EntityLink world={world} id={house.originCivilizationId} />,
       sort: (house) => (house.originCivilizationId ? world.nameOf(house.originCivilizationId) : ''),
     },
     {
       key: 'rulers',
-      header: 'Rulers',
+      header: tr('rulers'),
       cell: (house) => house.rulerIds.length,
       sort: (house) => house.rulerIds.length,
       align: 'right',
     },
     {
       key: 'members',
-      header: 'Blood',
+      header: tr('bloodline'),
       cell: (house) => house.memberIds.length,
       sort: (house) => house.memberIds.length,
       align: 'right',
     },
     {
       key: 'span',
-      header: 'Span',
+      header: tr('span'),
       cell: (house) => (
         <span className={house.endedYear !== undefined ? 'text-[var(--ink-faint)]' : ''}>
           {yearRange(house.foundedYear, house.endedYear)}
@@ -828,12 +851,12 @@ export function DynastyList({ world }: { world: World }) {
     },
     {
       key: 'fate',
-      header: 'Fate',
+      header: tr('fate'),
       cell: (house) =>
         house.endedYear === undefined ? (
-          <Badge tone="accent">extant</Badge>
+          <Badge tone="accent">{tr('extant')}</Badge>
         ) : (
-          <Badge tone="muted">died out {house.endedYear}</Badge>
+          <Badge tone="muted">{tr('diedOutYear', { year: house.endedYear })}</Badge>
         ),
       sort: (house) => house.endedYear ?? Number.MAX_SAFE_INTEGER,
     },
@@ -842,21 +865,21 @@ export function DynastyList({ world }: { world: World }) {
   const facets: Facet<Dynasty>[] = [
     {
       key: 'status',
-      label: 'Status',
+      label: tr('status'),
       options: [
-        { value: 'extant', label: 'Extant', match: (house) => house.endedYear === undefined },
-        { value: 'ended', label: 'Died out', match: (house) => house.endedYear !== undefined },
+        { value: 'extant', label: tr('extant'), match: (house) => house.endedYear === undefined },
+        { value: 'ended', label: tr('diedOut'), match: (house) => house.endedYear !== undefined },
       ],
     },
     {
       key: 'throne',
-      label: 'Throne',
+      label: tr('throne'),
       options: [
-        { value: 'ruled', label: 'Held one', match: (house) => house.rulerIds.length > 0 },
-        { value: 'never', label: 'Never held one', match: (house) => house.rulerIds.length === 0 },
+        { value: 'ruled', label: tr('heldThrone'), match: (house) => house.rulerIds.length > 0 },
+        { value: 'never', label: tr('neverHeldThrone'), match: (house) => house.rulerIds.length === 0 },
         {
           value: 'many',
-          label: 'Ruled more than one realm',
+          label: tr('ruledMultipleRealms'),
           match: (house) =>
             new Set(
               figures(world, house.rulerIds).map((ruler) => ruler.civilizationId),
@@ -868,14 +891,14 @@ export function DynastyList({ world }: { world: World }) {
 
   return (
     <div>
-      <PageTitle eyebrow="Index" title="Houses" />
+      <PageTitle eyebrow={tr('index')} title={tr('houses')} />
       <Panel>
         <DataTable
           rows={world.export.dynasties}
           columns={columns}
           facets={facets}
           searchText={(house) => house.name}
-          placeholder="Search houses…"
+          placeholder={tr('searchHouses')}
           initialSort={{ key: 'rulers', descending: true }}
         />
       </Panel>
@@ -884,32 +907,38 @@ export function DynastyList({ world }: { world: World }) {
 }
 
 export function FigureList({ world }: { world: World }) {
+  const tr = useListsTranslations();
+  const { language } = useLanguage();
   const discovery = discoverFigures(world);
   const columns: Column<Figure>[] = [
     {
       key: 'name',
-      header: 'Figure',
+      header: tr('figure'),
       cell: (figure) => <EntityLink world={world} id={figure.id} />,
       sort: (figure) => figure.name,
     },
     {
       key: 'significance',
-      header: 'Significance',
+      header: tr('significance'),
       cell: (figure) => {
         const reading = discovery.byId.get(figure.id)!;
-        return <span title={reading.reasons.join(' · ')}>{reading.band}</span>;
+        return (
+          <span title={reading.reasons.map((reason) => translateIn(language, 'lore', reason)).join(' · ')}>
+            {translateIn(language, 'lore', reading.band)}
+          </span>
+        );
       },
       sort: (figure) => discovery.byId.get(figure.id)!.score,
     },
     {
       key: 'title',
-      header: 'Title',
+      header: tr('title'),
       cell: (figure) => figure.titles[0]?.title ?? '—',
       sort: (figure) => figure.titles[0]?.title ?? '',
     },
     {
       key: 'house',
-      header: 'House',
+      header: tr('house'),
       cell: (figure) =>
         figure.dynastyId ? (
           <EntityLink world={world} id={figure.dynastyId} />
@@ -920,13 +949,13 @@ export function FigureList({ world }: { world: World }) {
     },
     {
       key: 'civ',
-      header: 'Civilization',
+      header: tr('civilization'),
       cell: (figure) => <EntityLink world={world} id={figure.civilizationId} />,
       sort: (figure) => world.nameOf(figure.civilizationId),
     },
     {
       key: 'faith',
-      header: 'Faith',
+      header: tr('faith'),
       cell: (figure) =>
         figure.religionId ? (
           <EntityLink world={world} id={figure.religionId} />
@@ -937,22 +966,22 @@ export function FigureList({ world }: { world: World }) {
     },
     {
       key: 'occupation',
-      header: 'Occupation',
+      header: tr('occupation'),
       cell: (figure) =>
         figure.occupation === undefined
           ? '—'
-          : (OCCUPATION_LABELS[figure.occupation] ?? figure.occupation),
+          : translateIn(language, 'lore', OCCUPATION_LABELS[figure.occupation] ?? figure.occupation),
       sort: (figure) => figure.occupation ?? '',
     },
     {
       key: 'lived',
-      header: 'Lived',
+      header: tr('lived'),
       cell: (figure) => yearRange(figure.birthYear, figure.deathYear),
       sort: (figure) => figure.birthYear,
     },
     {
       key: 'age',
-      header: 'Age',
+      header: tr('age'),
       cell: (figure) =>
         (figure.deathYear ?? world.export.meta.endYear) - figure.birthYear,
       sort: (figure) => (figure.deathYear ?? world.export.meta.endYear) - figure.birthYear,
@@ -960,13 +989,13 @@ export function FigureList({ world }: { world: World }) {
     },
     {
       key: 'fate',
-      header: 'Fate',
+      header: tr('fate'),
       cell: (figure) =>
         figure.deathYear === undefined ? (
-          <Badge tone="accent">living</Badge>
+          <Badge tone="accent">{tr('living')}</Badge>
         ) : (
           <span className="text-[var(--ink-faint)]">
-            {figure.deathDetail ?? DEATH_LABELS[figure.deathCause] ?? figure.deathCause}
+            {figure.deathDetail ?? translateIn(language, 'lore', DEATH_LABELS[figure.deathCause] ?? figure.deathCause)}
           </span>
         ),
       sort: (figure) => figure.deathCause,
@@ -976,57 +1005,57 @@ export function FigureList({ world }: { world: World }) {
   const facets: Facet<Figure>[] = [
     {
       key: 'significance',
-      label: 'Significance',
+      label: tr('significance'),
       options: SIGNIFICANCE_BANDS.map((band) => ({
         value: band,
-        label: band,
+        label: translateIn(language, 'lore', band),
         match: (figure: Figure) => discovery.byId.get(figure.id)?.band === band,
       })),
     },
     {
       key: 'fate',
-      label: 'Fate',
+      label: tr('fate'),
       options: [
-        { value: 'living', label: 'Still living', match: (f) => f.deathYear === undefined },
+        { value: 'living', label: tr('stillLiving'), match: (f) => f.deathYear === undefined },
         ...distinct(
           world.export.figures.filter((f) => f.deathYear !== undefined).map((f) => f.deathCause),
         ).map((cause) => ({
           value: cause,
-          label: `Died of ${DEATH_LABELS[cause] ?? cause}`,
+          label: tr('diedOf', { cause: translateIn(language, 'lore', DEATH_LABELS[cause] ?? cause) }),
           match: (f: Figure) => f.deathYear !== undefined && f.deathCause === cause,
         })),
       ],
     },
     {
       key: 'role',
-      label: 'Role',
+      label: tr('role'),
       options: [
         // "Ruled" means held a crown, not held any office. Left as titles.length these two
         // would have silently become "held anything" and "held nothing" the moment marshals
         // and governors appeared, and nobody would have seen the filter change meaning.
         {
           value: 'ruled',
-          label: 'Ruled',
+          label: tr('ruled'),
           match: (f) => f.titles.some((t) => t.kind === 'Ruler'),
         },
         {
           value: 'never',
-          label: 'Never ruled',
+          label: tr('neverRuled'),
           match: (f) => !f.titles.some((t) => t.kind === 'Ruler'),
         },
         {
           value: 'served',
-          label: 'Held office',
+          label: tr('heldOffice'),
           match: (f) => f.titles.some((t) => t.kind !== 'Ruler'),
         },
         // Consorts keep the house they were born into, so no house means married in from
         // outside — which is the only way to find them in a list of a thousand people.
-        { value: 'married-in', label: 'Married in', match: (f) => f.dynastyId === undefined },
+        { value: 'married-in', label: tr('marriedIn'), match: (f) => f.dynastyId === undefined },
       ],
     },
     {
       key: 'realm',
-      label: 'Realm',
+      label: tr('realm'),
       options: world.export.civilizations.map((civ) => ({
         value: civ.id,
         label: civ.name,
@@ -1035,9 +1064,9 @@ export function FigureList({ world }: { world: World }) {
     },
     {
       key: 'faith',
-      label: 'Faith',
+      label: tr('faith'),
       options: [
-        { value: 'none', label: 'None recorded', match: (f: Figure) => f.religionId === undefined },
+        { value: 'none', label: tr('noneRecorded'), match: (f: Figure) => f.religionId === undefined },
         ...world.export.religions.map((faith) => ({
           value: faith.id,
           label: faith.name,
@@ -1047,7 +1076,7 @@ export function FigureList({ world }: { world: World }) {
     },
     {
       key: 'occupation',
-      label: 'Occupation',
+      label: tr('occupation'),
       options: distinct(world.export.figures.map((f) => f.occupation)).map((occupation) => ({
         value: occupation,
         label: OCCUPATION_LABELS[occupation] ?? occupation,
@@ -1058,7 +1087,7 @@ export function FigureList({ world }: { world: World }) {
 
   return (
     <div>
-      <PageTitle eyebrow="Index" title="Figures" />
+      <PageTitle eyebrow={tr('index')} title={tr('figures')} />
       <p className="mb-4 text-sm text-[var(--ink-faint)]">
         Significance measures how much of the recorded history runs through a life, through its
         last living year. Hover a band to see what contributed to it.
@@ -1075,7 +1104,7 @@ export function FigureList({ world }: { world: World }) {
             `${world.nameOf(figure.civilizationId)} ` +
             `${figure.religionId ? world.nameOf(figure.religionId) : ''}`
           }
-          placeholder="Search figures…"
+          placeholder={tr('searchFigures')}
           initialSort={{ key: 'significance', descending: true }}
         />
       </Panel>
@@ -1084,6 +1113,8 @@ export function FigureList({ world }: { world: World }) {
 }
 
 export function RegionList({ world }: { world: World }) {
+  const tr = useListsTranslations();
+  const { language } = useLanguage();
   const [landOnly, setLandOnly] = useState(true);
 
   const rows = useMemo(
@@ -1094,38 +1125,38 @@ export function RegionList({ world }: { world: World }) {
   const columns: Column<Region>[] = [
     {
       key: 'name',
-      header: 'Region',
+      header: tr('region'),
       cell: (region) => <EntityLink world={world} id={region.id} />,
       sort: (region) => region.name,
     },
-    { key: 'biome', header: 'Biome', cell: (region) => region.biome, sort: (region) => region.biome },
+    { key: 'biome', header: tr('biome'), cell: (region) => translateIn(language, 'lore', region.biome), sort: (region) => region.biome },
     {
       key: 'habitability',
-      header: 'Habitability',
+      header: tr('habitability'),
       cell: (region) => region.habitability.toFixed(2),
       sort: (region) => region.habitability,
       align: 'right',
     },
     {
       key: 'height',
-      header: 'Height',
+      header: tr('height'),
       cell: (region) => `${Math.round(region.meanHeight)} m`,
       sort: (region) => region.meanHeight,
       align: 'right',
     },
     {
       key: 'features',
-      header: 'Features',
+      header: tr('features'),
       cell: (region) => (
         <span className="flex gap-1">
-          {region.hasRiver && <Badge>river</Badge>}
-          {region.isCoastal && <Badge>coast</Badge>}
+          {region.hasRiver && <Badge>{tr('river')}</Badge>}
+          {region.isCoastal && <Badge>{tr('coast')}</Badge>}
         </span>
       ),
     },
     {
       key: 'owner',
-      header: 'Claimed by',
+      header: tr('claimedBy'),
       cell: (region) => <EntityLink world={world} id={region.owner} />,
       sort: (region) => (region.owner ? world.nameOf(region.owner) : '~'),
     },
@@ -1134,9 +1165,9 @@ export function RegionList({ world }: { world: World }) {
   const facets: Facet<Region>[] = [
     {
       key: 'owner',
-      label: 'Held by',
+      label: tr('heldBy'),
       options: [
-        { value: 'none', label: 'Nobody', match: (region) => region.owner === undefined },
+        { value: 'none', label: tr('nobody'), match: (region) => region.owner === undefined },
         ...world.export.civilizations.map((civ) => ({
           value: civ.id,
           label: civ.name,
@@ -1146,22 +1177,22 @@ export function RegionList({ world }: { world: World }) {
     },
     {
       key: 'biome',
-      label: 'Biome',
+      label: tr('biome'),
       options: distinct(rows.map((region) => region.biome)).map((biome) => ({
         value: biome,
-        label: biome,
+        label: translateIn(language, 'lore', biome),
         match: (region: Region) => region.biome === biome,
       })),
     },
     {
       key: 'features',
-      label: 'Features',
+      label: tr('features'),
       options: [
-        { value: 'river', label: 'On a river', match: (region) => region.hasRiver },
-        { value: 'coast', label: 'On the coast', match: (region) => region.isCoastal },
+        { value: 'river', label: tr('onRiver'), match: (region) => region.hasRiver },
+        { value: 'coast', label: tr('onCoast'), match: (region) => region.isCoastal },
         {
           value: 'both',
-          label: 'River and coast',
+          label: tr('riverAndCoast'),
           match: (region) => region.hasRiver && region.isCoastal,
         },
       ],
@@ -1170,7 +1201,7 @@ export function RegionList({ world }: { world: World }) {
 
   return (
     <div>
-      <PageTitle eyebrow="Index" title="Regions" />
+      <PageTitle eyebrow={tr('index')} title={tr('regions')} />
       <Panel
         actions={
           <label className="inline-flex cursor-pointer items-center gap-1.5 text-xs select-none">
@@ -1180,7 +1211,7 @@ export function RegionList({ world }: { world: World }) {
               onChange={(event) => setLandOnly(event.target.checked)}
               className="accent-[var(--accent)]"
             />
-            Land only
+            {tr('landOnly')}
           </label>
         }
       >
@@ -1189,7 +1220,7 @@ export function RegionList({ world }: { world: World }) {
           columns={columns}
           facets={facets}
           searchText={(region) => `${region.name} ${region.biome}`}
-          placeholder="Search regions…"
+          placeholder={tr('searchRegions')}
           initialSort={{ key: 'habitability', descending: true }}
         />
       </Panel>
@@ -1198,28 +1229,30 @@ export function RegionList({ world }: { world: World }) {
 }
 
 export function CultureList({ world }: { world: World }) {
+  const tr = useListsTranslations();
+  const { language } = useLanguage();
   const columns: Column<Culture>[] = [
     {
       key: 'name',
-      header: 'Culture',
+      header: tr('culture'),
       cell: (culture) => <EntityLink world={world} id={culture.id} />,
       sort: (culture) => culture.name,
     },
     {
       key: 'government',
-      header: 'Government',
-      cell: (culture) => culture.government,
+      header: tr('government'),
+      cell: (culture) => translateIn(language, 'lore', culture.government),
       sort: (culture) => culture.government,
     },
-    { key: 'title', header: 'Ruler styled', cell: (culture) => culture.rulerTitle },
+    { key: 'title', header: tr('rulerTitle'), cell: (culture) => translateIn(language, 'lore', culture.rulerTitle) },
     {
       key: 'succession',
-      header: 'Succession',
+      header: tr('succession'),
       cell: (culture) => (
         <span>
-          {SUCCESSION_LABELS[culture.successionLaw] ?? culture.successionLaw}
+          {translateIn(language, 'lore', SUCCESSION_LABELS[culture.successionLaw] ?? culture.successionLaw)}
           {culture.termYears > 0 && (
-            <span className="text-[var(--ink-faint)]"> · {culture.termYears}y terms</span>
+            <span className="text-[var(--ink-faint)]"> · {tr('termYears', { years: culture.termYears })}</span>
           )}
         </span>
       ),
@@ -1227,14 +1260,14 @@ export function CultureList({ world }: { world: World }) {
     },
     {
       key: 'aggression',
-      header: 'Aggression',
+      header: tr('aggression'),
       cell: (culture) => culture.aggression.toFixed(2),
       sort: (culture) => culture.aggression,
       align: 'right',
     },
     {
       key: 'expansionism',
-      header: 'Expansionism',
+      header: tr('expansionism'),
       cell: (culture) => culture.expansionism.toFixed(2),
       sort: (culture) => culture.expansionism,
       align: 'right',
@@ -1244,39 +1277,39 @@ export function CultureList({ world }: { world: World }) {
   const facets: Facet<Culture>[] = [
     {
       key: 'government',
-      label: 'Government',
+      label: tr('government'),
       options: distinct(world.export.cultures.map((culture) => culture.government)).map(
         (government) => ({
           value: government,
-          label: government,
+          label: translateIn(language, 'lore', government),
           match: (culture: Culture) => culture.government === government,
         }),
       ),
     },
     {
       key: 'succession',
-      label: 'Succession',
+      label: tr('succession'),
       options: [
         ...distinct(world.export.cultures.map((culture) => culture.successionLaw)).map((law) => ({
           value: law,
-          label: SUCCESSION_LABELS[law] ?? law,
+          label: translateIn(language, 'lore', SUCCESSION_LABELS[law] ?? law),
           match: (culture: Culture) => culture.successionLaw === law,
         })),
-        { value: 'term', label: 'Serves a fixed term', match: (culture) => culture.termYears > 0 },
+        { value: 'term', label: tr('fixedTerm'), match: (culture) => culture.termYears > 0 },
       ],
     },
   ];
 
   return (
     <div>
-      <PageTitle eyebrow="Index" title="Cultures" />
+      <PageTitle eyebrow={tr('index')} title={tr('cultures')} />
       <Panel>
         <DataTable
           rows={world.export.cultures}
           columns={columns}
           facets={facets}
           searchText={(culture) => `${culture.name} ${culture.government}`}
-          placeholder="Search cultures…"
+          placeholder={tr('searchCultures')}
         />
       </Panel>
     </div>
@@ -1290,6 +1323,7 @@ export function CultureList({ world }: { world: World }) {
  * filter reuses the same per-entity index the entity pages use.
  */
 export function Timeline({ world }: { world: World }) {
+  const tr = useListsTranslations();
   const { meta, events } = world.export;
   const [civ, setCiv] = useState<string>('all');
   const [from, setFrom] = useState(meta.startYear);
@@ -1321,11 +1355,11 @@ export function Timeline({ world }: { world: World }) {
   return (
     <div>
       <PageTitle
-        eyebrow="Chronicle"
-        title="Timeline"
+        eyebrow={tr('chronicle')}
+        title={tr('timeline')}
         meta={
           <Badge>
-            {filtered.length.toLocaleString()} of {events.length.toLocaleString()} events
+            {tr('eventCount', { visible: filtered.length.toLocaleString(), total: events.length.toLocaleString() })}
           </Badge>
         }
       />
@@ -1338,7 +1372,7 @@ export function Timeline({ world }: { world: World }) {
               onChange={(event) => setCiv(event.target.value)}
               className="rounded border border-[var(--rule)] bg-[var(--input)] px-1.5 py-1 text-xs"
             >
-              <option value="all">All civilizations</option>
+              <option value="all">{tr('allCivilizations')}</option>
               {world.export.civilizations.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -1346,7 +1380,7 @@ export function Timeline({ world }: { world: World }) {
               ))}
             </select>
             <label className="inline-flex items-center gap-1.5">
-              Years
+              {tr('years')}
               <input
                 type="number"
                 value={from}
@@ -1355,7 +1389,7 @@ export function Timeline({ world }: { world: World }) {
                 onChange={(event) => setFrom(Number(event.target.value))}
                 className="w-20 rounded border border-[var(--rule)] bg-[var(--input)] px-1.5 py-1 tabular-nums"
               />
-              <span className="text-[var(--ink-faint)]">to</span>
+              <span className="text-[var(--ink-faint)]">{tr('to')}</span>
               <input
                 type="number"
                 value={to}
@@ -1375,6 +1409,8 @@ export function Timeline({ world }: { world: World }) {
 }
 
 export function Overview({ world }: { world: World }) {
+  const tr = useListsTranslations();
+  const { language } = useLanguage();
   const discovery = discoverFigures(world);
   const centralFigures = discovery.ranked.filter((figure) =>
     ['Consequential', 'Influential'].includes(discovery.byId.get(figure.id)!.band),
@@ -1407,67 +1443,67 @@ export function Overview({ world }: { world: World }) {
     <div className="space-y-5">
       <PageTitle
         eyebrow={world.export.world.designation || `Seed ${meta.seed} · config ${meta.configHash}`}
-        title={world.export.world.name || 'A world, in brief'}
+        title={world.export.world.name || tr('worldInBrief')}
         meta={
           <>
-            <Badge>{world.export.world.kind === 'Moon' ? 'Moon' : 'Planet'}</Badge>
+            <Badge>{tr(world.export.world.kind === 'Moon' ? 'moon' : 'planet')}</Badge>
             {world.export.world.cosmology && (
-              <Badge tone="accent">{world.export.world.cosmology.starClass}-type star</Badge>
+              <Badge tone="accent">{tr('starClass', { starClass: world.export.world.cosmology.starClass })}</Badge>
             )}
-            <Badge>seed {meta.seed}</Badge>
+            <Badge>{tr('seedValue', { seed: meta.seed })}</Badge>
             <Badge>
-              years {meta.startYear}–{meta.endYear}
+              {tr('yearRange', { from: meta.startYear, to: meta.endYear })}
             </Badge>
-            <Badge>engine {meta.engineVersion}</Badge>
+            <Badge>{tr('engineVersion', { version: meta.engineVersion })}</Badge>
           </>
         }
       />
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-7">
-        <Stat label="Events" value={events.length.toLocaleString()} />
-        <Stat label="Civilizations" value={`${standing.length} / ${civilizations.length}`} hint="Standing of all founded" />
-        <Stat label="Settlements" value={inhabited.length} />
-        <Stat label="Cities" value={cities.length} />
-        <Stat label="Figures" value={figures.length} hint={`${living.length} still living`} />
+        <Stat label={tr('events')} value={events.length.toLocaleString()} />
+        <Stat label={tr('civilizations')} value={`${standing.length} / ${civilizations.length}`} hint={tr('standingOfFounded')} />
+        <Stat label={tr('settlements')} value={inhabited.length} />
+        <Stat label={tr('cities')} value={cities.length} />
+        <Stat label={tr('figures')} value={figures.length} hint={tr('stillLivingCount', { count: living.length })} />
         <Stat
-          label="Houses"
+          label={tr('houses')}
           value={`${extant.length} / ${dynasties.length}`}
-          hint="Extant of all that ever rose"
+          hint={tr('extantOfAll')}
         />
         <Stat
-          label="Wars"
+          label={tr('wars')}
           value={wars.length}
-          hint={`${world.export.battles.length} battles fought`}
+          hint={tr('battlesFoughtCount', { count: world.export.battles.length })}
         />
         <Stat
-          label="Trade routes"
+          label={tr('tradeRoutes')}
           value={tradeRoutes.filter((route) => route.endedYear === undefined).length}
-          hint={`${tradeRoutes.length} recorded across history`}
+          hint={tr('recordedAcrossHistory', { count: tradeRoutes.length })}
         />
         <Stat
-          label="Faiths"
+          label={tr('faiths')}
           value={`${world.export.religions.filter((f) => f.endedYear === undefined).length} / ${world.export.religions.length}`}
-          hint="Still followed of all ever preached"
+          hint={tr('stillFollowedOfAll')}
         />
         <Stat
-          label="Artifacts"
+          label={tr('artifacts')}
           value={world.export.artifacts.length}
-          hint={`${world.export.artifacts.filter((a) => a.lostYear === undefined).length} still held`}
+          hint={tr('stillHeldCount', { count: world.export.artifacts.filter((a) => a.lostYear === undefined).length })}
         />
         <Stat
-          label="Plagues"
+          label={tr('plagues')}
           value={indices.eventCountsByKind.PlagueBegan ?? 0}
-          hint="Outbreaks recorded"
+          hint={tr('outbreaks')}
         />
         <Stat
-          label="Disasters"
+          label={tr('disasters')}
           value={indices.eventCountsByKind.DisasterStruck ?? 0}
-          hint="Calamities recorded"
+          hint={tr('calamitiesRecorded')}
         />
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2">
-        <Panel title="Great houses">
+        <Panel title={tr('greatHouses')}>
           <ol className="space-y-1.5 text-sm">
             {greatest.map((house) => (
               <li key={house.id} className="flex items-baseline justify-between gap-3">
@@ -1478,21 +1514,21 @@ export function Overview({ world }: { world: World }) {
                   </span>
                 </span>
                 <span className="shrink-0 tabular-nums text-[var(--ink-faint)]">
-                  {house.rulerIds.length} {house.rulerIds.length === 1 ? 'reign' : 'reigns'}
+                  {tr(house.rulerIds.length === 1 ? 'reign.one' : 'reign.other', { count: house.rulerIds.length })}
                 </span>
               </li>
             ))}
           </ol>
         </Panel>
 
-        <Panel title="Largest settlements">
+        <Panel title={tr('largestSettlements')}>
           <ol className="space-y-1.5 text-sm">
             {largest.map((settlement) => (
               <li key={settlement.id} className="flex items-baseline justify-between gap-3">
                 <span>
                   <EntityLink world={world} id={settlement.id} />
                   <span className="ml-2 text-[var(--ink-faint)]">
-                    {settlement.tier} · <EntityLink world={world} id={settlement.civilizationId} />
+                    {translateIn(language, 'lore', settlement.tier)} · <EntityLink world={world} id={settlement.civilizationId} />
                   </span>
                 </span>
                 <span className="shrink-0 tabular-nums">
@@ -1506,7 +1542,7 @@ export function Overview({ world }: { world: World }) {
       </div>
 
       {centralFigures.length > 0 && (
-        <Panel title="People the history runs through">
+        <Panel title={tr('centralFigures')}>
           <ol className="space-y-3 text-sm">
             {centralFigures.map((figure) => {
               const reading = discovery.byId.get(figure.id)!;
@@ -1514,23 +1550,23 @@ export function Overview({ world }: { world: World }) {
                 <li key={figure.id}>
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
                     <span><EntityLink world={world} id={figure.id} /> · {yearRange(figure.birthYear, figure.deathYear)}</span>
-                    <Badge>{reading.band}</Badge>
+                    <Badge>{translateIn(language, 'lore', reading.band)}</Badge>
                   </div>
-                  <p className="mt-1 text-xs text-[var(--ink-faint)]">{reading.reasons.join(' · ')}</p>
+                  <p className="mt-1 text-xs text-[var(--ink-faint)]">{reading.reasons.map((reason) => translateIn(language, 'lore', reason)).join(' · ')}</p>
                 </li>
               );
             })}
           </ol>
-          <a href="#/fig" className="mt-3 inline-block text-sm text-[var(--accent)]">Explore all figures →</a>
+          <a href="#/fig" className="mt-3 inline-block text-sm text-[var(--accent)]">{tr('exploreFigures')} →</a>
         </Panel>
       )}
 
-      <Panel title="What happened">
+      <Panel title={tr('whatHappened')}>
         {/* Two columns: dynasties roughly tripled the number of distinct event kinds. */}
         <ul className="grid gap-x-8 gap-y-1 text-sm sm:grid-cols-2">
           {kindCounts.map(([kind, count]) => (
             <li key={kind} className="flex items-baseline justify-between gap-3">
-              <span>{humanise(kind)}</span>
+              <span>{translateIn(language, 'lore', humanise(kind))}</span>
               <span className="tabular-nums text-[var(--ink-faint)]">
                 {count.toLocaleString()}
               </span>
@@ -1539,81 +1575,79 @@ export function Overview({ world }: { world: World }) {
         </ul>
       </Panel>
 
-      <Panel title="Terrain sampling">
+      <Panel title={tr('terrainSampling')}>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <Stat
-            label="Simulation"
+            label={tr('simulation')}
             value={meta.terrainSampling.simulationSamples.toLocaleString()}
-            hint="Samples spent on worldgen and simulation"
+            hint={tr('simulationSamplesHint')}
           />
           <Stat
-            label="In-game cost"
+            label={tr('inGameCost')}
             value={`≈${meta.terrainSampling.estimatedGameSecondsSimulation.toFixed(1)}s`}
-            hint="What that many samples would cost against Vintage Story's terrain sampler"
+            hint={tr('inGameCostHint')}
           />
           <Stat
-            label="Map raster"
+            label={tr('mapRaster')}
             value={meta.terrainSampling.rasterSamples.toLocaleString()}
-            hint="Presentation only — budgeted separately"
+            hint={tr('presentationOnly')}
           />
-          <Stat label="Capabilities" value={<span className="text-xs">{world.export.world.capabilities}</span>} />
+          <Stat label={tr('capabilities')} value={<span className="text-xs">{translateIn(language, 'lore', world.export.world.capabilities)}</span>} />
         </div>
         <p className="mt-3 text-xs leading-relaxed text-[var(--ink-faint)]">
-          Rivers are derived from the height lattice rather than sampled, so they cost nothing and
-          exist in every phase — Vintage Story&rsquo;s sampler cannot report them without the
-          Watersheds sampler installed.
+          {tr('riverSamplingExplanation')}
         </p>
       </Panel>
 
       {/* Everything needed to reproduce this file byte for byte. The export carries no
           timestamp on purpose — seed and hashes are the provenance, and a clock would make the
           determinism test impossible to write. */}
-      <Panel title="Provenance">
+      <Panel title={tr('provenance')}>
         <dl>
-          <Field label="Seed">
+          <Field label={tr('seed')}>
             <span className="tabular-nums">{meta.seed}</span>
           </Field>
-          <Field label="Config hash">
+          <Field label={tr('configHash')}>
             <code className="font-mono text-xs">{meta.configHash}</code>
           </Field>
-          <Field label="System order">
+          <Field label={tr('systemOrder')}>
             <code className="font-mono text-xs">{meta.systemOrderHash}</code>
             <div className="mt-1 text-xs text-[var(--ink-faint)]">
               {meta.systemOrder.join(' → ')}
             </div>
           </Field>
-          <Field label="Years simulated">
+          <Field label={tr('yearsSimulated')}>
             <span className="tabular-nums">
               {meta.yearsSimulated.toLocaleString()}
             </span>
             <span className="ml-2 text-[var(--ink-faint)]">
-              (years {meta.startYear} – {meta.endYear})
+              ({tr('yearRange', { from: meta.startYear, to: meta.endYear })})
             </span>
           </Field>
-          <Field label="Engine">
+          <Field label={tr('engine')}>
             {meta.engineVersion}
             <span className="ml-2 text-[var(--ink-faint)]">
-              · schema v{world.export.schemaVersion} · narration syntax v
-              {meta.narrationSyntaxVersion}
+              · {tr('schemaVersion', { version: world.export.schemaVersion })} ·{' '}
+              {tr('narrationSyntaxVersion', { version: meta.narrationSyntaxVersion })}
             </span>
           </Field>
-          <Field label="Map lattice">
-            <span className="tabular-nums">{world.export.world.regionSize}</span> per region,
-            terrain sampled every{' '}
+          <Field label={tr('mapLattice')}>
+            {tr('regionLattice', { size: world.export.world.regionSize })},{' '}
+            {tr('terrainSampledEvery')}{' '}
             <span className="tabular-nums">{world.export.world.terrainStride}</span> units
           </Field>
-          <Field label="Measures tracked">
+          <Field label={tr('measuresTracked')}>
             <span className="tabular-nums">{world.export.series.length.toLocaleString()}</span>{' '}
-            yearly series across{' '}
+            {tr('yearlySeriesAcross')}{' '}
             <span className="tabular-nums">
               {new Set(world.export.series.map((s) => s.entity)).size.toLocaleString()}
             </span>{' '}
-            entities
+            {tr('entities')}
           </Field>
         </dl>
       </Panel>
 
-      <Panel title="Recent history">
+      <Panel title={tr('recentHistory')}>
         <EventList
           world={world}
           events={events.slice(-40).reverse()}

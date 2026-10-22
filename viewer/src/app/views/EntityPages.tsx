@@ -1,3 +1,6 @@
+import { useLanguage } from '../i18n/LanguageProvider';
+import { loreLabel } from '../i18n/lore.ts';
+import { translateIn } from '../i18n/translations.ts';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { EventList, NarratedEvent } from '../components/EventList';
 import {
@@ -743,6 +746,8 @@ export function TradeRouteTable({ world, routes }: { world: World; routes: Trade
 }
 
 export function FigurePage({ world, figure }: { world: World; figure: Figure }) {
+  const { language } = useLanguage();
+  const tr = (value: string) => figureDetailLabel(language, value);
   const lastYear = world.export.meta.endYear;
   const firstYear = Math.max(world.export.meta.startYear, figure.birthYear);
   const [selectedYear, setSelectedYear] = useState(lastYear);
@@ -755,13 +760,14 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
   // of them importing the store.
   const life: LifeContext = useMemo(
     () => ({
+      language,
       endYear: lastYear,
       figureOf: (id) => (kindOf(id) === 'fig' ? (world.byId.get(id) as Figure | undefined) : undefined),
       eventsFor: (id) => world.eventsFor(id),
       nameOf: (id) => world.nameOf(id),
       realmAt: (id, year) => world.timeline.realmAt(id, year),
     }),
-    [world, lastYear],
+    [world, lastYear, language],
   );
 
   const atLatest = selectedYear === lastYear;
@@ -807,13 +813,13 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
   const craftLabel =
     figure.craft && figure.craft !== 'None'
       ? grade && grade.grade !== 'None'
-        ? `${CRAFT_GRADE_LABELS[grade.grade]} ${(CRAFT_LABELS[figure.craft] ?? figure.craft).toLowerCase()}`
-        : (CRAFT_LABELS[figure.craft] ?? figure.craft)
+        ? `${tr(CRAFT_GRADE_LABELS[grade.grade])} ${(tr(CRAFT_LABELS[figure.craft]) ?? figure.craft).toLowerCase()}`
+        : (tr(CRAFT_LABELS[figure.craft]) ?? figure.craft)
       : undefined;
   const trade = atLatest
     ? craftLabel ??
       (figure.occupation && figure.occupation !== 'None'
-        ? (OCCUPATION_LABELS[figure.occupation] ?? figure.occupation)
+        ? (tr(OCCUPATION_LABELS[figure.occupation]) ?? figure.occupation)
         : undefined)
     : occupationEvent?.data?.occupation;
   const role = activeTitle?.title ?? trade;
@@ -971,7 +977,7 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
         world={world}
         figure={figure}
         standing={standing}
-        eyebrow={[role ?? 'Figure', house?.name, culture?.name].filter(Boolean).join(' · ')}
+        eyebrow={[role ? loreLabel(language, role) : (translateIn(language, 'inline', "Figure")), house?.name, culture?.name].filter(Boolean).join(' · ')}
         cultureId={figure.cultureId}
         recordStart={world.export.meta.startYear}
         recordEnd={lastYear}
@@ -988,20 +994,20 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
 
       <EntityColumns
         aside={
-          <Panel title="Chronicle">
+          <Panel title={translateIn(language, 'inline', "Chronicle")}>
             <EventList world={world} events={visibleEvents} viewpoint={figure.id} />
           </Panel>
         }
       >
         <Panel
-          title="Biography at a point in time"
+          title={translateIn(language, 'inline', "Biography at a point in time")}
           actions={
             <div className="flex flex-wrap items-center gap-2">
               <label className="text-xs text-[var(--ink-faint)]">
-                Year{' '}
+                {translateIn(language, 'inline', "Year")}{' '}
                 <input
                   type="number"
-                  aria-label="Biography year"
+                  aria-label={translateIn(language, 'inline', "Biography year")}
                   min={firstYear}
                   max={lastYear}
                   value={selectedYear}
@@ -1020,13 +1026,13 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
                 disabled={atLatest}
                 className="rounded border border-[var(--rule)] px-2 py-1 text-xs disabled:opacity-40"
               >
-                Latest year
+                {translateIn(language, 'inline', "Latest year")}
               </button>
             </div>
           }
         >
           <label htmlFor={`biography-year-${figure.id}`} className="block text-sm">
-            Through year <strong>{selectedYear}</strong>
+            {translateIn(language, 'inline', "Through year")} <strong>{selectedYear}</strong>
           </label>
           <input
             id={`biography-year-${figure.id}`}
@@ -1043,7 +1049,7 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
           </div>
           {!atLatest && (
             <p className="mt-2 text-xs text-[var(--ink-faint)]">
-              Later outcomes and facts without a historical snapshot are hidden.
+              {translateIn(language, 'inline', "Later outcomes and facts without a historical snapshot are hidden.")}
             </p>
           )}
 
@@ -1060,7 +1066,7 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
           </div>
         </Panel>
 
-        <Panel title="Known for">
+        <Panel title={translateIn(language, 'inline', "Known for")}>
           <KnownForPanel
             world={world}
             figure={figure}
@@ -1071,91 +1077,91 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
           />
         </Panel>
 
-        <Panel title={`Those around them in ${pointYear}`}>
+        <Panel title={translateIn(language, 'inline', "Those around them in {v0}", { v0: pointYear })}>
           <RelationshipConstellation world={world} figure={figure} year={pointYear} ctx={life} />
         </Panel>
 
-        <Panel title="Life at a glance">
+        <Panel title={translateIn(language, 'inline', "Life at a glance")}>
           <div className="grid gap-5 lg:grid-cols-2">
             <section>
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
-                Position
-              </h3>
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">{tr("Position")}</h3>
               <p className="text-sm">
                 {activeTitle ? (
                   <>
-                    {activeTitle.title} of{' '}
+                    {tr(activeTitle.title)}{translateIn(language, 'inline', " of  [views/EntityPages.tsx:1092]")}
                     <EntityLink world={world} id={activeTitle.scopeId ?? activeTitle.civilizationId} />
                   </>
                 ) : (
-                  trade ?? 'No recorded adult position yet'
+                  trade ? tr(trade) : tr('No recorded adult position yet')
                 )}
               </p>
               {activeTitle && trade && (
-                <p className="mt-1 text-xs text-[var(--ink-faint)]">Occupation · {trade}</p>
+                <p className="mt-1 text-xs text-[var(--ink-faint)]">{translateIn(language, 'inline', "Occupation")} · {trade ? tr(trade) : trade}</p>
               )}
               {rank && (
-                <p className="mt-1 text-xs text-[var(--ink-faint)]">Rank · {rank.title}</p>
+                <p className="mt-1 text-xs text-[var(--ink-faint)]">{translateIn(language, 'inline', "Rank")} · {tr(rank.title)}</p>
               )}
               {activeTitle && grade && grade.grade !== 'None' && craftLabel && (
-                <p className="mt-1 text-xs text-[var(--ink-faint)]">Trade · {craftLabel}</p>
+                <p className="mt-1 text-xs text-[var(--ink-faint)]">{translateIn(language, 'inline', "Trade")} · {craftLabel}</p>
               )}
               {positionPlace && (
                 <p className="mt-1 text-xs text-[var(--ink-faint)]">
-                  {atLatest ? 'Residence' : 'Last recorded place'} ·{' '}
+                  {tr(atLatest ? 'Residence' : 'Last recorded place')} ·{' '}
                   <EntityLink world={world} id={positionPlace} />
                 </p>
               )}
             </section>
 
             <section>
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
-                Origins and upbringing
-              </h3>
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">{tr("Origins and upbringing")}</h3>
               {background ? (
                 <p className="text-sm">
-                  Entered the record in {background.introducedYear} through{' '}
-                  {CAREER_FAMILY_LABELS[background.careerFamily]} at{' '}
+                  {translateIn(language, 'inline', "Entered the record in")} {background.introducedYear}{translateIn(language, 'inline', " through ")}
+                  {tr(CAREER_FAMILY_LABELS[background.careerFamily])}{translateIn(language, 'inline', " at ")}
                   <EntityLink world={world} id={background.originSettlementId} />.
                 </p>
               ) : guardianships.length > 0 || mentorships.length > 0 ? (
                 <p className="text-sm">
-                  {guardianships.length > 0 && `${guardianships.length} recorded guardianship`}
-                  {guardianships.length > 1 && 's'}
+                  {guardianships.length > 0 && translateIn(
+                    language,
+                    'entityPages',
+                    guardianships.length === 1 ? 'recordedGuardianship.one' : 'recordedGuardianship.other',
+                    { count: guardianships.length },
+                  )}
                   {guardianships.length > 0 && mentorships.length > 0 && ' · '}
-                  {mentorships.length > 0 && `${mentorships.length} recorded mentorship`}
-                  {mentorships.length > 1 && 's'}
+                  {mentorships.length > 0 && translateIn(
+                    language,
+                    'entityPages',
+                    mentorships.length === 1 ? 'recordedMentorship.one' : 'recordedMentorship.other',
+                    { count: mentorships.length },
+                  )}
                 </p>
               ) : (
-                <p className="text-sm text-[var(--ink-faint)]">No exceptional upbringing was recorded.</p>
+                <p className="text-sm text-[var(--ink-faint)]">{tr("No exceptional upbringing was recorded.")}</p>
               )}
             </section>
 
             <section>
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
-                Important relationships
-              </h3>
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">{tr("Important relationships")}</h3>
               {importantRelationships.length > 0 ? (
                 <ul className="space-y-1 text-sm">
                   {importantRelationships.slice(0, 3).map((bond) => (
                     <li key={bond.otherId}>
                       <EntityLink world={world} id={bond.otherId} />
                       <span className="ml-2 text-xs text-[var(--ink-faint)]">
-                        {bond.kinds.map((kind) => BOND_LABELS[kind] ?? kind).join(', ')} ·{' '}
-                        {relationshipReading(bond)}
+                        {bond.kinds.map((kind) => tr(BOND_LABELS[kind]) ?? kind).join(', ')} ·{' '}
+                        {relationshipReading(bond, language)}
                       </span>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="text-sm text-[var(--ink-faint)]">No durable relationship is visible yet.</p>
+                <p className="text-sm text-[var(--ink-faint)]">{tr("No durable relationship is visible yet.")}</p>
               )}
             </section>
 
             <section>
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
-                What they carried
-              </h3>
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">{tr("What they carried")}</h3>
               {formativeMemories.length > 0 || injuries.length > 0 ? (
                 <ul className="space-y-1 text-sm">
                   {formativeMemories.slice(0, 2).map((memory, index) => (
@@ -1168,12 +1174,12 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
                   {injuries.slice(-1).map((injury) => (
                     <li key={`${injury.causeId}:${injury.year}`}>
                       <span className="text-[var(--ink-faint)]">{injury.year} · </span>
-                      {injury.detail} at <EntityLink world={world} id={injury.causeId} />
+                      {injury.detail}{translateIn(language, 'inline', " at ")}<EntityLink world={world} id={injury.causeId} />
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="text-sm text-[var(--ink-faint)]">No formative memory or wound is visible yet.</p>
+                <p className="text-sm text-[var(--ink-faint)]">{tr("No formative memory or wound is visible yet.")}</p>
               )}
             </section>
           </div>
@@ -1182,16 +1188,14 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
             quarrels.some((dispute) => dispute.outcome === 'Open') ||
             conspiracies.some((plot) => plot.outcome === 'Ongoing')) && (
             <section className="mt-5 border-t border-[var(--rule)] pt-4">
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
-                Open threads
-              </h3>
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">{tr("Open threads")}</h3>
               <ul className="space-y-1.5 text-sm">
                 {lifeUndertakings
                   .filter((undertaking) => undertaking.state === 'Active')
                   .slice(0, 2)
                   .map((undertaking) => (
                     <li key={`open-undertaking:${undertaking.id}`}>
-                      Undertaking · {undertaking.objective}
+                      {translateIn(language, 'inline', "Undertaking")} · {undertaking.objective}
                       {undertaking.targetId && (
                         <>
                           {' · '}
@@ -1205,7 +1209,7 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
                   .slice(0, 2)
                   .map((dispute) => (
                     <li key={`open-dispute:${dispute.id}:${dispute.otherId}`}>
-                      Unresolved {DISPUTE_STAGE_LABELS[dispute.stage].toLowerCase()} with{' '}
+                      {translateIn(language, 'inline', "Unresolved ")}{tr(DISPUTE_STAGE_LABELS[dispute.stage]).toLowerCase()}{translateIn(language, 'inline', " with ")}
                       <EntityLink world={world} id={dispute.otherId} />
                     </li>
                   ))}
@@ -1214,8 +1218,8 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
                   .slice(0, 2)
                   .map((plot) => (
                     <li key={`open-plot:${plot.leaderId}:${plot.id}`}>
-                      {plot.publicYear === undefined ? 'Retrospectively recorded' : 'Revealed'} conspiracy
-                      involving{' '}
+                      {translateIn(language, 'entityPages', plot.publicYear === undefined ? 'retrospectivelyRecorded' : 'revealed')}
+                      {translateIn(language, 'inline', " conspiracy involving ")}
                       <EntityLink
                         world={world}
                         id={plot.viewpoint === 'Target' ? plot.leaderId : plot.targetId}
@@ -1228,69 +1232,67 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
 
           {episodes.length > 0 && (
             <section className="mt-5 border-t border-[var(--rule)] pt-4">
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
-                Episodes that shaped this life
-              </h3>
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">{tr("Episodes that shaped this life")}</h3>
               <BiographyEpisodeList world={world} episodes={episodes} />
             </section>
           )}
         </Panel>
 
-        <Panel title="Details">
+        <Panel title={translateIn(language, 'inline', "Details")}>
           <dl>
-            <Field label="Sex">{figure.sex}</Field>
-            <Field label="House">
+            <Field label={tr("Sex")}>{tr(figure.sex)}</Field>
+            <Field label={tr("House")}>
               {house ? (
                 <EntityLink world={world} id={house.id} />
               ) : (
-                <span className="text-[var(--ink-faint)]">Of no recorded house</span>
+                <span className="text-[var(--ink-faint)]">{tr("Of no recorded house")}</span>
               )}
             </Field>
-            <Field label="Civilization">
+            <Field label={tr("Civilization")}>
               <EntityLink world={world} id={figure.civilizationId} />
             </Field>
-            <Field label="Culture">
+            <Field label={tr("Culture")}>
               <EntityLink world={world} id={figure.cultureId} />
             </Field>
-            <Field label="Faith">
+            <Field label={tr("Faith")}>
               {figure.religionId ? (
                 <EntityLink world={world} id={figure.religionId} />
               ) : (
-                <span className="text-[var(--ink-faint)]">None recorded</span>
+                <span className="text-[var(--ink-faint)]">{tr("None recorded")}</span>
               )}
             </Field>
-            <Field label="Born">
+            <Field label={tr("Born")}>
               {figure.birthYear}
               {figure.birthSettlementId && (
                 <>
-                  {' in '}
+                  {tr(' in ')}
                   <EntityLink world={world} id={figure.birthSettlementId} />
                 </>
               )}
             </Field>
-            <Field label="Occupation">{trade ?? 'None recorded yet'}</Field>
-            {figure.origin !== 'Unrecorded' && ORIGIN_LABELS[figure.origin] && (
-              <Field label="Rose from">{ORIGIN_LABELS[figure.origin]}</Field>
+            <Field label={tr("Occupation")}>{trade ? tr(trade) : tr('None recorded yet')}</Field>
+            {figure.origin !== 'Unrecorded' && tr(ORIGIN_LABELS[figure.origin]) && (
+              <Field label={tr("Rose from")}>{tr(ORIGIN_LABELS[figure.origin])}</Field>
             )}
             {deadAtPoint && figure.deathYear !== undefined && (
-              <Field label="Died">
+              <Field label={tr("Died")}>
                 {figure.deathYear}
                 {figure.deathCause !== 'Unknown' && (
                   <span className="ml-2 text-[var(--ink-faint)]">
-                    of {figure.deathDetail ?? DEATH_LABELS[figure.deathCause] ?? figure.deathCause}
+                    {translateIn(language, 'inline', "of ")}{figure.deathDetail ?? tr(DEATH_LABELS[figure.deathCause]) ?? figure.deathCause}
                   </span>
                 )}
               </Field>
             )}
             {visibleGrades.length > 0 && (
-              <Field label="Trade">
+              <Field label={tr("Trade")}>
                 <ul className="space-y-0.5">
                   {visibleGrades.map((step, index) => (
                     <li key={index}>
-                      {CRAFT_GRADE_LABELS[step.grade] ?? step.grade}
+                      {tr(CRAFT_GRADE_LABELS[step.grade]) ?? step.grade}
                       {step.settlementId !== undefined && (
                         <>
-                          {' of '}
+                          {tr(' of ')}
                           <EntityLink world={world} id={step.settlementId} />
                         </>
                       )}
@@ -1304,11 +1306,11 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
               </Field>
             )}
             {visibleService.length > 0 && (
-              <Field label="Service">
+              <Field label={tr("Service")}>
                 <ul className="space-y-0.5">
                   {visibleService.map((step, index) => (
                     <li key={index}>
-                      {step.title} of <EntityLink world={world} id={step.civilizationId} />
+                      {tr(step.title)}{translateIn(language, 'inline', " of  [views/EntityPages.tsx:1305]")}<EntityLink world={world} id={step.civilizationId} />
                       <span className="ml-2 text-[var(--ink-faint)]">{step.year}</span>
                       {step.claim && (
                         <span className="ml-2 text-[var(--ink-faint)]">{step.claim}</span>
@@ -1318,14 +1320,14 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
                 </ul>
               </Field>
             )}
-            <Field label="Titles">
+            <Field label={tr("Titles")}>
               {visibleTitles.length === 0 ? (
-                <span className="text-[var(--ink-faint)]">None</span>
+                <span className="text-[var(--ink-faint)]">{tr("None")}</span>
               ) : (
                 <ul className="space-y-0.5">
                   {visibleTitles.map((title, index) => (
                     <li key={index}>
-                      {title.title} of <EntityLink world={world} id={title.civilizationId} />
+                      {tr(title.title)}{translateIn(language, 'inline', " of  [views/EntityPages.tsx:1322]")}<EntityLink world={world} id={title.civilizationId} />
                       <span className="ml-2 text-[var(--ink-faint)]">
                         {yearRange(title.fromYear, title.toYear)}
                       </span>
@@ -1337,63 +1339,62 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
           </dl>
         </Panel>
 
-        <Panel title="Disposition">
+        <Panel title={translateIn(language, 'inline', "Disposition")}>
           {figure.disposition === undefined ? (
-            <NotInThisExport what="A figure's disposition" version={world.schema.version} />
+            <NotInThisExport what={tr("A figure's disposition")} version={world.schema.version} />
           ) : (
           <>
-          <Dials dials={dispositionDials(figure.disposition, culture)} />
+          <Dials dials={dispositionDials(figure.disposition, culture).map((dial) => ({ ...dial, label: typeof dial.label === 'string' ? tr(dial.label) : dial.label, hint: typeof dial.hint === 'string' ? tr(dial.hint) : dial.hint }))} />
           <p className="mt-3 text-xs leading-relaxed text-[var(--ink-faint)]">
-            Their own inclinations, on the dials their people hold.
+            {translateIn(language, 'entityPages', 'disposition.intro')}
             {culture && (
               <>
-                {' '}
-                Ticks mark <EntityLink world={world} id={culture.id} />
-                &rsquo;s reading of each: everyone is rolled around the values they were born to
-                {figure.religionId ? (
+                {translateIn(language, 'entityPages', 'disposition.culturePrefix')}
+                <EntityLink world={world} id={culture.id} />
+                {translateIn(language, 'entityPages', figure.religionId
+                  ? 'disposition.cultureWithReligion'
+                  : 'disposition.cultureWithoutReligion')}
+                {figure.religionId && (
                   <>
-                    , then pulled toward what <EntityLink world={world} id={figure.religionId} />{' '}
-                    teaches
+                    <EntityLink world={world} id={figure.religionId} />
+                    {translateIn(language, 'entityPages', 'disposition.afterReligion')}
                   </>
-                ) : null}
-                , so the gap is the person rather than the people.
+                )}
               </>
-            )}{' '}
-            Centralism is rolled around what the office itself invites rather than around a culture,
-            so it carries no tick.
-            {figure.disposition.independence !== undefined &&
-              ' Independence is how far they let their people govern them: a follower stays near ' +
-                'the ticks, a rebel answers with their own inclinations.'}
-            {visibleTitles.length === 0 &&
-              ' Recorded for everyone, though it only ever governed anything for those who came to rule.'}
+            )}
+            {' '}{translateIn(language, 'entityPages', 'disposition.centralism')}
+            {figure.disposition.independence !== undefined && (
+              <> {translateIn(language, 'entityPages', 'disposition.independence')}</>
+            )}
+            {visibleTitles.length === 0 && (
+              <> {translateIn(language, 'entityPages', 'disposition.noTitles')}</>
+            )}
           </p>
           </>
           )}
         </Panel>
 
         {hasLifeSummary && (
-          <Panel title="Episode ledger">
+          <Panel title={translateIn(language, 'inline', "Episode ledger")}>
             <div className="space-y-5">
               {(background || guardianships.length > 0 || mentorships.length > 0) && (
                 <section>
-                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
-                    Origins and upbringing
-                  </h3>
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">{tr("Origins and upbringing")}</h3>
                   {background && (
                     <p className="text-sm">
-                      Became part of the record in {background.introducedYear}, having risen through{' '}
-                      {CAREER_FAMILY_LABELS[background.careerFamily]} at{' '}
+                      {translateIn(language, 'inline', "Became part of the record in")} {background.introducedYear}{translateIn(language, 'inline', ", having risen through ")}
+                      {tr(CAREER_FAMILY_LABELS[background.careerFamily])}{translateIn(language, 'inline', " at ")}
                       <EntityLink world={world} id={background.originSettlementId} />
                       {background.institutionId &&
                         background.institutionId !== background.originSettlementId && (
                           <>
-                            {' through '}
+                            {tr(' through ')}
                             <EntityLink world={world} id={background.institutionId} />
                           </>
                         )}
                       {background.sponsorId && (
                         <>
-                          {', backed by '}
+                          {tr(', backed by ')}
                           <EntityLink world={world} id={background.sponsorId} />
                         </>
                       )}
@@ -1407,15 +1408,17 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
                         return (
                           <li key={`${guardianship.guardianId}:${guardianship.wardId}:${guardianship.startYear}`}>
                             <span className="text-[var(--ink-faint)]">{guardianship.startYear} · </span>
-                            {wasGuardian ? 'Guardian of ' : 'Guarded by '}
+                            {translateIn(language, 'entityPages', wasGuardian
+                              ? 'guardianship.guardianOf'
+                              : 'guardianship.guardedBy')}
                             <EntityLink
                               world={world}
                               id={wasGuardian ? guardianship.wardId : guardianship.guardianId}
                             />
                             <span className="ml-2 text-xs text-[var(--ink-faint)]">
                               {guardianship.end === 'Ongoing'
-                                ? 'ongoing'
-                                : `until ${guardianship.endYear ?? guardianship.startYear}`}
+                                ? tr('ongoing')
+                                : (translateIn(language, 'inline', "until {v0}", { v0: guardianship.endYear ?? guardianship.startYear }))}
                             </span>
                           </li>
                         );
@@ -1431,18 +1434,20 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
                         return (
                           <li key={`${mentorship.mentorId}:${mentorship.apprenticeId}:${mentorship.startYear}`}>
                             <span className="text-[var(--ink-faint)]">{mentorship.startYear} · </span>
-                            {taught ? 'Mentored ' : 'Mentored in '}
+                            {translateIn(language, 'entityPages', taught
+                              ? 'mentorship.mentored'
+                              : 'mentorship.mentoredIn')}
                             {taught ? (
                               <EntityLink world={world} id={mentorship.apprenticeId} />
                             ) : (
                               <>
-                                {CAREER_FAMILY_LABELS[mentorship.careerFamily]} by{' '}
+                                {tr(CAREER_FAMILY_LABELS[mentorship.careerFamily])}{translateIn(language, 'inline', " by ")}
                                 <EntityLink world={world} id={mentorship.mentorId} />
                               </>
                             )}
                             {mentorship.locationId && (
                               <span className="text-[var(--ink-faint)]">
-                                {' at '}
+                                {tr(' at ')}
                                 <EntityLink world={world} id={mentorship.locationId} />
                               </span>
                             )}
@@ -1456,9 +1461,7 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
 
               {lifeUndertakings.length > 0 && (
                 <section>
-                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
-                    Undertakings
-                  </h3>
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">{tr("Undertakings")}</h3>
                   <div className="space-y-3">
                     {lifeUndertakings.map((undertaking) => (
                       <LifeUndertaking
@@ -1473,9 +1476,7 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
 
               {importantRelationships.length > 0 && (
                 <section>
-                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
-                    Important relationships
-                  </h3>
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">{tr("Important relationships")}</h3>
                   <ul className="space-y-2 text-sm">
                     {importantRelationships.map((bond) => (
                       <li key={bond.otherId} className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
@@ -1486,13 +1487,13 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
                               key={kind}
                               tone={kind === 'Rival' || kind === 'Enemy' ? 'muted' : 'neutral'}
                             >
-                              {BOND_LABELS[kind] ?? kind}
+                              {tr(BOND_LABELS[kind]) ?? kind}
                             </Badge>
                           ))}
                         </span>
                         <span className="text-xs text-[var(--ink-faint)]">
-                          {relationshipReading(bond)} · since {bond.sinceYear} ·{' '}
-                          {eventReading(bond.lastEventKind)} in {bond.lastChangedYear}
+                          {relationshipReading(bond, language)} · {translateIn(language, 'inline', "since")} {bond.sinceYear} ·{' '}
+                          {eventReading(bond.lastEventKind, language)} {translateIn(language, 'inline', "in")} {bond.lastChangedYear}
                           {bond.lastEntityId &&
                             bond.lastEntityId !== bond.otherId &&
                             bond.lastEntityId !== figure.id && (
@@ -1510,9 +1511,7 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
 
               {formativeMemories.length > 0 && (
                 <section>
-                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
-                    Formative memories
-                  </h3>
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">{tr("Formative memories")}</h3>
                   {atLatest && <FeelingBadges feelings={figure.feelings} />}
                   <ul className="mt-2 space-y-1.5 text-sm">
                     {formativeMemories.map((memory, index) => (
@@ -1528,12 +1527,10 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
 
               {(friendships === undefined || friendships.length > 0) && (
                 <section>
-                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
-                    Friendships
-                  </h3>
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">{tr("Friendships")}</h3>
                   {friendships === undefined ? (
                     <NotInThisExport
-                      what="A figure's friendships"
+                      what={tr("A figure's friendships")}
                       since={48}
                       version={world.schema.version}
                     />
@@ -1563,9 +1560,7 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
               */}
               {betrayals !== undefined && betrayals.length > 0 && (
                 <section>
-                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
-                    Betrayals
-                  </h3>
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">{tr("Betrayals")}</h3>
                   <ul className="space-y-2">
                     {betrayals.map((betrayal) => (
                       <Betrayal
@@ -1580,9 +1575,7 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
 
               {quarrels.length > 0 && (
                 <section>
-                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
-                    Quarrels
-                  </h3>
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">{tr("Quarrels")}</h3>
                   <div className="space-y-3">
                     {quarrels.map((dispute) => (
                       <Quarrel
@@ -1598,9 +1591,7 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
 
               {conspiracies.length > 0 && (
                 <section>
-                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
-                    Conspiracies
-                  </h3>
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">{tr("Conspiracies")}</h3>
                   <div className="space-y-3">
                     {conspiracies.map((plot) => (
                       <Conspiracy
@@ -1617,24 +1608,22 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
 
               {seenInTheSky.length > 0 && (
                 <section>
-                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
-                    Recorded in the sky
-                  </h3>
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">{tr("Recorded in the sky")}</h3>
                   <ul className="space-y-1.5 text-sm">
                     {seenInTheSky.map((seen, index) => (
                       <li key={`${seen.cometIndex}:${seen.year}:${index}`}>
                         <span className="text-[var(--ink-faint)]">{seen.year} · </span>
-                        {APPARITION_LABELS[seen.grade] ?? seen.grade}
+                        {tr(APPARITION_LABELS[seen.grade]) ?? seen.grade}
                         {seen.settlementId && (
                           <>
-                            {' at '}
+                            {tr(' at ')}
                             <EntityLink world={world} id={seen.settlementId} />
                           </>
                         )}
                         <span className="ml-2 text-xs text-[var(--ink-faint)]">
                           {seen.interval !== undefined
-                            ? `${seen.interval} years after the last their people had written down`
-                            : 'the first their people had written down'}
+                            ? (translateIn(language, 'inline', "{v0} years after the last their people had written down", { v0: seen.interval }))
+                            : (translateIn(language, 'inline', "the first their people had written down"))}
                         </span>
                       </li>
                     ))}
@@ -1644,9 +1633,7 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
 
               {heldAboutTheSky.length > 0 && (
                 <section>
-                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
-                    Held about the sky
-                  </h3>
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">{tr("Held about the sky")}</h3>
                   <ul className="space-y-2 text-sm">
                     {heldAboutTheSky.map((claim) => (
                       <li key={`${claim.id}:${claim.year}`} className="border-l border-[var(--line)] pl-3">
@@ -1669,20 +1656,20 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
                                   : 'neutral'
                             }
                           >
-                            {claim.register}
+                            {tr(claim.register)}
                           </Badge>
                         </p>
                         <p className="mt-0.5 text-xs text-[var(--ink-faint)]">
-                          {CLAIM_VERDICT_LABELS[claim.verdict] ?? claim.verdict}
-                          {claim.predictedYear !== undefined && ` · looked for it in ${claim.predictedYear}`}
-                          {claim.settledYear !== undefined && ` · settled ${claim.settledYear}`}
+                          {tr(CLAIM_VERDICT_LABELS[claim.verdict]) ?? claim.verdict}
+                          {claim.predictedYear !== undefined && (translateIn(language, 'inline', " · looked for it in {v0}", { v0: claim.predictedYear }))}
+                          {claim.settledYear !== undefined && (translateIn(language, 'inline', " · settled {v0}", { v0: claim.settledYear }))}
                           {claim.settledYear !== undefined &&
                             !claim.claimantSawTheAnswer &&
-                            ', after their death'}
+                            (translateIn(language, 'inline', ", after their death"))}
                         </p>
                         {claim.restsOnYears.length > 0 && (
                           <p className="mt-0.5 text-xs text-[var(--ink-faint)]">
-                            From sightings in {claim.restsOnYears.join(', ')}
+                            {translateIn(language, 'inline', "From sightings in")} {claim.restsOnYears.join(', ')}
                           </p>
                         )}
                       </li>
@@ -1693,22 +1680,20 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
 
               {injuries.length > 0 && (
                 <section>
-                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">
-                    Wounds carried
-                  </h3>
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-faint)]">{tr("Wounds carried")}</h3>
                   <ul className="space-y-1.5 text-sm">
                     {injuries.map((injury, index) => (
                       <li key={`${injury.causeId}:${injury.year}:${index}`}>
                         <span className="text-[var(--ink-faint)]">{injury.year} · </span>
                         {injury.detail}{' '}
-                        {injury.sourceKind === 'DuelFought' ? 'at the hand of' : 'at'}{' '}
+                        {injury.sourceKind === 'DuelFought' ? tr('at the hand of') : 'at'}{' '}
                         <EntityLink world={world} id={injury.causeId} />
                         <span className="ml-2 text-xs text-[var(--ink-faint)]">
                           {injury.permanent
-                            ? 'permanent'
+                            ? tr('permanent')
                             : injury.recoveryYear !== undefined && injury.recoveryYear <= selectedYear
-                              ? `recovered by ${injury.recoveryYear}`
-                              : 'still recovering'}
+                              ? (translateIn(language, 'inline', "recovered by {v0}", { v0: injury.recoveryYear }))
+                              : tr('still recovering')}
                         </span>
                       </li>
                     ))}
@@ -1720,38 +1705,38 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
         )}
 
         {hasFamily && atLatest && (
-          <Panel title="Family">
+          <Panel title={translateIn(language, 'inline', "Family")}>
             <FamilyTree world={world} figure={figure} />
           </Panel>
         )}
 
         {campaigns.length > 0 && (
-          <Panel title="Campaigns">
+          <Panel title={translateIn(language, 'inline', "Campaigns")}>
             <CampaignList world={world} campaigns={campaigns} />
           </Panel>
         )}
 
         {journeys.length > 0 && (
-          <Panel title="Travels">
+          <Panel title={translateIn(language, 'inline', "Travels")}>
             <JourneyList world={world} journeys={journeys} throughYear={selectedYear} />
           </Panel>
         )}
 
         {claimed.length > 0 && (
-          <Panel title="Treasures">
+          <Panel title={translateIn(language, 'inline', "Treasures")}>
             <ArtifactTable world={world} artifacts={claimed} />
           </Panel>
         )}
 
         {works.length > 0 && (
-          <Panel title="Their work">
+          <Panel title={translateIn(language, 'inline', "Their work")}>
             <ArtifactTable world={world} artifacts={works} />
           </Panel>
         )}
 
         {/* Only once they are dead: what followed them is not a fact about a living person. */}
         {deadAtPoint && (
-          <Panel title={`After ${figure.name}`}>
+          <Panel title={translateIn(language, 'inline', "After {v0}", { v0: figure.name })}>
             <RipplesPanel world={world} figure={figure} ctx={life} />
           </Panel>
         )}
@@ -1761,40 +1746,42 @@ export function FigurePage({ world, figure }: { world: World; figure: Figure }) 
 }
 
 function CampaignList({ world, campaigns }: { world: World; campaigns: Campaign[] }) {
+  const { language } = useLanguage();
+  const tr = (value: string) => figureDetailLabel(language, value);
   return (
     <ul className="space-y-1.5 text-sm">
       {campaigns.map((campaign, index) => (
         <li key={`${campaign.warId}:${campaign.battleId ?? 'war'}:${campaign.role}:${index}`}>
           <span className="text-[var(--ink-faint)]">{campaign.year} · </span>
-          {CAMPAIGN_ROLE_LABELS[campaign.role] ?? campaign.role}
-          {' at '}
+          {tr(CAMPAIGN_ROLE_LABELS[campaign.role]) ?? campaign.role}
+          {tr(' at ')}
           <EntityLink world={world} id={campaign.battleId ?? campaign.warId} />
           <span className="ml-2 text-[var(--ink-faint)]">
             {campaign.triumphant === undefined
-              ? 'outcome unsettled'
+              ? tr('outcome unsettled')
               : campaign.triumphant
-                ? 'triumphant'
-                : 'defeated'}
+                ? tr('triumphant')
+                : tr('defeated')}
           </span>
           {campaign.fate !== 'Unresolved' && (
             <span className="ml-2 text-[var(--ink-faint)]">
-              · {campaign.fate === 'ReturnedUnharmed' ? 'returned unharmed' : campaign.fate.toLowerCase()}
+              · {campaign.fate === 'ReturnedUnharmed' ? tr('returned unharmed') : tr(campaign.fate.toLowerCase())}
             </span>
           )}
           {campaign.renownGained > 0 && (
             <span className="ml-2 text-[var(--ink-faint)]">
-              · renown +{campaign.renownGained}
+              · {translateIn(language, 'inline', "renown")} +{campaign.renownGained}
             </span>
           )}
           {campaign.traumatized && (
-            <span className="ml-2 text-[var(--ink-faint)]">· carried trauma</span>
+            <span className="ml-2 text-[var(--ink-faint)]">· {translateIn(language, 'inline', "carried trauma")}</span>
           )}
           {campaign.deserted && (
-            <span className="ml-2 text-[var(--ink-faint)]">· deserted</span>
+            <span className="ml-2 text-[var(--ink-faint)]">· {translateIn(language, 'inline', "deserted")}</span>
           )}
           {campaign.promotionYear !== undefined && (
             <span className="ml-2 text-[var(--ink-faint)]">
-              · led to promotion in {campaign.promotionYear}
+              · {translateIn(language, 'inline', "led to promotion in")} {campaign.promotionYear}
             </span>
           )}
         </li>
@@ -1812,6 +1799,8 @@ function JourneyList({
   journeys: Journey[];
   throughYear: number;
 }) {
+  const { language } = useLanguage();
+  const tr = (value: string) => figureDetailLabel(language, value);
   const groups = groupJourneys(journeys, throughYear);
 
   return (
@@ -1829,13 +1818,13 @@ function JourneyList({
               {repeated ? `${group.firstYear}–${group.lastYear}` : journey.year} ·{' '}
             </span>
             {repeated && `${group.journeys.length} `}
-            {JOURNEY_KIND_LABELS[journey.kind] ?? journey.kind}
-            {repeated ? ' journeys' : ''}
-            {' from '}
+            {tr(JOURNEY_KIND_LABELS[journey.kind]) ?? journey.kind}
+            {repeated ? tr(' journeys') : ''}
+            {tr(' from ')}
             <EntityLink world={world} id={journey.fromSettlementId} />
             {!repeated && journey.settlementIds && journey.settlementIds.length > 2 && (
               <>
-                {' by way of '}
+                {tr(' by way of ')}
                 {journey.settlementIds.slice(1, -1).map((id, index) => (
                   <span key={id}>
                     {index > 0 ? ', ' : ''}
@@ -1844,27 +1833,27 @@ function JourneyList({
                 ))}
               </>
             )}
-            {' to '}
+            {tr(' to ')}
             <EntityLink world={world} id={journey.toSettlementId} />
             {journey.viaId && (
               <>
-                {' via '}
+                {tr(' via ')}
                 <EntityLink world={world} id={journey.viaId} />
               </>
             )}
             <span className="text-[var(--ink-faint)]">
               {' · '}
-              {duration} {shortest === 1 && longest === 1 ? 'day' : 'days'}
-              {repeated ? ' each' : ''}
+              {duration} {shortest === 1 && longest === 1 ? tr('day') : tr('days')}
+              {repeated ? tr(' each') : ''}
               {!repeated && journey.returnYear !== undefined && journey.returnYear > journey.year
-                ? ` · returned ${journey.returnYear}`
+                ? (translateIn(language, 'inline', " · returned {v0}", { v0: journey.returnYear }))
                 : ''}
             </span>
-            {repeated && <span className="text-[var(--ink-faint)]"> — all returned</span>}
+            {repeated && <span className="text-[var(--ink-faint)]">{translateIn(language, 'inline', " — all returned")}</span>}
             {!repeated && journey.outcome && journey.outcome !== 'Returned' && (
               <span className="text-[var(--ink-faint)]">
                 {' — '}
-                {JOURNEY_OUTCOME_LABELS[journey.outcome] ?? journey.outcome}
+                {tr(JOURNEY_OUTCOME_LABELS[journey.outcome]) ?? journey.outcome}
               </span>
             )}
           </li>
@@ -1898,6 +1887,8 @@ function Friendship({
   self: EntityId;
   throughYear: number;
 }) {
+  const { language } = useLanguage();
+  const tr = (value: string) => figureDetailLabel(language, value);
   const open = affinity.outcome === 'Open';
   const betrayer = affinity.betrayerId;
   // Still standing, so the span is read to the year being looked at rather than left unfinished.
@@ -1906,45 +1897,45 @@ function Friendship({
     <article className="border-l border-[var(--line)] pl-3">
       <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
         <span>
-          {affinity.sought ? 'Sought out' : 'Was sought out by'}{' '}
+          {affinity.sought ? tr('Sought out') : tr('Was sought out by')}{' '}
           <EntityLink world={world} id={affinity.otherId} />
         </span>
         <Badge tone={affinity.outcome === 'Betrayed' ? 'accent' : open ? 'neutral' : 'muted'}>
-          {open ? AFFINITY_STAGE_LABELS[affinity.stage] : AFFINITY_OUTCOME_LABELS[affinity.outcome]}
+          {open ? tr(AFFINITY_STAGE_LABELS[affinity.stage]) : tr(AFFINITY_OUTCOME_LABELS[affinity.outcome])}
         </Badge>
       </p>
       <p className="mt-1 text-xs text-[var(--ink-faint)]">
-        {AFFINITY_ORIGIN_LABELS[affinity.origin]} · {affinity.startYear}
+        {tr(AFFINITY_ORIGIN_LABELS[affinity.origin])} · {affinity.startYear}
         {affinity.endYear !== undefined && affinity.endYear !== affinity.startYear
           ? `–${affinity.endYear}`
           : ''}
-        {years > 0 && ` · known to each other for ${years} ${years === 1 ? 'year' : 'years'}`}
+        {years > 0 && (translateIn(language, 'inline', " · known to each other for {e0} {e1}", { e0: years, e1: years === 1 ? 'year' : 'years', f0: years, f1: years === 1 ? 'an' : 'ans' }))}
         {!open
           && affinity.stage !== 'Friendship'
           && affinity.stage !== 'Lover'
-          && ' · it never became a friendship'}
+          && tr(' · it never became a friendship')}
       </p>
       {betrayer !== undefined ? (
         <p className="mt-1 text-sm">
           {betrayer === self ? (
             <>
-              Turned on <EntityLink world={world} id={affinity.otherId} />
+              {translateIn(language, 'inline', "Turned on")} <EntityLink world={world} id={affinity.otherId} />
             </>
           ) : (
             <>
-              Was turned on by <EntityLink world={world} id={affinity.otherId} />
+              {translateIn(language, 'inline', "Was turned on by")} <EntityLink world={world} id={affinity.otherId} />
             </>
           )}
           {affinity.placeId && (
             <>
-              {' at '}
+              {tr(' at ')}
               <EntityLink world={world} id={affinity.placeId} />
             </>
           )}
         </p>
       ) : (
         affinity.resolution && (
-          <p className="mt-1 text-xs text-[var(--ink-faint)]">Ended when {affinity.resolution}</p>
+          <p className="mt-1 text-xs text-[var(--ink-faint)]">{translateIn(language, 'inline', "Ended when ")}{affinity.resolution}</p>
         )
       )}
       {affinity.acts.length > 0 && (
@@ -1974,15 +1965,17 @@ function Friendship({
  * it: the same episode reads "turned on" here and "was turned on by" there.
  */
 function Betrayal({ world, betrayal }: { world: World; betrayal: BetrayalRecord }) {
+  const { language } = useLanguage();
+  const tr = (value: string) => figureDetailLabel(language, value);
   return (
     <li className="text-sm">
       <span className="font-medium">
-        {betrayal.turned ? 'Turned on' : 'Was turned on by'}{' '}
+        {betrayal.turned ? tr('Turned on') : tr('Was turned on by')}{' '}
         <EntityLink world={world} id={betrayal.otherId} />
       </span>
       <span className="text-[var(--ink-faint)]">
         {' — '}
-        {BETRAYAL_TIE_LABELS[betrayal.tie].toLowerCase()} · {betrayal.year}
+        {tr(BETRAYAL_TIE_LABELS[betrayal.tie]).toLowerCase()} · {betrayal.year}
         {betrayal.placeId && (
           <>
             {' · '}
@@ -1991,7 +1984,7 @@ function Betrayal({ world, betrayal }: { world: World; betrayal: BetrayalRecord 
         )}
       </span>
       <p className="text-xs text-[var(--ink-faint)]">
-        Over {BETRAYAL_CAUSE_LABELS[betrayal.cause].toLowerCase()}
+        {translateIn(language, 'inline', "Over ")}{tr(BETRAYAL_CAUSE_LABELS[betrayal.cause]).toLowerCase()}
       </p>
     </li>
   );
@@ -2014,6 +2007,8 @@ function Quarrel({
   dispute: Dispute;
   self: EntityId;
 }) {
+  const { language } = useLanguage();
+  const tr = (value: string) => figureDetailLabel(language, value);
   const open = dispute.outcome === 'Open';
   // The cause is worth a link only when it points somewhere the line does not already name.
   // An exposed plot's cause is the person it was against, which on their own page is this page.
@@ -2025,15 +2020,15 @@ function Quarrel({
     <article className="border-l border-[var(--line)] pl-3">
       <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
         <span>
-          {dispute.opened ? 'Fell out with' : 'Was fallen out with by'}{' '}
+          {dispute.opened ? tr('Fell out with') : tr('Was fallen out with by')}{' '}
           <EntityLink world={world} id={dispute.otherId} />
         </span>
         <Badge tone={open ? 'accent' : 'muted'}>
-          {open ? DISPUTE_STAGE_LABELS[dispute.stage] : DISPUTE_OUTCOME_LABELS[dispute.outcome]}
+          {open ? tr(DISPUTE_STAGE_LABELS[dispute.stage]) : tr(DISPUTE_OUTCOME_LABELS[dispute.outcome])}
         </Badge>
       </p>
       <p className="mt-1 text-xs text-[var(--ink-faint)]">
-        {DISPUTE_CAUSE_LABELS[dispute.cause] ?? dispute.cause} · {dispute.startYear}
+        {tr(DISPUTE_CAUSE_LABELS[dispute.cause]) ?? dispute.cause} · {dispute.startYear}
         {dispute.endYear !== undefined && dispute.endYear !== dispute.startYear
           ? `–${dispute.endYear}`
           : ''}
@@ -2045,11 +2040,11 @@ function Quarrel({
         )}
       </p>
       {dispute.resolution && (
-        <p className="mt-1 text-xs text-[var(--ink-faint)]">Ended when {dispute.resolution}</p>
+        <p className="mt-1 text-xs text-[var(--ink-faint)]">{translateIn(language, 'inline', "Ended when ")}{dispute.resolution}</p>
       )}
       {dispute.arbiterId && (
         <p className="mt-1 text-sm">
-          Judged by <EntityLink world={world} id={dispute.arbiterId} />
+          {translateIn(language, 'inline', "Judged by")} <EntityLink world={world} id={dispute.arbiterId} />
         </p>
       )}
       {dispute.acts.length > 0 && (
@@ -2083,6 +2078,8 @@ function Conspiracy({
   self: EntityId;
   historical?: boolean;
 }) {
+  const { language } = useLanguage();
+  const tr = (value: string) => figureDetailLabel(language, value);
   const open = plot.outcome === 'Ongoing';
   const revealed = plot.publicYear !== undefined;
 
@@ -2091,37 +2088,37 @@ function Conspiracy({
       <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
         <span>
           {plot.viewpoint === 'Leader'
-            ? 'Conspired against'
+            ? tr('Conspired against')
             : plot.viewpoint === 'Target'
-              ? 'Was the target of a conspiracy led by'
-              : 'Joined a conspiracy against'}{' '}
+              ? tr('Was the target of a conspiracy led by')
+              : tr('Joined a conspiracy against')}{' '}
           <EntityLink
             world={world}
             id={plot.viewpoint === 'Target' ? plot.leaderId : plot.targetId}
           />
           {plot.viewpoint === 'Member' && (
             <>
-              {', led by '}
+              {tr(', led by ')}
               <EntityLink world={world} id={plot.leaderId} />
             </>
           )}
         </span>
         <Badge tone={open ? 'accent' : 'muted'}>
-          {open ? PLOT_PHASE_LABELS[plot.phase] : PLOT_OUTCOME_LABELS[plot.outcome]}
+          {open ? tr(PLOT_PHASE_LABELS[plot.phase]) : tr(PLOT_OUTCOME_LABELS[plot.outcome])}
         </Badge>
       </p>
       <p className="mt-1 text-xs text-[var(--ink-faint)]">
-        {PLOT_OBJECTIVE_LABELS[plot.objective] ?? plot.objective} ·{' '}
-        {PLOT_CAUSE_LABELS[plot.cause] ?? plot.cause} · {plot.startYear}
+        {tr(PLOT_OBJECTIVE_LABELS[plot.objective]) ?? plot.objective} ·{' '}
+        {tr(PLOT_CAUSE_LABELS[plot.cause]) ?? plot.cause} · {plot.startYear}
         {plot.endYear !== undefined && plot.endYear !== plot.startYear ? `–${plot.endYear}` : ''}
       </p>
       <p className="mt-1 text-xs text-[var(--ink-faint)]">
         {revealed
-          ? `Known to the world from ${plot.publicYear}`
-          : 'Never known to the world; recorded here in retrospect'}
+          ? (translateIn(language, 'inline', "Known to the world from {v0}", { v0: plot.publicYear }))
+          : tr('Never known to the world; recorded here in retrospect')}
       </p>
       {plot.resolution && (
-        <p className="mt-1 text-xs text-[var(--ink-faint)]">Ended when {plot.resolution}</p>
+        <p className="mt-1 text-xs text-[var(--ink-faint)]">{translateIn(language, 'inline', "Ended when ")}{plot.resolution}</p>
       )}
       {plot.members.length > 0 && (
         <ul className="mt-2 space-y-1 text-sm">
@@ -2131,7 +2128,7 @@ function Conspiracy({
               <EntityLink world={world} id={member.figureId} />
               <span className="text-[var(--ink-faint)]">
                 {', '}
-                {PLOT_TIE_LABELS[member.tie] ?? member.tie}
+                {tr(PLOT_TIE_LABELS[member.tie]) ?? member.tie}
               </span>
             </li>
           ))}
@@ -2139,7 +2136,7 @@ function Conspiracy({
       )}
       {plot.betrayerId && (
         <p className="mt-1 text-sm">
-          Given up by <EntityLink world={world} id={plot.betrayerId} />
+          {translateIn(language, 'inline', "Given up by")} <EntityLink world={world} id={plot.betrayerId} />
         </p>
       )}
       {plot.acts.length > 0 && (
@@ -2147,7 +2144,7 @@ function Conspiracy({
           {plot.acts.map((act, index) => (
             <li key={`${act.year}:${act.phase}:${index}`}>
               {act.year} · {act.detail}
-              {!act.known && <span className="ml-1 italic">— secret at the time</span>}
+              {!act.known && <span className="ml-1 italic">{tr("— secret at the time")}</span>}
             </li>
           ))}
         </ol>
@@ -2155,16 +2152,16 @@ function Conspiracy({
       {plot.targetId !== self && open && !historical && (
         <p className="mt-1 text-xs text-[var(--ink-faint)]">
           {plot.access >= 0.65
-            ? 'Close access to the target'
+            ? tr('Close access to the target')
             : plot.access >= 0.35
-              ? 'Some access to the target'
-              : 'Little access to the target'}
+              ? tr('Some access to the target')
+              : tr('Little access to the target')}
           {' · '}
           {plot.suspicion >= 0.5
-            ? 'the court is watching'
+            ? tr('the court is watching')
             : plot.secrecy >= 0.7
-              ? 'closely guarded'
-              : 'rumours spreading'}
+              ? tr('closely guarded')
+              : tr('rumours spreading')}
         </p>
       )}
     </article>
@@ -2178,11 +2175,13 @@ function BiographyEpisodeList({
   world: World;
   episodes: BiographyEpisode[];
 }) {
+  const { language } = useLanguage();
+  const tr = (value: string) => figureDetailLabel(language, value);
   const readings: Record<BiographyEpisode['kind'], string> = {
-    Undertaking: 'Completed an undertaking',
-    Conflict: 'A conflict reached its outcome',
-    Plot: 'A conspiracy became a defining political episode',
-    Campaign: 'A campaign carried a lasting consequence',
+    Undertaking: tr('Completed an undertaking'),
+    Conflict: tr('A conflict reached its outcome'),
+    Plot: tr('A conspiracy became a defining political episode'),
+    Campaign: tr('A campaign carried a lasting consequence'),
   };
 
   return (
@@ -2194,8 +2193,8 @@ function BiographyEpisodeList({
           data-source-events={episode.sourceEventIds.join(',')}
           title={
             episode.sourceEventIds.length > 0
-              ? `Evidence: events ${episode.sourceEventIds.join(', ')}`
-              : 'Evidence: structured life record'
+              ? (translateIn(language, 'inline', "Evidence: events {v0}", { v0: episode.sourceEventIds.join(', ') }))
+              : tr('Evidence: structured life record')
           }
         >
           <span className="text-[var(--ink-faint)]">
@@ -2204,7 +2203,7 @@ function BiographyEpisodeList({
           {readings[episode.kind]}
           {episode.primaryId && (
             <>
-              {' involving '}
+              {tr(' involving ')}
               <EntityLink world={world} id={episode.primaryId} />
             </>
           )}
@@ -2213,13 +2212,13 @@ function BiographyEpisodeList({
             className="ml-2 text-xs text-[var(--ink-faint)]"
             aria-label={
               episode.sourceEventIds.length > 0
-                ? `Evidence events ${episode.sourceEventIds.join(', ')}`
-                : 'Evidence from the structured life record'
+                ? (translateIn(language, 'inline', "Evidence events {v0}", { v0: episode.sourceEventIds.join(', ') }))
+                : tr('Evidence from the structured life record')
             }
           >
-            {episode.kind}
+            {tr(episode.kind)}
             {episode.sourceEventIds.length > 0 &&
-              ` · ${episode.sourceEventIds.length} source ${episode.sourceEventIds.length === 1 ? 'event' : 'events'}`}
+              (translateIn(language, 'inline', " · {e0} source {e1}", { e0: episode.sourceEventIds.length, e1: episode.sourceEventIds.length === 1 ? 'event' : 'events', f0: episode.sourceEventIds.length, f1: episode.sourceEventIds.length === 1 ? '' : 's', f2: episode.sourceEventIds.length === 1 ? '' : 's' }))}
           </span>
         </li>
       ))}
@@ -2228,17 +2227,19 @@ function BiographyEpisodeList({
 }
 
 function LifeUndertaking({ world, undertaking }: { world: World; undertaking: Undertaking }) {
+  const { language } = useLanguage();
+  const tr = (value: string) => figureDetailLabel(language, value);
   const decisive = undertaking.steps.slice(-3);
   return (
     <article className="border-l border-[var(--line)] pl-3">
       <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
         <span>{undertaking.objective}</span>
         <Badge tone={undertaking.state === 'Active' ? 'accent' : 'muted'}>
-          {undertaking.state}
+          {tr(undertaking.state)}
         </Badge>
       </p>
       <p className="mt-1 text-xs text-[var(--ink-faint)]">
-        Begun {undertaking.startYear} · motive: {MEMORY_LABELS[undertaking.motive] ?? undertaking.motive}
+        {translateIn(language, 'inline', "Begun")} {undertaking.startYear} · {translateIn(language, 'inline', "motive:")} {tr(MEMORY_LABELS[undertaking.motive]) ?? undertaking.motive}
         {undertaking.motiveEntityId && (
           <>
             {' · '}
@@ -2246,20 +2247,20 @@ function LifeUndertaking({ world, undertaking }: { world: World; undertaking: Un
           </>
         )}
         {' · '}
-        {undertaking.progress} of {undertaking.requiredProgress} stages
-        {undertaking.state === 'Active' ? ` · due by ${undertaking.deadlineYear}` : ''}
+        {undertaking.progress} {translateIn(language, 'inline', "of")} {undertaking.requiredProgress} {translateIn(language, 'inline', "stages")}
+        {undertaking.state === 'Active' ? (translateIn(language, 'inline', " · due by {v0}", { v0: undertaking.deadlineYear })) : ''}
       </p>
       {undertaking.outcome && (
-        <p className="mt-1 text-xs text-[var(--ink-faint)]">Outcome: {undertaking.outcome}</p>
+        <p className="mt-1 text-xs text-[var(--ink-faint)]">{translateIn(language, 'inline', "Outcome:")} {undertaking.outcome}</p>
       )}
       {undertaking.targetId && (
         <p className="mt-1 text-sm">
-          Concerns <EntityLink world={world} id={undertaking.targetId} />
+          {translateIn(language, 'inline', "Concerns")} <EntityLink world={world} id={undertaking.targetId} />
         </p>
       )}
       {undertaking.participantIds.length > 0 && (
         <p className="mt-1 text-sm">
-          With{' '}
+          {translateIn(language, 'inline', "With")}{' '}
           {undertaking.participantIds.map((id, index) => (
             <span key={id}>
               {index > 0 ? ', ' : ''}
@@ -2270,7 +2271,7 @@ function LifeUndertaking({ world, undertaking }: { world: World; undertaking: Un
       )}
       {undertaking.sponsorId && (
         <p className="mt-1 text-sm">
-          Sponsored by <EntityLink world={world} id={undertaking.sponsorId} />
+          {translateIn(language, 'inline', "Sponsored by")} <EntityLink world={world} id={undertaking.sponsorId} />
         </p>
       )}
       {decisive.length > 0 && (
@@ -2299,6 +2300,8 @@ function LifeUndertaking({ world, undertaking }: { world: World; undertaking: Un
 }
 
 function FeelingBadges({ feelings }: { feelings: Figure['feelings'] }) {
+  const { language } = useLanguage();
+  const tr = (value: string) => figureDetailLabel(language, value);
   const entries: [string, number][] = [
     ['Grieving', feelings?.grief ?? 0],
     ['Afraid', feelings?.fear ?? 0],
@@ -2313,7 +2316,7 @@ function FeelingBadges({ feelings }: { feelings: Figure['feelings'] }) {
     <div className="flex flex-wrap gap-1">
       {visible.map(([label, value]) => (
         <Badge key={label} tone={value >= 0.65 ? 'accent' : 'muted'}>
-          {label}
+          {tr(label)}
         </Badge>
       ))}
     </div>
@@ -2321,10 +2324,12 @@ function FeelingBadges({ feelings }: { feelings: Figure['feelings'] }) {
 }
 
 function MemoryLine({ world, memory }: { world: World; memory: SalientMemory }) {
+  const { language } = useLanguage();
+  const tr = (value: string) => figureDetailLabel(language, value);
   return (
     <li>
       <span className="text-[var(--ink-faint)]">{memory.year} · </span>
-      {MEMORY_LABELS[memory.kind] ?? memory.kind}
+      {tr(MEMORY_LABELS[memory.kind]) ?? memory.kind}
       {memory.aboutId && (
         <>
           {' · '}
@@ -2333,19 +2338,20 @@ function MemoryLine({ world, memory }: { world: World; memory: SalientMemory }) 
       )}
       {memory.locationId && memory.locationId !== memory.aboutId && (
         <span className="text-[var(--ink-faint)]">
-          {' at '}
+          {tr(' at ')}
           <EntityLink world={world} id={memory.locationId} />
         </span>
       )}
       <span className="ml-2 text-xs text-[var(--ink-faint)]">
-        {memory.intensity >= 0.7 ? 'vivid' : memory.intensity >= 0.35 ? 'enduring' : 'fading'}
+        {memory.intensity >= 0.7 ? tr('vivid') : memory.intensity >= 0.35 ? tr('enduring') : tr('fading')}
       </span>
     </li>
   );
 }
 
-function eventReading(kind: string): string {
-  return kind.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
+function eventReading(kind: string, language: string = 'en'): string {
+  const reading = kind.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
+  return figureDetailLabel(language, reading);
 }
 
 /**
@@ -2358,15 +2364,17 @@ function eventReading(kind: string): string {
  * of a line is visible without expanding it.
  */
 function FamilyTree({ world, figure }: { world: World; figure: Figure }) {
+  const { language } = useLanguage();
+  const tr = (value: string) => figureDetailLabel(language, value);
   const parents = figures(world, [figure.motherId, figure.fatherId].filter(Boolean) as EntityId[]);
   const spouses = figures(world, figure.spouseIds);
   const children = figures(world, figure.childIds);
 
   return (
     <div className="space-y-3 text-sm">
-      <Relations world={world} label="Parents" people={parents} />
-      <Relations world={world} label="Married" people={spouses} />
-      <Relations world={world} label="Children" people={children} />
+      <Relations world={world} label={tr("Parents")} people={parents} />
+      <Relations world={world} label={tr("Married")} people={spouses} />
+      <Relations world={world} label={tr("Children")} people={children} />
     </div>
   );
 }
@@ -2380,12 +2388,14 @@ function Relations({
   label: string;
   people: Figure[];
 }) {
+  const { language } = useLanguage();
+  const tr = (value: string) => figureDetailLabel(language, value);
   if (people.length === 0) return null;
 
   return (
     <div>
       <div className="mb-1 text-[0.7rem] font-medium tracking-wide uppercase text-[var(--ink-faint)]">
-        {label}
+        {tr(label)}
       </div>
       <ul className="space-y-0.5">
         {people.map((person) => (
@@ -2393,9 +2403,9 @@ function Relations({
             <EntityLink world={world} id={person.id} />
             <span className="text-xs text-[var(--ink-faint)]">
               {yearRange(person.birthYear, person.deathYear)}
-              {person.titles.length > 0 && ` · ${person.titles[0].title}`}
+              {person.titles.length > 0 && ` · ${tr(person.titles[0].title)}`}
               {person.childIds.length > 0 &&
-                ` · ${person.childIds.length} ${person.childIds.length === 1 ? 'child' : 'children'}`}
+                (translateIn(language, 'inline', " · {e0} {e1}", { e0: person.childIds.length, e1: person.childIds.length === 1 ? 'child' : 'children', f0: person.childIds.length, f1: person.childIds.length === 1 ? '' : 's' }))}
             </span>
           </li>
         ))}
@@ -4700,4 +4710,10 @@ export function WarTable({ world, wars }: { world: World; wars: War[] }) {
       emptyMessage="This realm was never at war."
     />
   );
+}
+
+/** Local presentation labels for figure sections; source enums and prose stay unchanged. */
+function figureDetailLabel(language: string, value: string): string {
+  const translated = translateIn(language, 'figureDetailLabels', value);
+  return translated !== value ? translated : loreLabel(language, value);
 }

@@ -1,4 +1,5 @@
 import { kindOf, type EntityId, type HistoryEvent, type Sex } from './types.ts';
+import { translateIn } from './i18n/translations.ts';
 
 /**
  * Renders an event using the template the engine shipped for its kind.
@@ -144,7 +145,7 @@ export function templateFor(
 ): string {
   const kind = event.kind;
   const voice = event.data?.[VOICE_DATA_KEY];
-  const self = Boolean(viewpoint) && kindOf(viewpoint) === 'fig';
+  const self = viewpoint !== undefined && kindOf(viewpoint) === 'fig';
 
   if (self && campaignRole && templates[`${kind}.${campaignRole}${SELF_KEY_SUFFIX}`]) {
     return templates[`${kind}.${campaignRole}${SELF_KEY_SUFFIX}`];
@@ -266,6 +267,7 @@ function walkPrinted(
       const token = template.slice(i + 1, close);
       if (resolve(token, event, nameOf, viewpoint, sexOf) === null) return false;
       if (token.startsWith('data:')) printed.add(token.slice(5));
+      if (token.startsWith('frdata:')) printed.add(token.slice(7));
       if (token.startsWith('extra:')) named.add(firstExtraOfKind(event, token.slice(6)));
       i = close + 1;
       continue;
@@ -437,6 +439,17 @@ function resolve(
   if (token === 'a' || token === 'an') return { type: 'mark', mark: 'a' };
   if (token === 'the') return { type: 'mark', mark: 'the' };
 
+  if (token.startsWith('fr:')) {
+    const value = frenchAgreement(token, event, viewpoint, sexOf);
+    return value === null ? null : { type: 'text', text: value };
+  }
+
+  if (token.startsWith('frdata:')) {
+    const key = token.slice(7);
+    const value = event.data?.[key];
+    return value ? { type: 'text', text: frenchDataValue(key, value) } : null;
+  }
+
   if (token.startsWith('data:')) {
     const value = event.data?.[token.slice(5)];
     return value ? { type: 'text', text: value } : null;
@@ -544,4 +557,52 @@ function merge(parts: NarrationPart[]): NarrationPart[] {
   }
 
   return merged;
+}
+
+/**
+ * Viewer-only extensions for the local French catalogue.
+ * They do not alter the version-4 grammar of templates stored in engine exports.
+ *
+ * {fr:subject:né|née|né(e)} selects masculine, feminine, or unknown-sex wording.
+ * {frdata:aged} translates a supported value for display without changing event.data.
+ * French catalogue entries must be authored explicitly: this is not an automatic
+ * translator for English templates, articles, or pronouns.
+ */
+function frenchAgreement(
+  token: string,
+  event: HistoryEvent,
+  viewpoint: EntityId | undefined,
+  sexOf: ((id: EntityId) => Sex | undefined) | undefined,
+): string | null {
+  const separator = token.indexOf(':', 3);
+  if (separator < 0) return null;
+
+  const slot = token.slice(3, separator);
+  const forms = token.slice(separator + 1).split('|');
+  if (forms.length !== 3) return null;
+
+  const id = slotId(slot, event, viewpoint);
+  if (!id) return null;
+
+  const sex = sexOf?.(id);
+  return forms[sex === 'Male' ? 0 : sex === 'Female' ? 1 : 2];
+}
+
+function frenchDataValue(key: string, value: string): string {
+  if (key === 'aged') {
+    if (value === 'in infancy') return translateIn('fr', 'narrationData', 'aged.in infancy');
+    const match = /^(?:at the age of|as a child of) (\d+)$/.exec(value);
+    if (match) return translateIn('fr', 'narrationData', 'aged.age', { age: match[1] });
+  }
+
+  if (key === 'years') {
+    if (value === 'one year' || value === '1 year') {
+      return translateIn('fr', 'narrationData', 'years.one');
+    }
+    const match = /^(\d+) years$/.exec(value);
+    if (match) return translateIn('fr', 'narrationData', 'years.many', { count: match[1] });
+  }
+
+  const translated = translateIn('fr', 'narrationData', `${key}.${value}`);
+  return translated === `${key}.${value}` ? value : translated;
 }

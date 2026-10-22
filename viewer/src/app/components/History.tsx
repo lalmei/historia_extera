@@ -1,45 +1,9 @@
+import { useLanguage } from '../i18n/LanguageProvider';
+import { translate, translateIn, translationsIn } from '../i18n/translations.ts';
 import { useMemo, useState } from 'react';
 import type { World } from '../store';
 import type { EntityId, Series } from '../types';
 import { Panel } from './common';
-
-/**
- * Everything about an entity that moved, plotted.
- *
- * <b>The viewer knows nothing about any particular measure.</b> The engine ships each series
- * with a group and a unit, and this draws whatever it is handed — the same bargain the
- * narration templates strike with event kinds, and it buys the same thing: a measure added by
- * a later milestone appears as a chart here without a line of viewer code changing. The only
- * per-measure knowledge in this file is a table of nicer titles, which falls back to the
- * engine's own key when it does not recognise one.
- *
- * <b>Small multiples rather than one chart with six lines.</b> Six dials of similar magnitude
- * overlaid is a plate of spaghetti that needs a colour key to read, and the question a reader
- * actually has is per-dial — "when did this realm turn warlike" — which one panel per measure
- * answers directly. It also keeps every chart in the app a single accent hue, so nothing here
- * depends on telling six colours apart.
- */
-
-const GROUP_TITLES: Record<string, string> = {
-  '': 'Over time',
-  fortunes: 'Fortunes, year by year',
-  values: 'What it was governed by, year by year',
-};
-
-const METRIC_LABELS: Record<string, string> = {
-  population: 'Population',
-  traffic: 'Traffic',
-  weariness: 'Weariness',
-  calamity: 'Calamity',
-  triumph: 'Triumph',
-  grievance: 'Grievance',
-  aggression: 'Aggression',
-  expansionism: 'Expansionism',
-  piety: 'Piety',
-  tradition: 'Tradition',
-  mercantile: 'Mercantile',
-  learning: 'Learning',
-};
 
 /** One entity's series, in the engine's order, grouped as the engine grouped them. */
 export function groupedSeries(world: World, id: EntityId): Map<string, Series[]> {
@@ -70,6 +34,7 @@ export function HistoryPanels({
   id: EntityId;
   skip?: string[];
 }) {
+  const { language } = useLanguage();
   const groups = groupedSeries(world, id);
 
   return (
@@ -77,7 +42,7 @@ export function HistoryPanels({
       {[...groups.entries()]
         .filter(([group]) => !skip.includes(group))
         .map(([group, series]) => (
-          <Panel key={group} title={panelTitle(group, series)}>
+          <Panel key={group} title={panelTitle(group, series, language)}>
             <SeriesGrid world={world} series={series} />
           </Panel>
         ))}
@@ -92,12 +57,15 @@ export function HistoryPanels({
  * where it is the only chart — and a group the viewer has no title for falls back to its own
  * key rather than going unlabelled.
  */
-function panelTitle(group: string, series: Series[]): string {
+function panelTitle(group: string, series: Series[], language: string = 'en'): string {
+  const suffix = translate(language, 'history.yearByYear');
   if (group === '' && series.length === 1) {
-    return `${humaniseMetric(series[0].metric)}, year by year`;
+    return `${humaniseMetric(series[0].metric, language)}${suffix}`;
   }
 
-  return GROUP_TITLES[group] ?? `${humaniseMetric(group)}, year by year`;
+  const titles = translationsIn(language, 'groupTitles');
+  const known = Object.prototype.hasOwnProperty.call(titles, group) ? titles[group] : undefined;
+  return known ?? `${humaniseMetric(group, language)}${suffix}`;
 }
 
 /** The charts themselves, one per measure, on a shared scale within each unit. */
@@ -116,6 +84,8 @@ export function SeriesGrid({ world, series }: { world: World; series: Series[] }
 }
 
 export function SeriesChart({ world, series }: { world: World; series: Series }) {
+  const { language } = useLanguage();
+  const fr = language === 'fr';
   const { startYear, endYear } = world.export.meta;
   const [hovered, setHovered] = useState<number | undefined>(undefined);
 
@@ -135,7 +105,7 @@ export function SeriesChart({ world, series }: { world: World; series: Series })
     .map((value, index) => `${index === 0 ? 'M' : 'L'}${x(index)} ${y(value)}`)
     .join('');
 
-  const label = humaniseMetric(series.metric);
+  const label = humaniseMetric(series.metric, language);
   const reading = hovered !== undefined ? series.values[hovered] : undefined;
 
   return (
@@ -145,12 +115,12 @@ export function SeriesChart({ world, series }: { world: World; series: Series })
         <span className="tabular-nums text-[var(--ink-faint)]">
           {reading !== undefined ? (
             <>
-              {series.fromYear + hovered!} · {format(reading, series.unit)}
+              {series.fromYear + hovered!} · {format(reading, series.unit, language)}
             </>
           ) : (
             <>
-              {format(summary.last, series.unit)} at the end · peak{' '}
-              {format(summary.peak, series.unit)} in {series.fromYear + summary.peakIndex}
+              {format(summary.last, series.unit, language)}{translateIn(language, 'inline', " at the end · peak ")}
+              {format(summary.peak, series.unit, language)} {translateIn(language, 'inline', "in")} {series.fromYear + summary.peakIndex}
             </>
           )}
         </span>
@@ -161,10 +131,11 @@ export function SeriesChart({ world, series }: { world: World; series: Series })
         className="h-14 w-full touch-none"
         preserveAspectRatio="none"
         role="img"
-        aria-label={
-          `${label} from ${series.fromYear} to ${series.fromYear + series.values.length - 1}: ` +
-          `ended at ${format(summary.last, series.unit)}, peaked at ` +
-          `${format(summary.peak, series.unit)} in ${series.fromYear + summary.peakIndex}`
+        aria-label={fr
+          ? `${label}, de ${series.fromYear} à ${series.fromYear + series.values.length - 1} : valeur finale ${format(summary.last, series.unit, language)}, maximum de ${format(summary.peak, series.unit, language)} en ${series.fromYear + summary.peakIndex}`
+          : `${label} from ${series.fromYear} to ${series.fromYear + series.values.length - 1}: ` +
+            `ended at ${format(summary.last, series.unit, language)}, peaked at ` +
+            `${format(summary.peak, series.unit, language)} in ${series.fromYear + summary.peakIndex}`
         }
         onPointerMove={(event) => {
           const box = event.currentTarget.getBoundingClientRect();
@@ -218,13 +189,19 @@ function summarise(series: Series): { last: number; peak: number; peakIndex: num
   return { last: series.values[series.values.length - 1] ?? 0, peak, peakIndex };
 }
 
-function format(value: number, unit: string): string {
+function format(value: number, unit: string, language: string = 'en'): string {
+  if (language === 'fr') {
+    return unit === 'Count'
+      ? Math.round(value).toLocaleString('fr-FR')
+      : value.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
   return unit === 'Count' ? Math.round(value).toLocaleString() : value.toFixed(2);
 }
 
 /** `population` → `Population`, and an unrecognised key still reads as words. */
-function humaniseMetric(metric: string): string {
-  const known = METRIC_LABELS[metric];
+function humaniseMetric(metric: string, language: string = 'en'): string {
+  const labels = translationsIn(language, 'metricLabels');
+  const known = Object.prototype.hasOwnProperty.call(labels, metric) ? labels[metric] : undefined;
   if (known) return known;
 
   const spaced = metric.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[-_]/g, ' ');

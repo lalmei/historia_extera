@@ -15,11 +15,10 @@
  */
 
 import type React from 'react';
+import { useLanguage } from '../i18n/LanguageProvider';
+import { translateIn } from '../i18n/translations.ts';
 import { href } from '../router';
 import {
-  KNOWLEDGE_COLUMN_LABELS,
-  KNOWLEDGE_COLUMN_NOTES,
-  KNOWLEDGE_DOMAIN_LABELS,
   carrierOf,
   claimsAboutTheSame,
   parseClaimKey,
@@ -32,8 +31,6 @@ import {
 } from '../knowledge';
 import { figureOf, type World } from '../store';
 import {
-  CLAIM_STANDING_LABELS,
-  CLAIM_VERDICT_LABELS,
   type Claim,
   type ClaimTransition,
 } from '../types';
@@ -65,19 +62,21 @@ export function claimHref(record: ClaimRecord): string {
  * is one row and two cells, and that is the honest picture.
  */
 export function KnowledgePage({ world }: { world: World }) {
+  const { language } = useLanguage();
+  const tr = (key: string, values?: Readonly<Record<string, string | number | undefined>>) =>
+    translateIn(language, 'knowledge', key, values);
   const index = readKnowledge(world);
 
   if (index.claims.length === 0) {
     return (
       <div className="space-y-5">
-        <PageTitle eyebrow="Index" title="Knowledge" />
-        <Panel title="Claims">
+        <PageTitle eyebrow={tr('index')} title={tr('title')} />
+        <Panel title={tr('claims')}>
           {world.schema.state === 'older' ? (
             <NotInThisExport what="claims" since={37} version={world.schema.version} />
           ) : (
             <p className="text-sm text-[var(--ink-soft)]">
-              Nobody in this world wrote down a reading of anything. Observation needs a comet
-              somebody lived to see twice, and a scribe in the town that saw it.
+              {tr('emptyWorld')}
             </p>
           )}
         </Panel>
@@ -91,31 +90,31 @@ export function KnowledgePage({ world }: { world: World }) {
   return (
     <div className="space-y-5">
       <PageTitle
-        eyebrow="Index"
-        title="Knowledge"
+        eyebrow={tr('index')}
+        title={tr('title')}
         meta={
           <span className="text-[var(--ink-faint)]">
-            What people said about the world, and what became of the saying
+            {tr('subtitle')}
           </span>
         }
       />
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Stat label="Readings" value={index.claims.length} hint="Every claim anybody set out" />
+        <Stat label={tr('readings')} value={index.claims.length} hint={tr('everyClaim')} />
         <Stat
-          label="Sightings"
+          label={tr('sightings')}
           value={index.observations.toLocaleString()}
-          hint="Written down, and the evidence every measured reading rests on"
+          hint={tr('sightingsHint')}
         />
         <Stat
-          label="Realms holding"
+          label={tr('realmsHolding')}
           value={index.hasTransitions ? index.realmsHolding.length : '—'}
-          hint="Realms that ever held one of these readings"
+          hint={tr('realmsHoldingHint')}
         />
         <Stat
-          label="In writing"
+          label={tr('inWriting')}
           value={index.hasTransitions ? index.texts.length : '—'}
-          hint="Works that set a reading down, so it could outlive whoever had it"
+          hint={tr('inWritingHint')}
         />
       </div>
 
@@ -123,29 +122,24 @@ export function KnowledgePage({ world }: { world: World }) {
         // Not the same fact as "nobody held anything". This file was written before the engine
         // recorded where a reading went, and an empty column would read as a quiet world.
         <p className="text-sm text-[var(--ink-faint)]">
-          This export was written before the engine recorded where a reading travelled, so nothing
-          below can say who came to hold one, what carried it, or when it was let go. The readings
-          themselves are all here. Run the seed again for the rest.
+          {tr('noTransitions')}
         </p>
       )}
 
-      <Panel title="What the record covers">
+      <Panel title={tr('recordCoverage')}>
         <KnowledgeMatrix world={world} />
         <p className="mt-4 text-xs text-[var(--ink-faint)]">
-          Columns say what could settle a thing, not how right anyone was. Doctrine is
-          permanently unanswerable by the sky and is never graded here — a mythic reading is a
-          held position with its own patrons, not a wrong answer.
+          {tr('columnExplanation')}
           {!index.columns.includes('Practice') && (
             <>
               {' '}
-              Practice — what could actually be done — is not a record this engine writes yet, so
-              it has no column.
+              {tr('practiceNotRecorded')}
             </>
           )}
         </p>
       </Panel>
 
-      <Panel title="Readings">
+      <Panel title={tr('readings')}>
         <ClaimTable world={world} records={index.claims} travels={index.hasTransitions} />
       </Panel>
 
@@ -160,6 +154,7 @@ export function KnowledgePage({ world }: { world: World }) {
 }
 
 function KnowledgeMatrix({ world }: { world: World }) {
+  const { language } = useLanguage();
   const index = readKnowledge(world);
 
   return (
@@ -170,9 +165,11 @@ function KnowledgeMatrix({ world }: { world: World }) {
             <th className="he-label w-32 py-2 pr-4 font-normal" />
             {index.columns.map((column) => (
               <th key={column} className="py-2 pr-4 align-bottom">
-                <div className="he-label">{KNOWLEDGE_COLUMN_LABELS[column]}</div>
+                <div className="he-label">
+                  {translateIn(language, 'knowledge', `column.${column}`)}
+                </div>
                 <p className="mt-1 max-w-[22rem] text-xs font-normal text-[var(--ink-faint)]">
-                  {KNOWLEDGE_COLUMN_NOTES[column]}
+                  {translateIn(language, 'knowledge', `columnNote.${column}`)}
                 </p>
               </th>
             ))}
@@ -182,7 +179,7 @@ function KnowledgeMatrix({ world }: { world: World }) {
           {index.domains.map((domain) => (
             <tr key={domain} className="border-b border-[var(--rule)] last:border-0 align-top">
               <th className="py-3 pr-4 text-left font-medium">
-                {KNOWLEDGE_DOMAIN_LABELS[domain]}
+                {translateIn(language, 'knowledge', `domain.${domain}`)}
               </th>
               {index.columns.map((column) => (
                 <td key={column} className="py-3 pr-4">
@@ -206,6 +203,9 @@ function MatrixCell({
   cell: KnowledgeCell | undefined;
   column: KnowledgeColumn;
 }) {
+  const { language } = useLanguage();
+  const tr = (key: string, values?: Readonly<Record<string, string | number | undefined>>) =>
+    translateIn(language, 'knowledge', key, values);
   if (!cell) return <span className="text-[var(--ink-faint)]">—</span>;
 
   const earliest = cell.claims[0];
@@ -216,19 +216,19 @@ function MatrixCell({
       <p>
         <span className="he-data text-base">{cell.claims.length}</span>{' '}
         <span className="text-[var(--ink-soft)]">
-          {cell.claims.length === 1 ? 'reading' : 'readings'}
+          {tr(cell.claims.length === 1 ? 'reading.one' : 'reading.other')}
         </span>
         {column === 'Observation' && cell.observations > 0 && (
           <span className="text-[var(--ink-faint)]">
             {' '}
-            · from {cell.observations.toLocaleString()} sightings
+            {tr('sightingsFrom', { count: cell.observations.toLocaleString() })}
           </span>
         )}
       </p>
       <p className="text-xs text-[var(--ink-faint)]">
         {earliest.claim.year}
         {latest.claim.year !== earliest.claim.year && `–${latest.claim.year}`}
-        {cell.realms > 0 && ` · held in ${cell.realms} ${cell.realms === 1 ? 'realm' : 'realms'}`}
+        {cell.realms > 0 && ` · ${tr(cell.realms === 1 ? 'heldInRealm.one' : 'heldInRealm.other', { count: cell.realms })}`}
       </p>
       <p className="text-sm">
         <a href={claimHref(earliest)} className="text-[var(--accent)] underline">
@@ -237,7 +237,7 @@ function MatrixCell({
         {world.nameOf(earliest.claimantId) && (
           <span className="text-[var(--ink-faint)]">
             {' '}
-            — first set out by {world.nameOf(earliest.claimantId)}
+            {tr('firstSetOutBy', { name: world.nameOf(earliest.claimantId) })}
           </span>
         )}
       </p>
@@ -251,9 +251,10 @@ function verdictIsAJudgement(claim: Claim): boolean {
 }
 
 function VerdictLine({ claim }: { claim: Claim }) {
+  const { language } = useLanguage();
   return (
     <span className={verdictIsAJudgement(claim) ? '' : 'text-[var(--ink-faint)]'}>
-      {CLAIM_VERDICT_LABELS[claim.verdict] ?? claim.verdict}
+      {translateIn(language, 'knowledge', `verdict.${claim.verdict}`)}
       {claim.settledYear !== undefined && `, ${claim.settledYear}`}
     </span>
   );
@@ -269,17 +270,20 @@ function ClaimTable({
   /** Whether this export says where a reading went. Without it the fate facet asks nothing. */
   travels: boolean;
 }) {
+  const { language } = useLanguage();
+  const tr = (key: string, values?: Readonly<Record<string, string | number | undefined>>) =>
+    translateIn(language, 'knowledge', key, values);
   const columns: Column<ClaimRecord>[] = [
     {
       key: 'year',
-      header: 'Year',
+      header: tr('year'),
       align: 'right',
       cell: (record) => record.claim.year,
       sort: (record) => record.claim.year,
     },
     {
       key: 'reading',
-      header: 'Reading',
+      header: tr('reading.label'),
       cell: (record) => (
         <a href={claimHref(record)} className="text-[var(--accent)] underline">
           {record.claim.reading}
@@ -289,29 +293,29 @@ function ClaimTable({
     },
     {
       key: 'claimant',
-      header: 'Set out by',
+      header: tr('setOutBy'),
       cell: (record) => <EntityLink world={world} id={record.claimantId} />,
       sort: (record) => world.nameOf(record.claimantId),
     },
     {
       key: 'realm',
-      header: 'In',
+      header: tr('in'),
       cell: (record) => <EntityLink world={world} id={record.claim.realmId} />,
       sort: (record) => (record.claim.realmId ? world.nameOf(record.claim.realmId) : ''),
     },
     {
       key: 'column',
-      header: 'Settled by',
+      header: tr('settledBy'),
       cell: (record) => (
         <Badge tone={record.column === 'Observation' ? 'accent' : 'neutral'}>
-          {KNOWLEDGE_COLUMN_LABELS[record.column]}
+          {tr(`column.${record.column}`)}
         </Badge>
       ),
       sort: (record) => record.column,
     },
     {
       key: 'verdict',
-      header: 'The sky',
+      header: tr('theSky'),
       cell: (record) => (
         <span className="text-sm">
           <VerdictLine claim={record.claim} />
@@ -324,7 +328,7 @@ function ClaimTable({
   if (travels) {
     columns.push({
       key: 'held',
-      header: 'Held in',
+      header: tr('heldIn'),
       align: 'right',
       cell: (record) =>
         record.everHeld.length === 0 ? (
@@ -333,7 +337,7 @@ function ClaimTable({
           <span title={record.everHeld.map((id) => world.nameOf(id)).join(', ')}>
             {record.heldNow.length}
             {record.everHeld.length !== record.heldNow.length && (
-              <span className="text-[var(--ink-faint)]"> of {record.everHeld.length}</span>
+              <span className="text-[var(--ink-faint)]">{tr('ofCount', { count: record.everHeld.length })}</span>
             )}
           </span>
         ),
@@ -344,29 +348,29 @@ function ClaimTable({
   const facets: Facet<ClaimRecord>[] = [
     {
       key: 'column',
-      label: 'Settled by',
+      label: tr('settledBy'),
       options: [
         {
           value: 'observation',
-          label: 'Observation',
+          label: tr('column.Observation'),
           match: (record) => record.column === 'Observation',
         },
-        { value: 'doctrine', label: 'Doctrine', match: (record) => record.column === 'Doctrine' },
+        { value: 'doctrine', label: tr('column.Doctrine'), match: (record) => record.column === 'Doctrine' },
       ],
     },
     {
       key: 'answer',
-      label: 'The sky',
+      label: tr('theSky'),
       options: [
         {
           value: 'confirmed',
-          label: 'Bore them out',
+          label: tr('facet.confirmed'),
           match: (record) => record.claim.verdict === 'Confirmed',
         },
-        { value: 'refuted', label: 'Did not', match: (record) => record.claim.verdict === 'Refuted' },
+        { value: 'refuted', label: tr('facet.refuted'), match: (record) => record.claim.verdict === 'Refuted' },
         {
           value: 'open',
-          label: 'Never answered',
+          label: tr('facet.open'),
           match: (record) => !verdictIsAJudgement(record.claim),
         },
       ],
@@ -376,11 +380,11 @@ function ClaimTable({
   if (travels) {
     facets.push({
       key: 'fate',
-      label: 'What became of it',
+      label: tr('whatBecameOfIt'),
       options: [
-        { value: 'written', label: 'Written down', match: (record) => record.texts.length > 0 },
-        { value: 'lost', label: 'Lost somewhere', match: (record) => record.wasLost },
-        { value: 'kept', label: 'Still held', match: (record) => record.heldNow.length > 0 },
+        { value: 'written', label: tr('facet.written'), match: (record) => record.texts.length > 0 },
+        { value: 'lost', label: tr('facet.lost'), match: (record) => record.wasLost },
+        { value: 'kept', label: tr('facet.stillHeld'), match: (record) => record.heldNow.length > 0 },
       ],
     });
   }
@@ -395,23 +399,26 @@ function ClaimTable({
           record.claim.realmId ? world.nameOf(record.claim.realmId) : ''
         } ${subjectLabel(record.claim)}`
       }
-      placeholder="Search readings, claimants, realms…"
+      placeholder={tr('search')}
       initialSort={{ key: 'year' }}
-      emptyMessage="No reading matches that."
+      emptyMessage={tr('noMatch')}
     />
   );
 }
 
 function SettledPanel({ records, world }: { records: ClaimRecord[]; world: World }) {
+  const { language } = useLanguage();
+  const tr = (key: string, values?: Readonly<Record<string, string | number | undefined>>) =>
+    translateIn(language, 'knowledge', key, values);
   const settled = records
     .filter((record) => verdictIsAJudgement(record.claim))
     .sort((a, b) => (a.claim.settledYear ?? 0) - (b.claim.settledYear ?? 0));
 
   return (
-    <Panel title="What the sky answered">
+    <Panel title={tr('skyAnswered')}>
       {settled.length === 0 ? (
         <p className="text-sm text-[var(--ink-faint)]">
-          No measured reading named a year the record reached.
+          {tr('noReadingReachedYear')}
         </p>
       ) : (
         <ul className="space-y-2 text-sm">
@@ -430,8 +437,8 @@ function SettledPanel({ records, world }: { records: ClaimRecord[]; world: World
                 <VerdictLine claim={record.claim} />
                 {record.claim.settledYear !== undefined &&
                   (record.claim.claimantSawTheAnswer
-                    ? ' · they lived to hear it'
-                    : ' · after their death')}
+                    ? ` · ${tr('livedToHear')}`
+                    : ` · ${tr('afterDeath')}`)}
               </p>
             </li>
           ))}
@@ -439,7 +446,7 @@ function SettledPanel({ records, world }: { records: ClaimRecord[]; world: World
       )}
       {settled.length > 8 && (
         <p className="mt-3 text-xs text-[var(--ink-faint)]">
-          and {settled.length - 8} more in the table above.
+          {tr('moreInTable', { count: settled.length - 8 })}
         </p>
       )}
     </Panel>
@@ -447,6 +454,9 @@ function SettledPanel({ records, world }: { records: ClaimRecord[]; world: World
 }
 
 function LostPanel({ records, world }: { records: ClaimRecord[]; world: World }) {
+  const { language } = useLanguage();
+  const tr = (key: string, values?: Readonly<Record<string, string | number | undefined>>) =>
+    translateIn(language, 'knowledge', key, values);
   const lost = records
     .map((record) => ({
       record,
@@ -456,7 +466,7 @@ function LostPanel({ records, world }: { records: ClaimRecord[]; world: World })
     .sort((a, b) => (b.last.toYear ?? 0) - (a.last.toYear ?? 0));
 
   return (
-    <Panel title="What was let go">
+    <Panel title={tr('letGo')}>
       <ul className="space-y-2 text-sm">
         {lost.slice(0, 8).map(({ record, last }) => (
           <li key={record.key} className="border-l border-[var(--line)] pl-3">
@@ -469,22 +479,22 @@ function LostPanel({ records, world }: { records: ClaimRecord[]; world: World })
             <p className="mt-0.5 text-xs text-[var(--ink-faint)]">
               {last.realmId ? (
                 <>
-                  <EntityLink world={world} id={last.realmId} /> stopped holding it:{' '}
+                  <EntityLink world={world} id={last.realmId} /> {tr('stoppedHolding')}{' '}
                 </>
               ) : (
-                'stopped being held: '
+                tr('stoppedBeingHeld')
               )}
-              {last.lost?.cause ?? 'cause not recorded'}
+              {last.lost?.cause ?? tr('causeNotRecorded')}
               {record.heldNow.length > 0 &&
-                ` · still held in ${record.heldNow.length} ${
-                  record.heldNow.length === 1 ? 'realm' : 'realms'
-                }`}
+                ` · ${tr(record.heldNow.length === 1 ? 'stillHeldIn.one' : 'stillHeldIn.other', {
+                  count: record.heldNow.length,
+                })}`}
             </p>
           </li>
         ))}
       </ul>
       {lost.length > 8 && (
-        <p className="mt-3 text-xs text-[var(--ink-faint)]">and {lost.length - 8} more.</p>
+        <p className="mt-3 text-xs text-[var(--ink-faint)]">{tr('more', { count: lost.length - 8 })}</p>
       )}
     </Panel>
   );
@@ -503,6 +513,9 @@ function LostPanel({ records, world }: { records: ClaimRecord[]; world: World })
  * after these sightings — and it folds transitions rather than inferring anything.
  */
 export function ClaimPage({ world, claimKey }: { world: World; claimKey: string }) {
+  const { language } = useLanguage();
+  const tr = (key: string, values?: Readonly<Record<string, string | number | undefined>>) =>
+    translateIn(language, 'knowledge', key, values);
   const index = readKnowledge(world);
   const record = index.byKey.get(claimKey);
 
@@ -510,20 +523,20 @@ export function ClaimPage({ world, claimKey }: { world: World; claimKey: string 
     const parsed = parseClaimKey(claimKey);
     return (
       <div className="space-y-5">
-        <PageTitle eyebrow="Knowledge" title="No such reading" />
+        <PageTitle eyebrow={tr('title')} title={tr('noSuchReading')} />
         <Panel>
           <p className="text-sm text-[var(--ink-soft)]">
-            This chronicle holds no reading{' '}
+            {tr('missingClaim')}
             {parsed ? (
               <>
-                numbered {parsed.claimId} by <EntityLink world={world} id={parsed.claimantId} />
+                {tr('numberedClaim', { id: parsed.claimId })} <EntityLink world={world} id={parsed.claimantId} />
               </>
             ) : (
-              <>at {claimKey}</>
+              <>{tr('atClaimKey', { key: claimKey })}</>
             )}
             .{' '}
             <a href={href(KNOWLEDGE_PATH)} className="text-[var(--accent)] underline">
-              Back to Knowledge
+              {tr('backToKnowledge')}
             </a>
             .
           </p>
@@ -539,18 +552,18 @@ export function ClaimPage({ world, claimKey }: { world: World; claimKey: string 
   return (
     <div className="space-y-5">
       <PageTitle
-        eyebrow={`Knowledge · ${KNOWLEDGE_DOMAIN_LABELS[record.domain]}`}
+        eyebrow={`${tr('title')} · ${tr(`domain.${record.domain}`)}`}
         title={claim.reading.replace(/^that /, '')}
         meta={
           <>
             <Badge tone={record.column === 'Observation' ? 'accent' : 'neutral'}>
-              {KNOWLEDGE_COLUMN_LABELS[record.column]}
+              {tr(`column.${record.column}`)}
             </Badge>
             <span className="text-[var(--ink-faint)]">
-              {subjectLabel(claim)} · set out in {claim.year}
+              {subjectLabel(claim)} · {tr('setOutIn', { year: claim.year })}
               {claim.realmId && (
                 <>
-                  {' in '}
+                  {` ${tr('in')} `}
                   <EntityLink world={world} id={claim.realmId} />
                 </>
               )}
@@ -561,9 +574,9 @@ export function ClaimPage({ world, claimKey }: { world: World; claimKey: string 
 
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="space-y-5 lg:col-span-2">
-          <Panel title="The reading">
+          <Panel title={tr('theReading')}>
             <dl>
-              <Field label="Set out by">
+              <Field label={tr('setOutBy')}>
                 <EntityLink world={world} id={record.claimantId} />
                 {claimant?.deathYear !== undefined && (
                   <span className="text-[var(--ink-faint)]">
@@ -572,68 +585,69 @@ export function ClaimPage({ world, claimKey }: { world: World; claimKey: string 
                   </span>
                 )}
               </Field>
-              <Field label="In">
+              <Field label={tr('in')}>
                 <EntityLink world={world} id={claim.realmId} />
               </Field>
-              <Field label="Year">{claim.year}</Field>
-              <Field label="Register">
+              <Field label={tr('year')}>{claim.year}</Field>
+              <Field label={tr('register')}>
                 {claim.register === 'Measured'
-                  ? 'Measured — it states a number the sky can meet or miss'
-                  : 'Mythic — it says what the light is for, which nothing measures'}
+                  ? tr('register.measured')
+                  : tr('register.mythic')}
               </Field>
               {claim.quantity && (
-                <Field label="They stated">
+                <Field label={tr('theyStated')}>
                   <span className="he-data">
                     {claim.quantity.value}
                     {claim.quantity.unit === 'Years' &&
-                      ` year${claim.quantity.value === 1 ? '' : 's'}`}
+                      ` ${tr(claim.quantity.value === 1 ? 'year.one' : 'year.other')}`}
                   </span>
                 </Field>
               )}
-              <Field label="Rests on">
+              <Field label={tr('restsOn')}>
                 {claim.restsOnYears.length === 0 ? (
                   <span className="text-[var(--ink-faint)]">
-                    Nothing written down — it was not that kind of reading
+                    {tr('nothingWrittenAsEvidence')}
                   </span>
                 ) : (
                   <>
-                    Sightings in {claim.restsOnYears.join(', ')}
+                    {tr('sightingsIn', { years: claim.restsOnYears.join(', ') })}
                     <span className="text-[var(--ink-faint)]">
                       {' '}
-                      — {claim.restsOnYears.length}{' '}
-                      {claim.restsOnYears.length === 1 ? 'record' : 'records'} to reason over
+                      {tr(claim.restsOnYears.length === 1 ? 'recordsToReason.one' : 'recordsToReason.other', {
+                        count: claim.restsOnYears.length,
+                      })}
                     </span>
                   </>
                 )}
               </Field>
               {claim.predictedYear !== undefined && (
-                <Field label="Looked for it in">{claim.predictedYear}</Field>
+                <Field label={tr('lookedForItIn')}>{claim.predictedYear}</Field>
               )}
             </dl>
           </Panel>
 
           {record.transitions.length > 0 ? (
-            <Panel title="Where it went">
+            <Panel title={tr('whereItWent')}>
               <DiffusionStrip world={world} record={record} />
             </Panel>
           ) : (
-            <Panel title="Where it went">
+            <Panel title={tr('whereItWent')}>
               {world.schema.version !== null && world.schema.version < 53 ? (
                 <NotInThisExport
-                  what="dated holdings"
+                  what={tr('datedHoldings')}
                   since={53}
                   version={world.schema.version}
                 />
               ) : (
                 <p className="text-sm text-[var(--ink-faint)]">
-                  Nothing carried this reading anywhere. It stayed with whoever set it out.
+                  {tr('nothingCarried')}
                 </p>
               )}
             </Panel>
           )}
 
           {record.texts.length > 0 && (
-            <Panel title="Written down in">
+            <Panel title={tr('writtenDownIn')}>
               <ul className="space-y-3 text-sm">
                 {record.texts.map((text) => (
                   <li key={text.id} className="border-l border-[var(--line)] pl-3">
@@ -644,7 +658,7 @@ export function ClaimPage({ world, claimKey }: { world: World; claimKey: string 
                         · {text.createdYear}
                         {text.creatorId && (
                           <>
-                            {', written by '}
+                            {tr('writtenBy')}
                             <EntityLink world={world} id={text.creatorId} />
                           </>
                         )}
@@ -653,25 +667,25 @@ export function ClaimPage({ world, claimKey }: { world: World; claimKey: string 
                     <p className="mt-0.5 text-xs text-[var(--ink-faint)]">
                       {text.holderId ? (
                         <>
-                          Kept at <EntityLink world={world} id={text.holderId} />
+                          {tr('keptAt')} <EntityLink world={world} id={text.holderId} />
                         </>
                       ) : (
-                        `Lost${text.lostYear !== undefined ? ` in ${text.lostYear}` : ''}`
+                        `${tr('lost')}${text.lostYear !== undefined ? ` ${tr('inYear', { year: text.lostYear })}` : ''}`
                       )}
                       {(text.tomeContents?.copies?.length ?? 0) > 0 &&
-                        ` · copied ${text.tomeContents!.copies!.length} time${
-                          text.tomeContents!.copies!.length === 1 ? '' : 's'
-                        }`}
+                        ` · ${tr(text.tomeContents!.copies!.length === 1
+                          ? 'copiedCount.one'
+                          : 'copiedCount.other', { count: text.tomeContents!.copies!.length })}`}
                     </p>
                     {(text.tomeContents?.copies ?? []).length > 0 && (
                       <ul className="mt-1 space-y-0.5 text-xs text-[var(--ink-faint)]">
                         {text.tomeContents!.copies!.map((copy, position) => (
                           <li key={`${copy.year}:${copy.settlementId}:${position}`}>
-                            {copy.year} · copied to{' '}
+                            {copy.year} · {tr('copiedTo')}{' '}
                             <EntityLink world={world} id={copy.settlementId} /> from{' '}
                             <EntityLink world={world} id={copy.sourceSettlementId} />
                             {copy.lostYear !== undefined &&
-                              ` · lost in ${copy.lostYear}${copy.lostCause ? `, ${copy.lostCause}` : ''}`}
+                              ` · ${tr('lostIn', { year: copy.lostYear })}${copy.lostCause ? `, ${copy.lostCause}` : ''}`}
                           </li>
                         ))}
                       </ul>
@@ -684,28 +698,28 @@ export function ClaimPage({ world, claimKey }: { world: World; claimKey: string 
         </div>
 
         <div className="space-y-5">
-          <Panel title="What the sky made of it">
+          <Panel title={tr('skyMadeOfIt')}>
             <p className="text-sm">
               <VerdictLine claim={claim} />
             </p>
             <p className="mt-2 text-xs text-[var(--ink-faint)]">
               {claim.settledYear === undefined
-                ? 'A verdict is what happened in the sky, not what anybody believed. This one has none.'
+                ? tr('noVerdict')
                 : record.claimant?.deathYear !== undefined && !claim.claimantSawTheAnswer
-                  ? `${world.nameOf(record.claimantId)} did not live to hear it.`
-                  : `${world.nameOf(record.claimantId)} lived to hear it.`}
+                  ? tr('claimantDidNotHear', { name: world.nameOf(record.claimantId) })
+                  : tr('claimantHeard', { name: world.nameOf(record.claimantId) })}
             </p>
             <p className="mt-3 border-t border-[var(--rule)] pt-3 text-xs text-[var(--ink-faint)]">
               {claim.verdict === 'Refuted'
-                ? 'The sky answering says nothing about who went on holding it. Whoever kept teaching this after that year is below, and is not wrong for it.'
-                : 'What the sky settled and what anybody believed are separate records. Nothing on this page grades a held position.'}
+                ? tr('refutedExplanation')
+                : tr('verdictExplanation')}
             </p>
           </Panel>
 
-          <Panel title="Held by">
+          <Panel title={tr('heldBy')}>
             {record.everHeld.length === 0 ? (
               <p className="text-sm text-[var(--ink-faint)]">
-                No realm is recorded as having held it.
+                {tr('noRealmHeld')}
               </p>
             ) : (
               <>
@@ -726,9 +740,9 @@ export function ClaimPage({ world, claimKey }: { world: World; claimKey: string 
                             )
                             .join(', ')}
                           {index.hasStandings && last
-                            ? ` · ${CLAIM_STANDING_LABELS[last.standing]}`
+                            ? ` · ${tr(`standing.${last.standing}`)}`
                             : ''}
-                          {open ? '' : ' · let go'}
+                          {open ? '' : ` · ${tr('letGoShort')}`}
                         </span>
                       </li>
                     );
@@ -736,15 +750,15 @@ export function ClaimPage({ world, claimKey }: { world: World; claimKey: string 
                 </ul>
                 <p className="mt-3 border-t border-[var(--rule)] pt-3 text-xs text-[var(--ink-faint)]">
                   {index.hasStandings
-                    ? 'Having a reading and holding with it are two facts. A realm can keep one it argues with, or shelve one the sky confirmed.'
-                    : 'This export predates the record of what a realm made of a reading; these are realms that had it.'}
+                    ? tr('holdingExplanation')
+                    : tr('holdingsPredate')}
                 </p>
               </>
             )}
           </Panel>
 
           {rivals.length > 0 && (
-            <Panel title={`Also said of ${subjectLabel(claim)}`}>
+            <Panel title={tr('alsoSaidOf', { subject: subjectLabel(claim) })}>
               <ul className="space-y-2 text-sm">
                 {rivals.slice(0, 10).map((other) => (
                   <li key={other.key}>
@@ -766,7 +780,7 @@ export function ClaimPage({ world, claimKey }: { world: World; claimKey: string 
               </ul>
               {rivals.length > 10 && (
                 <p className="mt-2 text-xs text-[var(--ink-faint)]">
-                  and {rivals.length - 10} more.
+                  {tr('more', { count: rivals.length - 10 })}
                 </p>
               )}
             </Panel>
@@ -784,16 +798,18 @@ export function ClaimPage({ world, claimKey }: { world: World; claimKey: string 
  * is the failure the transition record exists to make impossible.
  */
 function DiffusionStrip({ world, record }: { world: World; record: ClaimRecord }) {
+  const { language } = useLanguage();
+  const tr = (key: string) => translateIn(language, 'knowledge', key);
   const marks: { year: number; node: React.ReactNode; kind: string }[] = [
     {
       year: record.claim.year,
-      kind: 'Proposed',
+      kind: tr('diffusion.proposed'),
       node: (
         <>
-          Set out by <EntityLink world={world} id={record.claimantId} />
+          {tr('setOutBy')} <EntityLink world={world} id={record.claimantId} />
           {record.claim.realmId && (
             <>
-              {' in '}
+              {` ${tr('in')} `}
               <EntityLink world={world} id={record.claim.realmId} />
             </>
           )}
@@ -805,7 +821,7 @@ function DiffusionStrip({ world, record }: { world: World; record: ClaimRecord }
   for (const transition of record.transitions) {
     marks.push({
       year: transition.year,
-      kind: transition.kind === 'Acquired' ? 'Acquired' : 'Lost',
+      kind: tr(transition.kind === 'Acquired' ? 'diffusion.acquired' : 'diffusion.lost'),
       node: <TransitionLine world={world} transition={transition} />,
     });
   }
@@ -813,7 +829,7 @@ function DiffusionStrip({ world, record }: { world: World; record: ClaimRecord }
   if (record.claim.settledYear !== undefined) {
     marks.push({
       year: record.claim.settledYear,
-      kind: record.claim.verdict === 'Confirmed' ? 'Borne out' : 'Answered',
+      kind: tr(record.claim.verdict === 'Confirmed' ? 'diffusion.borneOut' : 'diffusion.answered'),
       node: <VerdictLine claim={record.claim} />,
     });
   }
@@ -845,32 +861,37 @@ function TransitionLine({
   world: World;
   transition: ClaimTransition;
 }) {
+  const { language } = useLanguage();
+  const tr = (key: string) => translateIn(language, 'knowledge', key);
   const carrier = carrierOf(world, transition);
-  const carried =
-    transition.carrier === 'Text' ? 'the work that carried it' : 'the person carrying it';
+  const carried = tr(
+    transition.carrier === 'Text' ? 'carrier.work' : 'carrier.person',
+  );
 
   return (
     <>
       <EntityLink world={world} id={transition.realmId} />
-      {transition.kind === 'Acquired' ? ' came to hold it — ' : ' stopped holding it — '}
+      {transition.kind === 'Acquired' ? tr('cameToHold') : tr('stoppedHoldingTransition')}
       {transition.carrierId ? (
         <>
-          {transition.kind === 'Acquired' ? 'carried by ' : 'with '}
+          {tr(transition.kind === 'Acquired' ? 'carriedBy' : 'with')}
           <EntityLink world={world} id={transition.carrierId} />
         </>
       ) : (
         <span className="text-[var(--ink-faint)]">
-          {transition.kind === 'Acquired' ? `carried by ${carrier.label}` : `with ${carried}`}
+          {transition.kind === 'Acquired'
+            ? `${tr('carriedBy')}${carrier.label}`
+            : `${tr('with')}${carried}`}
         </span>
       )}
       {transition.settlementId && (
         <span className="text-[var(--ink-faint)]">
-          {' at '}
+          {` ${tr('at')} `}
           <EntityLink world={world} id={transition.settlementId} />
         </span>
       )}
       <span className="text-[var(--ink-faint)]">
-        {' · '}{transition.cause ?? 'cause not recorded'}
+        {' · '}{transition.cause ?? tr('causeNotRecorded')}
       </span>
     </>
   );

@@ -1,5 +1,7 @@
 import type React from 'react';
 import { useEffect, useRef, useState } from 'react';
+import { useLanguage } from '../i18n/LanguageProvider';
+import { translateIn } from '../i18n/translations.ts';
 import { IconClock, IconClose, IconKey, IconPeople, IconSettings, IconShuffle, IconTerminal } from '../components/icons';
 import {
   BOUNDS,
@@ -47,6 +49,9 @@ export function NewWorld({
   title?: string;
   showContinue?: boolean;
 } = {}) {
+  const { language } = useLanguage();
+  const tr = (key: string, values?: Readonly<Record<string, string | number | undefined>>) =>
+    translateIn(language, 'generator', key, values);
   const [form, setForm] = useState(() =>
     toForm(initial ?? { ...DEFAULT_PARAMS, civs: 5, eastWestPeriodic: true }),
   );
@@ -162,13 +167,13 @@ export function NewWorld({
     if (Number.isFinite(next.size)) next.size = alignSize(next.size);
 
     if (!Number.isSafeInteger(next.seed) || next.seed < BOUNDS.seed.min) {
-      setError('The seed has to be a whole number, or hex like 0x7F8A9B2C.');
+      setError(tr('error.seed'));
       return;
     }
 
     if (next.size < minimumSizeFor(next.civs)) {
       setError(
-        `A ${next.size}-unit world has too little room to seat ${next.civs} civilizations.`,
+        tr('error.size', { size: next.size, civs: next.civs }),
       );
       return;
     }
@@ -176,7 +181,7 @@ export function NewWorld({
     const output = worldFileName(next);
     if (source === output) {
       const confirmed = window.confirm(
-        `Replace ${output}?\n\nThe file you are reusing will be overwritten with a new run of these settings through the current engine.`,
+        tr('confirm.replace', { output }),
       );
       if (!confirmed) return;
     }
@@ -198,12 +203,12 @@ export function NewWorld({
     } finally {
       setRun(null);
       setOpening(false);
-      setNotice('Synthesis aborted.');
+      setNotice(tr('status.aborted'));
     }
   }
 
   function dismissFailed() {
-    setError(run?.error ?? 'The generator failed');
+    setError(run?.error ?? tr('modal.error'));
     setRun(null);
     setOpening(false);
   }
@@ -219,8 +224,7 @@ export function NewWorld({
     params.civs === baseline.civs &&
     params.size === baseline.size &&
     params.eastWestPeriodic === baseline.eastWestPeriodic;
-  const submitLabel =
-    source && unchanged ? 'Run with current engine' : 'Initialize simulation engine';
+  const submitLabel = source && unchanged ? tr('submit.rerun') : tr('submit.generate');
   const canContinue = continuing && baseline.years < BOUNDS.years.max;
 
   return (
@@ -229,7 +233,7 @@ export function NewWorld({
 
       <form id="simulate" onSubmit={(event) => generate(event)}>
         <div className="space-y-5 rounded-lg border border-[var(--rule)] bg-[var(--panel)] p-5 md:p-6">
-          <Field label="Generation seed">
+          <Field label={tr('field.seed')}>
             <div className="relative">
               <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-[var(--ink-faint)]">
                 <IconKey className="h-4 w-4" />
@@ -238,7 +242,7 @@ export function NewWorld({
                 type="text"
                 spellCheck={false}
                 required
-                aria-label="Generation seed"
+                aria-label={tr('field.seed')}
                 value={form.seed}
                 disabled={busy}
                 onChange={(event) => setForm({ ...form, seed: event.target.value })}
@@ -251,8 +255,8 @@ export function NewWorld({
                 type="button"
                 onClick={() => setForm({ ...form, seed: formatSeed(randomSeed()) })}
                 disabled={busy}
-                title="Pick a seed at random"
-                aria-label="Pick a seed at random"
+                title={tr('seed.random')}
+                aria-label={tr('seed.random')}
                 className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-1.5 text-[var(--ink-faint)] transition-colors hover:text-[var(--primary)] disabled:opacity-40"
               >
                 <IconShuffle className="h-4 w-4" />
@@ -261,29 +265,29 @@ export function NewWorld({
           </Field>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Simulation duration (years)">
+            <Field label={tr('field.years')}>
               <IconNumber
                 icon={<IconClock className="h-4 w-4" />}
                 value={form.years}
                 bounds={BOUNDS.years}
                 disabled={busy}
-                ariaLabel="Simulation duration in years"
+                ariaLabel={tr('field.years')}
                 onChange={(years) => setForm({ ...form, years })}
               />
             </Field>
-            <Field label="Civilization count">
+            <Field label={tr('field.civilizations')}>
               <IconNumber
                 icon={<IconPeople className="h-4 w-4" />}
                 value={form.civs}
                 bounds={BOUNDS.civs}
                 disabled={busy}
-                ariaLabel="Civilization count"
+                ariaLabel={tr('field.civilizations')}
                 onChange={(civs) => setForm({ ...form, civs })}
               />
             </Field>
           </div>
 
-          <Field label="World dimensionality">
+          <Field label={tr('field.size')}>
             <div className="grid grid-cols-3 gap-1 rounded-md border border-[var(--rule)] bg-[var(--input)] p-1">
               {(Object.keys(SIZE_TIERS) as SizeTier[]).map((tier) => {
                 const selected = selectedTier === tier;
@@ -314,7 +318,7 @@ export function NewWorld({
                 step={SIZE_STEP}
                 value={form.size}
                 disabled={busy}
-                aria-label="World size in units"
+                aria-label={tr('field.sizeUnits')}
                 onChange={(event) => setForm({ ...form, size: event.target.value })}
                 onBlur={() => {
                   if (Number.isFinite(params.size)) {
@@ -324,20 +328,23 @@ export function NewWorld({
                 className="he-data w-full rounded-md border border-[var(--rule)] bg-[var(--input)] py-2.5 pr-16 pl-3 text-sm tabular-nums outline-none focus:border-[var(--primary)] disabled:opacity-50"
               />
               <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-xs text-[var(--ink-faint)]">
-                units
+                {tr('field.units')}
               </span>
             </div>
             <p className="mt-2 text-xs text-[var(--ink-faint)]">
-              Multiples of {SIZE_STEP}, from {BOUNDS.size.min.toLocaleString()} to{' '}
-              {BOUNDS.size.max.toLocaleString()}.
+              {tr('size.range', {
+                step: SIZE_STEP,
+                min: BOUNDS.size.min.toLocaleString(language === 'fr' ? 'fr-FR' : undefined),
+                max: BOUNDS.size.max.toLocaleString(language === 'fr' ? 'fr-FR' : undefined),
+              })}
             </p>
           </Field>
 
           <div className="flex items-center justify-between gap-4 border-t border-[var(--rule)] pt-5">
             <div>
-              <div className="text-sm font-medium">Planetary wrapping</div>
+              <div className="text-sm font-medium">{tr('field.wrapping')}</div>
               <p className="mt-0.5 text-xs text-[var(--ink-faint)]">
-                Connect east/west edges seamlessly
+                {tr('wrapping.description')}
               </p>
             </div>
             <button
@@ -349,7 +356,7 @@ export function NewWorld({
               className={`relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-40 ${
                 form.eastWestPeriodic ? 'bg-[var(--primary)]' : 'bg-[var(--surface-container-highest)]'
               }`}
-              aria-label="Planetary wrapping"
+              aria-label={tr('field.wrapping')}
             >
               <span
                 className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full transition-transform ${
@@ -364,17 +371,21 @@ export function NewWorld({
 
         {tooSmall && (
           <p className="mt-3 text-xs text-[var(--accent)]">
-            A {form.size}-unit world has too little room to seat {form.civs} civilizations. Raise the
-            world size to at least {minimumSizeFor(Number(form.civs))}, or ask for fewer.
+            {tr('error.size', {
+              size: form.size,
+              civs: form.civs,
+            })}{' '}
+            {tr('error.sizeAdvice', { min: minimumSizeFor(Number(form.civs)) })}
           </p>
         )}
 
         {source && (
           <p className="mt-3 text-xs text-[var(--ink-soft)]">
-            Settings taken from <code className="rounded bg-[var(--input)] px-1 py-0.5">{source}</code>.
-            Change a number and generate, or run them unchanged through the engine as it stands now.
-            The first {baseline.years.toLocaleString()} years of a longer run are the same history —
-            the seed is deterministic.
+            {tr('source.settings')}{' '}
+            <code className="rounded bg-[var(--input)] px-1 py-0.5">{source}</code>.{' '}
+            {tr('source.description', {
+              years: baseline.years.toLocaleString(language === 'fr' ? 'fr-FR' : undefined),
+            })}
           </p>
         )}
 
@@ -405,14 +416,14 @@ export function NewWorld({
           onSubmit={(event) => generate(event, { ...baseline, years: continueTarget })}
           className="mt-4 rounded-lg border border-[var(--rule)] bg-[var(--panel)] p-5"
         >
-          <Field label="Continue through year">
+          <Field label={tr('continue.label')}>
             <div className="flex flex-wrap items-center gap-3">
               <IconNumber
                 icon={<IconClock className="h-4 w-4" />}
                 value={continueYears}
                 bounds={{ min: baseline.years + 1, max: BOUNDS.years.max }}
                 disabled={busy}
-                ariaLabel="Continue through year"
+                ariaLabel={tr('continue.label')}
                 onChange={setContinueYears}
               />
               <button
@@ -420,14 +431,17 @@ export function NewWorld({
                 disabled={busy || !continueReady}
                 className="he-btn-secondary px-3 py-2.5 text-sm disabled:opacity-40"
               >
-                Continue
+                {tr('continue.button')}
               </button>
             </div>
           </Field>
           <p className="mt-2 text-xs text-[var(--ink-faint)]">
-            Keeps seed {formatSeed(baseline.seed)}, {baseline.civs} civilizations and a{' '}
-            {baseline.size}-unit world. Writes a new file; the {baseline.years}-year export stays on
-            disk.
+            {tr('continue.description', {
+              seed: formatSeed(baseline.seed),
+              civs: baseline.civs,
+              size: baseline.size,
+              years: baseline.years,
+            })}
           </p>
         </form>
       )}
@@ -507,6 +521,9 @@ export function SynthesisModal({
   onAbort: () => void;
   onDismiss: () => void;
 }) {
+  const { language } = useLanguage();
+  const tr = (key: string, values?: Readonly<Record<string, string | number | undefined>>) =>
+    translateIn(language, 'generator.modal', key, values);
   const failed = run.status === 'failed';
   const done = run.status === 'done' || opening;
   const endYear = run.endYear ?? run.params.years;
@@ -515,16 +532,16 @@ export function SynthesisModal({
   const stamps = useLogStamps(run.log, run.elapsedMs);
 
   const title = failed
-    ? 'World synthesis failed'
+    ? tr('failed')
     : done
-      ? 'World synthesis complete'
-      : 'World synthesis initiated';
+      ? tr('complete')
+      : tr('started');
 
   const subtitle = failed
-    ? (run.error ?? 'The generator failed.')
+    ? (run.error ?? tr('error'))
     : done
-      ? `Opening the chronicle for seed #${run.params.seed}.`
-      : `The procedural engine is currently generating tectonic structures, atmospheric conditions, and initial biological parameters for seed #${run.params.seed}.`;
+      ? tr('opening', { seed: run.params.seed })
+      : tr('description', { seed: run.params.seed });
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[color-mix(in_srgb,var(--canvas)_82%,black)] p-4">
@@ -542,13 +559,13 @@ export function SynthesisModal({
         <div className="mt-8 rounded-lg border border-[var(--rule)] bg-[var(--panel)] p-5">
           <div className="flex items-start justify-between gap-6">
             <div>
-              <div className="he-label">Simulation year</div>
+              <div className="he-label">{tr('year')}</div>
               <div className="he-data mt-1 text-2xl text-[var(--ink)]">
                 {year.toLocaleString()} / {endYear.toLocaleString()}
               </div>
             </div>
             <div className="text-right">
-              <div className="he-label">Elapsed time</div>
+              <div className="he-label">{tr('elapsed')}</div>
               <div className="he-data mt-1 text-2xl text-[var(--ink)]">
                 {formatElapsed(run.elapsedMs)}
               </div>
@@ -562,15 +579,15 @@ export function SynthesisModal({
             />
           </div>
           <div className="mt-2 flex justify-between text-[11px] font-semibold tracking-wide text-[var(--ink-faint)] uppercase">
-            <span>Epoch 1: Genesis</span>
-            <span>Epoch 2: Civilization</span>
+            <span>{tr('epochGenesis')}</span>
+            <span>{tr('epochCivilization')}</span>
           </div>
         </div>
 
         <div className="mt-4 rounded-lg border border-[var(--rule)] bg-[var(--panel)] p-5">
           <div className="he-label flex items-center gap-2">
             <IconTerminal className="h-3.5 w-3.5" />
-            Live engine log
+            {tr('log')}
           </div>
           <div
             ref={(node) => {
@@ -581,7 +598,7 @@ export function SynthesisModal({
             {run.log.length === 0 ? (
               <div className="he-data flex items-start gap-2 text-[var(--ink-soft)]">
                 <span className="he-pip mt-1.5 he-pip-ok" aria-hidden="true" />
-                <span>Starting engine…</span>
+                <span>{tr('starting')}</span>
               </div>
             ) : (
               run.log.map((line, index) => (
@@ -603,7 +620,7 @@ export function SynthesisModal({
               className="inline-flex items-center gap-2 rounded-md border border-[var(--error)] px-4 py-2 text-sm font-semibold tracking-wide text-[var(--error)] uppercase transition-colors hover:bg-[var(--error-container)]"
             >
               <IconClose className="h-4 w-4" />
-              Abort synthesis
+              {tr('abort')}
             </button>
           ) : failed ? (
             <button
@@ -611,7 +628,7 @@ export function SynthesisModal({
               onClick={onDismiss}
               className="he-btn-secondary px-4 py-2 text-sm font-semibold tracking-wide uppercase"
             >
-              Back to configuration
+              {tr('back')}
             </button>
           ) : null}
         </div>

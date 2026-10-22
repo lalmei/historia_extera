@@ -1,3 +1,4 @@
+import { renderInterpretationPartsLocalized } from './i18n/interpretation.ts';
 import { VARIANT_MIX } from './narrate.ts';
 import type { LifeContext, StandingPart } from './biography.ts';
 import type {
@@ -896,6 +897,9 @@ export function renderInterpretationParts(
   ctx: LifeContext,
   variant: number,
 ): StandingPart[] {
+  if (ctx.language !== undefined && ctx.language !== 'en') {
+    return renderInterpretationPartsLocalized(figure, interpretation, ctx, variant);
+  }
   const name = figure.name;
   const { possessive, object, subject, reflexive } = pronouns(figure.sex);
   const placeName = (id?: EntityId) =>
@@ -903,6 +907,7 @@ export function renderInterpretationParts(
 
   const text = (value: string): StandingPart => ({ type: 'text', text: value });
   const entity = (id: EntityId): StandingPart => ({ type: 'entity', id });
+  const themeLabel = THEME_LABELS[interpretation.theme];
 
   switch (interpretation.theme) {
     case 'Rootedness': {
@@ -1198,7 +1203,7 @@ export function renderInterpretationParts(
       return lines[variant]?.() ?? lines[0]();
     }
     default: {
-      const fallback = `${subject} lived in a way the record can name through ${THEME_LABELS[interpretation.theme].toLowerCase()}.`;
+      const fallback = `${subject} lived in a way the record can name through ${themeLabel.toLowerCase()}.`;
       return [text(fallback)];
     }
   }

@@ -1,5 +1,7 @@
 import type React from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useLanguage } from '../i18n/LanguageProvider';
+import { translateIn } from '../i18n/translations.ts';
 import { NarratedEvent } from '../components/EventList';
 import { EntityLink } from '../components/common';
 import { IconChevronLeft, IconChevronRight, IconMinus, IconPlus, IconRefresh } from '../components/icons';
@@ -157,6 +159,9 @@ function zoomToward(
 }
 
 export function WorldMap({ world }: { world: World }) {
+  const { language } = useLanguage();
+  const tr = (key: string, values?: Readonly<Record<string, string | number | undefined>>) =>
+    translateIn(language, 'worldMap', key, values);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
   const viewportRef = useRef<HTMLDivElement | null>(null);
@@ -669,7 +674,7 @@ export function WorldMap({ world }: { world: World }) {
 
   return (
     <div className="flex h-full min-h-0 w-full flex-1 flex-col lg:flex-row">
-      <h1 className="sr-only">Map</h1>
+      <h1 className="sr-only">{tr('map')}</h1>
       <div
         ref={frameRef}
         className="relative flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden bg-[var(--canvas)]"
@@ -802,11 +807,16 @@ export function WorldMap({ world }: { world: World }) {
                     className="pointer-events-none"
                   >
                     <title>
-                      {paved ? 'Paved road' : 'Road'} of the {world.nameOf(route.id)}, cut in{' '}
-                      {road.builtYear}
-                      {paved && road.pavedYear !== undefined && `, paved in ${road.pavedYear}`}
-                      {` · ${Math.round(road.length)} units of made way`}
-                      {abandoned && ' · the route it served has closed'}
+                      {tr('roadTitle', {
+                        road: tr(paved ? 'pavedRoad' : 'road'),
+                        name: world.nameOf(route.id),
+                        built: road.builtYear,
+                        paved: paved && road.pavedYear !== undefined
+                          ? tr('pavedIn', { year: road.pavedYear })
+                          : '',
+                        length: Math.round(road.length),
+                        abandoned: abandoned ? tr('routeClosed') : '',
+                      })}
                     </title>
                   </line>
                 ));
@@ -851,11 +861,16 @@ export function WorldMap({ world }: { world: World }) {
                     className="pointer-events-none"
                   >
                     <title>
-                      {world.nameOf(route.id)} · logical {route.mode.toLowerCase()} connection
-                      {traffic !== undefined && ` · traffic ${traffic.toFixed(2)} in ${year}`}
-                      {route.road === undefined
-                        ? '; no road was ever built for it'
-                        : `; road cut in ${route.road.builtYear}`}
+                      {tr('tradeRouteTitle', {
+                        name: world.nameOf(route.id),
+                        mode: translateIn(language, 'lore', route.mode),
+                        traffic: traffic !== undefined
+                          ? tr('trafficIn', { traffic: traffic.toFixed(2), year })
+                          : '',
+                        road: route.road === undefined
+                          ? tr('noRoad')
+                          : tr('roadBuiltIn', { year: route.road.builtYear }),
+                      })}
                     </title>
                   </line>
                 ));
@@ -913,7 +928,7 @@ export function WorldMap({ world }: { world: World }) {
                     strokeOpacity={0.9}
                   >
                     <title>
-                      {settlement.name} · abandoned in {settlement.abandonedYear}
+                      {tr('ruinTitle', { name: settlement.name, year: settlement.abandonedYear })}
                     </title>
                     <line x1={x - arm} y1={y - arm} x2={x + arm} y2={y + arm} />
                     <line x1={x - arm} y1={y + arm} x2={x + arm} y2={y - arm} />
@@ -1066,8 +1081,8 @@ export function WorldMap({ world }: { world: World }) {
                 <>
                   <div className="text-sm font-medium">{hovered.standing.settlement.name}</div>
                   <div className="text-[var(--ink-faint)]">
-                    {hovered.standing.isCapital ? 'Seat of ' : ''}
-                    {hovered.standing.tier} · {world.nameOf(hovered.standing.civilizationId)}
+                    {hovered.standing.isCapital ? `${tr('seatOf')} ` : ''}
+                    {translateIn(language, 'lore', hovered.standing.tier)} · {world.nameOf(hovered.standing.civilizationId)}
                     {hovered.standing.religionId &&
                       ` · ${world.nameOf(hovered.standing.religionId)}`}
                   </div>
@@ -1076,46 +1091,48 @@ export function WorldMap({ world }: { world: World }) {
                 <>
                   <div className="text-sm font-medium">{hovered.settlement.name}</div>
                   <div className="text-[var(--ink-faint)]">
-                    Ruins · abandoned in {hovered.settlement.abandonedYear} · once{' '}
-                    {hovered.settlement.peakPopulation.toLocaleString()} people
+                    {tr('ruins')} · {tr('abandonedIn', { year: hovered.settlement.abandonedYear })} · {tr('once')}
+                    {' '}{hovered.settlement.peakPopulation.toLocaleString()} {tr('people')}
                   </div>
                 </>
               ) : hovered.kind === 'holy-site' ? (
                 <>
                   <div className="text-sm font-medium">{hovered.site.name}</div>
                   <div className="text-[var(--ink-faint)]">
-                    {hovered.site.kind} · {world.nameOf(hovered.site.religionId)} · independent site
+                    {translateIn(language, 'lore', hovered.site.kind)} · {world.nameOf(hovered.site.religionId)} · {tr('independentSite')}
                   </div>
                 </>
               ) : hovered.kind === 'harbour' ? (
                 <>
                   <div className="text-sm font-medium">{hovered.settlement.name}</div>
                   <div className="text-[var(--ink-faint)]">
-                    {hovered.settlement.site === 'Harbour' ? 'Harbour' : hovered.settlement.site}
+                    {translateIn(language, 'lore', hovered.settlement.site === 'Harbour'
+                      ? 'Harbour'
+                      : hovered.settlement.site)}
                     {' · '}
-                    {waterLabel(hovered.settlement.site)}
+                    {translateIn(language, 'lore', waterLabel(hovered.settlement.site))}
                   </div>
                 </>
               ) : hovered.kind === 'landmark' ? (
                 <>
                   <div className="text-sm font-medium">{hovered.settlement.name}</div>
                   <div className="text-[var(--ink-faint)]">
-                    {SITE_LABELS[hovered.settlement.site]}
+                    {translateIn(language, 'lore', SITE_LABELS[hovered.settlement.site])}
                   </div>
                 </>
               ) : hovered.kind === 'house' ? (
                 <>
                   <div className="text-sm font-medium">{hovered.mark.house.name}</div>
                   <div className="text-[var(--ink-faint)]">
-                    {houseHover(hovered.mark, world)}
+                    {houseHover(hovered.mark, world, language)}
                   </div>
                 </>
               ) : (
                 <>
                   <div className="text-sm font-medium">{hovered.region.name}</div>
                   <div className="text-[var(--ink-faint)]">
-                    {hovered.region.biome} ·{' '}
-                    {hovered.owner ? world.nameOf(hovered.owner) : 'unclaimed'}
+                    {translateIn(language, 'lore', hovered.region.biome)} ·{' '}
+                    {hovered.owner ? world.nameOf(hovered.owner) : tr('unclaimed')}
                   </div>
                 </>
               )}
@@ -1128,8 +1145,8 @@ export function WorldMap({ world }: { world: World }) {
           >
             <button
               type="button"
-              title="Zoom in"
-              aria-label="Zoom in"
+              title={tr('zoomIn')}
+              aria-label={tr('zoomIn')}
               disabled={zoom >= ZOOM_MAX}
               onClick={() => applyZoom(zoomRef.current * ZOOM_STEP)}
               className="he-map-zoom-btn"
@@ -1138,8 +1155,8 @@ export function WorldMap({ world }: { world: World }) {
             </button>
             <button
               type="button"
-              title="Reset view"
-              aria-label="Reset view"
+              title={tr('resetView')}
+              aria-label={tr('resetView')}
               disabled={zoom === 1}
               onClick={resetView}
               className="he-map-zoom-btn"
@@ -1148,8 +1165,8 @@ export function WorldMap({ world }: { world: World }) {
             </button>
             <button
               type="button"
-              title="Zoom out"
-              aria-label="Zoom out"
+              title={tr('zoomOut')}
+              aria-label={tr('zoomOut')}
               disabled={zoom <= ZOOM_MIN}
               onClick={() => applyZoom(zoomRef.current / ZOOM_STEP)}
               className="he-map-zoom-btn"
@@ -1182,90 +1199,83 @@ export function WorldMap({ world }: { world: World }) {
 
       <aside className="he-map-inspector flex max-h-[42vh] w-full shrink-0 flex-col overflow-y-auto border-t border-[var(--rule)] bg-[var(--surface-container-low)] lg:max-h-none lg:w-80 lg:border-t-0 lg:border-l">
         <div className="border-b border-[var(--rule)] px-4 py-3">
-          <div className="he-label">Map layers</div>
+          <div className="he-label">{tr('layers')}</div>
           <p className="mt-1 text-sm text-[var(--ink-soft)]">
-            {data.world.width.toLocaleString()} × {data.world.height.toLocaleString()} units
-            {data.world.eastWestPeriodic ? ' · east/west joined' : ''}
+            {data.world.width.toLocaleString()} × {data.world.height.toLocaleString()} {tr('units')}
+            {data.world.eastWestPeriodic ? ` · ${tr('eastWestJoined')}` : ''}
           </p>
           <p className="he-data mt-0.5 text-[11px] text-[var(--ink-faint)]">
-            raster {raster.resolution}² · {realms.length}{' '}
-            {realms.length === 1 ? 'realm' : 'realms'} · {standing.length} settlements
-            {ruins.length > 0 ? ` · ${ruins.length} ruins` : ''}
+            {tr('raster', { resolution: raster.resolution })} · {realms.length}{' '}
+            {tr(realms.length === 1 ? 'realm.one' : 'realm.other')} · {standing.length} {tr('settlements')}
+            {ruins.length > 0 ? ` · ${ruins.length} ${tr('ruins')}` : ''}
           </p>
         </div>
 
         <div className="space-y-4 px-4 py-4 text-sm">
           <section>
-            <div className="he-label mb-2">Terrain</div>
+            <div className="he-label mb-2">{tr('terrain')}</div>
             <select
               value={layer}
               onChange={(event) => setLayer(event.target.value as Layer)}
               className="w-full rounded border border-[var(--rule)] bg-[var(--surface-container-high)] px-2 py-1.5 text-sm"
             >
-              <option value="biome">Biome</option>
-              <option value="height">Elevation</option>
-              <option value="habitability">Habitability</option>
+              <option value="biome">{tr('biome')}</option>
+              <option value="height">{tr('elevation')}</option>
+              <option value="habitability">{tr('habitability')}</option>
             </select>
           </section>
 
           <section>
-            <div className="he-label mb-2">Settlement colour</div>
+            <div className="he-label mb-2">{tr('settlementColour')}</div>
             <select
               value={colouring}
               onChange={(event) => setColouring(event.target.value as Colouring)}
               className="w-full rounded border border-[var(--rule)] bg-[var(--surface-container-high)] px-2 py-1.5 text-sm"
             >
-              <option value="realm">By realm</option>
-              <option value="faith">By faith</option>
+              <option value="realm">{tr('byRealm')}</option>
+              <option value="faith">{tr('byFaith')}</option>
             </select>
           </section>
 
           <section>
-            <div className="he-label mb-2">Overlays</div>
+            <div className="he-label mb-2">{tr('overlays')}</div>
             <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
-              <Toggle label="Territory" on={showTerritory} onChange={setShowTerritory} />
-              <Toggle label="Rivers" on={showRivers} onChange={setShowRivers} />
-              <Toggle label="Settlements" on={showSettlements} onChange={setShowSettlements} />
-              <Toggle label="Ruins" on={showRuins} onChange={setShowRuins} />
-              <Toggle label="Holy sites" on={showHolySites} onChange={setShowHolySites} />
-              <Toggle label="Harbours" on={showHarbours} onChange={setShowHarbours} />
-              <Toggle label="Walls" on={showWalls} onChange={setShowWalls} />
-              <Toggle label="Landmarks" on={showLandmarks} onChange={setShowLandmarks} />
-              <Toggle label="Houses" on={showHouses} onChange={setShowHouses} />
-              <Toggle label="Trade routes" on={showTradeRoutes} onChange={setShowTradeRoutes} />
-              <Toggle label="Roads" on={showRoads} onChange={setShowRoads} />
+              <Toggle label={tr('territory')} on={showTerritory} onChange={setShowTerritory} />
+              <Toggle label={tr('rivers')} on={showRivers} onChange={setShowRivers} />
+              <Toggle label={tr('settlements')} on={showSettlements} onChange={setShowSettlements} />
+              <Toggle label={tr('ruins')} on={showRuins} onChange={setShowRuins} />
+              <Toggle label={tr('holySites')} on={showHolySites} onChange={setShowHolySites} />
+              <Toggle label={tr('harbours')} on={showHarbours} onChange={setShowHarbours} />
+              <Toggle label={tr('walls')} on={showWalls} onChange={setShowWalls} />
+              <Toggle label={tr('landmarks')} on={showLandmarks} onChange={setShowLandmarks} />
+              <Toggle label={tr('houses')} on={showHouses} onChange={setShowHouses} />
+              <Toggle label={tr('tradeRoutes')} on={showTradeRoutes} onChange={setShowTradeRoutes} />
+              <Toggle label={tr('roads')} on={showRoads} onChange={setShowRoads} />
             </div>
             {showHarbours && (
               <p className="mt-2 text-xs text-[var(--ink-faint)]">
-                Anchors sit in the water a harbour was founded for, not on the town. A wave marks a
-                river landing.
+                {tr('harbourNote')}
               </p>
             )}
             {showHouses && (
               <p className="mt-2 text-xs text-[var(--ink-faint)]">
-                A banner is the throne; a house mark is where the line rose. Focus a realm to see
-                where that house's living members reside. Residence is recorded as of the
-                chronicle's end.
+                {tr('houseNote')}
               </p>
             )}
             {showTradeRoutes && (
               <p className="mt-2 text-xs text-[var(--ink-faint)]">
-                Dashed amber is overland demand, blue uses river access, teal the coast. Weight is
-                traffic in {year}. These are logical links; the road under one, where there is one,
-                is drawn separately.
+                {tr('tradeNote', { year })}
               </p>
             )}
             {showRoads && (
               <p className="mt-2 text-xs text-[var(--ink-faint)]">
-                Solid brown is a way worn between two towns; pale stone is one bridged and paved.
-                Only land routes whose traffic held up for long enough are ever roaded, and a road
-                stays on the map after the trade that paid for it has gone.
+                {tr('roadNote')}
               </p>
             )}
           </section>
 
           <section>
-            <div className="he-label mb-2">Key</div>
+            <div className="he-label mb-2">{tr('key')}</div>
             <MarkerKey
               settlements={showSettlements}
               ruins={showRuins && ruins.length > 0}
@@ -1303,15 +1313,15 @@ export function WorldMap({ world }: { world: World }) {
 
           {focused && (
             <section>
-              <div className="he-label mb-2">{focused.name} in {year}</div>
+              <div className="he-label mb-2">{tr('realmInYear', { name: focused.name, year })}</div>
               <RealmCard world={world} civ={focused} year={year} />
             </section>
           )}
 
           <section>
-            <div className="he-label mb-2">The year {year}</div>
+            <div className="he-label mb-2">{tr('theYear', { year })}</div>
             {yearEvents.length === 0 ? (
-              <p className="text-xs text-[var(--ink-faint)]">Nothing was recorded in this year.</p>
+              <p className="text-xs text-[var(--ink-faint)]">{tr('nothingRecorded')}</p>
             ) : (
               <ol className="space-y-1">
                 {yearEvents.slice(0, 24).map((event) => (
@@ -1321,7 +1331,7 @@ export function WorldMap({ world }: { world: World }) {
                 ))}
                 {yearEvents.length > 24 && (
                   <li className="text-xs text-[var(--ink-faint)]">
-                    …and {yearEvents.length - 24} more.
+                    {tr('moreEvents', { count: yearEvents.length - 24 })}
                   </li>
                 )}
               </ol>
@@ -1364,11 +1374,14 @@ function MarkerKey({
   passes: boolean;
   houses: boolean;
 }) {
+  const { language } = useLanguage();
+  const tr = (key: string, values?: Readonly<Record<string, string | number | undefined>>) =>
+    translateIn(language, 'worldMap', key, values);
   const marks: { label: string; glyph: React.ReactNode }[] = [];
 
   if (settlements) {
     marks.push({
-      label: 'settlement, by size',
+      label: tr('marker.settlement'),
       glyph: (
         <>
           <circle cx={4} cy={8} r={1.6} fill="var(--ink-soft)" />
@@ -1380,7 +1393,7 @@ function MarkerKey({
 
   if (ruins) {
     marks.push({
-      label: 'abandoned',
+      label: tr('marker.abandoned'),
       glyph: (
         <g stroke="rgb(152 146 138)" strokeWidth={1.6} strokeLinecap="round">
           <line x1={4} y1={5} x2={10} y2={11} />
@@ -1392,7 +1405,7 @@ function MarkerKey({
 
   if (holySites) {
     marks.push({
-      label: 'holy site',
+      label: tr('marker.holySite'),
       glyph: (
         <rect
           x={4}
@@ -1409,7 +1422,7 @@ function MarkerKey({
 
   if (harbours) {
     marks.push({
-      label: 'harbour',
+      label: tr('marker.harbour'),
       glyph: (
         <g
           transform="translate(7 8) scale(0.55)"
@@ -1430,7 +1443,7 @@ function MarkerKey({
 
   if (riversides) {
     marks.push({
-      label: 'river landing',
+      label: tr('marker.riverLanding'),
       glyph: (
         <g fill="none" stroke="rgb(168 206 230)" strokeWidth={1.4} strokeLinecap="round">
           <path d="M2.5 6.5c1.2 1.4 2.4 1.4 3.6 0s2.4-1.4 3.6 0" />
@@ -1442,7 +1455,7 @@ function MarkerKey({
 
   if (walls) {
     marks.push({
-      label: 'walled town',
+      label: tr('marker.walledTown'),
       glyph: (
         <rect
           x={3.5}
@@ -1459,7 +1472,7 @@ function MarkerKey({
 
   if (mines) {
     marks.push({
-      label: 'mine',
+      label: tr('marker.mine'),
       glyph: (
         <g stroke="rgb(168 150 118)" strokeWidth={1.5} strokeLinecap="round">
           <line x1={3.5} y1={11} x2={10.5} y2={5} />
@@ -1471,7 +1484,7 @@ function MarkerKey({
 
   if (passes) {
     marks.push({
-      label: 'pass',
+      label: tr('marker.pass'),
       glyph: (
         <path
           d="M2 12 L5 6 L7 9 L9 5 L12 12"
@@ -1487,7 +1500,7 @@ function MarkerKey({
 
   if (houses) {
     marks.push({
-      label: 'house rules here',
+      label: tr('marker.houseRules'),
       glyph: (
         <g>
           <line x1={5} y1={13} x2={5} y2={4} stroke="var(--ink-soft)" strokeWidth={1.3} />
@@ -1496,7 +1509,7 @@ function MarkerKey({
       ),
     });
     marks.push({
-      label: 'house rose here',
+      label: tr('marker.houseRose'),
       glyph: (
         <g fill="none" stroke="var(--ink-soft)" strokeWidth={1.3} strokeLinejoin="round">
           <path d="M3.5 9.5 L7 6 L10.5 9.5 V13 H3.5Z" />
@@ -1507,7 +1520,7 @@ function MarkerKey({
 
   if (battles) {
     marks.push({
-      label: 'battle this year',
+      label: tr('marker.battle'),
       glyph: (
         <>
           <circle cx={7} cy={8} r={4} fill="none" stroke="rgb(214 96 84)" strokeWidth={1.2} />
@@ -1518,7 +1531,7 @@ function MarkerKey({
   }
 
   if (marks.length === 0) {
-    return <p className="text-xs text-[var(--ink-faint)]">Nothing on these layers.</p>;
+    return <p className="text-xs text-[var(--ink-faint)]">{tr('nothingOnLayers')}</p>;
   }
 
   return (
@@ -1536,6 +1549,7 @@ function MarkerKey({
 }
 
 function AnchorMark({ x, y, faded }: { x: number; y: number; faded: boolean }) {
+  const { language } = useLanguage();
   const opacity = faded ? 0.35 : 0.95;
   const parts = (
     <>
@@ -1555,7 +1569,7 @@ function AnchorMark({ x, y, faded }: { x: number; y: number; faded: boolean }) {
       strokeLinejoin="round"
       opacity={opacity}
     >
-      <title>Harbour</title>
+      <title>{translateIn(language, 'worldMap', 'marker.harbour')}</title>
       <g stroke="rgba(12, 22, 34, 0.8)" strokeWidth={0.4}>
         {parts}
       </g>
@@ -1567,6 +1581,7 @@ function AnchorMark({ x, y, faded }: { x: number; y: number; faded: boolean }) {
 }
 
 function WaveMark({ x, y, faded }: { x: number; y: number; faded: boolean }) {
+  const { language } = useLanguage();
   const opacity = faded ? 0.3 : 0.9;
   const parts = (
     <>
@@ -1583,7 +1598,7 @@ function WaveMark({ x, y, faded }: { x: number; y: number; faded: boolean }) {
       strokeLinecap="round"
       opacity={opacity}
     >
-      <title>River landing</title>
+      <title>{translateIn(language, 'worldMap', 'marker.riverLanding')}</title>
       <g stroke="rgba(12, 22, 34, 0.75)" strokeWidth={0.38}>
         {parts}
       </g>
@@ -1595,6 +1610,7 @@ function WaveMark({ x, y, faded }: { x: number; y: number; faded: boolean }) {
 }
 
 function MineMark({ x, y, faded }: { x: number; y: number; faded: boolean }) {
+  const { language } = useLanguage();
   const opacity = faded ? 0.3 : 0.92;
   const parts = (
     <>
@@ -1610,7 +1626,7 @@ function MineMark({ x, y, faded }: { x: number; y: number; faded: boolean }) {
       strokeLinecap="round"
       opacity={opacity}
     >
-      <title>Mine</title>
+      <title>{translateIn(language, 'worldMap', 'marker.mine')}</title>
       <g stroke="rgba(12, 12, 12, 0.8)" strokeWidth={0.4}>
         {parts}
       </g>
@@ -1622,6 +1638,7 @@ function MineMark({ x, y, faded }: { x: number; y: number; faded: boolean }) {
 }
 
 function PassMark({ x, y, faded }: { x: number; y: number; faded: boolean }) {
+  const { language } = useLanguage();
   const opacity = faded ? 0.3 : 0.9;
   const parts = <path d="M-0.7 0.45 L-0.28 -0.35 L0 -0.02 L0.28 -0.4 L0.7 0.45" />;
 
@@ -1634,7 +1651,7 @@ function PassMark({ x, y, faded }: { x: number; y: number; faded: boolean }) {
       strokeLinecap="round"
       opacity={opacity}
     >
-      <title>Pass</title>
+      <title>{translateIn(language, 'worldMap', 'marker.pass')}</title>
       <g stroke="rgba(12, 12, 12, 0.8)" strokeWidth={0.4}>
         {parts}
       </g>
@@ -1701,23 +1718,28 @@ function HouseGlyph({
   );
 }
 
-function houseHover(mark: HouseMark, world: World): string {
+function houseHover(mark: HouseMark, world: World, language: string): string {
   const town = mark.settlement.name;
   const realm = world.nameOf(mark.civId);
 
   if (mark.role === 'seat') {
-    return `Rules ${realm} from ${town}`;
+    return translateIn(language, 'worldMap', 'houseSeat', { realm, town });
   }
 
   if (mark.role === 'home') {
-    const living =
-      mark.living > 0
-        ? ` · ${mark.living} ${mark.living === 1 ? 'lives' : 'live'} here`
-        : '';
-    return `Rose at ${town}${living}`;
+    const livingKey = mark.living === 1 ? 'houseHomeLiving.one' : 'houseHomeLiving.other';
+    return translateIn(language, 'worldMap', mark.living > 0 ? livingKey : 'houseHome', {
+      town,
+      count: mark.living,
+    });
   }
 
-  return `${mark.living} of the house ${mark.living === 1 ? 'lives' : 'live'} at ${town}`;
+  return translateIn(
+    language,
+    'worldMap',
+    mark.living === 1 ? 'houseAtTown.one' : 'houseAtTown.other',
+    { count: mark.living, town },
+  );
 }
 
 function HouseKey({
@@ -1733,11 +1755,15 @@ function HouseKey({
   focus: EntityId | null;
   onFocus: (id: EntityId) => void;
 }) {
+  const { language } = useLanguage();
+  const tr = (key: string, values?: Readonly<Record<string, string | number | undefined>>) =>
+    translateIn(language, 'worldMap', key, values);
+
   return (
     <section>
-      <div className="he-label mb-2">Houses in {year}</div>
+      <div className="he-label mb-2">{tr('housesInYear', { year })}</div>
       {houses.length === 0 ? (
-        <p className="text-xs text-[var(--ink-faint)]">No house held a throne this year.</p>
+        <p className="text-xs text-[var(--ink-faint)]">{tr('noHouseOnThrone')}</p>
       ) : (
         <div className="flex flex-col gap-1 text-xs">
           {houses.map((entry) => (
@@ -1747,7 +1773,7 @@ function HouseKey({
               onClick={() => onFocus(entry.civId)}
               title={
                 entry.seat
-                  ? `${entry.house.name} rules from ${entry.seat.name}`
+                  ? tr('houseRulesFrom', { house: entry.house.name, town: entry.seat.name })
                   : entry.house.name
               }
               className={`inline-flex items-center gap-1.5 text-left hover:text-[var(--accent)] ${
@@ -1788,13 +1814,16 @@ function YearScrubber({
   onYear: (year: number) => void;
   onPlay: () => void;
 }) {
+  const { language } = useLanguage();
+  const tr = (key: string) => translateIn(language, 'worldMap', key);
+
   return (
     <div className="space-y-1.5">
       <div className="flex items-center gap-0.5">
         <button
           type="button"
-          title="Previous year"
-          aria-label="Previous year"
+          title={tr('previousYear')}
+          aria-label={tr('previousYear')}
           disabled={year <= startYear}
           onClick={() => onYear(year - 1)}
           className="inline-flex h-7 w-7 items-center justify-center rounded text-[var(--ink-soft)] hover:text-[var(--primary)] disabled:opacity-40"
@@ -1804,15 +1833,15 @@ function YearScrubber({
         <button
           type="button"
           onClick={onPlay}
-          title={playing ? 'Pause' : 'Play the history through'}
+          title={tr(playing ? 'pause' : 'play')}
           className="inline-flex h-7 min-w-7 items-center justify-center rounded px-1.5 text-xs text-[var(--ink-soft)] hover:text-[var(--primary)]"
         >
           {playing ? '❚❚' : '▶'}
         </button>
         <button
           type="button"
-          title="Next year"
-          aria-label="Next year"
+          title={tr('nextYear')}
+          aria-label={tr('nextYear')}
           disabled={year >= endYear}
           onClick={() => onYear(year + 1)}
           className="inline-flex h-7 w-7 items-center justify-center rounded text-[var(--ink-soft)] hover:text-[var(--primary)] disabled:opacity-40"
@@ -1820,7 +1849,7 @@ function YearScrubber({
           <IconChevronRight />
         </button>
         <div className="ml-1.5 min-w-0">
-          <div className="he-label">Year</div>
+          <div className="he-label">{tr('year')}</div>
           <div className="he-data text-lg leading-none">{year}</div>
         </div>
       </div>
@@ -1831,7 +1860,7 @@ function YearScrubber({
         value={year}
         onChange={(event) => onYear(Number(event.target.value))}
         className="w-full accent-[var(--accent)]"
-        aria-label="Year"
+        aria-label={tr('year')}
       />
     </div>
   );
@@ -1854,19 +1883,22 @@ function RealmKey({
   focus: EntityId | null;
   onFocus: (id: EntityId) => void;
 }) {
+  const { language } = useLanguage();
+  const tr = (key: string, values?: Readonly<Record<string, string | number | undefined>>) =>
+    translateIn(language, 'worldMap', key, values);
   const { timeline } = world;
 
   return (
     <section>
       <div className="mb-2 flex items-baseline justify-between">
-        <div className="he-label">Realms</div>
+        <div className="he-label">{tr('realms')}</div>
         {focus && (
           <button
             type="button"
             onClick={() => onFocus(focus)}
             className="text-xs text-[var(--ink-faint)] hover:text-[var(--accent)]"
           >
-            clear focus
+            {tr('clearFocus')}
           </button>
         )}
       </div>
@@ -1884,10 +1916,13 @@ function RealmKey({
               onClick={() => onFocus(civ.id)}
               title={
                 yet
-                  ? `Founded in ${civ.foundedYear}`
+                  ? tr('foundedIn', { year: civ.foundedYear })
                   : gone
-                    ? `Ended in ${civ.endedYear}`
-                    : `${extent} ${extent === 1 ? 'region' : 'regions'} in ${year}`
+                    ? tr('endedIn', { year: civ.endedYear ?? '' })
+                    : tr(extent === 1 ? 'regionInYear.one' : 'regionInYear.other', {
+                      count: extent,
+                      year,
+                    })
               }
               className={`inline-flex items-center gap-1.5 text-left ${
                 focus && focus !== civ.id ? 'opacity-45' : ''
@@ -1928,6 +1963,9 @@ function FaithKey({
   year: number;
   colours: Map<EntityId, string>;
 }) {
+  const { language } = useLanguage();
+  const tr = (key: string, values?: Readonly<Record<string, string | number | undefined>>) =>
+    translateIn(language, 'worldMap', key, values);
   const followed = world.export.religions
     .map((faith) => ({ faith, following: world.timeline.followingAt(faith.id, year) }))
     .filter((entry) => entry.following > 0)
@@ -1935,11 +1973,11 @@ function FaithKey({
 
   return (
     <section>
-      <div className="he-label mb-2">Faiths</div>
+      <div className="he-label mb-2">{tr('faiths')}</div>
 
       {followed.length === 0 ? (
         <p className="text-xs text-[var(--ink-faint)]">
-          Nothing was preached anywhere in the world this year.
+          {tr('noFaithPreached')}
         </p>
       ) : (
         <div className="flex flex-col gap-1 text-xs">
@@ -1965,6 +2003,9 @@ function FaithKey({
 
 /** What one realm was, in one year: who ruled it, what it held, what it was fighting. */
 function RealmCard({ world, civ, year }: { world: World; civ: Civilization; year: number }) {
+  const { language } = useLanguage();
+  const tr = (key: string, values?: Readonly<Record<string, string | number | undefined>>) =>
+    translateIn(language, 'worldMap', key, values);
   const { timeline } = world;
 
   const ruler = timeline.rulerAt(civ.id, year);
@@ -1977,7 +2018,7 @@ function RealmCard({ world, civ, year }: { world: World; civ: Civilization; year
   if (civ.foundedYear > year) {
     return (
       <p className="text-sm text-[var(--ink-faint)]">
-        Not yet founded — <EntityLink world={world} id={civ.id} /> rises in {civ.foundedYear}.
+        {tr('notYetFounded')} — <EntityLink world={world} id={civ.id} /> {tr('risesIn', { year: civ.foundedYear })}.
       </p>
     );
   }
@@ -1985,7 +2026,7 @@ function RealmCard({ world, civ, year }: { world: World; civ: Civilization; year
   if (civ.endedYear !== undefined && civ.endedYear < year) {
     return (
       <p className="text-sm text-[var(--ink-faint)]">
-        <EntityLink world={world} id={civ.id} /> ended in {civ.endedYear}.
+        <EntityLink world={world} id={civ.id} /> {tr('endedIn', { year: civ.endedYear ?? '' })}.
       </p>
     );
   }
@@ -1994,22 +2035,22 @@ function RealmCard({ world, civ, year }: { world: World; civ: Civilization; year
     <div className="space-y-2 text-sm">
       <div className="flex flex-wrap gap-x-6 gap-y-1">
         <span>
-          <span className="text-[var(--ink-faint)]">Ruler </span>
-          {ruler ? <EntityLink world={world} id={ruler} /> : <span>the throne stood empty</span>}
+          <span className="text-[var(--ink-faint)]">{tr('ruler')} </span>
+          {ruler ? <EntityLink world={world} id={ruler} /> : <span>{tr('emptyThrone')}</span>}
         </span>
         <span>
-          <span className="text-[var(--ink-faint)]">Seat </span>
+          <span className="text-[var(--ink-faint)]">{tr('seat')} </span>
           <EntityLink world={world} id={capital} />
         </span>
         <span className="tabular-nums">
-          <span className="text-[var(--ink-faint)]">Held </span>
-          {extent} {extent === 1 ? 'region' : 'regions'}
+          <span className="text-[var(--ink-faint)]">{tr('held')} </span>
+          {tr(extent === 1 ? 'regionCount.one' : 'regionCount.other', { count: extent })}
         </span>
       </div>
 
       {wars.length > 0 && (
         <div>
-          <span className="text-[var(--ink-faint)]">At war: </span>
+          <span className="text-[var(--ink-faint)]">{tr('atWar')} </span>
           {wars.map((war, index) => (
             <span key={war.id}>
               {index > 0 && ', '}
