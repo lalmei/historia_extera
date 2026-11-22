@@ -8,6 +8,9 @@ import {
   translationsIn,
 } from './i18n/translations.ts';
 import { getNarrationCoverage, getNarrationTemplates } from './i18n/narration.ts';
+import { localizedEpithet } from './i18n/lore.ts';
+import { narrateText } from './narrate.ts';
+import type { HistoryEvent } from './types.ts';
 
 test('language JSON files define the available language list', () => {
   assert.deepEqual(
@@ -197,4 +200,29 @@ test('narration is localized only when every template variant has a reference', 
     originalKinds: ['UnknownEvent'],
   });
   assert.equal(source.WorldCreated, english.WorldCreated);
+});
+
+test('bynames, their reasons and the season are told in French', () => {
+  const english = translationsIn('en', 'narration');
+  const templates = getNarrationTemplates(english, 'fr');
+  const name = (id: string) => `<${id}>`;
+
+  const epithet = {
+    year: 300, kind: 'EpithetEarned', subject: 'fig:1',
+    data: { epithet: 'the Bold', styled: 'Ada the Bold', reason: 'for three wars won and none lost' },
+  } as unknown as HistoryEvent;
+  assert.equal(
+    narrateText(epithet, templates, name, undefined, () => 'Female'),
+    'La postérité surnomme <fig:1> la Hardie, pour trois guerres gagnées sans aucune perdue.',
+  );
+  assert.equal(localizedEpithet('fr', 'the Bold', 'Male'), 'le Hardi');
+  assert.equal(localizedEpithet('en', 'the Bold', 'Male'), 'the Bold');
+  assert.equal(localizedEpithet('fr', 'the Unheard-Of', 'Male'), 'the Unheard-Of');
+
+  const plague = {
+    year: 300, kind: 'PlagueBegan', subject: 'set:1', data: { name: 'Grey Cough' },
+  } as unknown as HistoryEvent;
+  assert.equal(narrateText(plague, templates, name), 'L’épidémie Grey Cough éclate à <set:1>.');
+  plague.data = { name: 'Grey Cough', season: 'spring' };
+  assert.equal(narrateText(plague, templates, name), 'L’épidémie Grey Cough éclate à <set:1> au printemps.');
 });

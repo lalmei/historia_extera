@@ -1,6 +1,6 @@
 import { translateIn } from '../i18n/translations.ts';
 import { useLanguage } from '../i18n/LanguageProvider';
-import { loreLabel } from '../i18n/lore.ts';
+import { localizedEpithet, loreLabel } from '../i18n/lore.ts';
 import { useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import {
   buildConstellation,
@@ -267,7 +267,7 @@ export function FigureHero({
             {/* Given at the grave, so shown only once the page is read past it: at a year when
                 they still lived, the byname is a verdict nobody had reached yet. */}
             {figure.epithet && !standing.alive && (
-              <span className="text-[var(--ink-faint)]"> {figure.epithet}</span>
+              <span className="text-[var(--ink-faint)]"> {localizedEpithet(language, figure.epithet, figure.sex)}</span>
             )}
           </h1>
           <div className="mt-2.5 flex flex-wrap items-center gap-2 text-sm">

@@ -1,9 +1,27 @@
-import type { Figure } from '../types.ts';
+import type { Figure, Sex } from '../types.ts';
 import type { LifeContext, LifeStanding, StandingPart } from '../biography.ts';
 import { translateIn, type Language } from './translations.ts';
 
 export function loreLabel(language: Language | undefined, value: string): string {
   return translateIn(language, 'lore', value);
+}
+
+/**
+ * A byname from Epithets.Judge in French, agreed with the one who bore it. The catalogue holds
+ * `masculine|feminine`; an unknown sex takes the masculine, as the source's own register does.
+ * A byname the catalogue does not know is returned as written.
+ */
+export function frenchEpithet(epithet: string, sex: Sex | undefined): string {
+  const key = `epithet.${epithet}`;
+  const forms = translateIn('fr', 'narrationData', key);
+  if (forms === key) return epithet;
+  const [masculine, feminine = masculine] = forms.split('|');
+  return sex === 'Female' ? feminine : masculine;
+}
+
+/** The byname as the reader's language gives it. */
+export function localizedEpithet(language: Language | undefined, epithet: string, sex: Sex | undefined): string {
+  return language === 'fr' ? frenchEpithet(epithet, sex) : epithet;
 }
 
 export function frCount(value: number, singular: string, plural = `${singular}s`): string {
