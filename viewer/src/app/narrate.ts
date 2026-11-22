@@ -1,5 +1,6 @@
 import { kindOf, type EntityId, type HistoryEvent, type Sex } from './types.ts';
 import { translateIn } from './i18n/translations.ts';
+import { frenchEpithet } from './i18n/lore.ts';
 
 /**
  * Renders an event using the template the engine shipped for its kind.
@@ -447,7 +448,12 @@ function resolve(
   if (token.startsWith('frdata:')) {
     const key = token.slice(7);
     const value = event.data?.[key];
-    return value ? { type: 'text', text: frenchDataValue(key, value) } : null;
+    if (!value) return null;
+    // A byname agrees with the one who bore it, and that is always the subject.
+    if (key === 'epithet') {
+      return { type: 'text', text: frenchEpithet(value, event.subject ? sexOf?.(event.subject) : undefined) };
+    }
+    return { type: 'text', text: frenchDataValue(key, value) };
   }
 
   if (token.startsWith('data:')) {
@@ -601,6 +607,26 @@ function frenchDataValue(key: string, value: string): string {
     }
     const match = /^(\d+) years$/.exec(value);
     if (match) return translateIn('fr', 'narrationData', 'years.many', { count: match[1] });
+  }
+
+  if (key === 'reason') {
+    // Epithets.Judge writes a count into some reasons; the rest are fixed phrases below.
+    const counted: [RegExp, string][] = [
+      [/^for (\w+) wars won and none lost$/, 'warsWon'],
+      [/^for (\w+) wars lost and none won$/, 'warsLost'],
+      [/^for living to (\d+)$/, 'livingTo'],
+      [/^for a reign of (\d+) years$/, 'reignYears'],
+      [/^for (\d+) years without a war$/, 'peaceYears'],
+      [/^for (\w+) pilgrimages made$/, 'pilgrimages'],
+      [/^for (\d+) years holding to the old ways$/, 'oldWaysYears'],
+    ];
+    for (const [pattern, form] of counted) {
+      const match = pattern.exec(value);
+      if (!match) continue;
+      const word = translateIn('fr', 'narrationData', `number.${match[1]}`);
+      const count = word === `number.${match[1]}` ? match[1] : word;
+      return translateIn('fr', 'narrationData', `reason.${form}`, { count });
+    }
   }
 
   const translated = translateIn('fr', 'narrationData', `${key}.${value}`);
