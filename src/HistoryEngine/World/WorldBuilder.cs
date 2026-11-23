@@ -273,6 +273,12 @@ public static class WorldBuilder
         string? purpose = SiteCharacters.Purpose(site.Character);
         if (purpose is not null) data["purpose"] = purpose;
 
+        // And who went to do it. A founding party carries the crafts its purpose cannot do without
+        // (#253) — a mine camp brings its smiths and colliers — so the chronicle says what the
+        // place's first century started with, and a reader can see it before the trade is chosen.
+        string? crafts = CarriedCrafts(site.Character);
+        if (crafts is not null) data["crafts"] = crafts;
+
         world.Chronicle.Record(
             year,
             EventKind.SettlementFounded,
@@ -304,4 +310,17 @@ public static class WorldBuilder
         return settlement;
     }
 
+    /// <summary>"smiths and colliers": the companies a party sent for this purpose carries.</summary>
+    private static string? CarriedCrafts(SiteCharacter character)
+    {
+        Craft[] crafts = Specializations.RequiredCrafts(SiteCharacters.Intended(character));
+        if (crafts.Length == 0) return null;
+
+        var names = new List<string>(crafts.Length);
+        foreach (Craft craft in crafts) names.Add(Crafts.Company(craft).ToLowerInvariant());
+
+        return names.Count == 1
+            ? names[0]
+            : string.Join(", ", names.Take(names.Count - 1)) + " and " + names[^1];
+    }
 }

@@ -143,7 +143,7 @@ public sealed class SettlementHierarchyTests
         {
             settlement.Specialization = trade;
             return PopulationSystem.CapacityOf(
-                world, civilization, culture, settlement, region, harvest: 0.5, traffic, landShare: 1.0);
+                world, civilization, culture, settlement, region, harvest: 0.5, traffic, landShare: 1.0, craftShortfall: 0.0);
         }
 
         double isolatedMarket = Capacity(SettlementSpecialization.Trade, 0.0);
@@ -208,9 +208,9 @@ public sealed class SettlementHierarchyTests
             Region region = world.Regions[settlement.RegionId];
 
             double whole = PopulationSystem.CapacityOf(
-                world, civilization, culture, settlement, region, 0.5, 0.0, landShare: 1.0);
+                world, civilization, culture, settlement, region, 0.5, 0.0, landShare: 1.0, craftShortfall: 0.0);
             double contested = PopulationSystem.CapacityOf(
-                world, civilization, culture, settlement, region, 0.5, 0.0, landShare: 0.25);
+                world, civilization, culture, settlement, region, 0.5, 0.0, landShare: 0.25, craftShortfall: 0.0);
 
             Assert.True(
                 contested <= whole,

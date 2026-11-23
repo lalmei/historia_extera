@@ -368,7 +368,7 @@
     "CivilizationFounded": "Fondation de {subject}[, avec son siège à {location}].",
     "CivilizationFell": "Fin de {subject}[ après {frdata:years}][ ; cause : {frdata:cause}][, sous l’action de {object}].",
     "CapitalMoved": "{subject} déplace son siège de gouvernement à {location}.",
-    "SettlementFounded": "Fondation de {subject}[ par {object}].",
+    "SettlementFounded": "Fondation de {subject}[ par {object}][, avec {frdata:crafts} parmi les colons].",
     "SettlementPromoted": "{subject} prend de l’importance et atteint le statut suivant : {frdata:tier}[, avec environ {data:reckoned} habitants].",
     "SettlementPromoted.1": "{subject} accède au statut suivant : {frdata:tier}[, avec une population d’environ {data:reckoned} habitants].",
     "SettlementPromoted.2": "{subject} est désormais une localité de type {frdata:tier}[, comptant environ {data:reckoned} habitants].",
@@ -2155,6 +2155,12 @@
       "a village": "un village",
       "a town": "un bourg",
       "a city": "une ville"
+    },
+    "crafts": {
+      "smiths and colliers": "des forgerons et des charbonniers",
+      "smiths": "des forgerons",
+      "coopers": "des tonneliers",
+      "weavers": "des tisserands"
     },
     "title": {
       "King": "Roi",

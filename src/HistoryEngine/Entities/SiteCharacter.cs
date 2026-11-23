@@ -98,4 +98,17 @@ public static class SiteCharacters
         SiteCharacter.Mine => "to work the ore",
         _ => null,
     };
+
+    /// <summary>The trade a party sent for this purpose means to found, or none.</summary>
+    /// <remarks>
+    /// What the party carries follows from it (#253): a party sent for ore takes the crafts a mining
+    /// town cannot run without, because working the ore is what it was sent to do. Whether the place
+    /// can keep them is the supply's question, asked every year after — see
+    /// <see cref="Specializations.RequiredCrafts"/>.
+    /// </remarks>
+    public static SettlementSpecialization Intended(SiteCharacter character) => character switch
+    {
+        SiteCharacter.Mine => SettlementSpecialization.Mining,
+        _ => SettlementSpecialization.None,
+    };
 }

@@ -179,6 +179,68 @@ public static class Specializations
         _ => 0.25,
     };
 
+    /// <summary>
+    /// The crafts a trade cannot run without (#253).
+    /// </summary>
+    /// <remarks>
+    /// <para><b>A trade was free.</b> A settlement became a mining town because the ground scored
+    /// well, and the five curves above then paid out whether or not anyone there could sink a shaft
+    /// or work what came out of it. These are the people the trade stands on, stated beside the
+    /// curves that say what it yields.</para>
+    ///
+    /// <para><b>Held is read off the supply, not the roll of recorded figures.</b> A craft is held
+    /// where <see cref="World.Crafts.Supports"/> says the place could keep it — iron and fuel by
+    /// ground or road, wood for the burner, wool for the loom. Recorded guildsmen are far too thin
+    /// a sample to answer the question: most towns have no named smith and plainly had smiths.
+    /// So a trade loses its craftsmen the way a place actually lost them, when the road that fed
+    /// the forge closed or the woods were out of reach, and regains them when the road reopens.</para>
+    ///
+    /// <para><b>Only crafts with no tier floor.</b> Every craft here is one a village may hold, so a
+    /// shortfall is never just a village being a village. A shipwright and a wheelwright would
+    /// belong on the port's list, and both want a town; asking them of a trade that is chosen at
+    /// village tier would drag every port until it had already grown without them.</para>
+    ///
+    /// <para><b>Empty where adding one would make the wrong thing rarer.</b> Farming feeds itself,
+    /// and what it needs from a smith is mending rather than making. Herding and fishing are still
+    /// the rarest trades after the #275 rebalance — 23 and 48 of 859 settlements across the panel
+    /// at a thousand years — and a craft requirement on them would push them back toward the
+    /// absence that issue was about. A shrine stands on its pilgrims.</para>
+    /// </remarks>
+    public static Craft[] RequiredCrafts(SettlementSpecialization specialization) => specialization switch
+    {
+        // Sinking the shaft is the miners' own work; working what comes out of it is not. Ore leaves
+        // as bar, and bar needs a forge and the charcoal that feeds one.
+        SettlementSpecialization.Mining => MiningCrafts,
+
+        // A market moves goods in casks. The port's shipwright wants a town, see above.
+        SettlementSpecialization.Trade => TradeCrafts,
+
+        // A craft town is a cloth town before it is anything else: the weaver is the commonest
+        // guild in every world, and the one the dyer and fuller wait on.
+        SettlementSpecialization.Crafts => CraftCrafts,
+
+        // A garrison is fed by the road, but it is armed by the forge.
+        SettlementSpecialization.Military => MilitaryCrafts,
+
+        _ => Array.Empty<Craft>(),
+    };
+
+    private static readonly Craft[] MiningCrafts = { Craft.Smith, Craft.CharcoalBurner };
+    private static readonly Craft[] TradeCrafts = { Craft.Cooper };
+    private static readonly Craft[] CraftCrafts = { Craft.Weaver };
+    private static readonly Craft[] MilitaryCrafts = { Craft.Smith };
+
+    /// <summary>
+    /// The share of a trade's own yield lost when none of its required crafts can be held.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>A drag, not a veto.</b> A quarry town whose masons died does not stop being a quarry
+    /// town; it stops working well. So a shortfall scales the two terms the trade earns —
+    /// <see cref="SiteCapacity"/> and <see cref="ImportReliance"/> — and never the land, which
+    /// feeds the place whatever it is known for. A town missing half its crafts loses half this.</para>
+    /// </remarks>
+    public const double CraftShortfallPenalty = 0.40;
+
     public static string Label(SettlementSpecialization specialization) => specialization switch
     {
         SettlementSpecialization.Farming => "farming",
