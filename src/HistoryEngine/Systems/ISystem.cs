@@ -27,6 +27,17 @@ public enum Cadence
 
     /// <summary>Only when woken by the docket, so a system with nothing running costs nothing.</summary>
     Episodic = 2,
+
+    /// <summary>
+    /// Once a year, in its last season, for work that has to know what the whole year did.
+    /// </summary>
+    /// <remarks>
+    /// Distinct from <see cref="Annual"/> only in which step it runs in. An annual system in the
+    /// opening season cannot see what the seasonal systems do in the three steps after it — a
+    /// march levied in autumn is not yet on anybody's record in spring — so a question about the
+    /// year as it ended has to be asked at its end.
+    /// </remarks>
+    Closing = 3,
 }
 
 /// <summary>

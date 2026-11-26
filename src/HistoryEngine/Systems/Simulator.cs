@@ -299,14 +299,18 @@ public sealed class Simulator
     /// world in the order it always saw it, at the step it always ran in, and cannot tell that
     /// three more steps happen after it.</para>
     ///
+    /// <para>A closing system is the mirror image: once a year, in the last season, so what it
+    /// reads is the year as the seasonal systems left it.</para>
+    ///
     /// <para>An episodic system is never run by the clock at all. It is woken by the docket, and a
     /// system with nothing scheduled costs nothing — the property that makes the day affordable
     /// without ever being iterated.</para>
     /// </remarks>
-    private static bool RunsIn(Cadence cadence, int season) => cadence switch
+    private static bool RunsIn(Cadence cadence, int season, int seasons) => cadence switch
     {
         Cadence.Annual => season == 0,
         Cadence.Seasonal => true,
+        Cadence.Closing => season == seasons - 1,
         _ => false,
     };
 
@@ -374,7 +378,7 @@ public sealed class Simulator
 
             for (int i = 0; i < _systems.Count; i++)
             {
-                if (!RunsIn(_systems[i].Cadence, season)) continue;
+                if (!RunsIn(_systems[i].Cadence, season, calendar.SeasonsPerYear)) continue;
 
                 world.Chronicle.EnterSystem(i);
                 _systems[i].Tick(world, now);

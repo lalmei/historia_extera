@@ -100,28 +100,33 @@ public static class Hardships
     }
 
     /// <summary>
-    /// Resolves every episode recorded this year, once the year's journeys are known.
+    /// Resolves every episode recorded so far, once the year's journeys are known.
     /// </summary>
     /// <remarks>
-    /// Drained in the order the episodes were recorded, which is the order the systems that write
-    /// them run in. Each episode's dice hang off its own settlement, year and family rather than
-    /// off its position in this list, so a famine recorded before a sack cannot change what the
-    /// sack did.
+    /// <para>Drained in the order the episodes were recorded, which is the order the systems that
+    /// write them run in. Each episode's dice hang off its own settlement, year and family rather
+    /// than off its position in this list, so a famine recorded before a sack cannot change what
+    /// the sack did.</para>
+    ///
+    /// <para><b>Each episode keeps the year it was recorded in.</b> Something written after the
+    /// closing pass — a sack resolved off the docket in the last days of the year — is drained by
+    /// the next year's pass, and belongs to the year it happened in rather than the one that
+    /// happened to find it.</para>
     /// </remarks>
-    public static void ResolveYear(WorldState world, int year)
+    public static void ResolveYear(WorldState world)
     {
         foreach (PendingHardship pending in world.PendingHardships)
         {
             if (!world.Settlements.Contains(pending.SettlementId)) continue;
-            Endure(world, world.Settlements[pending.SettlementId], pending, year);
+            Endure(world, world.Settlements[pending.SettlementId], pending);
         }
 
         world.PendingHardships.Clear();
     }
 
-    private static void Endure(
-        WorldState world, Settlement settlement, PendingHardship pending, int year)
+    private static void Endure(WorldState world, Settlement settlement, PendingHardship pending)
     {
+        int year = pending.Year;
         HardshipKind kind = pending.Kind;
         double severity = pending.Severity;
         EventKind source = pending.Source;
