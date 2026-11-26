@@ -121,7 +121,7 @@ Names, order, and cadence are part of the run identity. The current default orde
 | 12 | `trade-routes` | annual | route opening, traffic, closure, and road construction |
 | 13 | `cultural-drift` | annual | move realm baselines through contact and pressure |
 | 14 | `travel` | annual | journeys, returns, mishaps, and residence changes |
-| 15 | `hardship` | annual | memories of famine, plague, sacks, and disasters |
+| 15 | `hardship` | closing | the year's famine, plague, sack, and disaster consequences, once its marches are known |
 | 16 | `figure-incidents` | annual | personal wounds, quarrels, plots, and undertakings |
 | 17 | `figure-lifecycle` | annual | aging and biological mortality |
 | 18 | `succession` | annual | fill vacant thrones |

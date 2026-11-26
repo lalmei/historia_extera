@@ -239,15 +239,22 @@ public sealed class CadenceTests
     /// and circulates only in the opening season, and its later ticks exist solely so that an owner
     /// killed by a season-scheduled death has their estate settled inside the year they died in
     /// rather than in the next one — or, in the final year of a run, never.</para>
+    ///
+    /// <para>Hardship left the opening season for the other end of the year: it asks who was
+    /// away when the year closed, which a spring pass cannot know while the war still has three
+    /// seasons of marches to levy.</para>
     /// </remarks>
     [Fact]
     public void OnlyWarExpansionAndArtifactsHaveLeftTheYear()
     {
         foreach (ISystem system in Simulator.DefaultSystems())
         {
-            Cadence expected = system.Name is "war" or "expansion" or "artifacts"
-                ? Cadence.Seasonal
-                : Cadence.Annual;
+            Cadence expected = system.Name switch
+            {
+                "war" or "expansion" or "artifacts" => Cadence.Seasonal,
+                "hardship" => Cadence.Closing,
+                _ => Cadence.Annual,
+            };
 
             Assert.Equal(expected, system.Cadence);
         }
